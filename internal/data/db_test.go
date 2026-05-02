@@ -77,3 +77,76 @@ func TestClose_NilDB(t *testing.T) {
 		t.Errorf("expected no error for nil DB, got %v", err)
 	}
 }
+
+func TestCleanWALFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	// Create the main DB file
+	f, err := os.Create(dbPath)
+	if err != nil {
+		t.Fatalf("create db file: %v", err)
+	}
+	f.Close()
+
+	// Create empty WAL and SHM files (simulating a crash)
+	walPath := dbPath + "-wal"
+	shmPath := dbPath + "-shm"
+	os.Create(walPath)
+	os.Create(shmPath)
+
+	// Verify they exist
+	if _, err := os.Stat(walPath); os.IsNotExist(err) {
+		t.Fatal("WAL file should exist before cleanup")
+	}
+	if _, err := os.Stat(shmPath); os.IsNotExist(err) {
+		t.Fatal("SHM file should exist before cleanup")
+	}
+
+	// Clean up
+	cleanWALFiles(dbPath)
+
+	// Verify they're gone
+	if _, err := os.Stat(walPath); !os.IsNotExist(err) {
+		t.Error("WAL file should be removed after cleanup")
+	}
+	if _, err := os.Stat(shmPath); !os.IsNotExist(err) {
+		t.Error("SHM file should be removed after cleanup")
+	}
+}
+
+func TestCleanWALFiles_NonEmptyKept(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	// Create main DB and non-empty WAL
+	os.Create(dbPath)
+	f, _ := os.Create(dbPath + "-wal")
+	f.Write([]byte("data"))
+	f.Close()
+
+	// Non-empty WAL should NOT be removed
+	cleanWALFiles(dbPath)
+
+	if _, err := os.Stat(dbPath + "-wal"); os.IsNotExist(err) {
+		t.Error("non-empty WAL file should be kept")
+	}
+}
+
+func TestOpen_CreatesDirectory(t *testing.T) {
+	logger := slog.Default()
+
+	tmpDir := t.TempDir()
+	nestedPath := filepath.Join(tmpDir, "sub", "dir", "test.db")
+
+	db, err := Open(nestedPath, logger)
+	if err != nil {
+		t.Fatalf("open db with nested path: %v", err)
+	}
+	defer Close(db)
+
+	// Verify the directory was created
+	if _, err := os.Stat(filepath.Dir(nestedPath)); os.IsNotExist(err) {
+		t.Error("directory should have been created")
+	}
+}
