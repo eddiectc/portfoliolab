@@ -1,24 +1,24 @@
 -- name: CreatePortfolio :one
 INSERT INTO portfolios (name, currency, created_at, updated_at)
-VALUES ($1, $2, $3, $4)
+VALUES (?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetPortfolio :one
-SELECT * FROM portfolios WHERE id = $1;
+SELECT * FROM portfolios WHERE id = ?;
 
 -- name: ListPortfolios :many
 SELECT * FROM portfolios
 ORDER BY created_at DESC
-LIMIT $1 OFFSET $2;
+LIMIT ? OFFSET ?;
 
 -- name: UpdatePortfolio :one
 UPDATE portfolios
-SET name = $2, currency = $3, updated_at = $4
-WHERE id = $1
+SET name = ?, currency = ?, updated_at = ?
+WHERE id = ?
 RETURNING *;
 
--- name: DeletePortfolio :exec
-DELETE FROM portfolios WHERE id = $1;
+-- name: DeletePortfolio :execrows
+DELETE FROM portfolios WHERE id = ?;
 
 -- name: GetPortfolioByName :one
-SELECT * FROM portfolios WHERE name = $1;
+SELECT * FROM portfolios WHERE name = ?;

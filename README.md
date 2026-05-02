@@ -108,6 +108,15 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 | **Build** | Makefile | Simple build targets |
 | **Deployment** | Docker (optional) + binary | Run directly or containerized |
 
+## Required Tools
+
+| Tool | Install |
+|---|---|
+| **Go** (1.21+) | https://go.dev/doc/install |
+| **sqlc** | `go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest` |
+| **goose** | `go install github.com/pressly/goose/v3/cmd/goose@latest` |
+| **mockery** | `go install github.com/vektra/mockery/v3@v3.7.0` |
+
 ## Project Layout
 
 ```
