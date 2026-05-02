@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -13,6 +14,7 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/api/middleware"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/data"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
 
 // Router builds and returns the application HTTP router.
@@ -32,11 +34,32 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	// Portfolio CRUD
+	// Static files
+	r.Mount("/static", web.StaticHandler("internal/web/static"))
+
+	// Portfolio CRUD (API)
 	portfolioRepo := data.NewPortfolioRepository(db)
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 	portfolioHandler := handlers.NewPortfolioHandler(portfolioSvc)
 	portfolioHandler.RegisterRoutes(r)
+
+	// Portfolio web pages
+	renderer, err := web.NewRenderer("templates")
+	if err != nil {
+		logger.Warn("failed to load templates, web pages unavailable", "error", err)
+		// Fall back: check if templates dir exists relative to cwd
+		if _, statErr := os.Stat("templates"); statErr != nil {
+			logger.Warn("templates directory not found", "path", "templates")
+		}
+	} else {
+		portfolioWebHandler := handlers.NewPortfolioWebHandler(portfolioSvc, renderer)
+		portfolioWebHandler.RegisterRoutes(r)
+
+		// Root redirect
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/portfolios", http.StatusSeeOther)
+		})
+	}
 
 	return r
 }

@@ -1,0 +1,38 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>{{.Portfolio.Name}}</h1>
+    <div class="header-actions">
+        <a href="/portfolios/{{.Portfolio.ID}}/edit" class="btn btn-sm">Edit</a>
+        <a href="/portfolios" class="btn btn-sm">Back to List</a>
+    </div>
+</div>
+
+<dl class="detail">
+    <dt>ID</dt>
+    <dd>{{.Portfolio.ID}}</dd>
+
+    <dt>Name</dt>
+    <dd>{{.Portfolio.Name}}</dd>
+
+    <dt>Base Currency</dt>
+    <dd>{{.Portfolio.Currency}}</dd>
+
+    <dt>Created</dt>
+    <dd>{{.Portfolio.CreatedAt}}</dd>
+
+    <dt>Last Updated</dt>
+    <dd>{{.Portfolio.UpdatedAt}}</dd>
+</dl>
+
+<div class="section">
+    <h2>Accounts</h2>
+    <p class="empty-state">No accounts added yet. (Coming soon)</p>
+</div>
+
+<div class="section">
+    <h2>Transactions</h2>
+    <p class="empty-state">No transactions recorded yet. (Coming soon)</p>
+</div>
+{{end}}
+
+{{template "base" .}}
