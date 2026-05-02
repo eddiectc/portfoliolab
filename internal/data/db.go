@@ -22,10 +22,13 @@ func Open(path string, logger *slog.Logger) (*sql.DB, error) {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	// Enable WAL mode for better concurrent read performance
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("enable WAL mode: %w", err)
+	// Enable WAL mode for better concurrent read performance.
+	// (:memory: databases don't support WAL — they use "memory" journal mode.)
+	if path != ":memory:" {
+		if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("enable WAL mode: %w", err)
+		}
 	}
 
 	// Enable foreign key support
@@ -34,13 +37,13 @@ func Open(path string, logger *slog.Logger) (*sql.DB, error) {
 		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
 
-	// Verify WAL mode was enabled
+	// Verify journal mode
 	var journalMode string
 	if err := db.QueryRow("PRAGMA journal_mode").Scan(&journalMode); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("check journal mode: %w", err)
 	}
-	if journalMode != "wal" {
+	if path != ":memory:" && journalMode != "wal" {
 		db.Close()
 		return nil, fmt.Errorf("expected WAL mode, got %s", journalMode)
 	}
