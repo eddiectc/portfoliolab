@@ -1,0 +1,26 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} — Portfolio Lab</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    {{template "nav" .}}
+
+    <main class="container">
+        {{if .Flash}}
+        <div class="alert alert-success">{{.Flash}}</div>
+        {{end}}
+
+        {{template "content" .}}
+    </main>
+
+    <footer class="container">
+        <p>Arch Portfolio Lab</p>
+    </footer>
+</body>
+</html>
+{{end}}
