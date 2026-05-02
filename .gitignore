@@ -13,6 +13,9 @@ portfoliolab.exe
 # Config (local overrides)
 config/config.yaml
 
+# Agent
+.pi/
+
 # IDE
 .idea/
 .vscode/
