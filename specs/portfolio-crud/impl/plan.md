@@ -1,5 +1,5 @@
 ---
-feature: Project Skeleton + Portfolio CRUD
+feature: portfolio-crud
 tech-stack: Go, SQLite (modernc.org/sqlite), sqlc, goose, chi, html/template
 tasks: 4
 ---

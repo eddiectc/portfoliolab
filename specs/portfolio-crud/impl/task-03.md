@@ -1,6 +1,6 @@
 ---
 task: 03
-feature: Project Skeleton + Portfolio CRUD
+feature: portfolio-crud
 depends-on: [02]
 status: pending
 ---
