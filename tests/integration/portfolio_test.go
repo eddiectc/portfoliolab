@@ -20,7 +20,7 @@ import (
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	// Use anonymous in-memory DB for test isolation (no shared cache)
-	db, err := sql.Open("sqlite", "file::memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}

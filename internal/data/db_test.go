@@ -2,13 +2,15 @@ package data
 
 import (
 	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestOpen_InMemory(t *testing.T) {
 	logger := slog.Default()
 
-	db, err := Open("file:test_inmem::memory:?cache=shared", logger)
+	db, err := Open(":memory:", logger)
 	if err != nil {
 		t.Fatalf("open in-memory db: %v", err)
 	}
@@ -28,11 +30,16 @@ func TestOpen_InMemory(t *testing.T) {
 func TestOpen_WALMode(t *testing.T) {
 	logger := slog.Default()
 
-	db, err := Open("file:test_wal_mode::memory:?cache=shared", logger)
+	// WAL mode is not supported on :memory: databases; use a temp file.
+	tmpDir := t.TempDir()
+	tmpPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Open(tmpPath, logger)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	defer Close(db)
+	defer os.Remove(tmpPath)
 
 	var journalMode string
 	err = db.QueryRow("PRAGMA journal_mode").Scan(&journalMode)
@@ -47,7 +54,7 @@ func TestOpen_WALMode(t *testing.T) {
 func TestOpen_ForeignKeys(t *testing.T) {
 	logger := slog.Default()
 
-	db, err := Open("file:test_fk::memory:?cache=shared", logger)
+	db, err := Open(":memory:", logger)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
