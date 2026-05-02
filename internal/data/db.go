@@ -4,15 +4,38 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 	_ "modernc.org/sqlite/lib"
 )
 
+// cleanWALFiles removes stale WAL/SHM files that can remain after a
+// hard kill (SIGKILL) or crash, which would cause the next WAL mode
+// enable to fail with "disk I/O error (522)".
+func cleanWALFiles(path string) {
+	for _, suffix := range []string{"-wal", "-shm"} {
+		walPath := path + suffix
+		if info, err := os.Stat(walPath); err == nil && info.Size() == 0 {
+			os.Remove(walPath)
+		}
+	}
+}
+
 // Open opens a SQLite database connection at the given path.
 // It enables WAL mode and sets reasonable connection pool settings
 // for a single-user workload.
 func Open(path string, logger *slog.Logger) (*sql.DB, error) {
+	// Ensure the database directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("create database directory %s: %w", dir, err)
+	}
+
+	// Clean up stale WAL/SHM files from a previous crash
+	cleanWALFiles(path)
+
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite database %s: %w", path, err)
