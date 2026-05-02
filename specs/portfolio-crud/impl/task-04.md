@@ -1,8 +1,8 @@
 ---
 task: 04
-feature: Project Skeleton + Portfolio CRUD
+feature: portfolio-crud
 depends-on: [03]
-status: pending
+status: done
 ---
 # Task 04: Portfolio Web UI (Server-Rendered Pages)
 
