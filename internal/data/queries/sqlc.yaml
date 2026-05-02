@@ -1,0 +1,27 @@
+version: 2
+sql:
+  - schema: "../../migrations"
+    queries: "."
+    engine:
+      dialect: sqlite
+      schema: sqlite
+    gen:
+      go:
+        package: "queries"
+        out: "."
+        sql_package: "sqlite"
+        emit_db_tags: true
+        emit_prepared_queries: false
+        emit_interface: false
+        emit_exact_table_names: false
+        emit_empty_slices: true
+        emit_result_and_query_handlers: false
+        emit_methods_with_db_argument: true
+        emit_explicit_none: false
+        emit_params_struct_pointers: false
+        emit_result_struct_pointers: false
+        emit_enum_valid_types: false
+        emit_all_enums_json_tag: false
+        json_tags_case_style: "snake"
+        optimize_middlewares: false
+        skip_template_backup: true

@@ -1,0 +1,12 @@
+# Arch Portfolio Lab Configuration
+# Copy to config/config.yaml and adjust as needed
+
+server:
+  port: 8080
+  host: "0.0.0.0"
+
+database:
+  path: "data/portfoliolab.db"
+
+log:
+  level: "info"  # debug, info, warn, error

@@ -1,0 +1,35 @@
+# Binaries
+/bin/
+portfoliolab
+portfoliolab.exe
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+/data/
+
+# Config (local overrides)
+config/config.yaml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# sqlc generated (commit these, but exclude during dev)
+# Actually, commit sqlc output — it's generated code
+
+# Test coverage
+coverage.out
+coverage.html
+
+# Temporary files
+*.tmp
