@@ -284,6 +284,17 @@ footer {
     margin-bottom: 0.5rem;
 }
 
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    margin-bottom: 0;
+}
+
 /* Empty state */
 .empty-state {
     color: #666;

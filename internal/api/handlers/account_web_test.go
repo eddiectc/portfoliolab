@@ -245,8 +245,8 @@ func TestAccountHandleCreatePage_ValidSubmission(t *testing.T) {
 	}
 
 	location := resp.Header.Get("Location")
-	if location != "/accounts" {
-		t.Errorf("expected redirect to /accounts, got %q", location)
+	if location != "/portfolios/2" {
+		t.Errorf("expected redirect to /portfolios/2, got %q", location)
 	}
 }
 
@@ -407,8 +407,7 @@ func TestAccountHandleEditPage_RendersCompleteForm(t *testing.T) {
 	checkContains(t, "title", "Edit Account")
 	checkContains(t, "name input", `id="name"`)
 	checkContains(t, "pre-filled name", `value="Vanguard"`)
-	checkContains(t, "portfolio select", `id="portfolio_id"`)
-	checkContains(t, "selected portfolio", `selected`)
+	checkContains(t, "portfolio hidden input", `name="portfolio_id"`)
 	checkContains(t, "submit button", `type="submit"`)
 	checkContains(t, "submit text", "Save Changes")
 	checkContains(t, "closing form", "</form>")
