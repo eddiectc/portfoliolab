@@ -60,7 +60,7 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 			logger.Warn("templates directory not found", "path", "templates")
 		}
 	} else {
-		portfolioWebHandler := handlers.NewPortfolioWebHandler(portfolioSvc, renderer)
+		portfolioWebHandler := handlers.NewPortfolioWebHandler(portfolioSvc, accountSvc, renderer)
 		portfolioWebHandler.RegisterRoutes(r)
 
 		// Account web pages

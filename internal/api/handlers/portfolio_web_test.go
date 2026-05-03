@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
@@ -266,8 +267,10 @@ func newTestWebHandler(t *testing.T) *PortfolioWebHandler {
 	t.Helper()
 	repo := newMockRepo()
 	svc := portfolio.NewService(repo)
+	accountRepo := newMockAccountRepo()
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	renderer := newTestRenderer(t)
-	return NewPortfolioWebHandler(svc, renderer)
+	return NewPortfolioWebHandler(svc, accountSvc, renderer)
 }
 
 // TestHandleNewPage_RendersCompleteForm verifies that GET /portfolios/new
@@ -401,8 +404,10 @@ func TestHandleCreatePage_InvalidCurrency(t *testing.T) {
 func TestHandleCreatePage_DuplicateName(t *testing.T) {
 	repo := newMockRepo()
 	svc := portfolio.NewService(repo)
+	accountRepo := newMockAccountRepo()
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, renderer)
+	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
 
 	// Pre-create a portfolio
 	svc.Create(nil, portfolio.CreateRequest{Name: "Existing", Currency: "USD"})
@@ -430,8 +435,10 @@ func TestHandleCreatePage_DuplicateName(t *testing.T) {
 func TestHandleEditPage_RendersCompleteForm(t *testing.T) {
 	repo := newMockRepo()
 	svc := portfolio.NewService(repo)
+	accountRepo := newMockAccountRepo()
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, renderer)
+	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
 
 	// Create a portfolio to edit
 	_, _ = svc.Create(nil, portfolio.CreateRequest{Name: "My Portfolio", Currency: "CHF"})
@@ -504,8 +511,10 @@ func TestHandleListPage_RendersCompletePage(t *testing.T) {
 func TestHandleListPage_WithPortfolios(t *testing.T) {
 	repo := newMockRepo()
 	svc := portfolio.NewService(repo)
+	accountRepo := newMockAccountRepo()
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, renderer)
+	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
 
 	svc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
@@ -527,8 +536,10 @@ func TestHandleListPage_WithPortfolios(t *testing.T) {
 func TestHandleDetailPage_RendersCompletePage(t *testing.T) {
 	repo := newMockRepo()
 	svc := portfolio.NewService(repo)
+	accountRepo := newMockAccountRepo()
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, renderer)
+	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
 
 	_, _ = svc.Create(nil, portfolio.CreateRequest{Name: "Detail Test", Currency: "JPY"})
 

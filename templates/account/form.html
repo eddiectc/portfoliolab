@@ -14,16 +14,20 @@
         <small>1-100 characters, must be globally unique</small>
     </div>
 
+    {{if .SelectedPortfolioID}}
+    <input type="hidden" name="portfolio_id" value="{{.SelectedPortfolioID}}">
+    {{else}}
     <div class="form-group">
         <label for="portfolio_id">Portfolio</label>
         <select id="portfolio_id" name="portfolio_id" required>
             <option value="">-- Select Portfolio --</option>
             {{range .Portfolios}}
-            <option value="{{.ID}}" {{if eq .ID $.SelectedPortfolioID}}selected{{end}}>{{.Name}}</option>
+            <option value="{{.ID}}">{{.Name}}</option>
             {{end}}
         </select>
         <small>Choose the portfolio this account belongs to</small>
     </div>
+    {{end}}
 
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">{{.SubmitText}}</button>

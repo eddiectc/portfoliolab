@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
@@ -46,15 +47,17 @@ func newPortfolioFormPageData(pd web.PageData, action, submitText, cancelHref st
 
 // PortfolioWebHandler handles server-rendered portfolio pages.
 type PortfolioWebHandler struct {
-	service *portfolio.Service
-	renderer *web.Renderer
+	service        *portfolio.Service
+	accountService *account.Service
+	renderer       *web.Renderer
 }
 
 // NewPortfolioWebHandler creates a new portfolio web handler.
-func NewPortfolioWebHandler(service *portfolio.Service, renderer *web.Renderer) *PortfolioWebHandler {
+func NewPortfolioWebHandler(service *portfolio.Service, accountService *account.Service, renderer *web.Renderer) *PortfolioWebHandler {
 	return &PortfolioWebHandler{
-		service:  service,
-		renderer: renderer,
+		service:        service,
+		accountService: accountService,
+		renderer:       renderer,
 	}
 }
 
@@ -166,12 +169,37 @@ func (h *PortfolioWebHandler) HandleDetailPage(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	accounts, err := h.accountService.ListByPortfolio(r.Context(), p.ID, 0, 0)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	if accounts == nil {
+		accounts = []account.Account{}
+	}
+
+	type accountRow struct {
+		ID        int64
+		Name      string
+		CreatedAt string
+	}
+	rows := make([]accountRow, len(accounts))
+	for i, a := range accounts {
+		rows[i] = accountRow{
+			ID:        a.ID,
+			Name:      a.Name,
+			CreatedAt: formatTime(a.CreatedAt),
+		}
+	}
+
 	data := struct {
 		web.PageData
 		Portfolio portfolioDetail
+		Accounts  []accountRow
 	}{
 		PageData: web.PageData{
 			Title: p.Name,
+			Flash: getFlash(r),
 		},
 		Portfolio: portfolioDetail{
 			ID:        p.ID,
@@ -180,6 +208,7 @@ func (h *PortfolioWebHandler) HandleDetailPage(w http.ResponseWriter, r *http.Re
 			CreatedAt: formatTime(p.CreatedAt),
 			UpdatedAt: formatTime(p.UpdatedAt),
 		},
+		Accounts: rows,
 	}
 
 	if err := h.renderer.Render(w, "portfolio/detail", data); err != nil {

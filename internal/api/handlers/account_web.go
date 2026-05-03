@@ -162,6 +162,7 @@ func (h *AccountWebHandler) HandleListPage(w http.ResponseWriter, r *http.Reques
 }
 
 // HandleNewPage renders GET /accounts/new.
+// Supports ?portfolio_id=X to pre-select a portfolio.
 func (h *AccountWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request) {
 	portfolios, err := h.portfolioSvc.List(r.Context(), 0, 0)
 	if err != nil {
@@ -172,9 +173,14 @@ func (h *AccountWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request
 		portfolios = []portfolio.Portfolio{}
 	}
 
+	selectedID := int64(0)
+	if pid := r.URL.Query().Get("portfolio_id"); pid != "" {
+		selectedID, _ = strconv.ParseInt(pid, 10, 64)
+	}
+
 	data := newAccountFormPageData(web.PageData{
 		Title: "New Account",
-	}, portfolios, 0, "/accounts", "Create Account", "/accounts")
+	}, portfolios, selectedID, "/accounts", "Create Account", "/accounts")
 
 	if err := h.renderer.Render(w, "account/form", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -214,7 +220,7 @@ func (h *AccountWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Requ
 	}
 
 	setFlash(w, "Account \""+a.Name+"\" created successfully")
-	http.Redirect(w, r, "/accounts", http.StatusSeeOther)
+	http.Redirect(w, r, "/portfolios/"+strconv.FormatInt(a.PortfolioID, 10), http.StatusSeeOther)
 }
 
 // HandleDetailPage renders GET /accounts/{id}.
