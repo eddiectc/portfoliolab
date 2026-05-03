@@ -146,14 +146,17 @@ func parseID(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }
 
+const defaultLimit = 50
+
 func parsePagination(query url.Values) (int, int) {
-	limit := 0
+	limit := defaultLimit
 	offset := 0
 
 	if v := query.Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			limit = n
 		}
+		// n == 0 or negative → keep default
 	}
 	if v := query.Get("offset"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {

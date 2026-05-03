@@ -103,6 +103,8 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Por
 		return nil, fmt.Errorf("get portfolio for update: %w", err)
 	}
 
+	changed := false
+
 	if req.Name != nil {
 		if err := validateName(*req.Name); err != nil {
 			return nil, ErrInvalidName
@@ -113,6 +115,7 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Por
 			return nil, ErrNameExists
 		}
 		p.Name = *req.Name
+		changed = true
 	}
 
 	if req.Currency != nil {
@@ -120,9 +123,12 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Por
 			return nil, ErrInvalidCurrency
 		}
 		p.Currency = *req.Currency
+		changed = true
 	}
 
-	p.UpdatedAt = time.Now()
+	if changed {
+		p.UpdatedAt = time.Now()
+	}
 
 	if err := s.repo.Update(ctx, p); err != nil {
 		return nil, fmt.Errorf("update portfolio: %w", err)

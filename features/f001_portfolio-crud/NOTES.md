@@ -6,8 +6,11 @@
 - 2026-05-02: Chi route ordering: specific routes registered before catch-all routes (e.g., `POST /portfolios/{id}/delete` before `POST /portfolios`).
 
 ## Deviations from Plan
-- **List with `limit=0`**: Spec says defaults to 50; implementation returns all results. The `parsePagination` function treats `n <= 0` as "use default (0 = no LIMIT clause)". This is a minor deviation — the behavior is more permissive (returns all) rather than capped at 50.
-- **Update with no changes**: Spec says timestamps should be unchanged; implementation always refreshes `updated_at` in the service layer. The web handler detects no-changes before calling the service, but the API handler passes through unconditionally. Minor deviation — timestamps are always refreshed on API updates.
+- None (both deviations below were fixed on 2026-05-03).
+
+## Fixes
+- **2026-05-03: List with `limit=0`** — Fixed `parsePagination` to default to 50 when limit is missing, 0, or negative. Previously returned all results.
+- **2026-05-03: Update with no changes** — Fixed `Service.Update` to track whether any field changed and only refresh `updated_at` when at least one field was modified. Previously always refreshed the timestamp.
 
 ## Future Improvements
 - Run `sqlc generate` when sqlc is installed to get type-safe query generation
