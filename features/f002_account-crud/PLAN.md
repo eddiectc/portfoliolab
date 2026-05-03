@@ -87,21 +87,21 @@ Task 1 → Task 2 → Task 3 → Task 4
 **Description:** Server-rendered HTML pages, nav update, router wiring, cascade delete wiring, and integration tests.
 
 - [x] Update `internal/api/handlers/portfolio_web.go` — in `HandleDetailPage`, replace "No accounts added yet" placeholder with a link to `/accounts?portfolio_id={id}` or show accounts list
-- [x] Create `templates/account/list.html` — accounts table with columns: Name, Portfolio, Created, Actions (Edit/Delete). Show empty state when none.
-- [x] Create `templates/account/form.html` — form with Name input and Portfolio dropdown (select from existing portfolios). Follow portfolio/form.html pattern.
-- [x] Create `templates/account/detail.html` — account detail with name, portfolio link, timestamps. Follow portfolio/detail.html pattern.
+- [x] ~~Create `templates/account/list.html`~~ — **Removed**: no standalone accounts list page; accounts are managed from the portfolio detail page
+- [x] Create `templates/account/form.html` — form with Name input only; portfolio is pre-selected via hidden field (no dropdown). ~~Originally had Portfolio dropdown.~~
+- [x] Create `templates/account/detail.html` — account detail with name, portfolio link, timestamps. "Back to Portfolio" link (not "Back to List").
 - [x] Create `internal/api/handlers/account_web.go` — `AccountWebHandler` with web CRUD pages
-  - `GET /accounts` — list page (with optional `?portfolio_id=` filter)
-  - `GET /accounts/new` — new account form (portfolio dropdown)
-  - `POST /accounts` — create from form
+  - ~~`GET /accounts` — list page~~ — **Removed**: no standalone list page
+  - `GET /accounts/new?portfolio_id=X` — new account form (requires portfolio_id, redirects to /portfolios if missing)
+  - `POST /accounts` — create from form, redirects to `/portfolios/{id}`
   - `GET /accounts/{id}` — detail page
   - `GET /accounts/{id}/edit` — edit form (pre-filled)
   - `POST /accounts/{id}/edit` — update from form
-  - `POST /accounts/{id}/delete` — delete with confirmation
+  - `POST /accounts/{id}/delete` — delete, redirects to `/portfolios/{portfolioID}`
   - `userFriendlyError` for account-specific errors
 - [x] Create `internal/api/handlers/account_web_test.go` — web handler tests (form rendering, create redirect, error re-render)
 - [x] Update `internal/api/router.go` — wire account repo → service → handlers; register routes
-- [x] Update `templates/partials/nav.html` — change `<a href="#" class="disabled">Accounts</a>` to `<a href="/accounts">Accounts</a>`
+- [x] ~~Update `templates/partials/nav.html`~~ — **Skipped**: nav has no Accounts link (accounts managed from portfolio pages)
 - [x] Update portfolio delete cascade: ensure `PRAGMA foreign_keys = ON` is set in `internal/data/db.go` (verify it already is)
 - [x] Create `tests/integration/account_test.go` — end-to-end integration tests against in-memory SQLite
   - Create + Get account
@@ -125,10 +125,13 @@ Task 1 → Task 2 → Task 3 → Task 4
 | FK cascade | SQLite `ON DELETE CASCADE` on `portfolio_id` | Simple, reliable; SQLite handles it natively with `PRAGMA foreign_keys = ON` |
 | List by portfolio | Separate `ListByPortfolio` on service + `GetByPortfolio` on repo | Clean separation; matches spec scenario; efficient indexed query |
 | No-changes update | Web handler detects no diff → empty `UpdateRequest`; service skips timestamp update if no fields provided | Follows portfolio pattern; preserves `updated_at` when nothing changed |
-| Account detail page | Shows portfolio as a link to `/portfolios/{id}` | Consistent with portfolio detail showing related entities |
+| Account detail page | Shows portfolio as a link to `/portfolios/{id}`; "Back" links to portfolio | Consistent with portfolio detail showing related entities |
 | Package name | `account` (singular) | Follows `portfolio` convention (singular domain package names) |
 | Error codes | `ACCOUNT_NOT_FOUND`, `ACCOUNT_NAME_EXISTS`, `INVALID_NAME`, `PORTFOLIO_NOT_FOUND` | Matches spec exactly |
 | Pagination | Reuse `parsePagination` from portfolio handler | Shared utility; consistent behavior |
+| No standalone accounts list | Accounts managed from portfolio detail page only | Reinforces parent-child hierarchy; no redundant UI surface |
+| No portfolio dropdown on form | Portfolio pre-selected via `?portfolio_id=X` query param | Simpler form; portfolio context is always established by the link that got you there |
+| Delete redirects to portfolio | `POST /accounts/{id}/delete` → `/portfolios/{portfolioID}` | User stays in the portfolio context after deleting an account |
 
 ## Risks
 
