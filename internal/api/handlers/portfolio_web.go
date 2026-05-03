@@ -20,6 +20,30 @@ var commonCurrencies = []string{
 	"INR", "KRW", "SGD", "HKD", "MXN", "BRL", "ZAR",
 }
 
+// portfolioFormPageData is the shared data struct for the portfolio form template.
+// All handlers that render portfolio/form must use this struct to ensure all
+// template fields are present and prevent "can't evaluate field" panics.
+type portfolioFormPageData struct {
+	web.PageData
+	Name            string
+	SelectedCurrency string
+	Currencies      []string
+	Action          string
+	SubmitText      string
+	CancelHref      string
+}
+
+// newPortfolioFormPageData creates a portfolioFormPageData with common defaults.
+func newPortfolioFormPageData(pd web.PageData, action, submitText, cancelHref string) *portfolioFormPageData {
+	return &portfolioFormPageData{
+		PageData:         pd,
+		Currencies:       commonCurrencies,
+		Action:           action,
+		SubmitText:       submitText,
+		CancelHref:       cancelHref,
+	}
+}
+
 // PortfolioWebHandler handles server-rendered portfolio pages.
 type PortfolioWebHandler struct {
 	service *portfolio.Service
@@ -71,28 +95,22 @@ func (h *PortfolioWebHandler) HandleListPage(w http.ResponseWriter, r *http.Requ
 		data.Portfolios = []portfolio.Portfolio{}
 	}
 
-	h.renderer.Render(w, "portfolio/list", data)
+	if err := h.renderer.Render(w, "portfolio/list", data); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // HandleNewPage renders GET /portfolios/new.
 func (h *PortfolioWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request) {
-	data := struct {
-		web.PageData
-		Action         string
-		Currencies     []string
-		SubmitText     string
-		CancelHref     string
-	}{
-		PageData: web.PageData{
-			Title: "New Portfolio",
-		},
-		Action:       "/portfolios",
-		Currencies:   commonCurrencies,
-		SubmitText:   "Create Portfolio",
-		CancelHref:   "/portfolios",
-	}
+	data := newPortfolioFormPageData(web.PageData{
+		Title: "New Portfolio",
+	}, "/portfolios", "Create Portfolio", "/portfolios")
 
-	h.renderer.Render(w, "portfolio/form", data)
+	if err := h.renderer.Render(w, "portfolio/form", data); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // HandleCreatePage handles POST /portfolios (form submission).
@@ -107,27 +125,17 @@ func (h *PortfolioWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Re
 
 	p, err := h.service.Create(r.Context(), req)
 	if err != nil {
-		data := struct {
-			web.PageData
-			Name           string
-			SelectedCurrency string
-			Currencies     []string
-			Action         string
-			SubmitText     string
-			CancelHref     string
-		}{
-			PageData: web.PageData{
-				Title: "New Portfolio",
-				Error: userFriendlyError(err),
-			},
-			Name:           name,
-			SelectedCurrency: currency,
-			Currencies:     commonCurrencies,
-			Action:         "/portfolios",
-			SubmitText:     "Create Portfolio",
-			CancelHref:     "/portfolios",
+		data := newPortfolioFormPageData(web.PageData{
+			Title: "New Portfolio",
+			Error: userFriendlyError(err),
+		}, "/portfolios", "Create Portfolio", "/portfolios")
+		data.Name = name
+		data.SelectedCurrency = currency
+
+		if renderErr := h.renderer.Render(w, "portfolio/form", data); renderErr != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
 		}
-		h.renderer.Render(w, "portfolio/form", data)
 		return
 	}
 
@@ -174,7 +182,10 @@ func (h *PortfolioWebHandler) HandleDetailPage(w http.ResponseWriter, r *http.Re
 		},
 	}
 
-	h.renderer.Render(w, "portfolio/detail", data)
+	if err := h.renderer.Render(w, "portfolio/detail", data); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // HandleEditPage renders GET /portfolios/{id}/edit.
@@ -191,27 +202,18 @@ func (h *PortfolioWebHandler) HandleEditPage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	data := struct {
-		web.PageData
-		Name           string
-		SelectedCurrency string
-		Currencies     []string
-		Action         string
-		SubmitText     string
-		CancelHref     string
-	}{
-		PageData: web.PageData{
-			Title: "Edit Portfolio",
-		},
-		Name:           p.Name,
-		SelectedCurrency: p.Currency,
-		Currencies:     commonCurrencies,
-		Action:         "/portfolios/" + strconv.FormatInt(id, 10) + "/edit",
-		SubmitText:     "Save Changes",
-		CancelHref:     "/portfolios/" + strconv.FormatInt(id, 10),
-	}
+	editAction := "/portfolios/" + strconv.FormatInt(id, 10) + "/edit"
+	cancelHref := "/portfolios/" + strconv.FormatInt(id, 10)
+	data := newPortfolioFormPageData(web.PageData{
+		Title: "Edit Portfolio",
+	}, editAction, "Save Changes", cancelHref)
+	data.Name = p.Name
+	data.SelectedCurrency = p.Currency
 
-	h.renderer.Render(w, "portfolio/form", data)
+	if err := h.renderer.Render(w, "portfolio/form", data); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // HandleUpdatePage handles POST /portfolios/{id}/edit.
@@ -243,27 +245,19 @@ func (h *PortfolioWebHandler) HandleUpdatePage(w http.ResponseWriter, r *http.Re
 
 	p, err := h.service.Update(r.Context(), id, req)
 	if err != nil {
-		data := struct {
-			web.PageData
-			Name           string
-			SelectedCurrency string
-			Currencies     []string
-			Action         string
-			SubmitText     string
-			CancelHref     string
-		}{
-			PageData: web.PageData{
-				Title: "Edit Portfolio",
-				Error: userFriendlyError(err),
-			},
-			Name:           name,
-			SelectedCurrency: currency,
-			Currencies:     commonCurrencies,
-			Action:         "/portfolios/" + strconv.FormatInt(id, 10) + "/edit",
-			SubmitText:     "Save Changes",
-			CancelHref:     "/portfolios/" + strconv.FormatInt(id, 10),
+		editAction := "/portfolios/" + strconv.FormatInt(id, 10) + "/edit"
+		cancelHref := "/portfolios/" + strconv.FormatInt(id, 10)
+		data := newPortfolioFormPageData(web.PageData{
+			Title: "Edit Portfolio",
+			Error: userFriendlyError(err),
+		}, editAction, "Save Changes", cancelHref)
+		data.Name = name
+		data.SelectedCurrency = currency
+
+		if renderErr := h.renderer.Render(w, "portfolio/form", data); renderErr != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
 		}
-		h.renderer.Render(w, "portfolio/form", data)
 		return
 	}
 
