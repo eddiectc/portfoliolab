@@ -10,6 +10,7 @@
 ## Lessons Learned
 - Go templates are case-sensitive on field names — `FilterPortfolioId` vs `FilterPortfolioID` caused a silent template execution failure. The error only surfaced at runtime during `ExecuteTemplate`.
 - Embedded structs in template data can cause issues; flat display structs with explicit fields are more reliable.
+- **Service-layer defaults are essential for pagination**: web handlers call `service.List(ctx, 0, 0)` for unpaginated listings, which passed `LIMIT 0` to SQLite returning zero rows. The fix defaults `limit=0` to 50 at the service layer so all callers are protected. Mock repos now simulate real `LIMIT 0` behavior to catch regressions.
 
 ## Deviations from Plan
 - None yet.
