@@ -35,6 +35,8 @@ var ErrInvalidName = fmt.Errorf("invalid account name")
 // ErrPortfolioNotFound indicates the referenced portfolio does not exist.
 var ErrPortfolioNotFound = fmt.Errorf("portfolio not found")
 
+const defaultLimit = 50
+
 // Service handles account business logic.
 type Service struct {
 	repo    Repository
@@ -88,9 +90,10 @@ func (s *Service) Get(ctx context.Context, id int64) (*Account, error) {
 }
 
 // List retrieves all accounts with pagination.
+// A limit of 0 (or negative) defaults to defaultLimit (50).
 func (s *Service) List(ctx context.Context, limit, offset int) ([]Account, error) {
-	if limit < 0 {
-		limit = 0
+	if limit <= 0 {
+		limit = defaultLimit
 	}
 	if offset < 0 {
 		offset = 0
@@ -104,9 +107,10 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]Account, error
 }
 
 // ListByPortfolio retrieves accounts for a specific portfolio with pagination.
+// A limit of 0 (or negative) defaults to defaultLimit (50).
 func (s *Service) ListByPortfolio(ctx context.Context, portfolioID int64, limit, offset int) ([]Account, error) {
-	if limit < 0 {
-		limit = 0
+	if limit <= 0 {
+		limit = defaultLimit
 	}
 	if offset < 0 {
 		offset = 0

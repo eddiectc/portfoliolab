@@ -29,6 +29,8 @@ var ErrInvalidName = fmt.Errorf("invalid portfolio name")
 // ErrInvalidCurrency indicates the currency code is invalid.
 var ErrInvalidCurrency = fmt.Errorf("invalid currency code")
 
+const defaultLimit = 50
+
 // Service handles portfolio business logic.
 type Service struct {
 	repo Repository
@@ -81,9 +83,10 @@ func (s *Service) Get(ctx context.Context, id int64) (*Portfolio, error) {
 }
 
 // List retrieves all portfolios with pagination.
+// A limit of 0 (or negative) defaults to defaultLimit (50).
 func (s *Service) List(ctx context.Context, limit, offset int) ([]Portfolio, error) {
-	if limit < 0 {
-		limit = 0
+	if limit <= 0 {
+		limit = defaultLimit
 	}
 	if offset < 0 {
 		offset = 0

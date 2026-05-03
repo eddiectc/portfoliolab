@@ -110,7 +110,11 @@ func (m *mockRepo) GetByPortfolio(_ context.Context, portfolioID int64, limit, o
 		}
 		result = result[offset:]
 	}
-	if limit > 0 && limit < len(result) {
+	// Simulate SQL LIMIT 0 → empty result (catches service-layer bugs)
+	if limit == 0 {
+		return []Account{}, nil
+	}
+	if limit < len(result) {
 		result = result[:limit]
 	}
 	return result, nil
