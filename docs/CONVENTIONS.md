@@ -30,7 +30,7 @@
 
 ## Testing
 - **Co-locate tests**: `calculator_test.go` next to `calculator.go`
-- **Mock all external deps**: Define interfaces for repos and fetchers; generate mocks with `mockery` (hand-written for now)
+- **Mock all external deps**: Define interfaces for repos and fetchers; generate mocks with `mockery`
 - **Table-driven tests**: Use `[]struct{name, input, want}` for comprehensive coverage
 - **Arrange-Act-Assert**: Clear separation; no setup in the act phase
 - **No DB, no network**: Unit tests run fast and deterministically
@@ -50,6 +50,7 @@
 - Enable WAL mode: `PRAGMA journal_mode=WAL`
 - Use `BIGINT` for monetary amounts (stored in minor units)
 - For integration tests, use `file::memory:?cache=shared` for in-memory SQLite
+- Timestamps: `modernc.org/sqlite` stores datetime as TEXT and doesn't scan into `time.Time`. sqlc generates `string` for timestamp columns; the repo layer converts with `parseTime()` (handles RFC3339 and SQLite format) and formats with `.Format(time.RFC3339)` on write.
 
 ## API Design
 - Consistent error responses: `{"error": "message", "code": "ERROR_CODE"}`
