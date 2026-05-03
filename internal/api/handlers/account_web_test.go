@@ -120,76 +120,38 @@ func newAccountWebHandler(t *testing.T) (*AccountWebHandler, *mockAccountRepo) {
 	return NewAccountWebHandler(accountSvc, portfolioSvc, renderer), accountRepo
 }
 
-// TestAccountHandleListPage_RendersCompletePage verifies GET /accounts renders properly.
-func TestAccountHandleListPage_RendersCompletePage(t *testing.T) {
+// TestAccountHandleNewPage_RedirectsWithoutPortfolioID verifies GET /accounts/new
+// without portfolio_id redirects to /portfolios.
+func TestAccountHandleNewPage_RedirectsWithoutPortfolioID(t *testing.T) {
 	handler, _ := newAccountWebHandler(t)
-	r := httptest.NewRequest(http.MethodGet, "/accounts", nil)
+	r := httptest.NewRequest(http.MethodGet, "/accounts/new", nil)
 	w := httptest.NewRecorder()
 
-	handler.HandleListPage(w, r)
+	handler.HandleNewPage(w, r)
 
 	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected redirect, got %d", resp.StatusCode)
 	}
-
-	body := w.Body.String()
-
-	if !strings.Contains(body, "<!DOCTYPE html>") {
-		t.Error("missing DOCTYPE")
-	}
-	if !strings.Contains(body, "Accounts") {
-		t.Error("missing title")
-	}
-	if !strings.Contains(body, "New Account") {
-		t.Error("missing 'New Account' link")
-	}
-	if !strings.Contains(body, "</html>") {
-		t.Error("missing closing html tag")
+	location := resp.Header.Get("Location")
+	if location != "/portfolios" {
+		t.Errorf("expected redirect to /portfolios, got %q", location)
 	}
 }
 
-// TestAccountHandleListPage_WithAccounts shows created accounts in the list.
-func TestAccountHandleListPage_WithAccounts(t *testing.T) {
-	accountRepo := newMockAccountRepo()
-	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-
-	portfolioRepo := newMockRepo()
-	portfolioSvc := portfolio.NewService(portfolioRepo)
-	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
-
-	renderer := newTestRenderer(t)
-	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
-
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 2})
-
-	r := httptest.NewRequest(http.MethodGet, "/accounts", nil)
-	w := httptest.NewRecorder()
-
-	handler.HandleListPage(w, r)
-
-	body := w.Body.String()
-	if !strings.Contains(body, "IBKR") {
-		t.Error("expected account name in list")
-	}
-	if !strings.Contains(body, "Main") {
-		t.Error("expected portfolio name in list")
-	}
-}
-
-// TestAccountHandleNewPage_RendersCompleteForm verifies GET /accounts/new renders a complete form.
+// TestAccountHandleNewPage_RendersCompleteForm verifies GET /accounts/new?portfolio_id=X
+// renders a complete form with pre-selected portfolio.
 func TestAccountHandleNewPage_RendersCompleteForm(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
 	portfolioRepo := newMockRepo()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
-	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
 
-	r := httptest.NewRequest(http.MethodGet, "/accounts/new", nil)
+	r := httptest.NewRequest(http.MethodGet, "/accounts/new?portfolio_id=5", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleNewPage(w, r)
@@ -208,16 +170,24 @@ func TestAccountHandleNewPage_RendersCompleteForm(t *testing.T) {
 		}
 	}
 
+	checkNotContains := func(t *testing.T, label, text string) {
+		t.Helper()
+		if strings.Contains(body, text) {
+			t.Errorf("page should not contain %s: %q", label, text)
+		}
+	}
+
 	checkContains(t, "title", "New Account")
 	checkContains(t, "form tag", `<form action="/accounts" method="POST"`)
 	checkContains(t, "name input", `id="name"`)
-	checkContains(t, "portfolio select", `id="portfolio_id"`)
-	checkContains(t, "portfolio option", `value="2"`)
+	checkContains(t, "portfolio hidden input", `name="portfolio_id"`)
+	checkContains(t, "portfolio hidden value", `value="5"`)
 	checkContains(t, "submit button", `type="submit"`)
 	checkContains(t, "submit text", "Create Account")
-	checkContains(t, "cancel link", `href="/accounts"`)
+	checkContains(t, "cancel link", `href="/portfolios/5"`)
 	checkContains(t, "closing form", "</form>")
 	checkContains(t, "closing html", "</html>")
+	checkNotContains(t, "portfolio select", `<select`)
 }
 
 // TestAccountHandleCreatePage_ValidSubmission creates an account via form and verifies redirect.
@@ -414,7 +384,8 @@ func TestAccountHandleEditPage_RendersCompleteForm(t *testing.T) {
 	checkContains(t, "closing html", "</html>")
 }
 
-// TestAccountHandleDeletePage_Success verifies POST /accounts/{id}/delete redirects.
+// TestAccountHandleDeletePage_Success verifies POST /accounts/{id}/delete
+// redirects to the account's portfolio page.
 func TestAccountHandleDeletePage_Success(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
@@ -441,8 +412,8 @@ func TestAccountHandleDeletePage_Success(t *testing.T) {
 	}
 
 	location := resp.Header.Get("Location")
-	if location != "/accounts" {
-		t.Errorf("expected redirect to /accounts, got %q", location)
+	if location != "/portfolios/1" {
+		t.Errorf("expected redirect to /portfolios/1, got %q", location)
 	}
 }
 

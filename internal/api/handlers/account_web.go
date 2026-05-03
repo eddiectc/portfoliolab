@@ -15,23 +15,21 @@ import (
 // accountFormPageData is the shared data struct for the account form template.
 type accountFormPageData struct {
 	web.PageData
-	Name               string
-	Portfolios         []portfolio.Portfolio
-	SelectedPortfolioID int64
-	Action             string
-	SubmitText         string
-	CancelHref         string
+	Name            string
+	PortfolioID     int64
+	Action          string
+	SubmitText      string
+	CancelHref      string
 }
 
 // newAccountFormPageData creates an accountFormPageData with common defaults.
-func newAccountFormPageData(pd web.PageData, portfolios []portfolio.Portfolio, selectedID int64, action, submitText, cancelHref string) *accountFormPageData {
+func newAccountFormPageData(pd web.PageData, portfolioID int64, action, submitText, cancelHref string) *accountFormPageData {
 	return &accountFormPageData{
-		PageData:            pd,
-		Portfolios:          portfolios,
-		SelectedPortfolioID: selectedID,
-		Action:              action,
-		SubmitText:          submitText,
-		CancelHref:          cancelHref,
+		PageData:    pd,
+		PortfolioID: portfolioID,
+		Action:      action,
+		SubmitText:  submitText,
+		CancelHref:  cancelHref,
 	}
 }
 
@@ -70,117 +68,30 @@ func (h *AccountWebHandler) RegisterRoutes(r *chi.Mux) {
 	r.Get("/accounts/{id}/edit", h.HandleEditPage)
 	r.Get("/accounts/{id}", h.HandleDetailPage)
 	r.Get("/accounts/new", h.HandleNewPage)
-	// Catch-all routes last
+	// Catch-all route last
 	r.Post("/accounts", h.HandleCreatePage)
-	r.Get("/accounts", h.HandleListPage)
 }
 
-// HandleListPage renders GET /accounts.
-func (h *AccountWebHandler) HandleListPage(w http.ResponseWriter, r *http.Request) {
-	portfolios, err := h.portfolioSvc.List(r.Context(), 0, 0)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-	portfolioMap := make(map[int64]string, len(portfolios))
-	for _, p := range portfolios {
-		portfolioMap[p.ID] = p.Name
-	}
-
-	// Check for optional portfolio filter
-	filterPortfolioID := r.URL.Query().Get("portfolio_id")
-	var accounts []account.Account
-	var filterName string
-
-	if filterPortfolioID != "" {
-		if pid, err := strconv.ParseInt(filterPortfolioID, 10, 64); err == nil {
-			fa, err := h.accountService.ListByPortfolio(r.Context(), pid, 0, 0)
-			if err != nil {
-				http.Error(w, "internal server error", http.StatusInternalServerError)
-				return
-			}
-			accounts = fa
-			filterName = portfolioMap[pid]
-		}
-	} else {
-		var err error
-		accounts, err = h.accountService.List(r.Context(), 0, 0)
-		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	if accounts == nil {
-		accounts = []account.Account{}
-	}
-
-	// Enrich accounts with portfolio names
-	type accountRow struct {
-		ID              int64
-		Name            string
-		PortfolioID     int64
-		PortfolioName   string
-		CreatedAt       string
-	}
-	rows := make([]accountRow, len(accounts))
-	for i, a := range accounts {
-		rows[i] = accountRow{
-			ID:              a.ID,
-			Name:            a.Name,
-			PortfolioID:     a.PortfolioID,
-			PortfolioName:   portfolioMap[a.PortfolioID],
-			CreatedAt:       formatTime(a.CreatedAt),
-		}
-	}
-
-	data := struct {
-		web.PageData
-		Accounts            []accountRow
-		FilterPortfolioID   int64
-		FilterPortfolioName string
-	}{
-		PageData: web.PageData{
-			Title: "Accounts",
-			Flash: getFlash(r),
-		},
-		Accounts:            rows,
-		FilterPortfolioID:   0,
-		FilterPortfolioName: filterName,
-	}
-
-	if filterPortfolioID != "" {
-		if pid, err := strconv.ParseInt(filterPortfolioID, 10, 64); err == nil {
-			data.FilterPortfolioID = pid
-		}
-	}
-
-	if err := h.renderer.Render(w, "account/list", data); err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
-// HandleNewPage renders GET /accounts/new.
-// Supports ?portfolio_id=X to pre-select a portfolio.
+// HandleNewPage renders GET /accounts/new?portfolio_id=X.
+// Requires portfolio_id query parameter; redirects to /portfolios if missing.
 func (h *AccountWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request) {
-	portfolios, err := h.portfolioSvc.List(r.Context(), 0, 0)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+	portfolioIDStr := r.URL.Query().Get("portfolio_id")
+	if portfolioIDStr == "" {
+		http.Redirect(w, r, "/portfolios", http.StatusSeeOther)
 		return
 	}
-	if portfolios == nil {
-		portfolios = []portfolio.Portfolio{}
+
+	portfolioID, err := strconv.ParseInt(portfolioIDStr, 10, 64)
+	if err != nil || portfolioID == 0 {
+		http.Redirect(w, r, "/portfolios", http.StatusSeeOther)
+		return
 	}
 
-	selectedID := int64(0)
-	if pid := r.URL.Query().Get("portfolio_id"); pid != "" {
-		selectedID, _ = strconv.ParseInt(pid, 10, 64)
-	}
+	cancelHref := "/portfolios/" + strconv.FormatInt(portfolioID, 10)
 
 	data := newAccountFormPageData(web.PageData{
 		Title: "New Account",
-	}, portfolios, selectedID, "/accounts", "Create Account", "/accounts")
+	}, portfolioID, "/accounts", "Create Account", cancelHref)
 
 	if err := h.renderer.Render(w, "account/form", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -193,23 +104,19 @@ func (h *AccountWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Requ
 	name := r.FormValue("name")
 	portfolioID, _ := strconv.ParseInt(r.FormValue("portfolio_id"), 10, 64)
 
-	portfolios, err := h.portfolioSvc.List(r.Context(), 0, 0)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	req := account.CreateRequest{
 		Name:        name,
 		PortfolioID: portfolioID,
 	}
+
+	cancelHref := "/portfolios/" + strconv.FormatInt(portfolioID, 10)
 
 	a, err := h.accountService.Create(r.Context(), req)
 	if err != nil {
 		data := newAccountFormPageData(web.PageData{
 			Title: "New Account",
 			Error: accountUserFriendlyError(err),
-		}, portfolios, portfolioID, "/accounts", "Create Account", "/accounts")
+		}, portfolioID, "/accounts", "Create Account", cancelHref)
 		data.Name = name
 
 		if renderErr := h.renderer.Render(w, "account/form", data); renderErr != nil {
@@ -284,17 +191,11 @@ func (h *AccountWebHandler) HandleEditPage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	portfolios, err := h.portfolioSvc.List(r.Context(), 0, 0)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	editAction := "/accounts/" + strconv.FormatInt(id, 10) + "/edit"
 	cancelHref := "/accounts/" + strconv.FormatInt(id, 10)
 	data := newAccountFormPageData(web.PageData{
 		Title: "Edit Account",
-	}, portfolios, a.PortfolioID, editAction, "Save Changes", cancelHref)
+	}, a.PortfolioID, editAction, "Save Changes", cancelHref)
 	data.Name = a.Name
 
 	if err := h.renderer.Render(w, "account/form", data); err != nil {
@@ -330,12 +231,6 @@ func (h *AccountWebHandler) HandleUpdatePage(w http.ResponseWriter, r *http.Requ
 		req.PortfolioID = &portfolioID
 	}
 
-	portfolios, err := h.portfolioSvc.List(r.Context(), 0, 0)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	a, err := h.accountService.Update(r.Context(), id, req)
 	if err != nil {
 		editAction := "/accounts/" + strconv.FormatInt(id, 10) + "/edit"
@@ -343,7 +238,7 @@ func (h *AccountWebHandler) HandleUpdatePage(w http.ResponseWriter, r *http.Requ
 		data := newAccountFormPageData(web.PageData{
 			Title: "Edit Account",
 			Error: accountUserFriendlyError(err),
-		}, portfolios, portfolioID, editAction, "Save Changes", cancelHref)
+		}, portfolioID, editAction, "Save Changes", cancelHref)
 		data.Name = name
 
 		if renderErr := h.renderer.Render(w, "account/form", data); renderErr != nil {
@@ -358,8 +253,15 @@ func (h *AccountWebHandler) HandleUpdatePage(w http.ResponseWriter, r *http.Requ
 }
 
 // HandleDeletePage handles POST /accounts/{id}/delete.
+// Redirects back to the account's portfolio page.
 func (h *AccountWebHandler) HandleDeletePage(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	a, err := h.accountService.Get(r.Context(), id)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -371,7 +273,7 @@ func (h *AccountWebHandler) HandleDeletePage(w http.ResponseWriter, r *http.Requ
 	}
 
 	setFlash(w, "Account deleted successfully")
-	http.Redirect(w, r, "/accounts", http.StatusSeeOther)
+	http.Redirect(w, r, "/portfolios/"+strconv.FormatInt(a.PortfolioID, 10), http.StatusSeeOther)
 }
 
 // accountUserFriendlyError returns a user-friendly message from an account service error.
