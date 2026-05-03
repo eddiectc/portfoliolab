@@ -357,6 +357,26 @@ func TestService_Delete(t *testing.T) {
 	}
 }
 
+func TestService_Update_NoChanges(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	originalTime := time.Now()
+	repo.portfolios[1] = &Portfolio{ID: 1, Name: "Stable", Currency: "USD", UpdatedAt: originalTime}
+	repo.names["Stable"] = 1
+
+	// Update with no fields provided
+	p, err := svc.Update(context.Background(), 1, UpdateRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.Name != "Stable" {
+		t.Errorf("expected name 'Stable', got %q", p.Name)
+	}
+	if p.UpdatedAt != originalTime {
+		t.Errorf("expected unchanged updated_at, got %v (was %v)", p.UpdatedAt, originalTime)
+	}
+}
+
 func strPtr(s string) *string {
 	return &s
 }

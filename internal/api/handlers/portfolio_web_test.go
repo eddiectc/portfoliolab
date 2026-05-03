@@ -184,13 +184,13 @@ func TestParsePagination(t *testing.T) {
 		wantLimit  int
 		wantOffset int
 	}{
-		{"no params", "", 0, 0},
+		{"no params", "", 50, 0},
 		{"limit only", "limit=10", 10, 0},
-		{"offset only", "offset=5", 0, 5},
+		{"offset only", "offset=5", 50, 5},
 		{"both", "limit=10&offset=5", 10, 5},
-		{"zero limit defaults", "limit=0", 0, 0},
-		{"negative offset defaults", "offset=-1", 0, 0},
-		{"non-numeric ignored", "limit=abc&offset=xyz", 0, 0},
+		{"zero limit defaults", "limit=0", 50, 0},
+		{"negative offset defaults", "offset=-1", 50, 0},
+		{"non-numeric ignored", "limit=abc&offset=xyz", 50, 0},
 	}
 
 	for _, tt := range tests {
