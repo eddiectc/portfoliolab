@@ -74,14 +74,27 @@ goimports -w .
 golangci-lint run
 ```
 
-## Workflow
+## Agile Workflow
 
-1. **Use the agile workflow** for structured development
-2. **Follow phases**: brainstorm → spec → bdd → impl-plan → implement → verify → retrospective
-3. **One task at a time** during implementation
-4. **Flag spec drift** before deviating from the implementation plan
-5. **Write tests alongside implementation** — not after
-6. **Keep changes minimal and focused** — one concern per PR/commit
+Features live in `features/<id>_<name>/` with `SPEC.md`, `PLAN.md`, `NOTES.md`.
+Project docs: `docs/PROJECT.md`, `docs/CONVENTIONS.md`.
+Feature index: `features/README.md`.
+
+### Workflow Phases
+1. **Setup project** (`/setup-project`) — analyze codebase, create docs/features structure
+2. **Write spec** (`/write-spec <name>`) — BDD feature spec, user reviews before proceeding
+3. **Review spec** (`/review-spec <name>`) — check quality, completeness, edge cases
+4. **Plan implementation** (`/plan-impl <name>`) — break into small, testable tasks, user reviews
+5. **Implement** — execute tasks one at a time, update checkboxes in PLAN.md
+6. **Retrospective** (`/retro <name>`) — review spec vs reality, document learnings
+
+### Principles
+- **One task at a time** — each task is independently testable
+- **Follow existing patterns** before introducing new approaches
+- **Write tests alongside implementation** — not after
+- **Flag spec drift** before deviating from the plan; document in NOTES.md
+- **Ask for clarification** on ambiguous requirements
+- **Keep changes minimal and focused** — one concern per PR/commit
 
 ## Best Practices
 
