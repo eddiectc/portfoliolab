@@ -1,7 +1,8 @@
 # Notes: Portfolio CRUD
 
 ## Decisions
-- 2026-05-02: Repositories written by hand instead of sqlc-generated — sqlc not installed on this machine. sqlc config and query files are in `internal/data/queries/` ready for when sqlc becomes available.
+- 2026-05-02: Repositories written by hand instead of sqlc-generated — sqlc was not installed on this machine at the time.
+- 2026-05-03: `sqlc` and `mockery` are now installed. Migrated `PortfolioRepository` to delegate to sqlc-generated queries in `internal/data/queries/`. The repo layer wraps sqlc calls and handles string ↔ `time.Time` conversion for timestamps (sqlite driver doesn't scan TEXT into `time.Time` directly).
 - 2026-05-02: Go templates parsed per-page (layout + page file) rather than all into one shared set, to avoid template name conflicts when multiple pages define the same template name (e.g., "content").
 - 2026-05-02: Chi route ordering: specific routes registered before catch-all routes (e.g., `POST /portfolios/{id}/delete` before `POST /portfolios`).
 
@@ -13,8 +14,8 @@
 - **2026-05-03: Update with no changes** — Fixed `Service.Update` to track whether any field changed and only refresh `updated_at` when at least one field was modified. Previously always refreshed the timestamp.
 
 ## Future Improvements
-- Run `sqlc generate` when sqlc is installed to get type-safe query generation
-- Add `mockery`-generated mocks for cleaner test setup
+- Migrate remaining repositories (transactions, etc.) to sqlc-generated queries
+- Run `mockery --all` to replace hand-written mocks with generated ones
 - Add integration tests for web page handlers (currently only API integration tests)
 - Consider adding a `DELETE /api/portfolios/{id}` soft-delete option in future
 

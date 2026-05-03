@@ -143,6 +143,7 @@ Feature index: `features/README.md`.
 - Enable WAL mode: `PRAGMA journal_mode=WAL`
 - Use `BIGINT` for monetary amounts (stored in minor units)
 - For integration tests, use `file::memory:?cache=shared` for in-memory SQLite
+- **sqlc workflow**: Add SQL to `internal/data/queries/*.sql`, run `sqlc generate` from that dir. Repos delegate to `queries.Queries` and handle domain ↔ sqlc type mapping (timestamps are `string` in sqlc models — convert with `parseTime()` / `.Format(time.RFC3339)` in the repo layer)
 
 ### Web UI
 - Keep templates simple — no complex logic in templates
