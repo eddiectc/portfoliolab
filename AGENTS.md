@@ -101,6 +101,7 @@ Feature index: `features/README.md`.
 ### Unit Testing
 - **Co-locate tests**: `domain/transaction/calculator_test.go` next to `calculator.go`
 - **Mock all external deps**: Define interfaces for repos and fetchers; generate mocks with `mockery`
+- **Mocks must simulate real behavior**: If the real implementation returns empty/error for edge-case inputs (e.g. `limit=0` → `LIMIT 0` → zero rows), the mock must do the same. Permissive mocks hide bugs in the service/handler layer.
 - **Table-driven tests**: Use `[]struct{name, input, want}` for comprehensive coverage
 - **Arrange-Act-Assert**: Clear separation; no setup in the act phase
 - **No DB, no network**: Unit tests run fast and deterministically
