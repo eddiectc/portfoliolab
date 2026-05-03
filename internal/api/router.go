@@ -13,6 +13,7 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/api/handlers"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/api/middleware"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/data"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
@@ -43,6 +44,13 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	portfolioHandler := handlers.NewPortfolioHandler(portfolioSvc)
 	portfolioHandler.RegisterRoutes(r)
 
+	// Account CRUD (API)
+	accountRepo := data.NewAccountRepository(db)
+	portfolioChecker := data.NewPortfolioChecker(portfolioRepo)
+	accountSvc := account.NewService(accountRepo, portfolioChecker)
+	accountHandler := handlers.NewAccountHandler(accountSvc)
+	accountHandler.RegisterRoutes(r)
+
 	// Portfolio web pages
 	renderer, err := web.NewRenderer("templates")
 	if err != nil {
@@ -54,6 +62,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	} else {
 		portfolioWebHandler := handlers.NewPortfolioWebHandler(portfolioSvc, renderer)
 		portfolioWebHandler.RegisterRoutes(r)
+
+		// Account web pages
+		accountWebHandler := handlers.NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
+		accountWebHandler.RegisterRoutes(r)
 
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,14 @@
 
 package queries
 
+type Account struct {
+	ID          int64  `db:"id"`
+	Name        string `db:"name"`
+	PortfolioID int64  `db:"portfolio_id"`
+	CreatedAt   string `db:"created_at"`
+	UpdatedAt   string `db:"updated_at"`
+}
+
 type Portfolio struct {
 	ID        int64  `db:"id"`
 	Name      string `db:"name"`
