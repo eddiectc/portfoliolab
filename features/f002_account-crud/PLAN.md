@@ -14,12 +14,12 @@ Task 1 → Task 2 → Task 3 → Task 4
 **Corresponds to:** All scenarios (foundation — accounts table with portfolio FK)
 **Description:** SQLite migration to create the `accounts` table with foreign key to `portfolios`, cascade delete on portfolio, and supporting index.
 
-- [ ] Create migration `002_create_accounts.sql`
+- [x] Create migration `002_create_accounts.sql`
   - `accounts` table: `id`, `name` (TEXT NOT NULL), `portfolio_id` (FK → portfolios.id, ON DELETE CASCADE), `created_at`, `updated_at`
   - `ON DELETE CASCADE` on `portfolio_id` so deleting a portfolio removes its accounts
   - `CREATE INDEX idx_accounts_portfolio_id` for efficient filtering by portfolio
-- [ ] Update `tests/integration/portfolio_test.go` setup to include the accounts table in the in-memory schema
-- [ ] Write a quick smoke test that the migration applies cleanly
+- [x] Update `tests/integration/portfolio_test.go` setup to include the accounts table in the in-memory schema
+- [x] Write a quick smoke test that the migration applies cleanly
 
 **Verification:** Migration runs via goose; `accounts` table exists with correct schema; FK cascade works (delete portfolio → accounts removed)
 
@@ -29,15 +29,15 @@ Task 1 → Task 2 → Task 3 → Task 4
 **Corresponds to:** Create, Update scenarios (validation: name trimming, uniqueness, portfolio existence)
 **Description:** Account domain model, DTOs, repository interface, service with all business logic and validation.
 
-- [ ] Create `internal/domain/account/account.go` — `Account` struct, `CreateRequest`, `UpdateRequest` DTOs
-- [ ] Create `internal/domain/account/service.go` — `Repository` interface, error variables, `Service` struct
-- [ ] Implement `Create`: trim name, validate 1-100 chars, check globally unique name, verify portfolio exists, set timestamps
-- [ ] Implement `Get`: retrieve by ID
-- [ ] Implement `List`: retrieve all with pagination (order by created_at DESC)
-- [ ] Implement `ListByPortfolio`: filter by portfolio_id with pagination
-- [ ] Implement `Update`: trim name if provided, validate, check uniqueness (excluding self), verify portfolio if changed, handle no-changes (skip timestamp update)
-- [ ] Implement `Delete`: remove account by ID
-- [ ] Create `internal/domain/account/service_test.go` — table-driven unit tests with hand-rolled mock repo (following portfolio pattern)
+- [x] Create `internal/domain/account/account.go` — `Account` struct, `CreateRequest`, `UpdateRequest` DTOs
+- [x] Create `internal/domain/account/service.go` — `Repository` interface, error variables, `Service` struct
+- [x] Implement `Create`: trim name, validate 1-100 chars, check globally unique name, verify portfolio exists, set timestamps
+- [x] Implement `Get`: retrieve by ID
+- [x] Implement `List`: retrieve all with pagination (order by created_at DESC)
+- [x] Implement `ListByPortfolio`: filter by portfolio_id with pagination
+- [x] Implement `Update`: trim name if provided, validate, check uniqueness (excluding self), verify portfolio if changed, handle no-changes (skip timestamp update)
+- [x] Implement `Delete`: remove account by ID
+- [x] Create `internal/domain/account/service_test.go` — table-driven unit tests with hand-rolled mock repo (following portfolio pattern)
   - Create: success, empty name, whitespace-only name, name > 100 chars, duplicate name (same/diff portfolio), non-existent portfolio
   - Get: success, not found
   - List: all, paginated (limit/offset), empty
@@ -54,7 +54,7 @@ Task 1 → Task 2 → Task 3 → Task 4
 **Corresponds to:** All API scenarios (REST endpoints)
 **Description:** SQLite repository implementation and JSON API handlers.
 
-- [ ] Create `internal/data/account_repo.go` — `AccountRepository` implementing the account `Repository` interface
+- [x] Create `internal/data/account_repo.go` — `AccountRepository` implementing the account `Repository` interface
   - `Create`: INSERT with returned ID
   - `GetByID`: SELECT by id
   - `GetAll`: SELECT all ORDER BY created_at DESC with optional LIMIT/OFFSET
@@ -63,14 +63,14 @@ Task 1 → Task 2 → Task 3 → Task 4
   - `Update`: UPDATE SET name, portfolio_id, updated_at
   - `Delete`: DELETE WHERE id = ?
   - Helper: `scanAccount` function (following `scanPortfolio` pattern)
-- [ ] Create `internal/api/handlers/account.go` — `AccountHandler` with REST CRUD
+- [x] Create `internal/api/handlers/account.go` — `AccountHandler` with REST CRUD
   - `POST /api/accounts` — create (201)
   - `GET /api/accounts` — list with `?limit=&offset=&portfolio_id=` (200, empty array when none)
   - `GET /api/accounts/{id}` — get by ID (200)
   - `PATCH /api/accounts/{id}` — update (200)
   - `DELETE /api/accounts/{id}` — delete (204)
   - `handleServiceError` mapping: `ErrInvalidName` → 400/INVALID_NAME, `ErrNameExists` → 409/ACCOUNT_NAME_EXISTS, `ErrNotFound` → 404/ACCOUNT_NOT_FOUND, `ErrPortfolioNotFound` → 404/PORTFOLIO_NOT_FOUND
-- [ ] Create `internal/api/handlers/account_test.go` — handler unit tests with mock repo (following portfolio_test.go pattern)
+- [x] Create `internal/api/handlers/account_test.go` — handler unit tests with mock repo (following portfolio_test.go pattern)
   - Create: success, invalid body, empty name, duplicate name, non-existent portfolio
   - List: success, empty, pagination, by portfolio
   - Get: success, not found, invalid ID
@@ -86,11 +86,11 @@ Task 1 → Task 2 → Task 3 → Task 4
 **Corresponds to:** All user-facing scenarios (web pages, cascade delete, end-to-end)
 **Description:** Server-rendered HTML pages, nav update, router wiring, cascade delete wiring, and integration tests.
 
-- [ ] Update `internal/api/handlers/portfolio_web.go` — in `HandleDetailPage`, replace "No accounts added yet" placeholder with a link to `/accounts?portfolio_id={id}` or show accounts list
-- [ ] Create `templates/account/list.html` — accounts table with columns: Name, Portfolio, Created, Actions (Edit/Delete). Show empty state when none.
-- [ ] Create `templates/account/form.html` — form with Name input and Portfolio dropdown (select from existing portfolios). Follow portfolio/form.html pattern.
-- [ ] Create `templates/account/detail.html` — account detail with name, portfolio link, timestamps. Follow portfolio/detail.html pattern.
-- [ ] Create `internal/api/handlers/account_web.go` — `AccountWebHandler` with web CRUD pages
+- [x] Update `internal/api/handlers/portfolio_web.go` — in `HandleDetailPage`, replace "No accounts added yet" placeholder with a link to `/accounts?portfolio_id={id}` or show accounts list
+- [x] Create `templates/account/list.html` — accounts table with columns: Name, Portfolio, Created, Actions (Edit/Delete). Show empty state when none.
+- [x] Create `templates/account/form.html` — form with Name input and Portfolio dropdown (select from existing portfolios). Follow portfolio/form.html pattern.
+- [x] Create `templates/account/detail.html` — account detail with name, portfolio link, timestamps. Follow portfolio/detail.html pattern.
+- [x] Create `internal/api/handlers/account_web.go` — `AccountWebHandler` with web CRUD pages
   - `GET /accounts` — list page (with optional `?portfolio_id=` filter)
   - `GET /accounts/new` — new account form (portfolio dropdown)
   - `POST /accounts` — create from form
@@ -99,11 +99,11 @@ Task 1 → Task 2 → Task 3 → Task 4
   - `POST /accounts/{id}/edit` — update from form
   - `POST /accounts/{id}/delete` — delete with confirmation
   - `userFriendlyError` for account-specific errors
-- [ ] Create `internal/api/handlers/account_web_test.go` — web handler tests (form rendering, create redirect, error re-render)
-- [ ] Update `internal/api/router.go` — wire account repo → service → handlers; register routes
-- [ ] Update `templates/partials/nav.html` — change `<a href="#" class="disabled">Accounts</a>` to `<a href="/accounts">Accounts</a>`
-- [ ] Update portfolio delete cascade: ensure `PRAGMA foreign_keys = ON` is set in `internal/data/db.go` (verify it already is)
-- [ ] Create `tests/integration/account_test.go` — end-to-end integration tests against in-memory SQLite
+- [x] Create `internal/api/handlers/account_web_test.go` — web handler tests (form rendering, create redirect, error re-render)
+- [x] Update `internal/api/router.go` — wire account repo → service → handlers; register routes
+- [x] Update `templates/partials/nav.html` — change `<a href="#" class="disabled">Accounts</a>` to `<a href="/accounts">Accounts</a>`
+- [x] Update portfolio delete cascade: ensure `PRAGMA foreign_keys = ON` is set in `internal/data/db.go` (verify it already is)
+- [x] Create `tests/integration/account_test.go` — end-to-end integration tests against in-memory SQLite
   - Create + Get account
   - List accounts (empty, with data, paginated, by portfolio)
   - Update account (name, portfolio, both)

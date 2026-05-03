@@ -27,6 +27,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 	// Run migrations manually (goose not needed for in-memory)
 	_, err = db.Exec(`
+		PRAGMA foreign_keys = ON;
+
 		CREATE TABLE IF NOT EXISTS portfolios (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
@@ -34,13 +36,25 @@ func setupTestDB(t *testing.T) *sql.DB {
 			created_at TEXT NOT NULL DEFAULT (datetime('now')),
 			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 		);
+
+		CREATE TABLE IF NOT EXISTS accounts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			portfolio_id INTEGER NOT NULL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_accounts_portfolio_id ON accounts(portfolio_id);
+
 		CREATE TABLE IF NOT EXISTS goose_db_version (
 			id INTEGER PRIMARY KEY,
 			version_id INTEGER NOT NULL,
 			is_applied INTEGER NOT NULL DEFAULT 1,
 			tstamp TIMESTAMP DEFAULT (datetime('now'))
 		);
-		INSERT INTO goose_db_version (version_id, is_applied) VALUES (1, 1);
+		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (2, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)
