@@ -13,3 +13,4 @@ Feature IDs are sequential: f001, f002, etc.
 | ID | Name | Status |
 |---|---|---|
 | f001 | Portfolio CRUD | done |
+| f002 | Account CRUD | done |

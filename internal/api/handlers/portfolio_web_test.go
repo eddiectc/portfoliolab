@@ -12,69 +12,12 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
-
-// mockPortfolioRepo is an in-memory repository for testing.
-type mockPortfolioRepo struct {
-	portfolios map[int64]portfolio.Portfolio
-	nextID     int64
-}
-
-func newMockRepo() *mockPortfolioRepo {
-	return &mockPortfolioRepo{
-		portfolios: make(map[int64]portfolio.Portfolio),
-		nextID:     1,
-	}
-}
-
-func (m *mockPortfolioRepo) Create(_ context.Context, p *portfolio.Portfolio) error {
-	m.nextID++
-	p.ID = m.nextID
-	now := time.Now()
-	p.CreatedAt = now
-	p.UpdatedAt = now
-	m.portfolios[p.ID] = *p
-	return nil
-}
-
-func (m *mockPortfolioRepo) GetByID(_ context.Context, id int64) (*portfolio.Portfolio, error) {
-	p, ok := m.portfolios[id]
-	if !ok {
-		return nil, portfolio.ErrNotFound
-	}
-	return &p, nil
-}
-
-func (m *mockPortfolioRepo) GetAll(_ context.Context, _, _ int) ([]portfolio.Portfolio, error) {
-	result := make([]portfolio.Portfolio, 0, len(m.portfolios))
-	for _, p := range m.portfolios {
-		result = append(result, p)
-	}
-	return result, nil
-}
-
-func (m *mockPortfolioRepo) Update(_ context.Context, p *portfolio.Portfolio) error {
-	m.portfolios[p.ID] = *p
-	return nil
-}
-
-func (m *mockPortfolioRepo) Delete(_ context.Context, id int64) error {
-	delete(m.portfolios, id)
-	return nil
-}
-
-func (m *mockPortfolioRepo) GetByName(_ context.Context, name string) (*portfolio.Portfolio, error) {
-	for _, p := range m.portfolios {
-		if p.Name == name {
-			return &p, nil
-		}
-	}
-	return nil, portfolio.ErrNotFound
-}
 
 func TestUserFriendlyError(t *testing.T) {
 	tests := []struct {
@@ -265,12 +208,24 @@ func newTestRenderer(t *testing.T) *web.Renderer {
 
 func newTestWebHandler(t *testing.T) *PortfolioWebHandler {
 	t.Helper()
-	repo := newMockRepo()
-	svc := portfolio.NewService(repo)
+	mockRepo := portfolio.NewMockRepository(t)
+	svc := portfolio.NewService(mockRepo)
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	renderer := newTestRenderer(t)
 	return NewPortfolioWebHandler(svc, accountSvc, renderer)
+}
+
+// setupWebHandlerWithService creates a web handler with a real service backed by a mock repo.
+// Returns the handler, service, and mock repo so callers can set expectations.
+func setupWebHandlerWithService(t *testing.T) (*PortfolioWebHandler, *portfolio.Service, *portfolio.MockRepository) {
+	t.Helper()
+	mockRepo := portfolio.NewMockRepository(t)
+	svc := portfolio.NewService(mockRepo)
+	accountRepo := newMockAccountRepo()
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	renderer := newTestRenderer(t)
+	return NewPortfolioWebHandler(svc, accountSvc, renderer), svc, mockRepo
 }
 
 // TestHandleNewPage_RendersCompleteForm verifies that GET /portfolios/new
@@ -318,7 +273,14 @@ func TestHandleNewPage_RendersCompleteForm(t *testing.T) {
 
 // TestHandleCreatePage_ValidSubmission creates a portfolio via form and verifies redirect.
 func TestHandleCreatePage_ValidSubmission(t *testing.T) {
-	handler := newTestWebHandler(t)
+	handler, _, mockRepo := setupWebHandlerWithService(t)
+
+	mockRepo.On("GetByName", mock.Anything, "Test Portfolio").Return(nil, portfolio.ErrNotFound).Once()
+	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*portfolio.Portfolio")).Return(func(_ context.Context, p *portfolio.Portfolio) error {
+		p.ID = 1
+		return nil
+	})
+
 	body := strings.NewReader("name=Test+Portfolio&currency=GBP")
 	r := httptest.NewRequest(http.MethodPost, "/portfolios", body)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -402,15 +364,9 @@ func TestHandleCreatePage_InvalidCurrency(t *testing.T) {
 
 // TestHandleCreatePage_DuplicateName shows conflict error on the form.
 func TestHandleCreatePage_DuplicateName(t *testing.T) {
-	repo := newMockRepo()
-	svc := portfolio.NewService(repo)
-	accountRepo := newMockAccountRepo()
-	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
+	handler, _, mockRepo := setupWebHandlerWithService(t)
 
-	// Pre-create a portfolio
-	svc.Create(nil, portfolio.CreateRequest{Name: "Existing", Currency: "USD"})
+	mockRepo.On("GetByName", mock.Anything, "Existing").Return(&portfolio.Portfolio{ID: 1, Name: "Existing"}, nil).Once()
 
 	body := strings.NewReader("name=Existing&currency=EUR")
 	r := httptest.NewRequest(http.MethodPost, "/portfolios", body)
@@ -433,19 +389,14 @@ func TestHandleCreatePage_DuplicateName(t *testing.T) {
 // TestHandleEditPage_RendersCompleteForm verifies GET /portfolios/{id}/edit
 // renders a complete form with pre-filled values.
 func TestHandleEditPage_RendersCompleteForm(t *testing.T) {
-	repo := newMockRepo()
-	svc := portfolio.NewService(repo)
-	accountRepo := newMockAccountRepo()
-	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
+	handler, _, mockRepo := setupWebHandlerWithService(t)
 
-	// Create a portfolio to edit
-	_, _ = svc.Create(nil, portfolio.CreateRequest{Name: "My Portfolio", Currency: "CHF"})
+	p := &portfolio.Portfolio{ID: 2, Name: "My Portfolio", Currency: "CHF", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	mockRepo.On("GetByID", mock.Anything, int64(2)).Return(p, nil).Once()
 
 	// Manually set the URL param via chi context
 	ctx := chi.NewRouteContext()
-	ctx.URLParams.Add("id", "2") // nextID starts at 1, first create makes it 2
+	ctx.URLParams.Add("id", "2")
 	r := httptest.NewRequest(http.MethodGet, "/portfolios/2/edit", nil)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 
@@ -480,7 +431,10 @@ func TestHandleEditPage_RendersCompleteForm(t *testing.T) {
 
 // TestHandleListPage_RendersCompletePage verifies GET /portfolios renders properly.
 func TestHandleListPage_RendersCompletePage(t *testing.T) {
-	handler := newTestWebHandler(t)
+	handler, _, mockRepo := setupWebHandlerWithService(t)
+
+	mockRepo.On("GetAll", mock.Anything, 50, 0).Return([]portfolio.Portfolio{}, nil).Once()
+
 	r := httptest.NewRequest(http.MethodGet, "/portfolios", nil)
 	w := httptest.NewRecorder()
 
@@ -509,14 +463,11 @@ func TestHandleListPage_RendersCompletePage(t *testing.T) {
 
 // TestHandleListPage_WithPortfolios shows created portfolios in the list.
 func TestHandleListPage_WithPortfolios(t *testing.T) {
-	repo := newMockRepo()
-	svc := portfolio.NewService(repo)
-	accountRepo := newMockAccountRepo()
-	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
+	handler, _, mockRepo := setupWebHandlerWithService(t)
 
-	svc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
+	mockRepo.On("GetAll", mock.Anything, 50, 0).Return([]portfolio.Portfolio{
+		{ID: 1, Name: "Main", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}, nil).Once()
 
 	r := httptest.NewRequest(http.MethodGet, "/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -534,14 +485,10 @@ func TestHandleListPage_WithPortfolios(t *testing.T) {
 
 // TestHandleDetailPage_RendersCompletePage verifies GET /portfolios/{id} renders properly.
 func TestHandleDetailPage_RendersCompletePage(t *testing.T) {
-	repo := newMockRepo()
-	svc := portfolio.NewService(repo)
-	accountRepo := newMockAccountRepo()
-	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	renderer := newTestRenderer(t)
-	handler := NewPortfolioWebHandler(svc, accountSvc, renderer)
+	handler, _, mockRepo := setupWebHandlerWithService(t)
 
-	_, _ = svc.Create(nil, portfolio.CreateRequest{Name: "Detail Test", Currency: "JPY"})
+	p := &portfolio.Portfolio{ID: 2, Name: "Detail Test", Currency: "JPY", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	mockRepo.On("GetByID", mock.Anything, int64(2)).Return(p, nil).Once()
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "2")
@@ -570,7 +517,10 @@ func TestHandleDetailPage_RendersCompletePage(t *testing.T) {
 
 // TestHandleDetailPage_NotFound returns 404 for non-existent portfolio.
 func TestHandleDetailPage_NotFound(t *testing.T) {
-	handler := newTestWebHandler(t)
+	handler, _, mockRepo := setupWebHandlerWithService(t)
+
+	mockRepo.On("GetByID", mock.Anything, int64(999)).Return(nil, portfolio.ErrNotFound).Once()
+
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "999")
 	r := httptest.NewRequest(http.MethodGet, "/portfolios/999", nil)

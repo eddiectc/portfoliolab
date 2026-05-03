@@ -89,7 +89,7 @@ func (h *PortfolioWebHandler) HandleListPage(w http.ResponseWriter, r *http.Requ
 	}{
 		PageData: web.PageData{
 			Title: "Portfolios",
-			Flash: getFlash(r),
+			Flash: getFlash(w, r),
 		},
 		Portfolios: portfolios,
 	}
@@ -199,7 +199,7 @@ func (h *PortfolioWebHandler) HandleDetailPage(w http.ResponseWriter, r *http.Re
 	}{
 		PageData: web.PageData{
 			Title: p.Name,
-			Flash: getFlash(r),
+			Flash: getFlash(w, r),
 		},
 		Portfolio: portfolioDetail{
 			ID:        p.ID,
@@ -345,15 +345,16 @@ func setFlash(w http.ResponseWriter, message string) {
 	http.SetCookie(w, cookie)
 }
 
-// getFlash reads and clears the flash message cookie. Returns the message.
-// Callers should pass the ResponseWriter to clear the cookie.
-func getFlash(r *http.Request) string {
+// getFlash reads the flash message cookie and clears it on the response.
+// This ensures the flash is only shown once, even on rapid navigation.
+func getFlash(w http.ResponseWriter, r *http.Request) string {
 	cookie, err := r.Cookie(flashCookie)
 	if err != nil {
 		return ""
 	}
 
 	message, _ := url.QueryUnescape(cookie.Value)
+	clearFlash(w)
 	return message
 }
 
