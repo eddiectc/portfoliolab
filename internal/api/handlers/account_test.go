@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -178,6 +179,23 @@ func TestAccountHandleCreate_EmptyName(t *testing.T) {
 	}
 }
 
+func TestAccountHandleCreate_NameTooLong(t *testing.T) {
+	handler, _ := setupAccountHandler(t, 1)
+
+	// 101 characters exceeds the 100-char limit
+	longName := string(make([]byte, 101))
+	body := fmt.Sprintf(`{"name": "%s", "portfolio_id": 1}`, longName)
+	req := httptest.NewRequest(http.MethodPost, "/api/accounts", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreate(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
 func TestAccountHandleCreate_DuplicateName(t *testing.T) {
 	handler, repo := setupAccountHandler(t, 1)
 
@@ -269,6 +287,31 @@ func TestAccountHandleList_Pagination(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 2 {
 		t.Errorf("expected 2 accounts with limit=2, got %d", len(accounts))
+	}
+}
+
+func TestAccountHandleList_DefaultPagination(t *testing.T) {
+	handler, repo := setupAccountHandler(t, 1)
+
+	// Create 10 accounts
+	for i := 1; i <= 10; i++ {
+		repo.accounts[int64(i)] = &account.Account{ID: int64(i), Name: fmt.Sprintf("Acc%d", i), PortfolioID: 1}
+	}
+
+	// No pagination params — should return all 10
+	req := httptest.NewRequest(http.MethodGet, "/api/accounts", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleList(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var accounts []account.Account
+	json.NewDecoder(w.Body).Decode(&accounts)
+	if len(accounts) != 10 {
+		t.Errorf("expected 10 accounts with default pagination, got %d", len(accounts))
 	}
 }
 

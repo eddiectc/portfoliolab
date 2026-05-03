@@ -144,6 +144,21 @@ func TestService_Create(t *testing.T) {
 	}
 }
 
+func TestService_Create_DefaultCurrency(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	p, err := svc.Create(context.Background(), CreateRequest{
+		Name:     "Savings",
+		Currency: "",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p.Currency != "USD" {
+		t.Errorf("expected currency 'USD' (default), got %q", p.Currency)
+	}
+}
+
 func TestService_Create_InvalidName(t *testing.T) {
 	svc, _ := newTestService(t)
 
@@ -172,7 +187,6 @@ func TestService_Create_InvalidCurrency(t *testing.T) {
 		name     string
 		currency string
 	}{
-		{"empty", ""},
 		{"too short", "US"},
 		{"too long", "USDA"},
 		{"lowercase", "usd"},

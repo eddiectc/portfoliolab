@@ -31,6 +31,9 @@ var ErrInvalidCurrency = fmt.Errorf("invalid currency code")
 
 const defaultLimit = 50
 
+// defaultCurrency is the fallback when no currency is specified.
+const defaultCurrency = "USD"
+
 // Service handles portfolio business logic.
 type Service struct {
 	repo Repository
@@ -45,11 +48,16 @@ func NewService(repo Repository) *Service {
 var iso4217Regex = regexp.MustCompile(`^[A-Z]{3}$`)
 
 // Create creates a new portfolio.
+// If currency is empty, it defaults to "USD".
 func (s *Service) Create(ctx context.Context, req CreateRequest) (*Portfolio, error) {
 	if err := validateName(req.Name); err != nil {
 		return nil, ErrInvalidName
 	}
-	if err := validateCurrency(req.Currency); err != nil {
+	currency := req.Currency
+	if currency == "" {
+		currency = defaultCurrency
+	}
+	if err := validateCurrency(currency); err != nil {
 		return nil, ErrInvalidCurrency
 	}
 
@@ -61,7 +69,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Portfolio, er
 	now := time.Now()
 	p := &Portfolio{
 		Name:      req.Name,
-		Currency:  req.Currency,
+		Currency:  currency,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

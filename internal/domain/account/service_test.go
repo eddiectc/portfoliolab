@@ -84,7 +84,11 @@ func (m *mockRepo) GetAll(_ context.Context, limit, offset int) ([]Account, erro
 		}
 		result = result[offset:]
 	}
-	if limit > 0 && limit < len(result) {
+	// Simulate SQL LIMIT 0 → empty result (catches service-layer bugs)
+	if limit == 0 {
+		return []Account{}, nil
+	}
+	if limit < len(result) {
 		result = result[:limit]
 	}
 	return result, nil

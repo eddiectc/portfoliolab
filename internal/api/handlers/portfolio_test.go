@@ -10,80 +10,26 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 )
 
-// testRepo is a minimal in-memory mock repo for handler tests.
-type testRepo struct {
-	portfolios map[int64]*portfolio.Portfolio
-	names      map[string]int64
-	nextID     int64
-}
-
-func newTestRepo() *testRepo {
-	return &testRepo{
-		portfolios: make(map[int64]*portfolio.Portfolio),
-		names:      make(map[string]int64),
-		nextID:     1,
-	}
-}
-
-func (r *testRepo) Create(_ context.Context, p *portfolio.Portfolio) error {
-	r.nextID++
-	p.ID = r.nextID
-	r.portfolios[p.ID] = p
-	r.names[p.Name] = p.ID
-	return nil
-}
-
-func (r *testRepo) GetByID(_ context.Context, id int64) (*portfolio.Portfolio, error) {
-	p, ok := r.portfolios[id]
-	if !ok {
-		return nil, portfolio.ErrNotFound
-	}
-	cp := *p
-	return &cp, nil
-}
-
-func (r *testRepo) GetAll(_ context.Context, limit, offset int) ([]portfolio.Portfolio, error) {
-	var result []portfolio.Portfolio
-	for _, p := range r.portfolios {
-		cp := *p
-		result = append(result, cp)
-	}
-	return result, nil
-}
-
-func (r *testRepo) Update(_ context.Context, p *portfolio.Portfolio) error {
-	r.portfolios[p.ID] = p
-	return nil
-}
-
-func (r *testRepo) Delete(_ context.Context, id int64) error {
-	p, ok := r.portfolios[id]
-	if !ok {
-		return portfolio.ErrNotFound
-	}
-	delete(r.portfolios, id)
-	delete(r.names, p.Name)
-	return nil
-}
-
-func (r *testRepo) GetByName(_ context.Context, name string) (*portfolio.Portfolio, error) {
-	id, ok := r.names[name]
-	if !ok {
-		return nil, portfolio.ErrNotFound
-	}
-	p := r.portfolios[id]
-	cp := *p
-	return &cp, nil
+func setupPortfolioHandler(t *testing.T) (*PortfolioHandler, *portfolio.MockRepository) {
+	t.Helper()
+	mockRepo := portfolio.NewMockRepository(t)
+	svc := portfolio.NewService(mockRepo)
+	return NewPortfolioHandler(svc), mockRepo
 }
 
 func TestHandleCreate_Success(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
-	handler := NewPortfolioHandler(svc)
+	handler, mockRepo := setupPortfolioHandler(t)
+
+	mockRepo.On("GetByName", mock.Anything, "Test Portfolio").Return(nil, portfolio.ErrNotFound).Once()
+	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*portfolio.Portfolio")).Return(func(_ context.Context, p *portfolio.Portfolio) error {
+		p.ID = 1
+		return nil
+	})
 
 	body := `{"name": "Test Portfolio", "currency": "USD"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString(body))
@@ -107,9 +53,7 @@ func TestHandleCreate_Success(t *testing.T) {
 }
 
 func TestHandleCreate_InvalidBody(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
-	handler := NewPortfolioHandler(svc)
+	handler, _ := setupPortfolioHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString("not json"))
 	w := httptest.NewRecorder()
@@ -122,13 +66,10 @@ func TestHandleCreate_InvalidBody(t *testing.T) {
 }
 
 func TestHandleCreate_DuplicateName(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
-	handler := NewPortfolioHandler(svc)
+	handler, mockRepo := setupPortfolioHandler(t)
 
-	// Pre-create a portfolio with the name
-	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Dup", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	repo.names["Dup"] = 1
+	existing := &portfolio.Portfolio{ID: 1, Name: "Dup", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	mockRepo.On("GetByName", mock.Anything, "Dup").Return(existing, nil).Once()
 
 	body := `{"name": "Dup", "currency": "USD"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString(body))
@@ -142,9 +83,7 @@ func TestHandleCreate_DuplicateName(t *testing.T) {
 }
 
 func TestHandleCreate_InvalidCurrency(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
-	handler := NewPortfolioHandler(svc)
+	handler, _ := setupPortfolioHandler(t)
 
 	body := `{"name": "Test", "currency": "XX"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString(body))
@@ -158,14 +97,14 @@ func TestHandleCreate_InvalidCurrency(t *testing.T) {
 }
 
 func TestHandleList(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
-	handler := NewPortfolioHandler(svc)
+	handler, mockRepo := setupPortfolioHandler(t)
 
-	// Seed some portfolios
-	for i := 1; i <= 3; i++ {
-		repo.portfolios[int64(i)] = &portfolio.Portfolio{ID: int64(i), Name: "P" + string(rune('A'+i-1)), Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	portfolios := []portfolio.Portfolio{
+		{ID: 1, Name: "PA", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: 2, Name: "PB", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: 3, Name: "PC", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}
+	mockRepo.On("GetAll", mock.Anything, 50, 0).Return(portfolios, nil).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -176,17 +115,17 @@ func TestHandleList(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 
-	var portfolios []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&portfolios)
-	if len(portfolios) != 3 {
-		t.Errorf("expected 3 portfolios, got %d", len(portfolios))
+	var got []portfolio.Portfolio
+	json.NewDecoder(w.Body).Decode(&got)
+	if len(got) != 3 {
+		t.Errorf("expected 3 portfolios, got %d", len(got))
 	}
 }
 
 func TestHandleList_Empty(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
-	handler := NewPortfolioHandler(svc)
+	handler, mockRepo := setupPortfolioHandler(t)
+
+	mockRepo.On("GetAll", mock.Anything, 50, 0).Return([]portfolio.Portfolio{}, nil).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -207,14 +146,41 @@ func TestHandleList_Empty(t *testing.T) {
 	}
 }
 
-func TestHandleGet_Success(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
+func TestHandleList_DefaultPagination(t *testing.T) {
+	handler, mockRepo := setupPortfolioHandler(t)
 
-	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Test", Currency: "EUR", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	// Create 10 portfolios
+	portfolios := make([]portfolio.Portfolio, 10)
+	for i := 0; i < 10; i++ {
+		portfolios[i] = portfolio.Portfolio{ID: int64(i + 1), Name: "P", Currency: "USD"}
+	}
+	// Service defaults limit=0 to 50, so mock expects 50
+	mockRepo.On("GetAll", mock.Anything, 50, 0).Return(portfolios, nil).Once()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleList(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var got []portfolio.Portfolio
+	json.NewDecoder(w.Body).Decode(&got)
+	if len(got) != 10 {
+		t.Errorf("expected 10 portfolios with default pagination, got %d", len(got))
+	}
+}
+
+func TestHandleGet_Success(t *testing.T) {
+	handler, mockRepo := setupPortfolioHandler(t)
+
+	p := &portfolio.Portfolio{ID: 1, Name: "Test", Currency: "EUR", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(p, nil).Once()
 
 	r := chi.NewRouter()
-	NewPortfolioHandler(svc).RegisterRoutes(r)
+	handler.RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/1", nil)
 	w := httptest.NewRecorder()
@@ -225,22 +191,23 @@ func TestHandleGet_Success(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 
-	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
-	if p.Name != "Test" {
-		t.Errorf("expected 'Test', got %q", p.Name)
+	var got portfolio.Portfolio
+	json.NewDecoder(w.Body).Decode(&got)
+	if got.Name != "Test" {
+		t.Errorf("expected 'Test', got %q", got.Name)
 	}
-	if p.Currency != "EUR" {
-		t.Errorf("expected 'EUR', got %q", p.Currency)
+	if got.Currency != "EUR" {
+		t.Errorf("expected 'EUR', got %q", got.Currency)
 	}
 }
 
 func TestHandleGet_NotFound(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
+	handler, mockRepo := setupPortfolioHandler(t)
+
+	mockRepo.On("GetByID", mock.Anything, int64(999)).Return(nil, portfolio.ErrNotFound).Once()
 
 	r := chi.NewRouter()
-	NewPortfolioHandler(svc).RegisterRoutes(r)
+	handler.RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/999", nil)
 	w := httptest.NewRecorder()
@@ -253,11 +220,10 @@ func TestHandleGet_NotFound(t *testing.T) {
 }
 
 func TestHandleGet_InvalidID(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
+	handler, _ := setupPortfolioHandler(t)
 
 	r := chi.NewRouter()
-	NewPortfolioHandler(svc).RegisterRoutes(r)
+	handler.RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/abc", nil)
 	w := httptest.NewRecorder()
@@ -270,14 +236,18 @@ func TestHandleGet_InvalidID(t *testing.T) {
 }
 
 func TestHandleUpdate_Success(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
+	handler, mockRepo := setupPortfolioHandler(t)
 
-	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Old", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	repo.names["Old"] = 1
+	old := &portfolio.Portfolio{ID: 1, Name: "Old", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(old, nil).Once()
+	mockRepo.On("GetByName", mock.Anything, "New Name").Return(nil, portfolio.ErrNotFound).Once()
+	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*portfolio.Portfolio")).Return(func(_ context.Context, p *portfolio.Portfolio) error {
+		p.Name = "New Name"
+		return nil
+	})
 
 	r := chi.NewRouter()
-	NewPortfolioHandler(svc).RegisterRoutes(r)
+	handler.RegisterRoutes(r)
 
 	body := `{"name": "New Name"}`
 	req := httptest.NewRequest(http.MethodPatch, "/api/portfolios/1", bytes.NewBufferString(body))
@@ -290,22 +260,20 @@ func TestHandleUpdate_Success(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 
-	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
-	if p.Name != "New Name" {
-		t.Errorf("expected 'New Name', got %q", p.Name)
+	var got portfolio.Portfolio
+	json.NewDecoder(w.Body).Decode(&got)
+	if got.Name != "New Name" {
+		t.Errorf("expected 'New Name', got %q", got.Name)
 	}
 }
 
 func TestHandleDelete(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
+	handler, mockRepo := setupPortfolioHandler(t)
 
-	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Test", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	repo.names["Test"] = 1
+	mockRepo.On("Delete", mock.Anything, int64(1)).Return(nil).Once()
 
 	r := chi.NewRouter()
-	NewPortfolioHandler(svc).RegisterRoutes(r)
+	handler.RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/portfolios/1", nil)
 	w := httptest.NewRecorder()
@@ -318,11 +286,12 @@ func TestHandleDelete(t *testing.T) {
 }
 
 func TestHandleDelete_NotFound(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
+	handler, mockRepo := setupPortfolioHandler(t)
+
+	mockRepo.On("Delete", mock.Anything, int64(999)).Return(portfolio.ErrNotFound).Once()
 
 	r := chi.NewRouter()
-	NewPortfolioHandler(svc).RegisterRoutes(r)
+	handler.RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/portfolios/999", nil)
 	w := httptest.NewRecorder()
@@ -335,11 +304,12 @@ func TestHandleDelete_NotFound(t *testing.T) {
 }
 
 func TestErrorResponseFormat(t *testing.T) {
-	repo := newTestRepo()
-	svc := portfolio.NewService(repo)
+	handler, mockRepo := setupPortfolioHandler(t)
+
+	mockRepo.On("GetByID", mock.Anything, int64(999)).Return(nil, portfolio.ErrNotFound).Once()
 
 	r := chi.NewRouter()
-	NewPortfolioHandler(svc).RegisterRoutes(r)
+	handler.RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/999", nil)
 	w := httptest.NewRecorder()

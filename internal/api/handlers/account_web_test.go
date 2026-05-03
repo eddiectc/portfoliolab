@@ -108,12 +108,63 @@ func (m *mockPortfolioCheckerForWeb) PortfolioExists(_ context.Context, id int64
 	return id > 0
 }
 
+// mockPortfolioRepoForAccount is a minimal in-memory portfolio repo for account web handler tests.
+type mockPortfolioRepoForAccount struct {
+	portfolios map[int64]*portfolio.Portfolio
+}
+
+func newMockPortfolioRepoForAccount() *mockPortfolioRepoForAccount {
+	return &mockPortfolioRepoForAccount{portfolios: make(map[int64]*portfolio.Portfolio)}
+}
+
+func (m *mockPortfolioRepoForAccount) Create(_ context.Context, p *portfolio.Portfolio) error {
+	p.ID = int64(len(m.portfolios) + 1)
+	m.portfolios[p.ID] = p
+	return nil
+}
+func (m *mockPortfolioRepoForAccount) GetByID(_ context.Context, id int64) (*portfolio.Portfolio, error) {
+	p, ok := m.portfolios[id]
+	if !ok {
+		return nil, portfolio.ErrNotFound
+	}
+	cp := *p
+	return &cp, nil
+}
+func (m *mockPortfolioRepoForAccount) GetAll(_ context.Context, _, _ int) ([]portfolio.Portfolio, error) {
+	result := make([]portfolio.Portfolio, 0, len(m.portfolios))
+	for _, p := range m.portfolios {
+		cp := *p
+		result = append(result, cp)
+	}
+	return result, nil
+}
+func (m *mockPortfolioRepoForAccount) Update(_ context.Context, p *portfolio.Portfolio) error {
+	m.portfolios[p.ID] = p
+	return nil
+}
+func (m *mockPortfolioRepoForAccount) Delete(_ context.Context, id int64) error {
+	if _, ok := m.portfolios[id]; !ok {
+		return portfolio.ErrNotFound
+	}
+	delete(m.portfolios, id)
+	return nil
+}
+func (m *mockPortfolioRepoForAccount) GetByName(_ context.Context, name string) (*portfolio.Portfolio, error) {
+	for _, p := range m.portfolios {
+		if p.Name == name {
+			cp := *p
+			return &cp, nil
+		}
+	}
+	return nil, portfolio.ErrNotFound
+}
+
 func newAccountWebHandler(t *testing.T) (*AccountWebHandler, *mockAccountRepo) {
 	t.Helper()
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 
 	renderer := newTestRenderer(t)
@@ -145,7 +196,7 @@ func TestAccountHandleNewPage_RendersCompleteForm(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 
 	renderer := newTestRenderer(t)
@@ -195,7 +246,7 @@ func TestAccountHandleCreatePage_ValidSubmission(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
@@ -225,7 +276,7 @@ func TestAccountHandleCreatePage_EmptyName(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
@@ -255,7 +306,7 @@ func TestAccountHandleCreatePage_DuplicateName(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
@@ -287,11 +338,11 @@ func TestAccountHandleDetailPage_RendersCompletePage(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Fidelity", PortfolioID: 2})
+	accountSvc.Create(nil, account.CreateRequest{Name: "Fidelity", PortfolioID: 1})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
@@ -343,7 +394,7 @@ func TestAccountHandleEditPage_RendersCompleteForm(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
@@ -390,7 +441,7 @@ func TestAccountHandleDeletePage_Success(t *testing.T) {
 	accountRepo := newMockAccountRepo()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 
-	portfolioRepo := newMockRepo()
+	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 
 	accountSvc.Create(nil, account.CreateRequest{Name: "ToDelete", PortfolioID: 1})

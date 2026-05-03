@@ -340,3 +340,79 @@ func TestAccount_NonExistentPortfolio(t *testing.T) {
 		t.Errorf("expected 404 for non-existent portfolio, got %d", w.Code)
 	}
 }
+
+func TestAccount_Pagination_ZeroLimitDefaultsTo50(t *testing.T) {
+	db := setupTestDB(t)
+	router := api.Router(db, testLogger())
+
+	// Create portfolio
+	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create portfolio: expected 201, got %d", w.Code)
+	}
+
+	// Create 10 accounts
+	for i := 0; i < 10; i++ {
+		body = json.RawMessage(`{"name": "A` + string(rune('0'+i)) + `", "portfolio_id": 1}`)
+		req = httptest.NewRequest(http.MethodPost, "/api/accounts", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w = httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("create account %d: expected 201, got %d", i, w.Code)
+		}
+	}
+
+	// limit=0 should default to 50, returning all 10 accounts
+	req = httptest.NewRequest(http.MethodGet, "/api/accounts?limit=0", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	var accounts []account.Account
+	json.NewDecoder(w.Body).Decode(&accounts)
+	if len(accounts) != 10 {
+		t.Errorf("expected 10 accounts with limit=0 (default 50), got %d", len(accounts))
+	}
+}
+
+func TestAccount_Pagination_NegativeOffsetDefaultsTo0(t *testing.T) {
+	db := setupTestDB(t)
+	router := api.Router(db, testLogger())
+
+	// Create portfolio
+	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create portfolio: expected 201, got %d", w.Code)
+	}
+
+	// Create 5 accounts
+	for i := 0; i < 5; i++ {
+		body = json.RawMessage(`{"name": "B` + string(rune('0'+i)) + `", "portfolio_id": 1}`)
+		req = httptest.NewRequest(http.MethodPost, "/api/accounts", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w = httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("create account %d: expected 201, got %d", i, w.Code)
+		}
+	}
+
+	// offset=-1 should default to 0, returning 3 accounts
+	req = httptest.NewRequest(http.MethodGet, "/api/accounts?limit=3&offset=-1", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	var accounts []account.Account
+	json.NewDecoder(w.Body).Decode(&accounts)
+	if len(accounts) != 3 {
+		t.Errorf("expected 3 accounts with offset=-1 (default 0), got %d", len(accounts))
+	}
+}
