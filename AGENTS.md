@@ -117,6 +117,17 @@ Feature index: `features/README.md`.
 - Document all rounding rules and edge cases in code comments
 - The `calculator.go` in the transaction domain is critical — test exhaustively
 
+#### govalues/decimal API Reference
+| Operation | Function | Notes |
+|---|---|---|
+| Create from integer + scale | `decimal.MustNew(value, scale)` | value is integer shifted by 10^scale; e.g. `MustNew(15000, 2)` = 150.00 |
+| Create from string | `decimal.MustParse(s)` | panics on error; use `decimal.Parse(s)` for error-returning version |
+| Check positive | `d.IsPos()` | not `IsPositive()` |
+| Compare | `a.Equal(b)` | not string equality; `String()` preserves scale ("150.00" ≠ "150") |
+| Serialize | `d.String()` | preserves scale (e.g. "150.00") |
+| Deserialize | `decimal.MustParse(s)` | parses back to Decimal |
+| JSON | native | implements `json.Marshaler`/`json.Unmarshaler` automatically
+
 ### Import Parsers
 - Parse broker files into an intermediate format first, then validate before persisting
 - Log parsing errors with line numbers for debugging

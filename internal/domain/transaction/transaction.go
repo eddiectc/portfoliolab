@@ -1,0 +1,65 @@
+package transaction
+
+import (
+	"time"
+
+	"github.com/govalues/decimal"
+)
+
+// Transaction represents a single investment event (buy, sell, deposit, etc.)
+// belonging to an account. It is the source of truth for all portfolio analytics.
+type Transaction struct {
+	ID                int64            `json:"id"`
+	AccountID         int64            `json:"account_id"`
+	Date              time.Time        `json:"date"`
+	Type              string           `json:"type"`
+	Symbol            string           `json:"symbol"`
+	Quantity          decimal.Decimal  `json:"quantity"`
+	Price             decimal.Decimal  `json:"price"`
+	Currency          string           `json:"currency"`
+	NetCash           *decimal.Decimal `json:"net_cash,omitempty"`
+	ExternalSystem    *string          `json:"external_system,omitempty"`
+	ExternalReference *string          `json:"external_reference,omitempty"`
+	CreatedAt         time.Time        `json:"created_at"`
+	UpdatedAt         time.Time        `json:"updated_at"`
+}
+
+// CreateRequest is the DTO for creating a transaction.
+// Date is accepted as a string (YYYY-MM-DD) and parsed to time.Time in the service layer.
+type CreateRequest struct {
+	AccountID         int64            `json:"account_id"`
+	Date              string           `json:"date"`
+	Type              string           `json:"type"`
+	Symbol            string           `json:"symbol"`
+	Quantity          decimal.Decimal  `json:"quantity"`
+	Price             decimal.Decimal  `json:"price"`
+	Currency          string           `json:"currency"`
+	NetCash           *decimal.Decimal `json:"net_cash,omitempty"`
+	ExternalSystem    *string          `json:"external_system,omitempty"`
+	ExternalReference *string          `json:"external_reference,omitempty"`
+}
+
+// UpdateRequest is the DTO for updating a transaction.
+// All fields are pointers — only non-nil fields are applied.
+// Date is accepted as a string (YYYY-MM-DD) and parsed to time.Time in the service layer.
+type UpdateRequest struct {
+	Date              *string          `json:"date,omitempty"`
+	Type              *string          `json:"type,omitempty"`
+	Symbol            *string          `json:"symbol,omitempty"`
+	Quantity          *decimal.Decimal `json:"quantity,omitempty"`
+	Price             *decimal.Decimal `json:"price,omitempty"`
+	Currency          *string          `json:"currency,omitempty"`
+	NetCash           *decimal.Decimal `json:"net_cash,omitempty"`
+	ExternalSystem    *string          `json:"external_system,omitempty"`
+	ExternalReference *string          `json:"external_reference,omitempty"`
+}
+
+// ListFilters holds optional filter criteria for listing transactions.
+// Nil fields are treated as "no filter" for that dimension.
+type ListFilters struct {
+	AccountID *int64
+	Symbol    *string
+	Type      *string
+	DateFrom  *time.Time
+	DateTo    *time.Time
+}

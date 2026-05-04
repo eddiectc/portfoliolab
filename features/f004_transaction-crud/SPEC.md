@@ -264,11 +264,11 @@ As an investor, I want to remove an erroneous transaction so that it no longer a
 **Then** the response status is 200 OK
 **And** the response contains an empty array
 
-### Scenario: List transactions with zero limit defaults to all
+### Scenario: List transactions with zero limit defaults to 50
 **Given** ten transactions exist
 **When** I request the list of transactions with limit=0
 **Then** the response status is 200 OK
-**And** the response contains all 10 transactions (default/no limit applied)
+**And** the response contains all 10 transactions (limit=0 defaults to 50, which covers all items)
 
 ### Scenario: List transactions with negative offset defaults to 0
 **Given** five transactions exist
@@ -430,7 +430,7 @@ As an investor, I want to remove an erroneous transaction so that it no longer a
 - Getting/updating/deleting a non-existent transaction ID
 - Attempting to change the account_id of an existing transaction (immutable — rejected)
 - Updating with no fields to change (no-op, returns current state, timestamps unchanged)
-- Listing with limit=0 or negative offset (treated as defaults)
+- Listing with limit=0 (defaults to 50) or negative offset (defaults to 0)
 - Listing when no transactions exist (returns empty array, not error)
 - Listing with multiple combined filters (account + symbol, account + type, etc.)
 - Listing with date range filters (start date only, end date only, or both)
@@ -451,7 +451,7 @@ As an investor, I want to remove an erroneous transaction so that it no longer a
 - **external_reference**: optional text field, max 100 characters
 - **Cash convention**: cash movements use symbol `$CASH-{currency}` (e.g., `$CASH-USD`, `$CASH-GBP`), quantity = cash value, price = 1, netCash = quantity
 - **Sorting**: default order is date descending, then symbol ascending, then type ascending, then ID ascending
-- **Pagination**: follows existing pattern — `limit` and `offset` query params, default limit 50, limit=0 means no limit, negative offset defaults to 0
+- **Pagination**: follows existing pattern — `limit` and `offset` query params, default limit 50, limit=0 or limit<0 defaults to 50, negative offset defaults to 0
 - **Error responses**: `{"error": "message", "code": "ERROR_CODE"}`
 - **Error codes**: `TRANSACTION_NOT_FOUND`, `ACCOUNT_NOT_FOUND`, `SYMBOL_NOT_FOUND`, `INVALID_SYMBOL`, `INVALID_PRICE`, `INVALID_CURRENCY`, `INVALID_TYPE`, `INVALID_QUANTITY`, `INVALID_DATE`, `IMMUTABLE_FIELD`
 - All CRUD operations complete in under 100ms for typical datasets (< 10,000 transactions)
