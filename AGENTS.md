@@ -115,7 +115,7 @@ Feature index: `features/README.md`.
 
 ### Domain Logic
 - **Position calculations** are the heart of the app — be extra careful with P&L math
-- Use `shopspring/decimal` for all monetary values (prices, costs, P&L) — never `float64`
+- Use `github.com/govalues/decimal` for all monetary values (prices, costs, P&L) — never `float64`
 - Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
 - Document all rounding rules and edge cases in code comments
 - The `calculator.go` in the transaction domain is critical — test exhaustively
