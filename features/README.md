@@ -10,9 +10,9 @@ Feature IDs are sequential: f001, f002, etc.
 
 ## Feature Index
 
-| ID | Name | Status |
-|---|---|---|
-| f001 | Portfolio CRUD | done |
-| f002 | Account CRUD | done |
-| f003 | Symbol Map | spec |
-| f004 | Transaction CRUD | spec |
+| ID | Name | Status | Depends On |
+|---|---|---|---|
+| f001 | Portfolio CRUD | done | — |
+| f002 | Account CRUD | done | f001 |
+| f003 | Symbol Map | spec | — |
+| f004 | Transaction CRUD | plan | f002, f003 |

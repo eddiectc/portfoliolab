@@ -94,7 +94,7 @@ type UpdateRequest struct {
 ```go
 // market/quote.go
 
-import "github.com/shopspring/decimal"
+import "github.com/govalues/decimal"
 
 type Quote struct {
     Symbol      string          `json:"symbol"`
@@ -244,7 +244,7 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 
 **Description:** Add debounced market data preview when typing the market data provider symbol. Fetches quote from Yahoo Finance. Non-blocking — gracefully degrades if unavailable.
 
-- [ ] Add `github.com/wnjoon/go-yfinance` and `github.com/shopspring/decimal` to `go.mod`
+- [ ] Add `github.com/wnjoon/go-yfinance` and `github.com/govalues/decimal` to `go.mod`
 - [ ] Create `internal/market/quote.go` with:
   - `Quote` struct (Symbol, Name, Exchange, Currency, LatestPrice)
   - `QuoteFetcher` interface: `FetchQuote(ctx context.Context, symbol string) (*Quote, error)`
@@ -277,7 +277,7 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 | Delete guard for transactions | Stub returning `false` in repo | Transaction feature doesn't exist yet; stub allows delete to work now; real check added when transaction feature is built |
 | Symbol validation | Non-empty, trimmed, max 20 chars | Ticker symbols are short; 20 chars covers exotic formats like `BRK.A.LON` |
 | go-yfinance addition | Added to go.mod for Task 6 | Already planned per PROJECT.md; pure Go, no Python dependency |
-| shopspring/decimal | Added to go.mod; replaces int64 minor units convention | Exact decimal arithmetic for all monetary values; stored as TEXT in SQLite; repo layer handles decimal ↔ string conversion; avoids float64 precision issues in P&L math |
+| govalues/decimal | Added to go.mod; replaces int64 minor units convention | Exact decimal arithmetic for all monetary values; stored as TEXT in SQLite; repo layer handles decimal ↔ string conversion; avoids float64 precision issues in P&L math; faster, no heap allocations, correctly rounded, panic-free |
 
 ## Risks
 
