@@ -73,7 +73,8 @@ This feature provides the symbol mapping infrastructure consumed by future featu
 **Given** I have multiple symbol mappings configured
 **When** I navigate to the symbol mappings page
 **Then** I see a list of all mappings showing internal symbol, broker source(s), and market data provider symbol
-**And** I can filter or search by internal symbol, broker, or market data provider symbol
+
+> **Deferred**: Search/filter by internal symbol, broker, or market data provider symbol. Existing list pages (portfolios, accounts) don't have search either. Deferred to a future UX improvement feature.
 
 ### Scenario: Market data preview during symbol update
 **Given** I am editing an existing symbol mapping and change the market data provider symbol
