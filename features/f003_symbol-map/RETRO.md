@@ -64,5 +64,5 @@
 
 - [x] Search/filter on list page: explicitly marked as deferred in SPEC.md
 - [x] Add basic test for `market/quote.go`: created `quote_test.go` with interface satisfaction and struct tests
-- [x] Track `Quote.LatestPrice` `float64` → `decimal.Decimal`: documented in NOTES.md for f004
+- [x] Track `Quote.LatestPrice` `float64` → `decimal.Decimal`: converted to `decimal.Decimal` in this feature
 - [x] Repository tests: already exist in `symbol_mapping_repo_test.go` (14 tests)

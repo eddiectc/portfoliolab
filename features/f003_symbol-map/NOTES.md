@@ -24,4 +24,4 @@
 
 ## Known Issues
 - `HasReferencingTransactions` is a stub — safe because no transactions table exists yet.
-- `Quote.LatestPrice` is `float64` (go-yfinance returns float64). Convert to `decimal.Decimal` in f004 when actual monetary calculations are needed.
+- `Quote.LatestPrice` uses `decimal.Decimal` (converted from go-yfinance's float64 via `decimal.NewFromFloat64`). JSON serializes as string for precision.

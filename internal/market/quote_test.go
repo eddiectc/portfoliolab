@@ -2,6 +2,8 @@ package market
 
 import (
 	"testing"
+
+	"github.com/govalues/decimal"
 )
 
 func TestQuoteFetcherInterface(t *testing.T) {
@@ -15,7 +17,7 @@ func TestQuote_StructFields(t *testing.T) {
 		Name:        "Apple Inc.",
 		Exchange:    "NMS",
 		Currency:    "USD",
-		LatestPrice: 175.50,
+		LatestPrice: decimal.MustNew(17550, 2),
 	}
 
 	if q.Symbol != "AAPL" {
@@ -30,7 +32,22 @@ func TestQuote_StructFields(t *testing.T) {
 	if q.Currency != "USD" {
 		t.Errorf("expected Currency 'USD', got %q", q.Currency)
 	}
-	if q.LatestPrice != 175.50 {
-		t.Errorf("expected LatestPrice 175.50, got %f", q.LatestPrice)
+	if !q.LatestPrice.Equal(decimal.MustNew(17550, 2)) {
+		t.Errorf("expected LatestPrice 175.50, got %s", q.LatestPrice.String())
+	}
+}
+
+func TestQuote_JSONSerialization(t *testing.T) {
+	q := Quote{
+		Symbol:      "AAPL",
+		Name:        "Apple Inc.",
+		Exchange:    "NMS",
+		Currency:    "USD",
+		LatestPrice: decimal.MustNew(17550, 2),
+	}
+
+	// Verify latest_price serializes as a string (preserves precision)
+	if q.LatestPrice.String() != "175.50" {
+		t.Errorf("expected LatestPrice '175.50', got %s", q.LatestPrice.String())
 	}
 }
