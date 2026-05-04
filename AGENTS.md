@@ -115,7 +115,8 @@ Feature index: `features/README.md`.
 
 ### Domain Logic
 - **Position calculations** are the heart of the app — be extra careful with P&L math
-- Use integer arithmetic (minor units) for money to avoid floating-point issues
+- Use `shopspring/decimal` for all monetary values (prices, costs, P&L) — never `float64`
+- Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
 - Document all rounding rules and edge cases in code comments
 - The `calculator.go` in the transaction domain is critical — test exhaustively
 
@@ -142,7 +143,7 @@ Feature index: `features/README.md`.
 - Driver: `modernc.org/sqlite` (pure Go, no CGO)
 - Migrations via `goose`; SQLite-compatible SQL only (no JSONB, use TEXT + manual JSON)
 - Enable WAL mode: `PRAGMA journal_mode=WAL`
-- Use `BIGINT` for monetary amounts (stored in minor units)
+- Use `TEXT` for monetary amounts (stores `decimal.Decimal` as string); repo layer converts to/from `decimal.Decimal`
 - For integration tests, use `file::memory:?cache=shared` for in-memory SQLite
 - **sqlc workflow**: Add SQL to `internal/data/queries/*.sql`, run `sqlc generate` from that dir. Repos delegate to `queries.Queries` and handle domain ↔ sqlc type mapping (timestamps are `string` in sqlc models — convert with `parseTime()` / `.Format(time.RFC3339)` in the repo layer)
 

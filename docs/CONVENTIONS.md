@@ -41,7 +41,8 @@
 
 ## Domain Logic
 - **Position calculations** are the heart of the app — be extra careful with P&L math
-- Use integer arithmetic (minor units) for money to avoid floating-point issues
+- Use `shopspring/decimal` for all monetary values (prices, costs, P&L) — never `float64`
+- Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
 - Document all rounding rules and edge cases in code comments
 
 ## Database (SQLite)
@@ -49,7 +50,7 @@
 - Driver: `modernc.org/sqlite` (pure Go, no CGO)
 - Migrations via `goose`; SQLite-compatible SQL only
 - Enable WAL mode: `PRAGMA journal_mode=WAL`
-- Use `BIGINT` for monetary amounts (stored in minor units)
+- Use `TEXT` for monetary amounts (stores `decimal.Decimal` as string); repo layer converts to/from `decimal.Decimal`
 - For integration tests, use `file::memory:?cache=shared` for in-memory SQLite
 - Timestamps: `modernc.org/sqlite` stores datetime as TEXT and doesn't scan into `time.Time`. sqlc generates `string` for timestamp columns; the repo layer converts with `parseTime()` (handles RFC3339 and SQLite format) and formats with `.Format(time.RFC3339)` on write.
 
