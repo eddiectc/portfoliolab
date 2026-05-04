@@ -10,26 +10,91 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 )
 
-func setupPortfolioHandler(t *testing.T) (*PortfolioHandler, *portfolio.MockRepository) {
+// testPortfolioRepo is a minimal in-memory mock repo for portfolio handler tests.
+type testPortfolioRepo struct {
+	portfolios map[int64]*portfolio.Portfolio
+	names      map[string]int64 // name -> id
+	nextID     int64
+}
+
+func newTestPortfolioRepo() *testPortfolioRepo {
+	return &testPortfolioRepo{
+		portfolios: make(map[int64]*portfolio.Portfolio),
+		names:      make(map[string]int64),
+		nextID:     1,
+	}
+}
+
+func (r *testPortfolioRepo) Create(_ context.Context, p *portfolio.Portfolio) error {
+	r.nextID++
+	p.ID = r.nextID
+	r.portfolios[p.ID] = p
+	r.names[p.Name] = p.ID
+	return nil
+}
+
+func (r *testPortfolioRepo) GetByID(_ context.Context, id int64) (*portfolio.Portfolio, error) {
+	p, ok := r.portfolios[id]
+	if !ok {
+		return nil, portfolio.ErrNotFound
+	}
+	cp := *p
+	return &cp, nil
+}
+
+func (r *testPortfolioRepo) GetAll(_ context.Context, limit, offset int) ([]portfolio.Portfolio, error) {
+	var result []portfolio.Portfolio
+	for _, p := range r.portfolios {
+		cp := *p
+		result = append(result, cp)
+	}
+	if offset > 0 && offset < len(result) {
+		result = result[offset:]
+	}
+	if limit > 0 && limit < len(result) {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (r *testPortfolioRepo) Update(_ context.Context, p *portfolio.Portfolio) error {
+	r.portfolios[p.ID] = p
+	return nil
+}
+
+func (r *testPortfolioRepo) Delete(_ context.Context, id int64) error {
+	p, ok := r.portfolios[id]
+	if !ok {
+		return portfolio.ErrNotFound
+	}
+	delete(r.names, p.Name)
+	delete(r.portfolios, id)
+	return nil
+}
+
+func (r *testPortfolioRepo) GetByName(_ context.Context, name string) (*portfolio.Portfolio, error) {
+	id, ok := r.names[name]
+	if !ok {
+		return nil, portfolio.ErrNotFound
+	}
+	p := r.portfolios[id]
+	cp := *p
+	return &cp, nil
+}
+
+func setupPortfolioHandler(t *testing.T) (*PortfolioHandler, *testPortfolioRepo) {
 	t.Helper()
-	mockRepo := portfolio.NewMockRepository(t)
-	svc := portfolio.NewService(mockRepo)
-	return NewPortfolioHandler(svc), mockRepo
+	repo := newTestPortfolioRepo()
+	svc := portfolio.NewService(repo)
+	return NewPortfolioHandler(svc), repo
 }
 
 func TestHandleCreate_Success(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	mockRepo.On("GetByName", mock.Anything, "Test Portfolio").Return(nil, portfolio.ErrNotFound).Once()
-	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*portfolio.Portfolio")).Return(func(_ context.Context, p *portfolio.Portfolio) error {
-		p.ID = 1
-		return nil
-	})
+	handler, _ := setupPortfolioHandler(t)
 
 	body := `{"name": "Test Portfolio", "currency": "USD"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString(body))
@@ -66,10 +131,10 @@ func TestHandleCreate_InvalidBody(t *testing.T) {
 }
 
 func TestHandleCreate_DuplicateName(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
+	handler, repo := setupPortfolioHandler(t)
 
-	existing := &portfolio.Portfolio{ID: 1, Name: "Dup", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	mockRepo.On("GetByName", mock.Anything, "Dup").Return(existing, nil).Once()
+	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Dup", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.names["Dup"] = 1
 
 	body := `{"name": "Dup", "currency": "USD"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString(body))
@@ -97,14 +162,11 @@ func TestHandleCreate_InvalidCurrency(t *testing.T) {
 }
 
 func TestHandleList(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
+	handler, repo := setupPortfolioHandler(t)
 
-	portfolios := []portfolio.Portfolio{
-		{ID: 1, Name: "PA", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()},
-		{ID: 2, Name: "PB", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()},
-		{ID: 3, Name: "PC", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	for i := 1; i <= 3; i++ {
+		repo.portfolios[int64(i)] = &portfolio.Portfolio{ID: int64(i), Name: "P" + string(rune('A'+i-1)), Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	}
-	mockRepo.On("GetAll", mock.Anything, 50, 0).Return(portfolios, nil).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -123,9 +185,7 @@ func TestHandleList(t *testing.T) {
 }
 
 func TestHandleList_Empty(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	mockRepo.On("GetAll", mock.Anything, 50, 0).Return([]portfolio.Portfolio{}, nil).Once()
+	handler, _ := setupPortfolioHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -147,15 +207,11 @@ func TestHandleList_Empty(t *testing.T) {
 }
 
 func TestHandleList_DefaultPagination(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
+	handler, repo := setupPortfolioHandler(t)
 
-	// Create 10 portfolios
-	portfolios := make([]portfolio.Portfolio, 10)
-	for i := 0; i < 10; i++ {
-		portfolios[i] = portfolio.Portfolio{ID: int64(i + 1), Name: "P", Currency: "USD"}
+	for i := 1; i <= 10; i++ {
+		repo.portfolios[int64(i)] = &portfolio.Portfolio{ID: int64(i), Name: "P", Currency: "USD"}
 	}
-	// Service defaults limit=0 to 50, so mock expects 50
-	mockRepo.On("GetAll", mock.Anything, 50, 0).Return(portfolios, nil).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -174,13 +230,12 @@ func TestHandleList_DefaultPagination(t *testing.T) {
 }
 
 func TestHandleGet_Success(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	p := &portfolio.Portfolio{ID: 1, Name: "Test", Currency: "EUR", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(p, nil).Once()
+	repo := newTestPortfolioRepo()
+	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Test", Currency: "EUR", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 
 	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
+	portfolio.NewService(repo)
+	NewPortfolioHandler(portfolio.NewService(repo)).RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/1", nil)
 	w := httptest.NewRecorder()
@@ -202,12 +257,9 @@ func TestHandleGet_Success(t *testing.T) {
 }
 
 func TestHandleGet_NotFound(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	mockRepo.On("GetByID", mock.Anything, int64(999)).Return(nil, portfolio.ErrNotFound).Once()
-
+	repo := newTestPortfolioRepo()
 	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
+	NewPortfolioHandler(portfolio.NewService(repo)).RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/999", nil)
 	w := httptest.NewRecorder()
@@ -220,10 +272,9 @@ func TestHandleGet_NotFound(t *testing.T) {
 }
 
 func TestHandleGet_InvalidID(t *testing.T) {
-	handler, _ := setupPortfolioHandler(t)
-
+	repo := newTestPortfolioRepo()
 	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
+	NewPortfolioHandler(portfolio.NewService(repo)).RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/abc", nil)
 	w := httptest.NewRecorder()
@@ -236,18 +287,12 @@ func TestHandleGet_InvalidID(t *testing.T) {
 }
 
 func TestHandleUpdate_Success(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	old := &portfolio.Portfolio{ID: 1, Name: "Old", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(old, nil).Once()
-	mockRepo.On("GetByName", mock.Anything, "New Name").Return(nil, portfolio.ErrNotFound).Once()
-	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*portfolio.Portfolio")).Return(func(_ context.Context, p *portfolio.Portfolio) error {
-		p.Name = "New Name"
-		return nil
-	})
+	repo := newTestPortfolioRepo()
+	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Old", Currency: "USD", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.names["Old"] = 1
 
 	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
+	NewPortfolioHandler(portfolio.NewService(repo)).RegisterRoutes(r)
 
 	body := `{"name": "New Name"}`
 	req := httptest.NewRequest(http.MethodPatch, "/api/portfolios/1", bytes.NewBufferString(body))
@@ -268,12 +313,12 @@ func TestHandleUpdate_Success(t *testing.T) {
 }
 
 func TestHandleDelete(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	mockRepo.On("Delete", mock.Anything, int64(1)).Return(nil).Once()
+	repo := newTestPortfolioRepo()
+	repo.portfolios[1] = &portfolio.Portfolio{ID: 1, Name: "Test", Currency: "USD"}
+	repo.names["Test"] = 1
 
 	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
+	NewPortfolioHandler(portfolio.NewService(repo)).RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/portfolios/1", nil)
 	w := httptest.NewRecorder()
@@ -286,12 +331,9 @@ func TestHandleDelete(t *testing.T) {
 }
 
 func TestHandleDelete_NotFound(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	mockRepo.On("Delete", mock.Anything, int64(999)).Return(portfolio.ErrNotFound).Once()
-
+	repo := newTestPortfolioRepo()
 	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
+	NewPortfolioHandler(portfolio.NewService(repo)).RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/portfolios/999", nil)
 	w := httptest.NewRecorder()
@@ -304,12 +346,9 @@ func TestHandleDelete_NotFound(t *testing.T) {
 }
 
 func TestErrorResponseFormat(t *testing.T) {
-	handler, mockRepo := setupPortfolioHandler(t)
-
-	mockRepo.On("GetByID", mock.Anything, int64(999)).Return(nil, portfolio.ErrNotFound).Once()
-
+	repo := newTestPortfolioRepo()
 	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
+	NewPortfolioHandler(portfolio.NewService(repo)).RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios/999", nil)
 	w := httptest.NewRecorder()

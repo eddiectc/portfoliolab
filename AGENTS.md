@@ -55,9 +55,6 @@ go test -cover ./...
 # Run only unit tests (fast, no DB)
 go test -short ./...
 
-# Generate mocks
-mockery --all
-
 # Generate sqlc types
 sqlc generate
 
@@ -100,8 +97,8 @@ Feature index: `features/README.md`.
 
 ### Unit Testing
 - **Co-locate tests**: `domain/transaction/calculator_test.go` next to `calculator.go`
-- **Mock all external deps**: Define interfaces for repos and fetchers; generate mocks with `mockery`
-- **Mocks must simulate real behavior**: If the real implementation returns empty/error for edge-case inputs (e.g. `limit=0` → `LIMIT 0` → zero rows), the mock must do the same. Permissive mocks hide bugs in the service/handler layer.
+- **Hand-written mocks only**: Define minimal mock structs co-located in `*_test.go` files (not separate mock files, no mockery/testify). Follow the `account/service_test.go` pattern: the mock maintains internal state (maps, slices) and simulates real repository behavior — e.g., `Create` then `GetByID` returns the created item. This catches service-layer bugs that permissive expectation-based mocks would hide.
+- **Mocks must simulate real behavior**: If the real implementation returns empty/error for edge-case inputs (e.g. `limit=0` → `LIMIT 0` → zero rows), the mock must do the same.
 - **Table-driven tests**: Use `[]struct{name, input, want}` for comprehensive coverage
 - **Arrange-Act-Assert**: Clear separation; no setup in the act phase
 - **No DB, no network**: Unit tests run fast and deterministically
