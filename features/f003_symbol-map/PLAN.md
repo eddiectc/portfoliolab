@@ -135,17 +135,17 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 
 **Description:** Create the database schema for symbol mappings and broker symbol associations. Implement the repository with all CRUD operations.
 
-- [ ] Create migration `003_create_symbol_mappings.sql` with two tables:
+- [x] Create migration `003_create_symbol_mappings.sql` with two tables:
   - `symbol_mappings` (id, internal_symbol UNIQUE, market_data_symbol, created_at, updated_at)
   - `broker_symbol_mappings` (id, symbol_mapping_id FK, broker_name, broker_symbol, created_at; UNIQUE(broker_name, broker_symbol))
-- [ ] Add sqlc query files (`internal/data/queries/symbol_mapping.sql`) for all needed queries
-- [ ] Run `sqlc generate` (or hand-write queries if sqlc unavailable, following existing pattern)
-- [ ] Create `SymbolMappingRepository` in `internal/data/symbol_mapping_repo.go` implementing:
+- [x] Add sqlc query files (`internal/data/queries/symbol_mapping.sql`) for all needed queries
+- [x] Run `sqlc generate` (or hand-write queries if sqlc unavailable, following existing pattern)
+- [x] Create `SymbolMappingRepository` in `internal/data/symbol_mapping_repo.go` implementing:
   - `Create`, `GetByID`, `GetByInternalSymbol`, `GetAll` (with pagination)
   - `Update`, `Delete`
   - `AddBrokerSymbol`, `GetBrokerSymbolByBroker`, `HasReferencingTransactions` (stub — returns false until transaction feature exists)
-- [ ] Handle sqlc string timestamps with existing `parseTime()` pattern
-- [ ] Write repository unit tests (mock sqlc queries or use in-memory SQLite)
+- [x] Handle sqlc string timestamps with existing `parseTime()` pattern
+- [x] Write repository unit tests (mock sqlc queries or use in-memory SQLite)
 
 **Verification:** `go test ./internal/data/...` passes; migration runs cleanly with `goose up`.
 
@@ -155,19 +155,19 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 
 **Description:** Define the domain model, DTOs, service interface, and business logic for symbol mappings.
 
-- [ ] Create `internal/domain/symbolmapping/symbol_mapping.go` with:
+- [x] Create `internal/domain/symbolmapping/symbol_mapping.go` with:
   - `SymbolMapping` struct (ID, InternalSymbol, MarketDataSymbol, BrokerSymbols []BrokerSymbol, CreatedAt, UpdatedAt)
   - `BrokerSymbol` struct (ID, BrokerName, BrokerSymbol)
   - `CreateRequest`, `UpdateRequest` DTOs
-- [ ] Create `internal/domain/symbolmapping/service.go` with:
+- [x] Create `internal/domain/symbolmapping/service.go` with:
   - `Repository` interface (matching repo methods)
   - Service errors: `ErrNotFound`, `ErrInternalSymbolExists`, `ErrBrokerSymbolExists`, `ErrInvalidSymbol`, `ErrInUse`
   - `Service` struct with `Create`, `Get`, `List`, `Update`, `Delete`, `AddBrokerSymbol` methods
   - Validation: non-empty/trimmed symbols, max length (~20 chars for ticker symbols)
   - Uniqueness checks: internal symbol, broker symbol (broker_name + broker_symbol pair)
   - Delete guard: check `HasReferencingTransactions`
-- [ ] Create hand-written mock repository in `internal/domain/symbolmapping/mock_repository.go` (following portfolio pattern)
-- [ ] Write comprehensive service unit tests in `service_test.go` (table-driven, covering all scenarios)
+- [x] Create hand-written mock repository in `service_test.go` (following portfolio pattern — mock co-located with tests)
+- [x] Write comprehensive service unit tests in `service_test.go` (table-driven, covering all scenarios)
 
 **Verification:** `go test ./internal/domain/symbolmapping/...` passes; all 12 spec scenarios covered by service tests.
 
@@ -177,7 +177,7 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 
 **Description:** Create JSON API handlers for symbol mapping CRUD operations.
 
-- [ ] Create `internal/api/handlers/symbol_mapping.go` with:
+- [x] Create `internal/api/handlers/symbol_mapping.go` with:
   - `SymbolMappingHandler` struct
   - `RegisterRoutes` mounting: GET/POST `/api/symbol-mappings`, GET/PATCH/DELETE `/api/symbol-mappings/{id}`, POST `/api/symbol-mappings/{id}/broker-symbols`
   - `HandleList` (GET, with pagination)
@@ -187,7 +187,7 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
   - `HandleDelete` (DELETE by ID)
   - `HandleAddBrokerSymbol` (POST to mapping's broker symbols)
   - `handleServiceError` mapping domain errors to HTTP responses
-- [ ] Write handler unit tests in `symbol_mapping_test.go` (mock service, verify HTTP status codes and response bodies)
+- [x] Write handler unit tests in `symbol_mapping_test.go` (mock service, verify HTTP status codes and response bodies)
 
 **Verification:** `go test ./internal/api/handlers/... -run Symbol` passes; API returns correct status codes and error formats.
 
@@ -197,18 +197,18 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 
 **Description:** Create server-rendered web pages for managing symbol mappings.
 
-- [ ] Create template `templates/symbol_mapping/list.html`:
+- [x] Create template `templates/symbol_mapping/list.html`:
   - Table showing: internal symbol, market data symbol, broker symbols, actions (edit/delete)
   - "New Symbol Mapping" button
   - Search/filter input (client-side or server-side — follow portfolio pattern)
   - Empty state message
-- [ ] Create template `templates/symbol_mapping/form.html`:
+- [x] Create template `templates/symbol_mapping/form.html`:
   - Fields: internal symbol, market data provider symbol
   - Optional: add broker symbols (broker name + broker symbol pairs, repeatable)
   - Error display area
   - Submit/Cancel buttons
   - Market data preview area (placeholder for Task 6)
-- [ ] Create `internal/api/handlers/symbol_mapping_web.go` with:
+- [x] Create `internal/api/handlers/symbol_mapping_web.go` with:
   - `SymbolMappingWebHandler` struct
   - `RegisterRoutes` mounting: GET `/symbol-mappings`, GET/POST `/symbol-mappings/new`, GET/POST `/symbol-mappings/{id}/edit`, POST `/symbol-mappings/{id}/delete`
   - `HandleListPage` — list all mappings
@@ -219,7 +219,7 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
   - `HandleDeletePage` — delete with confirmation
   - Flash messages for success/error feedback
   - `userFriendlyError` for service errors
-- [ ] Write web handler tests in `symbol_mapping_web_test.go` (follow portfolio_web_test.go pattern)
+- [x] Write web handler tests in `symbol_mapping_web_test.go` (follow portfolio_web_test.go pattern)
 
 **Verification:** Web pages render correctly; form submissions create/update/delete mappings; flash messages appear.
 
@@ -229,12 +229,12 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 
 **Description:** Wire the symbol mapping handlers into the application router and add navigation link.
 
-- [ ] Update `internal/api/router.go`:
+- [x] Update `internal/api/router.go`:
   - Create `SymbolMappingRepository`, `SymbolMappingService`, `SymbolMappingHandler`, `SymbolMappingWebHandler`
   - Register routes
-- [ ] Update `templates/partials/nav.html`:
+- [x] Update `templates/partials/nav.html`:
   - Add "Symbol Maps" link (or whatever label you prefer)
-- [ ] Verify full application builds and runs: `go build -o portfoliolab cmd/server/main.go`
+- [x] Verify full application builds and runs: `go build -o portfoliolab cmd/server/main.go`
 
 **Verification:** Application starts; `/symbol-mappings` page loads; API endpoints respond.
 
@@ -244,25 +244,25 @@ Tasks 1–5 are sequential. Task 6 can be done after Task 4 and is non-blocking 
 
 **Description:** Add debounced market data preview when typing the market data provider symbol. Fetches quote from Yahoo Finance. Non-blocking — gracefully degrades if unavailable.
 
-- [ ] Add `github.com/wnjoon/go-yfinance` and `github.com/govalues/decimal` to `go.mod`
-- [ ] Create `internal/market/quote.go` with:
+- [x] Add `github.com/wnjoon/go-yfinance` and `github.com/govalues/decimal` to `go.mod`
+- [x] Create `internal/market/quote.go` with:
   - `Quote` struct (Symbol, Name, Exchange, Currency, LatestPrice)
   - `QuoteFetcher` interface: `FetchQuote(ctx context.Context, symbol string) (*Quote, error)`
   - `YahooFinanceFetcher` implementing `QuoteFetcher` using go-yfinance
   - Error handling: log warning, return nil (caller handles gracefully)
-- [ ] Update `internal/domain/symbolmapping/service.go`:
+- [x] Update `internal/domain/symbolmapping/service.go`:
   - Add optional `QuoteFetcher` dependency to Service (nil-safe)
   - Add `PreviewSymbol(ctx, marketDataSymbol string) (*Quote, error)` method
-- [ ] Create API endpoint in `internal/api/handlers/symbol_mapping.go`:
+- [x] Create API endpoint in `internal/api/handlers/symbol_mapping.go`:
   - `GET /api/symbol-mappings/preview?symbol=AAPL`
   - Returns JSON quote or `{"error": "could not fetch data"}` (non-blocking)
-- [ ] Update `templates/symbol_mapping/form.html`:
+- [x] Update `templates/symbol_mapping/form.html`:
   - Add preview area below market data symbol input
   - Add JavaScript for debounced fetch (2-second pause)
   - Display: name, exchange, currency, latest price
   - Show warning icon/text on fetch failure
-- [ ] Update router to inject `YahooFinanceFetcher` into service and handler
-- [ ] Write unit tests for quote fetcher (mock HTTP) and preview endpoint
+- [x] Update router to inject `YahooFinanceFetcher` into service and handler
+- [x] Write unit tests for quote fetcher (mock HTTP) and preview endpoint
 
 **Verification:** Typing a symbol shows preview after 2s pause; invalid symbols show warning; creation proceeds regardless of preview success/failure.
 

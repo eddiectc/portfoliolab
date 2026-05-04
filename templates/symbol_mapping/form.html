@@ -1,0 +1,133 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>{{.Title}}</h1>
+</div>
+
+<form action="{{.Action}}" method="POST" class="form" id="mapping-form">
+    {{if .Error}}
+    <div class="alert alert-error">{{.Error}}</div>
+    {{end}}
+
+    <div class="form-group">
+        <label for="internal_symbol">Internal Symbol</label>
+        <input type="text" id="internal_symbol" name="internal_symbol" value="{{.InternalSymbol}}" required maxlength="20" placeholder="e.g. AAPL">
+        <small>Canonical symbol used within the app (max 20 characters)</small>
+    </div>
+
+    <div class="form-group">
+        <label for="market_data_symbol">Market Data Symbol</label>
+        <input type="text" id="market_data_symbol" name="market_data_symbol" value="{{.MarketDataSymbol}}" required maxlength="20" placeholder="e.g. AAPL">
+        <small>Yahoo Finance ticker symbol (max 20 characters)</small>
+        <div id="market-data-preview" class="market-data-preview" style="display:none;">
+            <div id="preview-success" style="display:none;">
+                <p><strong id="preview-name"></strong> — <span id="preview-exchange"></span></p>
+                <p>Price: <span id="preview-price"></span> <span id="preview-currency"></span></p>
+            </div>
+            <div id="preview-error" style="display:none;" class="text-muted">
+                <p>⚠ Could not fetch market data for this symbol</p>
+            </div>
+            <div id="preview-loading" style="display:none;" class="text-muted">
+                <p>Fetching market data...</p>
+            </div>
+        </div>
+    </div>
+
+    <fieldset class="form-group">
+        <legend>Broker Symbols (optional)</legend>
+        <div id="broker-symbols">
+            {{range .BrokerSymbols}}
+            <div class="broker-symbol-row">
+                <input type="text" name="broker_name" value="{{.BrokerName}}" placeholder="Broker (e.g. IBKR)" maxlength="50">
+                <input type="text" name="broker_symbol" value="{{.BrokerSymbol}}" placeholder="Broker symbol (e.g. AAPL.US)" maxlength="50">
+                <button type="button" class="btn btn-sm btn-danger remove-broker-symbol">Remove</button>
+            </div>
+            {{end}}
+        </div>
+        <button type="button" class="btn btn-sm" id="add-broker-symbol">+ Add Broker Symbol</button>
+        <small>Map broker-specific symbols to this internal symbol</small>
+    </fieldset>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{.SubmitText}}</button>
+        <a href="{{.CancelHref}}" class="btn">Cancel</a>
+    </div>
+</form>
+
+<script>
+(function() {
+    var container = document.getElementById('broker-symbols');
+    var addBtn = document.getElementById('add-broker-symbol');
+
+    addBtn.addEventListener('click', function() {
+        var row = document.createElement('div');
+        row.className = 'broker-symbol-row';
+        row.innerHTML =
+            '<input type="text" name="broker_name" placeholder="Broker (e.g. IBKR)" maxlength="50">' +
+            '<input type="text" name="broker_symbol" placeholder="Broker symbol (e.g. AAPL.US)" maxlength="50">' +
+            '<button type="button" class="btn btn-sm btn-danger remove-broker-symbol">Remove</button>';
+        container.appendChild(row);
+    });
+
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-broker-symbol')) {
+            e.target.parentElement.remove();
+        }
+    });
+
+    // Debounced market data preview
+    var previewEl = document.getElementById('market-data-preview');
+    var previewSuccess = document.getElementById('preview-success');
+    var previewError = document.getElementById('preview-error');
+    var previewLoading = document.getElementById('preview-loading');
+    var debounceTimer = null;
+
+    document.getElementById('market_data_symbol').addEventListener('input', function() {
+        var symbol = this.value.trim();
+
+        // Hide all preview states
+        previewEl.style.display = 'none';
+        previewSuccess.style.display = 'none';
+        previewError.style.display = 'none';
+        previewLoading.style.display = 'none';
+
+        if (symbol.length < 2) {
+            return;
+        }
+
+        // Clear previous timer
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
+
+        // Show loading state
+        previewEl.style.display = 'block';
+        previewLoading.style.display = 'block';
+
+        // Debounce: wait 2 seconds after last keystroke
+        debounceTimer = setTimeout(function() {
+            fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Fetch failed');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    previewLoading.style.display = 'none';
+                    previewSuccess.style.display = 'block';
+                    document.getElementById('preview-name').textContent = data.name || data.symbol;
+                    document.getElementById('preview-exchange').textContent = data.exchange || '';
+                    document.getElementById('preview-price').textContent = data.latest_price != null ? data.latest_price.toFixed(2) : 'N/A';
+                    document.getElementById('preview-currency').textContent = data.currency || '';
+                })
+                .catch(function() {
+                    previewLoading.style.display = 'none';
+                    previewError.style.display = 'block';
+                });
+        }, 2000);
+    });
+})();
+</script>
+{{end}}
+
+{{template "base" .}}

@@ -14,5 +14,5 @@ Feature IDs are sequential: f001, f002, etc.
 |---|---|---|---|
 | f001 | Portfolio CRUD | done | — |
 | f002 | Account CRUD | done | f001 |
-| f003 | Symbol Map | spec | — |
+| f003 | Symbol Map | in-progress | — |
 | f004 | Transaction CRUD | plan | f002, f003 |
