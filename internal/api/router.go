@@ -16,6 +16,7 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
@@ -59,6 +60,15 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	symbolMappingSvc := symbolmapping.NewService(symbolMappingRepo, symbolmapping.WithQuoteFetcher(yahooFetcher))
 	symbolMappingHandler := handlers.NewSymbolMappingHandler(symbolMappingSvc)
 	symbolMappingHandler.RegisterRoutes(r)
+
+	// Transaction CRUD (API)
+	transactionRepo := data.NewTransactionRepository(db)
+	accountChecker := data.NewAccountChecker(accountRepo)
+	symbolChecker := data.NewSymbolChecker(symbolMappingRepo)
+	symbolCreator := data.NewSymbolCreator(symbolMappingSvc)
+	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator)
+	transactionHandler := handlers.NewTransactionHandler(transactionSvc)
+	transactionHandler.RegisterRoutes(r)
 
 	// Portfolio web pages
 	renderer, err := web.NewRenderer("templates")

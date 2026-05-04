@@ -48,13 +48,56 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 		CREATE INDEX IF NOT EXISTS idx_accounts_portfolio_id ON accounts(portfolio_id);
 
+		CREATE TABLE IF NOT EXISTS symbol_mappings (
+			id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+			internal_symbol     TEXT    NOT NULL UNIQUE,
+			market_data_symbol  TEXT    NOT NULL,
+			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
+		);
+
+		CREATE TABLE IF NOT EXISTS broker_symbol_mappings (
+			id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+			symbol_mapping_id   INTEGER NOT NULL,
+			broker_name         TEXT    NOT NULL,
+			broker_symbol       TEXT    NOT NULL,
+			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (symbol_mapping_id) REFERENCES symbol_mappings(id) ON DELETE CASCADE,
+			UNIQUE(broker_name, broker_symbol)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_broker_symbol_mappings_mapping_id
+			ON broker_symbol_mappings(symbol_mapping_id);
+
+		CREATE TABLE IF NOT EXISTS transactions (
+			id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+			account_id          INTEGER NOT NULL,
+			date                TEXT    NOT NULL,
+			type                TEXT    NOT NULL,
+			symbol              TEXT    NOT NULL,
+			quantity            TEXT    NOT NULL,
+			price               TEXT    NOT NULL,
+			currency            TEXT    NOT NULL,
+			net_cash            TEXT,
+			external_system     TEXT,
+			external_reference  TEXT,
+			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id);
+		CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date DESC);
+		CREATE INDEX IF NOT EXISTS idx_transactions_symbol ON transactions(symbol);
+		CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+
 		CREATE TABLE IF NOT EXISTS goose_db_version (
 			id INTEGER PRIMARY KEY,
 			version_id INTEGER NOT NULL,
 			is_applied INTEGER NOT NULL DEFAULT 1,
 			tstamp TIMESTAMP DEFAULT (datetime('now'))
 		);
-		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (2, 1);
+		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (4, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)

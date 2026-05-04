@@ -142,10 +142,10 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Create the transactions table migration and sqlc query definitions. Multiple specialized queries for list filtering (one per filter combination) instead of a single dynamic query.
 
-- [ ] Create migration `003_create_transactions.sql` with:
+- [x] Create migration `003_create_transactions.sql` with:
   - `transactions` table (all columns, FK to accounts with ON DELETE CASCADE; monetary fields as TEXT)
   - Indexes: `idx_transactions_account_id`, `idx_transactions_date`, `idx_transactions_symbol`, `idx_transactions_type`
-- [ ] Create `internal/data/queries/transaction.sql` with sqlc queries:
+- [x] Create `internal/data/queries/transaction.sql` with sqlc queries:
   - `CreateTransaction` (:one, INSERT RETURNING *)
   - `GetTransaction` (:one, SELECT by id)
   - `UpdateTransaction` (:one, UPDATE SET ... RETURNING *)
@@ -167,8 +167,8 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
     - `ListTransactionsByAccountTypeDateRange` (WHERE account_id = ? AND type = ? AND date >= ? AND date <= ?)
     - `ListTransactionsBySymbolTypeDateRange` (WHERE symbol = ? AND type = ? AND date >= ? AND date <= ?)
     - `ListTransactionsByAllFilters` (WHERE account_id = ? AND symbol = ? AND type = ? AND date >= ? AND date <= ?)
-- [ ] Run `sqlc generate` from `internal/data/queries/` (or hand-write `.sql.go` following existing pattern if sqlc unavailable)
-- [ ] Update `tests/integration/portfolio_test.go` setupTestDB to include the transactions table schema (for integration tests)
+- [x] Run `sqlc generate` from `internal/data/queries/` (or hand-write `.sql.go` following existing pattern if sqlc unavailable)
+- [x] Update `tests/integration/portfolio_test.go` setupTestDB to include the transactions table schema (for integration tests)
 
 **Verification:** `goose sqlite3 data/portfoliolab.db up` runs cleanly; migration creates table and indexes; sqlc generates types.
 
@@ -178,11 +178,11 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Define the transaction domain model, DTOs, and validation functions. Uses `github.com/govalues/decimal` for monetary values and `time.Time` for dates (date-only, midnight UTC).
 
-- [ ] Create `internal/domain/transaction/transaction.go` with:
+- [x] Create `internal/domain/transaction/transaction.go` with:
   - `Transaction` struct (all fields, json tags, pointer fields for optionals; `decimal.Decimal` for quantity/price/netCash, `time.Time` for Date/CreatedAt/UpdatedAt)
   - `CreateRequest`, `UpdateRequest` DTOs (Date as `string` in JSON, parsed to `time.Time` in service)
   - `ListFilters` struct (AccountID *int64, Symbol *string, Type *string, DateFrom *time.Time, DateTo *time.Time)
-- [ ] Create `internal/domain/transaction/validator.go` with:
+- [x] Create `internal/domain/transaction/validator.go` with:
   - `ValidateCreateRequest(req CreateRequest) error` — validates all create fields
   - `ValidateUpdateRequest(req UpdateRequest) error` — validates only non-nil fields
   - `validateType(s string) error` — must be one of 8 allowed types
@@ -193,11 +193,11 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
   - `validateSymbol(s string) error` — trimmed, non-empty
   - `validateCashSymbolMatch(symbol, currency string) error` — `$CASH-{currency}` must match transaction currency
   - `validateExternalFields(externalSystem, externalReference *string) error` — max 100 chars
-- [ ] Define dependency interfaces in `internal/domain/transaction/service.go`:
+- [x] Define dependency interfaces in `internal/domain/transaction/service.go`:
   - `AccountChecker` interface: `AccountExists(ctx context.Context, id int64) bool`
   - (SymbolChecker/SymbolCreator provided by f003 domain — no interfaces needed in transaction domain; f003 types used directly)
-- [ ] Define service errors: `ErrNotFound`, `ErrAccountNotFound`, `ErrSymbolNotFound`, `ErrInvalidSymbol`, `ErrInvalidPrice`, `ErrInvalidCurrency`, `ErrInvalidType`, `ErrInvalidQuantity`, `ErrInvalidDate`, `ErrImmutableField`
-- [ ] Write comprehensive validation unit tests in `validator_test.go` (table-driven, covering all constraints and edge cases)
+- [x] Define service errors: `ErrNotFound`, `ErrAccountNotFound`, `ErrSymbolNotFound`, `ErrInvalidSymbol`, `ErrInvalidPrice`, `ErrInvalidCurrency`, `ErrInvalidType`, `ErrInvalidQuantity`, `ErrInvalidDate`, `ErrImmutableField`
+- [x] Write comprehensive validation unit tests in `validator_test.go` (table-driven, covering all constraints and edge cases)
 
 **Verification:** `go test ./internal/domain/transaction/... -run Validator` passes; all validation rules tested.
 
@@ -207,7 +207,7 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Implement the transaction repository, delegating to sqlc-generated queries. Handles decimal ↔ string conversion and time.Time ↔ SQLite text conversion. Routes list requests to the appropriate specialized query based on which filters are set.
 
-- [ ] Create `internal/data/transaction_repo.go` with:
+- [x] Create `internal/data/transaction_repo.go` with:
   - `TransactionRepository` struct with `q *queries.Queries` and `db queries.DBTX`
   - `toDomain(queries.Transaction) (*transaction.Transaction, error)` — converts sqlc model to domain model, parses timestamps, converts decimal strings to `decimal.Decimal`
   - `Create(ctx, *transaction.Transaction) error` — inserts (decimal → string) and sets ID
@@ -215,10 +215,10 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
   - `List(ctx, transaction.ListFilters, int, int) ([]transaction.Transaction, error)` — selects appropriate specialized query based on which filters are non-nil, applies pagination
   - `Update(ctx, *transaction.Transaction) error`
   - `Delete(ctx, int64) error` — returns ErrNotFound if 0 rows affected
-- [ ] Handle sqlc string timestamps with existing `parseTime()` pattern
-- [ ] Handle decimal ↔ string conversion for quantity, price, net_cash (decimal.String() → decimal.NewFromString())
-- [ ] Handle nullable fields (net_cash, external_system, external_reference) in toDomain conversion
-- [ ] Write repository unit tests in `transaction_repo_test.go` (use in-memory SQLite or mock sqlc)
+- [x] Handle sqlc string timestamps with existing `parseTime()` pattern
+- [x] Handle decimal ↔ string conversion for quantity, price, net_cash (decimal.String() → decimal.Parse())
+- [x] Handle nullable fields (net_cash, external_system, external_reference) in toDomain conversion
+- [x] Write repository unit tests in `transaction_repo_test.go` (use in-memory SQLite)
 
 **Verification:** `go test ./internal/data/... -run Transaction` passes; all CRUD operations work; decimal conversion is lossless.
 
@@ -228,23 +228,26 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Implement the transaction service with full CRUD, validation, filtering, and pagination. Depends on f003 symbol-map types for symbol checking and auto-creation.
 
-- [ ] Create `internal/domain/transaction/service.go` with:
+- [x] Create `internal/domain/transaction/service.go` with:
   - `Repository` interface (matching repo methods)
-  - `Service` struct with Repository, AccountChecker, and f003 symbol-map service (for symbol existence checks and $CASH auto-creation)
-  - `Create(ctx, CreateRequest) (*Transaction, error)` — validates, checks account/symbol, auto-creates $CASH symbol via f003, persists
+  - `Service` struct with Repository, AccountChecker, SymbolChecker, and SymbolCreator
+  - `Create(ctx, CreateRequest) (*Transaction, error)` — validates, checks account/symbol, auto-creates $CASH symbol, persists
   - `Get(ctx, int64) (*Transaction, error)`
-  - `List(ctx, ListFilters, int, int) ([]Transaction, error)` — applies pagination defaults (limit=0 → 50, negative offset → 0)
-  - `Update(ctx, int64, UpdateRequest) (*Transaction, error)` — validates changed fields, rejects account_id change, refreshes updated_at only if changed
+  - `List(ctx, ListFilters, int, int) ([]Transaction, error)` — applies pagination defaults
+  - `Update(ctx, int64, UpdateRequest) (*Transaction, error)` — validates changed fields, refreshes updated_at only if changed
   - `Delete(ctx, int64) error`
-- [ ] Pagination logic: `limit=0` or `limit<0` defaults to 50; `offset<0` defaults to 0
-- [ ] `$CASH-{currency}` auto-creation: if symbol matches `$CASH-{currency}` pattern and doesn't exist, create via f003 symbol-map service
-- [ ] Date handling: parse `CreateRequest.Date` (string, YYYY-MM-DD) to `time.Time` (midnight UTC); serialize back to YYYY-MM-DD in JSON responses
-- [ ] Update no-op detection: if no fields provided, return current state without touching updated_at
-- [ ] Create mock implementation in `internal/domain/transaction/mock_repository.go`:
-  - `mockRepository` — in-memory store with filtering/pagination
+- [x] Pagination logic: `limit=0` or `limit<0` defaults to 50; `offset<0` defaults to 0 (follows existing account service convention)
+- [x] `$CASH-{currency}` auto-creation: if symbol matches `$CASH-{currency}` pattern and doesn't exist, create via SymbolCreator
+- [x] Date handling: parse `CreateRequest.Date` (string, YYYY-MM-DD) to `time.Time` (midnight UTC) via `parseDate()`
+- [x] Update no-op detection: if no fields provided, return current state without touching updated_at
+- [x] Single-bound date filters: DateFrom only → far-future DateTo; DateTo only → far-past DateFrom
+- [x] Create mock implementation in `internal/domain/transaction/mock_repository.go`:
+  - `mockRepository` — in-memory store with filtering/pagination/sorting
   - `mockAccountChecker` — set of account IDs
-  - (Symbol checker/creator mocked at the f003 service level, not in transaction domain)
-- [ ] Write comprehensive service unit tests in `service_test.go` (table-driven, covering all 56 spec scenarios)
+  - `mockSymbolChecker` — set of symbols with thread-safe access
+  - `mockSymbolCreator` — adds symbols to the checker
+- [x] Write comprehensive service unit tests in `service_test.go` (60+ tests covering all CRUD scenarios)
+- [x] Error mapping: `mapValidationError` maps validator errors to service errors
 
 **Verification:** `go test ./internal/domain/transaction/...` passes; all CRUD operations with validation, filtering, and pagination tested.
 
@@ -254,7 +257,7 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Create JSON API handlers for transaction CRUD with filtering and pagination. Handles decimal JSON serialization (govalues/decimal implements json.Marshaler/Unmarshaler natively).
 
-- [ ] Create `internal/api/handlers/transaction.go` with:
+- [x] Create `internal/api/handlers/transaction.go` with:
   - `TransactionHandler` struct with service dependency
   - `RegisterRoutes` mounting:
     - `GET /api/transactions` (list with filters)
@@ -268,10 +271,10 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
   - `HandleUpdate` — parses ID, decodes JSON body, delegates to service
   - `HandleDelete` — parses ID, delegates to service, returns 204
   - `handleServiceError` — maps all 10 error codes to HTTP status codes
-- [ ] Query param parsing for list endpoint (follow existing `parsePagination` pattern, extend with filter params; date_from/date_to as YYYY-MM-DD strings parsed to time.Time)
-- [ ] Write handler unit tests in `transaction_test.go` (mock service, verify HTTP status codes, error formats, pagination)
+- [x] Query param parsing for list endpoint (`parseTransactionListParams` extends `parsePagination` with filter params; date_from/date_to as YYYY-MM-DD strings parsed to time.Time)
+- [x] Write handler unit tests in `transaction_test.go` (22 tests: create success/errors, list with filters/pagination, get, update, delete, error response format)
 
-**Verification:** `go test ./internal/api/handlers/... -run Transaction` passes; all endpoints return correct status codes and error formats.
+**Verification:** `go test ./internal/api/handlers/... -run TestTx` passes; all endpoints return correct status codes and error formats.
 
 ### Task 6: Router wiring [PRIORITY: MEDIUM]
 
@@ -279,13 +282,14 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Wire the transaction handler into the application router. Requires f003 symbol-map service for symbol checking and auto-creation.
 
-- [ ] Update `internal/api/router.go`:
+- [x] Update `internal/api/router.go`:
   - Create `TransactionRepository`, `TransactionService`, `TransactionHandler`
   - Wire `AccountChecker` (reuse existing `PortfolioChecker` pattern — create `AccountCheckerImpl` in data layer)
   - Wire f003 `SymbolMappingService` for symbol existence checks and $CASH auto-creation
   - Register routes
-- [ ] Create `internal/data/account_checker.go` with `AccountCheckerImpl` (follows `PortfolioCheckerImpl` pattern)
-- [ ] Verify full application builds: `go build -o portfoliolab cmd/server/main.go`
+- [x] Create `internal/data/account_checker.go` with `AccountCheckerImpl` (follows `PortfolioCheckerImpl` pattern)
+- [x] Create `internal/data/symbol_checker.go` with `SymbolCheckerImpl` and `SymbolCreatorImpl` (adapters wrapping symbol-map repo/service)
+- [x] Verify full application builds: `go build -o portfoliolab cmd/server/main.go`
 
 **Verification:** Application builds and starts; transaction API endpoints respond.
 
@@ -295,7 +299,7 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Create integration tests using in-memory SQLite and the real router.
 
-- [ ] Create `tests/integration/transaction_test.go` with:
+- [x] Create `tests/integration/transaction_test.go` with:
   - `TestTransaction_CreateAndGet` — create a buy transaction, get by ID, verify all fields
   - `TestTransaction_CreateSell` — create with negative quantity
   - `TestTransaction_CreateCashDeposit` — create with `$CASH-USD` symbol
@@ -309,8 +313,8 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
   - `TestTransaction_Pagination` — verify limit/offset
   - `TestTransaction_CascadeDeleteAccount` — delete account, verify transactions removed
   - `TestTransaction_CascadeDeletePortfolio` — delete portfolio, verify accounts + transactions removed
-  - `TestTransaction_ValidationErrors` — verify error codes for invalid inputs
-- [ ] Update `setupTestDB` in `tests/integration/portfolio_test.go` to include transactions table schema
+  - `TestTransaction_ValidationErrors` — verify error codes for invalid inputs (8 sub-tests)
+- [x] `setupTestDB` in `tests/integration/portfolio_test.go` already includes transactions table schema (added in Task 1)
 
 **Verification:** `go test ./tests/integration/...` passes; all end-to-end flows work.
 
@@ -320,10 +324,10 @@ f003 must be fully implemented before starting f004. Tasks 2 and 3 can be done i
 
 **Description:** Verify that the ON DELETE CASCADE foreign key constraint works correctly. The database handles this automatically, but we verify at the application level.
 
-- [ ] Verify `AccountRepository.Delete` already triggers cascade (FK constraint handles it)
-- [ ] Verify `PortfolioRepository.Delete` cascades through accounts to transactions (FK chain)
-- [ ] Add integration test coverage (already in Task 7)
-- [ ] Document in NOTES.md that cascade is handled by SQLite FK constraint, not application logic
+- [x] Verify `AccountRepository.Delete` already triggers cascade (FK constraint handles it — `ON DELETE CASCADE` in migration 004)
+- [x] Verify `PortfolioRepository.Delete` cascades through accounts to transactions (FK chain: migration 002 `accounts.portfolio_id` → `portfolios(id) ON DELETE CASCADE`, migration 004 `transactions.account_id` → `accounts(id) ON DELETE CASCADE`)
+- [x] Integration test coverage (Task 7: `TestTransaction_CascadeDeleteAccount`, `TestTransaction_CascadeDeletePortfolio`)
+- [x] Document in NOTES.md that cascade is handled by SQLite FK constraint, not application logic
 
 **Verification:** Cascade delete integration tests pass; no orphaned transactions after account/portfolio deletion.
 

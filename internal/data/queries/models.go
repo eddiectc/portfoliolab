@@ -4,6 +4,10 @@
 
 package queries
 
+import (
+	"database/sql"
+)
+
 type Account struct {
 	ID          int64  `db:"id"`
 	Name        string `db:"name"`
@@ -34,4 +38,20 @@ type SymbolMapping struct {
 	MarketDataSymbol string `db:"market_data_symbol"`
 	CreatedAt        string `db:"created_at"`
 	UpdatedAt        string `db:"updated_at"`
+}
+
+type Transaction struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
 }
