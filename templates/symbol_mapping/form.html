@@ -117,7 +117,7 @@
                     previewSuccess.style.display = 'block';
                     document.getElementById('preview-name').textContent = data.name || data.symbol;
                     document.getElementById('preview-exchange').textContent = data.exchange || '';
-                    document.getElementById('preview-price').textContent = data.latest_price != null ? data.latest_price.toFixed(2) : 'N/A';
+                    document.getElementById('preview-price').textContent = data.latest_price || 'N/A';
                     document.getElementById('preview-currency').textContent = data.currency || '';
                 })
                 .catch(function() {

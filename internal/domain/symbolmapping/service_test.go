@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
+	"github.com/govalues/decimal"
 )
 
 // --- Mock Repository ---
@@ -805,7 +806,7 @@ func TestService_PreviewSymbol_Success(t *testing.T) {
 	repo := newMockRepo()
 	fetcher := &mockQuoteFetcher{
 		quotes: map[string]*market.Quote{
-			"AAPL": {Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: 178.50},
+			"AAPL": {Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
 		},
 	}
 	svc := NewService(repo, WithQuoteFetcher(fetcher))
@@ -820,8 +821,8 @@ func TestService_PreviewSymbol_Success(t *testing.T) {
 	if quote.Name != "Apple Inc." {
 		t.Errorf("expected name Apple Inc., got %s", quote.Name)
 	}
-	if quote.LatestPrice != 178.50 {
-		t.Errorf("expected price 178.50, got %f", quote.LatestPrice)
+	if !quote.LatestPrice.Equal(decimal.MustNew(17850, 2)) {
+		t.Errorf("expected price 178.50, got %s", quote.LatestPrice.String())
 	}
 }
 

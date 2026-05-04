@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	github.com/go-chi/chi/v5 v5.2.5
+	github.com/govalues/decimal v0.1.36
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/wnjoon/go-yfinance v1.3.0
 	gopkg.in/yaml.v3 v3.0.1
