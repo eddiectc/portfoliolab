@@ -15,6 +15,8 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/data"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
 
@@ -51,6 +53,13 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	accountHandler := handlers.NewAccountHandler(accountSvc)
 	accountHandler.RegisterRoutes(r)
 
+	// Symbol mapping CRUD (API)
+	symbolMappingRepo := data.NewSymbolMappingRepository(db)
+	yahooFetcher := market.NewYahooFinanceFetcher(logger)
+	symbolMappingSvc := symbolmapping.NewService(symbolMappingRepo, symbolmapping.WithQuoteFetcher(yahooFetcher))
+	symbolMappingHandler := handlers.NewSymbolMappingHandler(symbolMappingSvc)
+	symbolMappingHandler.RegisterRoutes(r)
+
 	// Portfolio web pages
 	renderer, err := web.NewRenderer("templates")
 	if err != nil {
@@ -66,6 +75,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 		// Account web pages
 		accountWebHandler := handlers.NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
 		accountWebHandler.RegisterRoutes(r)
+
+		// Symbol mapping web pages
+		symbolMappingWebHandler := handlers.NewSymbolMappingWebHandler(symbolMappingSvc, renderer)
+		symbolMappingWebHandler.RegisterRoutes(r)
 
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {

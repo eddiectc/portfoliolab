@@ -12,10 +12,26 @@ type Account struct {
 	UpdatedAt   string `db:"updated_at"`
 }
 
+type BrokerSymbolMapping struct {
+	ID              int64  `db:"id"`
+	SymbolMappingID int64  `db:"symbol_mapping_id"`
+	BrokerName      string `db:"broker_name"`
+	BrokerSymbol    string `db:"broker_symbol"`
+	CreatedAt       string `db:"created_at"`
+}
+
 type Portfolio struct {
 	ID        int64  `db:"id"`
 	Name      string `db:"name"`
 	Currency  string `db:"currency"`
 	CreatedAt string `db:"created_at"`
 	UpdatedAt string `db:"updated_at"`
+}
+
+type SymbolMapping struct {
+	ID               int64  `db:"id"`
+	InternalSymbol   string `db:"internal_symbol"`
+	MarketDataSymbol string `db:"market_data_symbol"`
+	CreatedAt        string `db:"created_at"`
+	UpdatedAt        string `db:"updated_at"`
 }
