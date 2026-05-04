@@ -20,7 +20,8 @@
 - Plan called for `mock_repository.go` as a separate file, but the portfolio/account pattern puts the hand-written mock inside `service_test.go`. Followed the actual codebase pattern instead.
 
 ## Future Improvements
-- None identified.
+- Search/filter on symbol mapping list page (deferred in spec; existing list pages don't have it either)
 
 ## Known Issues
 - `HasReferencingTransactions` is a stub — safe because no transactions table exists yet.
+- `Quote.LatestPrice` is `float64` (go-yfinance returns float64). Convert to `decimal.Decimal` in f004 when actual monetary calculations are needed.
