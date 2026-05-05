@@ -52,6 +52,45 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return false
 		},
+		"add": func(a, b int) int {
+			return a + b
+		},
+		"queryPreserve": func(filter interface{}) string {
+			// Returns filter query params preserved for pagination links.
+			// Accepts a TransactionFilter struct and returns "&account_id=X&symbol=Y..."
+			// for non-empty fields.
+			type TransactionFilter struct {
+				AccountID string
+				Symbol    string
+				Type      string
+				DateFrom  string
+				DateTo    string
+			}
+			f, ok := filter.(TransactionFilter)
+			if !ok {
+				return ""
+			}
+			var parts []string
+			if f.AccountID != "" {
+				parts = append(parts, "account_id="+f.AccountID)
+			}
+			if f.Symbol != "" {
+				parts = append(parts, "symbol="+f.Symbol)
+			}
+			if f.Type != "" {
+				parts = append(parts, "type="+f.Type)
+			}
+			if f.DateFrom != "" {
+				parts = append(parts, "date_from="+f.DateFrom)
+			}
+			if f.DateTo != "" {
+				parts = append(parts, "date_to="+f.DateTo)
+			}
+			if len(parts) == 0 {
+				return ""
+			}
+			return "&" + strings.Join(parts, "&")
+		},
 	}
 
 	// Collect layout files (base + partials) and page files separately

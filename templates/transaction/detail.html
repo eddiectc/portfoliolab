@@ -1,0 +1,62 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Transaction #{{.Transaction.ID}}</h1>
+    <div class="header-actions">
+        <a href="/transactions/{{.Transaction.ID}}/edit" class="btn btn-sm">Edit</a>
+        <a href="/transactions" class="btn btn-sm">Back to List</a>
+    </div>
+</div>
+
+<dl class="detail">
+    <dt>ID</dt>
+    <dd>{{.Transaction.ID}}</dd>
+
+    <dt>Account</dt>
+    <dd>{{.AccountName}}</dd>
+
+    <dt>Date</dt>
+    <dd>{{.Transaction.Date.Format "2006-01-02"}}</dd>
+
+    <dt>Type</dt>
+    <dd><span class="type-badge type-{{.Transaction.Type}}">{{.Transaction.Type}}</span></dd>
+
+    <dt>Symbol</dt>
+    <dd>{{.Transaction.Symbol}}</dd>
+
+    <dt>Quantity</dt>
+    <dd>{{.Transaction.Quantity}}</dd>
+
+    <dt>Price</dt>
+    <dd>{{.Transaction.Price}}</dd>
+
+    <dt>Currency</dt>
+    <dd>{{.Transaction.Currency}}</dd>
+
+    <dt>Net Cash</dt>
+    <dd>{{.Transaction.NetCash}}</dd>
+
+    {{if .Transaction.ExternalSystem}}
+    <dt>External System</dt>
+    <dd>{{.Transaction.ExternalSystem}}</dd>
+    {{end}}
+
+    {{if .Transaction.ExternalReference}}
+    <dt>External Reference</dt>
+    <dd>{{.Transaction.ExternalReference}}</dd>
+    {{end}}
+
+    <dt>Created</dt>
+    <dd>{{.Transaction.CreatedAt.Format "2006-01-02 15:04"}}</dd>
+
+    <dt>Last Updated</dt>
+    <dd>{{.Transaction.UpdatedAt.Format "2006-01-02 15:04"}}</dd>
+</dl>
+
+<div class="form-actions" style="margin-top: 1.5rem;">
+    <form action="/transactions/{{.Transaction.ID}}/delete" method="POST" class="inline-form" onsubmit="return confirm('Delete this transaction? This cannot be undone.')">
+        <button type="submit" class="btn btn-danger">Delete</button>
+    </form>
+</div>
+{{end}}
+
+{{template "base" .}}
