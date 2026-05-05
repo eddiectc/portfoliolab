@@ -274,6 +274,14 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 		ExternalReference: extRef,
 	}
 
+	// Pre-validate required fields before calling the service
+	if r.FormValue("account_id") == "" {
+		h.renderCreateFormError(w, r, accounts, symbols, map[string]string{
+			"account_id": "Account is required",
+		})
+		return
+	}
+
 	t, err := h.transactionSvc.Create(r.Context(), req)
 	if err != nil {
 		data := newTransactionFormPageData(web.PageData{
@@ -303,6 +311,29 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 
 	setFlash(w, "Transaction created successfully")
 	http.Redirect(w, r, "/transactions/"+strconv.FormatInt(t.ID, 10), http.StatusSeeOther)
+}
+
+// renderCreateFormError renders the create form with pre-validation errors
+// before calling the service (e.g., empty required fields).
+func (h *TransactionWebHandler) renderCreateFormError(w http.ResponseWriter, r *http.Request, accounts []account.Account, symbols []symbolmapping.SymbolMapping, fieldErrors map[string]string) {
+	data := newTransactionFormPageData(web.PageData{
+		Title: "New Transaction",
+	}, accounts, symbols, "/transactions", "Create Transaction", "/transactions")
+	data.AccountID = r.FormValue("account_id")
+	data.Date = r.FormValue("date")
+	data.Type = r.FormValue("type")
+	data.Symbol = r.FormValue("symbol")
+	data.Quantity = r.FormValue("quantity")
+	data.Price = r.FormValue("price")
+	data.Currency = r.FormValue("currency")
+	data.NetCash = r.FormValue("net_cash")
+	data.ExternalSystem = r.FormValue("external_system")
+	data.ExternalRef = r.FormValue("external_reference")
+	data.FieldErrors = fieldErrors
+
+	if renderErr := h.renderer.Render(w, "transaction/form", data); renderErr != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
 }
 
 // HandleDetailPage renders GET /transactions/{id}.

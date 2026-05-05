@@ -858,6 +858,33 @@ func TestTxHandleCreatePage_MissingFields(t *testing.T) {
 	}
 }
 
+// TestTxHandleCreatePage_EmptyAccount shows inline field error for empty account.
+func TestTxHandleCreatePage_EmptyAccount(t *testing.T) {
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
+
+	// Submit with empty account_id (dropdown default value)
+	body := strings.NewReader("account_id=&date=2025-01-15&type=buy&symbol=AAPL&quantity=10&price=150.00&currency=USD&net_cash=-1500.00")
+	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 (form re-render), got %d", resp.StatusCode)
+	}
+
+	bodyStr := w.Body.String()
+	if !strings.Contains(bodyStr, "Account is required") {
+		t.Error("expected 'Account is required' inline field error")
+	}
+	// Should show field error on the account field
+	if !strings.Contains(bodyStr, "field-error") {
+		t.Error("expected field-error class on account field")
+	}
+}
+
 // TestTxHandleCreatePage_InvalidType shows validation error for bad type.
 func TestTxHandleCreatePage_InvalidType(t *testing.T) {
 	handler, _, _, _, _ := setupTransactionWebHandler(t)
