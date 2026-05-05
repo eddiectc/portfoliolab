@@ -189,7 +189,8 @@ func mustParseDate(s string) time.Time {
 }
 
 // tx creates a Transaction with auto-timestamps for testing.
-func tx(accountID int64, date, typ, symbol, currency string, qty, price decimal.Decimal, netCash *decimal.Decimal) *Transaction {
+// If netCash is zero, it is treated as unset (zero value).
+func tx(accountID int64, date, typ, symbol, currency string, qty, price, netCash decimal.Decimal) *Transaction {
 	now := time.Now()
 	return &Transaction{
 		AccountID: accountID,

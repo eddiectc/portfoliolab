@@ -108,7 +108,7 @@ func TestTransaction_CreateSell(t *testing.T) {
 	_, router, _, accountID := setupTx(t)
 
 	// Create a buy first
-	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-10","type":"buy","symbol":"AAPL","quantity":20,"price":140,"currency":"USD"}`, accountID)
+	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-10","type":"buy","symbol":"AAPL","quantity":20,"price":140,"currency":"USD","net_cash":-2800}`, accountID)
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -184,7 +184,7 @@ func TestTransaction_CreateListDelete(t *testing.T) {
 
 	// Create two transactions
 	for i, typ := range []string{"buy", "sell"} {
-		body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-%02d","type":"%s","symbol":"AAPL","quantity":%d,"price":150,"currency":"USD"}`,
+		body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-%02d","type":"%s","symbol":"AAPL","quantity":%d,"price":150,"currency":"USD","net_cash":-1500}`,
 			accountID, 10+i, typ, 10)
 		req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -234,7 +234,7 @@ func TestTransaction_Update(t *testing.T) {
 	_, router, _, accountID := setupTx(t)
 
 	// Create
-	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID)
+	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID)
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -271,7 +271,7 @@ func TestTransaction_UpdateNoChanges(t *testing.T) {
 	_, router, _, accountID := setupTx(t)
 
 	// Create
-	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID)
+	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID)
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -326,7 +326,7 @@ func TestTransaction_FilterByAccount(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&a2)
 
 	// Create on account 1
-	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID)
+	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID)
 	req = httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
@@ -336,7 +336,7 @@ func TestTransaction_FilterByAccount(t *testing.T) {
 	}
 
 	// Create on account 2
-	body = fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, a2.ID)
+	body = fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, a2.ID)
 	req = httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
@@ -371,7 +371,7 @@ func TestTransaction_FilterBySymbol(t *testing.T) {
 	}
 
 	// Create AAPL transaction
-	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID)
+	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID)
 	req = httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
@@ -381,7 +381,7 @@ func TestTransaction_FilterBySymbol(t *testing.T) {
 	}
 
 	// Create MSFT transaction
-	body = fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"MSFT","quantity":5,"price":300,"currency":"USD"}`, accountID)
+	body = fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"MSFT","quantity":5,"price":300,"currency":"USD","net_cash":-1500}`, accountID)
 	req = httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
@@ -410,7 +410,7 @@ func TestTransaction_FilterByDateRange(t *testing.T) {
 
 	// Create transactions on different dates
 	for i, date := range []string{"2025-01-01", "2025-06-15", "2025-12-31"} {
-		body := fmt.Sprintf(`{"account_id":%d,"date":"%s","type":"buy","symbol":"AAPL","quantity":%d,"price":150,"currency":"USD"}`,
+		body := fmt.Sprintf(`{"account_id":%d,"date":"%s","type":"buy","symbol":"AAPL","quantity":%d,"price":150,"currency":"USD","net_cash":-1500}`,
 			accountID, date, 10+i)
 		req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -438,7 +438,7 @@ func TestTransaction_Pagination(t *testing.T) {
 
 	// Create 5 transactions
 	for i := 0; i < 5; i++ {
-		body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-%02d","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`,
+		body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-%02d","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`,
 			accountID, 1+i)
 		req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -465,7 +465,7 @@ func TestTransaction_CascadeDeleteAccount(t *testing.T) {
 	_, router, _, accountID := setupTx(t)
 
 	// Create a transaction
-	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID)
+	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID)
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -498,7 +498,7 @@ func TestTransaction_CascadeDeletePortfolio(t *testing.T) {
 	_, router, portfolioID, accountID := setupTx(t)
 
 	// Create a transaction
-	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID)
+	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID)
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -538,51 +538,57 @@ func TestTransaction_ValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "invalid type",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"exchange","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID),
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"exchange","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
 			want:    http.StatusBadRequest,
 			wantCode: "INVALID_TYPE",
 		},
 		{
 			name:    "invalid price (zero)",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":0,"currency":"USD"}`, accountID),
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":0,"currency":"USD","net_cash":-1500}`, accountID),
 			want:    http.StatusBadRequest,
 			wantCode: "INVALID_PRICE",
 		},
 		{
 			name:    "invalid quantity (zero)",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":0,"price":150,"currency":"USD"}`, accountID),
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":0,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
 			want:    http.StatusBadRequest,
 			wantCode: "INVALID_QUANTITY",
 		},
 		{
 			name:    "invalid currency",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"US"}`, accountID),
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"US","net_cash":-1500}`, accountID),
 			want:    http.StatusBadRequest,
 			wantCode: "INVALID_CURRENCY",
 		},
 		{
 			name:    "invalid date",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"not-a-date","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`, accountID),
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"not-a-date","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
 			want:    http.StatusBadRequest,
 			wantCode: "INVALID_DATE",
 		},
 		{
 			name:    "empty symbol",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"","quantity":10,"price":150,"currency":"USD"}`, accountID),
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
 			want:    http.StatusBadRequest,
 			wantCode: "INVALID_SYMBOL",
 		},
 		{
 			name:    "non-existent account",
-			body:    `{"account_id":999,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD"}`,
+			body:    `{"account_id":999,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`,
 			want:    http.StatusNotFound,
 			wantCode: "ACCOUNT_NOT_FOUND",
 		},
 		{
 			name:    "non-existent symbol",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"XYZZY","quantity":10,"price":150,"currency":"USD"}`, accountID),
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"XYZZY","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
 			want:    http.StatusBadRequest,
 			wantCode: "SYMBOL_NOT_FOUND",
+		},
+		{
+			name:    "missing net_cash (zero)",
+			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":0}`, accountID),
+			want:    http.StatusBadRequest,
+			wantCode: "INVALID_NET_CASH",
 		},
 	}
 

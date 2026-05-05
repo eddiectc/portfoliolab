@@ -53,13 +53,9 @@ func toTransaction(t queries.Transaction) (*transaction.Transaction, error) {
 		return nil, fmt.Errorf("parse price: %w", err)
 	}
 
-	var netCash *decimal.Decimal
-	if t.NetCash.Valid {
-		v, err := decimal.Parse(t.NetCash.String)
-		if err != nil {
-			return nil, fmt.Errorf("parse net_cash: %w", err)
-		}
-		netCash = &v
+	netCash, err := decimal.Parse(t.NetCash.String)
+	if err != nil {
+		return nil, fmt.Errorf("parse net_cash: %w", err)
 	}
 
 	var externalSystem *string
@@ -104,11 +100,9 @@ func toDomainSlice(items []queries.Transaction) ([]transaction.Transaction, erro
 	return result, nil
 }
 
-// toNullDecimal converts a *decimal.Decimal to sql.NullString.
-func toNullDecimal(d *decimal.Decimal) sql.NullString {
-	if d == nil {
-		return sql.NullString{}
-	}
+// toNullDecimal converts a decimal.Decimal to sql.NullString.
+// NetCash is now required (non-nullable) so Valid is always true.
+func toNullDecimal(d decimal.Decimal) sql.NullString {
 	return sql.NullString{String: d.String(), Valid: true}
 }
 

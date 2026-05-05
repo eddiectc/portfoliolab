@@ -685,7 +685,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	}
 
 	// Test INVALID_PRICE
-	body = txBody(3, "2025-01-15", "buy", "AAPL", "USD", 10, 0, 0)
+	body = txBody(3, "2025-01-15", "buy", "AAPL", "USD", 10, 0, -150000)
 	req = httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
@@ -694,6 +694,18 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PRICE" {
 		t.Errorf("expected INVALID_PRICE, got %q", errResp.Code)
+	}
+
+	// Test INVALID_NET_CASH
+	body = txBody(3, "2025-01-15", "buy", "AAPL", "USD", 10, 15000, 0)
+	req = httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "INVALID_NET_CASH" {
+		t.Errorf("expected INVALID_NET_CASH, got %q", errResp.Code)
 	}
 
 	// Test INVALID_CURRENCY

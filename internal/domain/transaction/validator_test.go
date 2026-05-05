@@ -32,7 +32,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-01-15", Type: "buy",
 				Symbol: "AAPL", Quantity: d(10, 0), Price: d(15000, 2),
-				Currency: "USD",
+				Currency: "USD", NetCash: d(-150000, 2),
 			},
 		},
 		{
@@ -40,7 +40,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-03-20", Type: "sell",
 				Symbol: "AAPL", Quantity: d(-5, 0), Price: d(17500, 2),
-				Currency: "USD", NetCash: dp(87000, 2),
+				Currency: "USD", NetCash: d(87000, 2),
 			},
 		},
 		{
@@ -48,7 +48,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-01-01", Type: "deposit",
 				Symbol: "$CASH-USD", Quantity: d(1000000, 2), Price: d(1, 0),
-				Currency: "USD", NetCash: dp(1000000, 2),
+				Currency: "USD", NetCash: d(1000000, 2),
 			},
 		},
 		{
@@ -56,7 +56,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-06-15", Type: "withdrawal",
 				Symbol: "$CASH-USD", Quantity: d(-200000, 2), Price: d(1, 0),
-				Currency: "USD", NetCash: dp(-200000, 2),
+				Currency: "USD", NetCash: d(-200000, 2),
 			},
 		},
 		{
@@ -64,7 +64,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-03-14", Type: "dividend",
 				Symbol: "MSFT", Quantity: d(1, 0), Price: d(300, 2),
-				Currency: "USD", NetCash: dp(300, 2),
+				Currency: "USD", NetCash: d(300, 2),
 			},
 		},
 		{
@@ -72,7 +72,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-01-15", Type: "fee",
 				Symbol: "$CASH-USD", Quantity: d(-495, 2), Price: d(1, 0),
-				Currency: "USD", NetCash: dp(-495, 2),
+				Currency: "USD", NetCash: d(-495, 2),
 			},
 		},
 		{
@@ -80,7 +80,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-06-30", Type: "interest",
 				Symbol: "$CASH-USD", Quantity: d(2550, 2), Price: d(1, 0),
-				Currency: "USD", NetCash: dp(2550, 2),
+				Currency: "USD", NetCash: d(2550, 2),
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-12-31", Type: "tax",
 				Symbol: "$CASH-USD", Quantity: d(-15000, 2), Price: d(1, 0),
-				Currency: "USD", NetCash: dp(-15000, 2),
+				Currency: "USD", NetCash: d(-15000, 2),
 			},
 		},
 		{
@@ -96,7 +96,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-01-15", Type: "buy",
 				Symbol: "TSLA", Quantity: d(-100, 0), Price: d(20000, 2),
-				Currency: "USD",
+				Currency: "USD", NetCash: d(2000000, 2),
 			},
 		},
 		{
@@ -104,7 +104,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-01-15", Type: "buy",
 				Symbol: "VOD.L", Quantity: d(500, 0), Price: d(75, 2),
-				Currency: "GBP",
+				Currency: "GBP", NetCash: d(-37500, 2),
 			},
 		},
 		{
@@ -112,7 +112,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-02-10", Type: "buy",
 				Symbol: "VOO", Quantity: d(2, 0), Price: d(25000, 2),
-				Currency: "USD",
+				Currency: "USD", NetCash: d(-50000, 2),
 				ExternalSystem:    strPtr("IBKR"),
 				ExternalReference: strPtr("TXN-12345"),
 			},
@@ -122,7 +122,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-01-01", Type: "deposit",
 				Symbol: "$CASH-GBP", Quantity: d(500000, 2), Price: d(1, 0),
-				Currency: "GBP",
+				Currency: "GBP", NetCash: d(500000, 2),
 			},
 		},
 		{
@@ -130,7 +130,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 			req: CreateRequest{
 				AccountID: 1, Date: "2025-01-15", Type: "buy",
 				Symbol: "  AAPL  ", Quantity: d(10, 0), Price: d(15000, 2),
-				Currency: "USD",
+				Currency: "USD", NetCash: d(-150000, 2),
 			},
 		},
 	}
@@ -148,7 +148,7 @@ func TestValidateCreateRequest_Valid(t *testing.T) {
 func TestValidateCreateRequest_InvalidDate(t *testing.T) {
 	basicReq := CreateRequest{
 		AccountID: 1, Type: "buy", Symbol: "AAPL",
-		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD",
+		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD", NetCash: d(-150000, 2),
 	}
 
 	tests := []struct {
@@ -179,7 +179,7 @@ func TestValidateCreateRequest_InvalidDate(t *testing.T) {
 func TestValidateCreateRequest_InvalidType(t *testing.T) {
 	basicReq := CreateRequest{
 		AccountID: 1, Date: "2025-01-15", Symbol: "AAPL",
-		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD",
+		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD", NetCash: d(-150000, 2),
 	}
 
 	tests := []struct {
@@ -220,7 +220,7 @@ func TestValidateCreateRequest_InvalidType(t *testing.T) {
 func TestValidateCreateRequest_InvalidSymbol(t *testing.T) {
 	basicReq := CreateRequest{
 		AccountID: 1, Date: "2025-01-15", Type: "buy",
-		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD",
+		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD", NetCash: d(-150000, 2),
 	}
 
 	tests := []struct {
@@ -247,7 +247,7 @@ func TestValidateCreateRequest_InvalidSymbol(t *testing.T) {
 func TestValidateCreateRequest_InvalidQuantity(t *testing.T) {
 	basicReq := CreateRequest{
 		AccountID: 1, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
-		Price: d(15000, 2), Currency: "USD",
+		Price: d(15000, 2), Currency: "USD", NetCash: d(-150000, 2),
 	}
 
 	req := basicReq
@@ -261,7 +261,7 @@ func TestValidateCreateRequest_InvalidQuantity(t *testing.T) {
 func TestValidateCreateRequest_InvalidPrice(t *testing.T) {
 	basicReq := CreateRequest{
 		AccountID: 1, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
-		Quantity: d(10, 0), Currency: "USD",
+		Quantity: d(10, 0), Currency: "USD", NetCash: d(-150000, 2),
 	}
 
 	tests := []struct {
@@ -330,10 +330,34 @@ func TestValidateCreateRequest_CashSymbolMismatch(t *testing.T) {
 	}
 }
 
+func TestValidateCreateRequest_MissingNetCash(t *testing.T) {
+	req := CreateRequest{
+		AccountID: 1, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
+		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD",
+		// NetCash omitted (zero value)
+	}
+	err := ValidateCreateRequest(req)
+	if !errors.Is(err, ErrInvalidNetCash) {
+		t.Errorf("expected ErrInvalidNetCash, got %v", err)
+	}
+}
+
+func TestValidateCreateRequest_ZeroNetCash(t *testing.T) {
+	req := CreateRequest{
+		AccountID: 1, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
+		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD",
+		NetCash: decimal.Zero,
+	}
+	err := ValidateCreateRequest(req)
+	if !errors.Is(err, ErrInvalidNetCash) {
+		t.Errorf("expected ErrInvalidNetCash, got %v", err)
+	}
+}
+
 func TestValidateCreateRequest_ExternalFieldsTooLong(t *testing.T) {
 	basicReq := CreateRequest{
 		AccountID: 1, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
-		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD",
+		Quantity: d(10, 0), Price: d(15000, 2), Currency: "USD", NetCash: d(-150000, 2),
 	}
 
 	// External system too long
@@ -384,7 +408,7 @@ func TestValidateUpdateRequest_Valid(t *testing.T) {
 		{
 			name: "update netCash",
 			req: UpdateRequest{
-				NetCash: dp(-151000, 2),
+				NetCash: OptionalDecimal{Dec: d(-151000, 2), IsSet: true},
 			},
 		},
 		{
@@ -467,6 +491,13 @@ func TestValidateUpdateRequest_InvalidFields(t *testing.T) {
 			req:     UpdateRequest{Symbol: strPtr("$CASH-USD"), Currency: strPtr("GBP")},
 			wantErr: ErrInvalidCurrency,
 		},
+		{
+			name: "net_cash null (explicitly set to zero)",
+			req: UpdateRequest{
+				NetCash: OptionalDecimal{Dec: decimal.Zero, IsSet: true},
+			},
+			wantErr: ErrInvalidNetCash,
+		},
 	}
 
 	for _, tt := range tests {
@@ -476,6 +507,28 @@ func TestValidateUpdateRequest_InvalidFields(t *testing.T) {
 				t.Errorf("expected %v, got %v", tt.wantErr, err)
 			}
 		})
+	}
+}
+
+func TestValidateUpdateRequest_NetCashOmitted(t *testing.T) {
+	// net_cash omitted (IsSet=false) should pass validation
+	req := UpdateRequest{
+		NetCash: OptionalDecimal{Dec: decimal.Zero, IsSet: false},
+	}
+	err := ValidateUpdateRequest(req)
+	if err != nil {
+		t.Errorf("expected nil for omitted net_cash, got %v", err)
+	}
+}
+
+func TestValidateUpdateRequest_NetCashValid(t *testing.T) {
+	// net_cash set to a valid non-zero value should pass
+	req := UpdateRequest{
+		NetCash: OptionalDecimal{Dec: d(-151000, 2), IsSet: true},
+	}
+	err := ValidateUpdateRequest(req)
+	if err != nil {
+		t.Errorf("expected nil for valid net_cash, got %v", err)
 	}
 }
 
