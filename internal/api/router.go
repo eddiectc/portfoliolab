@@ -90,6 +90,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 		symbolMappingWebHandler := handlers.NewSymbolMappingWebHandler(symbolMappingSvc, renderer)
 		symbolMappingWebHandler.RegisterRoutes(r)
 
+		// Transaction web pages
+		transactionWebHandler := handlers.NewTransactionWebHandler(transactionSvc, accountSvc, symbolMappingSvc, renderer)
+		transactionWebHandler.RegisterRoutes(r)
+
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/portfolios", http.StatusSeeOther)
