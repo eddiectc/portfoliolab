@@ -109,3 +109,130 @@ SELECT * FROM transactions
 WHERE account_id = ? AND symbol = ? AND type = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccount :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAccount :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountBySymbol :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByType :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByDateRange :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAccountAndSymbol :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAccountAndType :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAccountAndDateRange :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountBySymbolAndType :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ? AND t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountBySymbolAndDateRange :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByTypeAndDateRange :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAccountSymbolType :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ? AND t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAccountSymbolDateRange :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAccountTypeDateRange :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountBySymbolTypeDateRange :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListTransactionsWithAccountByAllFilters :many
+SELECT t.*, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?;

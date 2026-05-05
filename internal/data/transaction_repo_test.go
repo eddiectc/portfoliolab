@@ -514,3 +514,198 @@ func TestTransactionRepository_List_EmptyResult(t *testing.T) {
 		t.Errorf("expected 0 items, got %d", len(items))
 	}
 }
+
+func TestTransactionRepository_ListWithAccount_Basic(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	// Rename the seeded account
+	_, err := db.Exec("UPDATE accounts SET name = 'Broker A' WHERE id = 1")
+	if err != nil {
+		t.Fatalf("update account: %v", err)
+	}
+
+	// Insert a transaction
+	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.MustNew(-150000, 2))
+	err = repo.Create(context.Background(), txn)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].AccountName != "Broker A" {
+		t.Errorf("expected AccountName 'Broker A', got %q", items[0].AccountName)
+	}
+	if items[0].Symbol != "AAPL" {
+		t.Errorf("expected Symbol 'AAPL', got %q", items[0].Symbol)
+	}
+}
+
+func TestTransactionRepository_ListWithAccount_FilterByAccount(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	// Rename seeded account and add a second one
+	_, err := db.Exec("UPDATE accounts SET name = 'Broker A' WHERE id = 1")
+	if err != nil {
+		t.Fatalf("update account: %v", err)
+	}
+	_, err = db.Exec("INSERT INTO accounts (name, portfolio_id) VALUES ('Broker B', 1)")
+	if err != nil {
+		t.Fatalf("insert account: %v", err)
+	}
+
+	// Transaction on account 1
+	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.MustNew(-150000, 2))
+	err = repo.Create(context.Background(), txn1)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	// Transaction on account 2
+	txn2 := newTestTransaction(0, 2, "2025-01-16T00:00:00Z", "buy", "MSFT", "USD",
+		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.MustNew(-150000, 2))
+	err = repo.Create(context.Background(), txn2)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	accountID := int64(1)
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{AccountID: &accountID}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].AccountName != "Broker A" {
+		t.Errorf("expected AccountName 'Broker A', got %q", items[0].AccountName)
+	}
+	if items[0].Symbol != "AAPL" {
+		t.Errorf("expected Symbol 'AAPL', got %q", items[0].Symbol)
+	}
+}
+
+func TestTransactionRepository_ListWithAccount_MultipleAccounts(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	// Rename seeded account and add a second one
+	_, err := db.Exec("UPDATE accounts SET name = 'Broker A' WHERE id = 1")
+	if err != nil {
+		t.Fatalf("update account: %v", err)
+	}
+	_, err = db.Exec("INSERT INTO accounts (name, portfolio_id) VALUES ('Broker B', 1)")
+	if err != nil {
+		t.Fatalf("insert account: %v", err)
+	}
+
+	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.MustNew(-150000, 2))
+	err = repo.Create(context.Background(), txn1)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	txn2 := newTestTransaction(0, 2, "2025-01-16T00:00:00Z", "buy", "MSFT", "USD",
+		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.MustNew(-150000, 2))
+	err = repo.Create(context.Background(), txn2)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+	// Most recent first
+	if items[0].AccountName != "Broker B" {
+		t.Errorf("expected first item AccountName 'Broker B', got %q", items[0].AccountName)
+	}
+	if items[1].AccountName != "Broker A" {
+		t.Errorf("expected second item AccountName 'Broker A', got %q", items[1].AccountName)
+	}
+}
+
+func TestTransactionRepository_ListWithAccount_WithFilters(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	// Rename seeded account
+	_, err := db.Exec("UPDATE accounts SET name = 'Broker A' WHERE id = 1")
+	if err != nil {
+		t.Fatalf("update account: %v", err)
+	}
+
+	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.MustNew(-150000, 2))
+	err = repo.Create(context.Background(), txn1)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	txn2 := newTestTransaction(0, 1, "2025-01-16T00:00:00Z", "sell", "AAPL", "USD",
+		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), decimal.MustNew(80000, 2))
+	err = repo.Create(context.Background(), txn2)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Filter by symbol and type
+	symbol := "AAPL"
+	xtype := "buy"
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{Symbol: &symbol, Type: &xtype}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].Type != "buy" {
+		t.Errorf("expected Type 'buy', got %q", items[0].Type)
+	}
+	if items[0].AccountName != "Broker A" {
+		t.Errorf("expected AccountName 'Broker A', got %q", items[0].AccountName)
+	}
+}
+
+func TestTransactionRepository_ListWithAccount_Pagination(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	// Create 3 transactions on the seeded account
+	for i := 0; i < 3; i++ {
+		txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.MustNew(-150000, 2))
+		err := repo.Create(context.Background(), txn)
+		if err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+	}
+
+	// Page 1: limit 2, offset 0
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{}, 2, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 2 {
+		t.Errorf("expected 2 items on page 1, got %d", len(items))
+	}
+
+	// Page 2: limit 2, offset 2
+	items, err = repo.ListWithAccount(context.Background(), transaction.ListFilters{}, 2, 2)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Errorf("expected 1 item on page 2, got %d", len(items))
+	}
+}

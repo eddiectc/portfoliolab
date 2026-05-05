@@ -106,3 +106,10 @@ type ListFilters struct {
 	DateFrom  *time.Time
 	DateTo    *time.Time
 }
+
+// TransactionWithAccount is a Transaction with the resolved account name,
+// returned by list queries that JOIN the accounts table.
+type TransactionWithAccount struct {
+	Transaction
+	AccountName string `json:"account_name"`
+}
