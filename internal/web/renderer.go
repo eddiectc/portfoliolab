@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 )
@@ -59,32 +58,13 @@ func (r *Renderer) parseTemplates() error {
 		"queryPreserve": func(filter interface{}) template.HTMLAttr {
 			// Returns filter query params preserved for pagination links.
 			// Returns template.HTML to prevent double-escaping of & in hrefs.
-			// Uses reflection to read struct fields generically.
-			v := reflect.ValueOf(filter)
-			if v.Kind() == reflect.Ptr {
-				v = v.Elem()
-			}
-			if v.Kind() != reflect.Struct {
-				return ""
-			}
-			typeToParam := map[string]string{
-				"AccountID": "account_id",
-				"Symbol":    "symbol",
-				"Type":      "type",
-				"DateFrom":  "date_from",
-				"DateTo":    "date_to",
-			}
-			var parts []string
-			for fieldName, param := range typeToParam {
-				field := v.FieldByName(fieldName)
-				if field.IsValid() && field.String() != "" {
-					parts = append(parts, param+"="+field.String())
+			// Expects the filter to implement FilterEncoder.
+			if enc, ok := filter.(FilterEncoder); ok {
+				if params := enc.QueryParams(); params != "" {
+					return template.HTMLAttr(params)
 				}
 			}
-			if len(parts) == 0 {
-				return ""
-			}
-			return template.HTMLAttr("&" + strings.Join(parts, "&"))
+			return ""
 		},
 	}
 
@@ -172,6 +152,13 @@ func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) 
 	// Execute by the base filename — e.g., "list.html"
 	baseName := filepath.Base(name) + ".html"
 	return t.ExecuteTemplate(w, baseName, data)
+}
+
+// FilterEncoder is implemented by filter structs that need their fields
+// serialized into query parameters for URL preservation (e.g. pagination links).
+type FilterEncoder interface {
+	// QueryParams returns a URL fragment like "&key=val&key2=val2" or "" if empty.
+	QueryParams() string
 }
 
 // PageData holds common data passed to all page templates.

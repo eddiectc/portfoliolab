@@ -771,6 +771,60 @@ func TestService_ListWithAccount_Filtered(t *testing.T) {
 	}
 }
 
+// ==================== QUERY PARAMS ====================
+
+func TestListFilters_QueryParams_Empty(t *testing.T) {
+	f := ListFilters{}
+	if got := f.QueryParams(); got != "" {
+		t.Errorf("expected empty string, got %q", got)
+	}
+}
+
+func TestListFilters_QueryParams_SingleField(t *testing.T) {
+	symbol := "AAPL"
+	f := ListFilters{Symbol: &symbol}
+	if got := f.QueryParams(); got != "&symbol=AAPL" {
+		t.Errorf("expected '&symbol=AAPL', got %q", got)
+	}
+}
+
+func TestListFilters_QueryParams_AllFields(t *testing.T) {
+	accountID := int64(3)
+	symbol := "AAPL"
+	txType := "buy"
+	dateFrom := mustParseDate("2025-01-01")
+	dateTo := mustParseDate("2025-01-31")
+	f := ListFilters{
+		AccountID: &accountID,
+		Symbol:    &symbol,
+		Type:      &txType,
+		DateFrom:  &dateFrom,
+		DateTo:    &dateTo,
+	}
+	got := f.QueryParams()
+	want := "&account_id=3&symbol=AAPL&type=buy&date_from=2025-01-01&date_to=2025-01-31"
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestListFilters_QueryParams_DateOnly(t *testing.T) {
+	dateFrom := mustParseDate("2025-03-01")
+	f := ListFilters{DateFrom: &dateFrom}
+	if got := f.QueryParams(); got != "&date_from=2025-03-01" {
+		t.Errorf("expected '&date_from=2025-03-01', got %q", got)
+	}
+}
+
+func TestListFilters_QueryParams_EmptyStringFieldsIgnored(t *testing.T) {
+	symbol := ""
+	txType := ""
+	f := ListFilters{Symbol: &symbol, Type: &txType}
+	if got := f.QueryParams(); got != "" {
+		t.Errorf("expected empty string, got %q", got)
+	}
+}
+
 // ==================== UPDATE ====================
 
 func TestService_Update_Date(t *testing.T) {
