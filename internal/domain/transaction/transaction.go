@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/govalues/decimal"
@@ -105,6 +107,32 @@ type ListFilters struct {
 	Type      *string
 	DateFrom  *time.Time
 	DateTo    *time.Time
+}
+
+// QueryParams serializes non-nil filter fields into a URL query fragment
+// like "&account_id=1&symbol=AAPL". Returns "" if all fields are nil.
+// Implements web.FilterEncoder for type-safe query preservation in templates.
+func (f *ListFilters) QueryParams() string {
+	var parts []string
+	if f.AccountID != nil {
+		parts = append(parts, "account_id="+strconv.FormatInt(*f.AccountID, 10))
+	}
+	if f.Symbol != nil && *f.Symbol != "" {
+		parts = append(parts, "symbol="+*f.Symbol)
+	}
+	if f.Type != nil && *f.Type != "" {
+		parts = append(parts, "type="+*f.Type)
+	}
+	if f.DateFrom != nil {
+		parts = append(parts, "date_from="+f.DateFrom.Format("2006-01-02"))
+	}
+	if f.DateTo != nil {
+		parts = append(parts, "date_to="+f.DateTo.Format("2006-01-02"))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "&" + strings.Join(parts, "&")
 }
 
 // TransactionWithAccount is a Transaction with the resolved account name,

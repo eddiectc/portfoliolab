@@ -82,6 +82,32 @@ type TransactionFilter struct {
 	DateTo    string
 }
 
+// QueryParams serializes non-empty filter fields into a URL query fragment
+// like "&account_id=1&symbol=AAPL". Returns "" if all fields are empty.
+// Implements web.FilterEncoder for type-safe query preservation in templates.
+func (f TransactionFilter) QueryParams() string {
+	var parts []string
+	if f.AccountID != "" {
+		parts = append(parts, "account_id="+f.AccountID)
+	}
+	if f.Symbol != "" {
+		parts = append(parts, "symbol="+f.Symbol)
+	}
+	if f.Type != "" {
+		parts = append(parts, "type="+f.Type)
+	}
+	if f.DateFrom != "" {
+		parts = append(parts, "date_from="+f.DateFrom)
+	}
+	if f.DateTo != "" {
+		parts = append(parts, "date_to="+f.DateTo)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "&" + strings.Join(parts, "&")
+}
+
 // TransactionWebHandler handles server-rendered transaction pages.
 type TransactionWebHandler struct {
 	transactionSvc *transaction.Service
