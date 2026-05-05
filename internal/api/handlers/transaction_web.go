@@ -150,30 +150,13 @@ func (h *TransactionWebHandler) HandleListPage(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	items, err := h.transactionSvc.List(r.Context(), filters, limit, offset)
+	withAccount, err := h.transactionSvc.ListWithAccount(r.Context(), filters, limit, offset)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// TODO: use ListWithAccount once the service exposes it
-	// For now, map to TransactionWithAccount with account names resolved
-	var withAccount []transaction.TransactionWithAccount
-	if len(items) > 0 {
-		accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
-		accountMap := make(map[int64]string)
-		for _, a := range accounts {
-			accountMap[a.ID] = a.Name
-		}
-		for _, t := range items {
-			withAccount = append(withAccount, transaction.TransactionWithAccount{
-				Transaction: t,
-				AccountName: accountMap[t.AccountID],
-			})
-		}
-	}
-
-	// Fetch accounts for filter dropdown
+	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
 
 	data := transactionListPageData{
@@ -187,7 +170,7 @@ func (h *TransactionWebHandler) HandleListPage(w http.ResponseWriter, r *http.Re
 		Filter:       filter,
 		Page:         page,
 		HasPrev:      page > 1,
-		HasNext:      len(items) == limit,
+		HasNext:      len(withAccount) == limit,
 	}
 
 	if data.Transactions == nil {
@@ -571,6 +554,9 @@ func transactionUserFriendlyError(err error) string {
 	if errors.Is(err, transaction.ErrAccountNotFound) {
 		return "Selected account not found"
 	}
+	if errors.Is(err, transaction.ErrInvalidExternalField) {
+		return "External system/reference must be at most 100 characters"
+	}
 	if errors.Is(err, transaction.ErrNotFound) {
 		return "Transaction not found"
 	}
@@ -602,6 +588,8 @@ func mapFieldErrors(err error, req transaction.CreateRequest) map[string]string 
 		fieldErrors["net_cash"] = "Net cash is required and must be non-zero"
 	case errors.Is(err, transaction.ErrAccountNotFound):
 		fieldErrors["account_id"] = "Selected account not found"
+	case errors.Is(err, transaction.ErrInvalidExternalField):
+		fieldErrors["external_system"] = "External system/reference must be at most 100 characters"
 	}
 	return fieldErrors
 }

@@ -12,16 +12,23 @@ import (
 // mockRepository is an in-memory implementation of Repository for testing.
 // It simulates real repository behavior: filtering, pagination, and auto-increment IDs.
 type mockRepository struct {
-	mu       sync.RWMutex
-	items    map[int64]Transaction
-	nextID   int64
+	mu         sync.RWMutex
+	items      map[int64]Transaction
+	nextID     int64
+	accNames   map[int64]string
 }
 
 func newMockRepository() *mockRepository {
 	return &mockRepository{
-		items:  make(map[int64]Transaction),
-		nextID: 1,
+		items:    make(map[int64]Transaction),
+		nextID:   1,
+		accNames: make(map[int64]string),
 	}
+}
+
+// setAccountName sets the account name for a given ID (used by tests).
+func (m *mockRepository) setAccountName(id int64, name string) {
+	m.accNames[id] = name
 }
 
 func (m *mockRepository) Create(_ context.Context, t *Transaction) error {
@@ -80,6 +87,54 @@ func (m *mockRepository) List(_ context.Context, filters ListFilters, limit, off
 	}
 
 	return result, nil
+}
+
+func (m *mockRepository) ListWithAccount(_ context.Context, filters ListFilters, limit, offset int) ([]TransactionWithAccount, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// Collect all items
+	all := make([]Transaction, 0, len(m.items))
+	for _, t := range m.items {
+		all = append(all, t)
+	}
+
+	// Apply filters
+	result := filterTransactions(all, filters)
+
+	// Sort: date DESC, symbol ASC, type ASC, id ASC
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Date != result[j].Date {
+			return result[i].Date.After(result[j].Date)
+		}
+		if result[i].Symbol != result[j].Symbol {
+			return result[i].Symbol < result[j].Symbol
+		}
+		if result[i].Type != result[j].Type {
+			return result[i].Type < result[j].Type
+		}
+		return result[i].ID < result[j].ID
+	})
+
+	// Apply pagination
+	if len(result) <= offset {
+		return []TransactionWithAccount{}, nil
+	}
+	result = result[offset:]
+	if len(result) > limit {
+		result = result[:limit]
+	}
+
+	// Convert to TransactionWithAccount
+	out := make([]TransactionWithAccount, len(result))
+	for i, t := range result {
+		accName := m.accNames[t.AccountID]
+		out[i] = TransactionWithAccount{
+			Transaction: t,
+			AccountName: accName,
+		}
+	}
+	return out, nil
 }
 
 func (m *mockRepository) Update(_ context.Context, t *Transaction) error {

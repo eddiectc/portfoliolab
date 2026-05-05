@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,15 +20,22 @@ import (
 
 // mockTxRepoForWeb is a minimal in-memory transaction repository for web handler tests.
 type mockTxRepoForWeb struct {
-	items  map[int64]transaction.Transaction
-	nextID int64
+	items    map[int64]transaction.Transaction
+	accNames map[int64]string
+	nextID   int64
 }
 
 func newMockTxRepoForWeb() *mockTxRepoForWeb {
 	return &mockTxRepoForWeb{
-		items:  make(map[int64]transaction.Transaction),
-		nextID: 1,
+		items:    make(map[int64]transaction.Transaction),
+		accNames: make(map[int64]string),
+		nextID:   1,
 	}
+}
+
+// setAccountName sets the account name for a given ID.
+func (m *mockTxRepoForWeb) setAccountName(id int64, name string) {
+	m.accNames[id] = name
 }
 
 func (m *mockTxRepoForWeb) Create(_ context.Context, t *transaction.Transaction) error {
@@ -66,6 +74,38 @@ func (m *mockTxRepoForWeb) List(_ context.Context, filters transaction.ListFilte
 		result = result[:limit]
 	}
 	return result, nil
+}
+
+func (m *mockTxRepoForWeb) ListWithAccount(_ context.Context, filters transaction.ListFilters, limit, offset int) ([]transaction.TransactionWithAccount, error) {
+	all := make([]transaction.Transaction, 0, len(m.items))
+	for _, t := range m.items {
+		all = append(all, t)
+	}
+	result := filterTxForWeb(all, filters)
+
+	// Sort: date DESC, id ASC for deterministic ordering
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Date != result[j].Date {
+			return result[i].Date.After(result[j].Date)
+		}
+		return result[i].ID < result[j].ID
+	})
+
+	if len(result) <= offset {
+		return []transaction.TransactionWithAccount{}, nil
+	}
+	result = result[offset:]
+	if len(result) > limit {
+		result = result[:limit]
+	}
+	out := make([]transaction.TransactionWithAccount, len(result))
+	for i, t := range result {
+		out[i] = transaction.TransactionWithAccount{
+			Transaction: t,
+			AccountName: m.accNames[t.AccountID],
+		}
+	}
+	return out, nil
 }
 
 func (m *mockTxRepoForWeb) Update(_ context.Context, t *transaction.Transaction) error {
@@ -306,8 +346,8 @@ func (m *mockTxSymbolCreator) CreateSymbol(_ context.Context, _, _ string) error
 }
 
 // setupTransactionWebHandler creates a web handler with real services backed by mock repos.
-// Returns the handler, transaction service, account repo, and symbol repo so callers can seed data.
-func setupTransactionWebHandler(t *testing.T) (*TransactionWebHandler, *transaction.Service, *mockAccountRepoForTx, *mockSymbolRepoForTx) {
+// Returns the handler, transaction service, account repo, symbol repo, and txRepo so callers can seed data.
+func setupTransactionWebHandler(t *testing.T) (*TransactionWebHandler, *transaction.Service, *mockAccountRepoForTx, *mockSymbolRepoForTx, *mockTxRepoForWeb) {
 	t.Helper()
 
 	txRepo := newMockTxRepoForWeb()
@@ -325,14 +365,19 @@ func setupTransactionWebHandler(t *testing.T) (*TransactionWebHandler, *transact
 	renderer := newTestRenderer(t)
 	handler := NewTransactionWebHandler(txSvc, accountSvc, symbolSvc, renderer)
 
-	return handler, txSvc, accountRepo, symbolRepo
+	return handler, txSvc, accountRepo, symbolRepo, txRepo
+}
+
+// registerAccountName registers an account name in the txRepo mock so ListWithAccount returns it.
+func registerAccountName(txRepo *mockTxRepoForWeb, acc *account.Account) {
+	txRepo.setAccountName(acc.ID, acc.Name)
 }
 
 // -- HandleListPage tests --
 
 // TestTxHandleListPage_EmptyList verifies GET /transactions renders with empty state.
 func TestTxHandleListPage_EmptyList(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	r := httptest.NewRequest(http.MethodGet, "/transactions", nil)
 	w := httptest.NewRecorder()
@@ -361,10 +406,11 @@ func TestTxHandleListPage_EmptyList(t *testing.T) {
 
 // TestTxHandleListPage_WithData verifies transactions appear in the list.
 func TestTxHandleListPage_WithData(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
 
 	txSvc.Create(nil, transaction.CreateRequest{
 		AccountID: 1,
@@ -401,10 +447,11 @@ func TestTxHandleListPage_WithData(t *testing.T) {
 
 // TestTxHandleListPage_WithFilters verifies filter params are parsed and applied.
 func TestTxHandleListPage_WithFilters(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
 
 	txSvc.Create(nil, transaction.CreateRequest{
 		AccountID: 1,
@@ -449,10 +496,11 @@ func TestTxHandleListPage_WithFilters(t *testing.T) {
 
 // TestTxHandleListPage_WithPagination verifies pagination links are generated.
 func TestTxHandleListPage_WithPagination(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
 
 	// Create 25 transactions to trigger pagination (limit is 20)
 	for i := 0; i < 25; i++ {
@@ -484,11 +532,236 @@ func TestTxHandleListPage_WithPagination(t *testing.T) {
 	}
 }
 
+// TestTxHandleListPage_FilterByAccount verifies filtering by account_id.
+func TestTxHandleListPage_FilterByAccount(t *testing.T) {
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	acc1, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc2, _ := accountSvc.Create(nil, account.CreateRequest{Name: "Fidelity", PortfolioID: 1})
+	registerAccountName(txRepo, acc1)
+	registerAccountName(txRepo, acc2)
+
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-01-15",
+		Type:      "buy",
+		Symbol:    "AAPL",
+		Quantity:  decimal.MustNew(1000, 2),
+		Price:     decimal.MustNew(15000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-1500000, 2),
+	})
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 2,
+		Date:      "2024-01-15",
+		Type:      "buy",
+		Symbol:    "GOOG",
+		Quantity:  decimal.MustNew(500, 2),
+		Price:     decimal.MustNew(14000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-700000, 2),
+	})
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions?account_id=1", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListPage(w, r)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "AAPL") {
+		t.Error("expected AAPL in filtered list")
+	}
+	if strings.Contains(body, "GOOG") {
+		t.Error("should not contain GOOG when filtered by account_id=1")
+	}
+}
+
+// TestTxHandleListPage_FilterBySymbol verifies filtering by symbol.
+func TestTxHandleListPage_FilterBySymbol(t *testing.T) {
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
+
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-01-15",
+		Type:      "buy",
+		Symbol:    "AAPL",
+		Quantity:  decimal.MustNew(1000, 2),
+		Price:     decimal.MustNew(15000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-1500000, 2),
+	})
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-01-15",
+		Type:      "buy",
+		Symbol:    "GOOG",
+		Quantity:  decimal.MustNew(500, 2),
+		Price:     decimal.MustNew(14000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-700000, 2),
+	})
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions?symbol=AAPL", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListPage(w, r)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "AAPL") {
+		t.Error("expected AAPL in filtered list")
+	}
+	if strings.Contains(body, "GOOG") {
+		t.Error("should not contain GOOG when filtered by symbol=AAPL")
+	}
+}
+
+// TestTxHandleListPage_FilterByDateRange verifies filtering by date range.
+func TestTxHandleListPage_FilterByDateRange(t *testing.T) {
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
+
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-01-15",
+		Type:      "buy",
+		Symbol:    "AAPL",
+		Quantity:  decimal.MustNew(1000, 2),
+		Price:     decimal.MustNew(15000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-1500000, 2),
+	})
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-06-01",
+		Type:      "buy",
+		Symbol:    "GOOG",
+		Quantity:  decimal.MustNew(500, 2),
+		Price:     decimal.MustNew(14000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-700000, 2),
+	})
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions?date_from=2024-03-01&date_to=2024-12-31", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListPage(w, r)
+
+	body := w.Body.String()
+	// Check for transaction rows (not placeholder text which always has "e.g. AAPL")
+	if strings.Contains(body, "150.00") {
+		t.Error("should not contain AAPL price (150.00) when filtered from Mar-Dec")
+	}
+	if !strings.Contains(body, "140.00") {
+		t.Error("expected GOOG price (140.00) in filtered list")
+	}
+}
+
+// TestTxHandleListPage_CombinedFilters verifies multiple filters work together.
+func TestTxHandleListPage_CombinedFilters(t *testing.T) {
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
+
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-01-15",
+		Type:      "buy",
+		Symbol:    "AAPL",
+		Quantity:  decimal.MustNew(1000, 2),
+		Price:     decimal.MustNew(15000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-1500000, 2),
+	})
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-01-20",
+		Type:      "sell",
+		Symbol:    "AAPL",
+		Quantity:  decimal.MustNew(500, 2),
+		Price:     decimal.MustNew(16000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(800000, 2),
+	})
+	txSvc.Create(nil, transaction.CreateRequest{
+		AccountID: 1,
+		Date:      "2024-01-25",
+		Type:      "buy",
+		Symbol:    "GOOG",
+		Quantity:  decimal.MustNew(500, 2),
+		Price:     decimal.MustNew(14000, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(-700000, 2),
+	})
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions?symbol=AAPL&type=buy", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListPage(w, r)
+
+	body := w.Body.String()
+	// Check for specific transaction data (not dropdown options)
+	// The sell transaction has price 160.00, GOOG has price 140.00
+	if strings.Contains(body, "160.00") {
+		t.Error("should not contain sell price (160.00) when filtered by type=buy")
+	}
+	if strings.Contains(body, "140.00") {
+		t.Error("should not contain GOOG price (140.00) when filtered by symbol=AAPL")
+	}
+}
+
+// TestTxHandleListPage_PaginationPreservesFilters verifies filter params persist across pagination.
+func TestTxHandleListPage_PaginationPreservesFilters(t *testing.T) {
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
+
+	for i := 0; i < 25; i++ {
+		txSvc.Create(nil, transaction.CreateRequest{
+			AccountID: 1,
+			Date:      "2024-01-15",
+			Type:      "buy",
+			Symbol:    "AAPL",
+			Quantity:  decimal.MustNew(1000, 2),
+			Price:     decimal.MustNew(15000, 2),
+			Currency:  "USD",
+			NetCash:   decimal.MustNew(-1500000, 2),
+		})
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions?type=buy&page=2", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListPage(w, r)
+
+	body := w.Body.String()
+	// The "Previous" link should include the type=buy filter
+	if !strings.Contains(body, "Previous") {
+		t.Error("expected Previous link on page 2")
+	}
+	// Check that filter params are preserved in pagination links
+	// (URL-encoded as type%3dbuy in href attributes)
+	if !strings.Contains(body, "type%3dbuy") {
+		t.Error("expected type=buy filter preserved in pagination links")
+	}
+}
+
 // -- HandleNewPage tests --
 
 // TestTxHandleNewPage_RendersForm verifies GET /transactions/new renders a complete form.
 func TestTxHandleNewPage_RendersForm(t *testing.T) {
-	_, txSvc, accountRepo, symbolRepo := setupTransactionWebHandler(t)
+	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -536,7 +809,7 @@ func TestTxHandleNewPage_RendersForm(t *testing.T) {
 
 // TestTxHandleCreatePage_ValidCreate verifies valid form submission redirects.
 func TestTxHandleCreatePage_ValidCreate(t *testing.T) {
-	handler, _, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, _, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -561,7 +834,7 @@ func TestTxHandleCreatePage_ValidCreate(t *testing.T) {
 
 // TestTxHandleCreatePage_MissingFields shows validation errors.
 func TestTxHandleCreatePage_MissingFields(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	body := strings.NewReader("account_id=1&date=&type=&symbol=&quantity=&price=&currency=&net_cash=")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -587,7 +860,7 @@ func TestTxHandleCreatePage_MissingFields(t *testing.T) {
 
 // TestTxHandleCreatePage_InvalidType shows validation error for bad type.
 func TestTxHandleCreatePage_InvalidType(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=invalid&symbol=AAPL&quantity=10&price=150&currency=USD&net_cash=-1500")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -609,7 +882,7 @@ func TestTxHandleCreatePage_InvalidType(t *testing.T) {
 
 // TestTxHandleCreatePage_MissingNetCash shows validation error for zero net cash.
 func TestTxHandleCreatePage_MissingNetCash(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=buy&symbol=AAPL&quantity=10&price=150&currency=USD&net_cash=0")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -631,7 +904,7 @@ func TestTxHandleCreatePage_MissingNetCash(t *testing.T) {
 
 // TestTxHandleCreatePage_ZeroQuantity shows validation error for zero quantity.
 func TestTxHandleCreatePage_ZeroQuantity(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=buy&symbol=AAPL&quantity=0&price=150&currency=USD&net_cash=-1500")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -653,7 +926,7 @@ func TestTxHandleCreatePage_ZeroQuantity(t *testing.T) {
 
 // TestTxHandleCreatePage_LowercaseCurrency shows validation error for lowercase currency.
 func TestTxHandleCreatePage_LowercaseCurrency(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=buy&symbol=AAPL&quantity=10&price=150&currency=usd&net_cash=-1500")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -675,7 +948,7 @@ func TestTxHandleCreatePage_LowercaseCurrency(t *testing.T) {
 
 // TestTxHandleCreatePage_ExternalFieldTooLong shows validation error for long external fields.
 func TestTxHandleCreatePage_ExternalFieldTooLong(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	longSystem := strings.Repeat("x", 101)
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=buy&symbol=AAPL&quantity=10&price=150&currency=USD&net_cash=-1500&external_system=" + longSystem)
@@ -691,16 +964,141 @@ func TestTxHandleCreatePage_ExternalFieldTooLong(t *testing.T) {
 	}
 
 	bodyStr := w.Body.String()
-	// External field validation error is not mapped to a specific error code,
-	// so it shows the generic error message
-	if !strings.Contains(bodyStr, "alert-error") {
-		t.Error("expected error alert on form re-render")
+	if !strings.Contains(bodyStr, "at most 100 characters") {
+		t.Error("expected external field length error")
+	}
+}
+
+// TestTxHandleCreatePage_InvalidDate shows validation error for bad date format.
+func TestTxHandleCreatePage_InvalidDate(t *testing.T) {
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
+
+	body := strings.NewReader("account_id=1&date=not-a-date&type=buy&symbol=AAPL&quantity=10&price=150&currency=USD&net_cash=-1500")
+	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	bodyStr := w.Body.String()
+	if !strings.Contains(bodyStr, "Invalid date format") {
+		t.Error("expected date format error")
+	}
+}
+
+// TestTxHandleCreatePage_NonExistentSymbol shows validation error for unknown symbol.
+func TestTxHandleCreatePage_NonExistentSymbol(t *testing.T) {
+	_, _, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
+
+	// Use a strict symbol checker that only knows specific symbols
+	symbolChecker := &mockTxSymbolCheckerStrict{symbols: map[string]bool{"AAPL": true}}
+	symbolCreator := &mockTxSymbolCreator{}
+	txSvc2 := transaction.NewService(newMockTxRepoForWeb(), &mockTxAccountChecker{}, symbolChecker, symbolCreator)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+
+	symbolSvc := symbolmapping.NewService(symbolRepo)
+	handler2 := NewTransactionWebHandler(txSvc2, accountSvc, symbolSvc, newTestRenderer(t))
+
+	body := strings.NewReader("account_id=1&date=2024-01-15&type=buy&symbol=UNKNOWN&quantity=10&price=150&currency=USD&net_cash=-1500")
+	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler2.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	bodyStr := w.Body.String()
+	if !strings.Contains(bodyStr, "Symbol not found") {
+		t.Error("expected symbol not found error")
+	}
+}
+
+// mockTxSymbolCheckerStrict only allows symbols in its map.
+type mockTxSymbolCheckerStrict struct {
+	symbols map[string]bool
+}
+
+func (m *mockTxSymbolCheckerStrict) SymbolExists(_ context.Context, symbol string) bool {
+	return m.symbols[symbol]
+}
+
+// TestTxHandleCreatePage_CashSymbolMismatch shows validation error for $CASH currency mismatch.
+func TestTxHandleCreatePage_CashSymbolMismatch(t *testing.T) {
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
+
+	// $CASH-USD symbol with EUR currency — should fail
+	body := strings.NewReader("account_id=1&date=2024-01-15&type=deposit&symbol=$CASH-USD&quantity=1000&price=1&currency=EUR&net_cash=1000")
+	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	bodyStr := w.Body.String()
+	if !strings.Contains(bodyStr, "Invalid currency") {
+		t.Error("expected currency mismatch error")
+	}
+}
+
+// TestTxHandleCreatePage_NegativeQuantity verifies negative quantity is accepted (short selling).
+func TestTxHandleCreatePage_NegativeQuantity(t *testing.T) {
+	handler, _, accountRepo, _, _ := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+
+	body := strings.NewReader("account_id=1&date=2024-01-15&type=sell&symbol=AAPL&quantity=-10&price=150&currency=USD&net_cash=1500")
+	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+}
+
+// TestTxHandleCreatePage_DepositWithCashSymbol verifies deposit with $CASH-{currency} works.
+func TestTxHandleCreatePage_DepositWithCashSymbol(t *testing.T) {
+	handler, _, accountRepo, _, _ := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+
+	body := strings.NewReader("account_id=1&date=2024-01-15&type=deposit&symbol=$CASH-USD&quantity=1000&price=1&currency=USD&net_cash=1000")
+	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
 	}
 }
 
 // TestTxHandleCreatePage_PreservesValues verifies submitted values are preserved on error.
 func TestTxHandleCreatePage_PreservesValues(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=buy&symbol=AAPL&quantity=10&price=150&currency=usd&net_cash=-1500")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -722,7 +1120,7 @@ func TestTxHandleCreatePage_PreservesValues(t *testing.T) {
 
 // TestTxHandleDetailPage_RendersDetail verifies GET /transactions/{id} renders properly.
 func TestTxHandleDetailPage_RendersDetail(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -772,7 +1170,7 @@ func TestTxHandleDetailPage_RendersDetail(t *testing.T) {
 
 // TestTxHandleDetailPage_NotFound returns 404 for non-existent transaction.
 func TestTxHandleDetailPage_NotFound(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "999")
@@ -791,7 +1189,7 @@ func TestTxHandleDetailPage_NotFound(t *testing.T) {
 
 // TestTxHandleEditPage_RendersForm verifies GET /transactions/{id}/edit renders pre-populated form.
 func TestTxHandleEditPage_RendersForm(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -841,7 +1239,7 @@ func TestTxHandleEditPage_RendersForm(t *testing.T) {
 
 // TestTxHandleEditPage_NotFound returns 404 for non-existent transaction.
 func TestTxHandleEditPage_NotFound(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "999")
@@ -860,7 +1258,7 @@ func TestTxHandleEditPage_NotFound(t *testing.T) {
 
 // TestTxHandleEditPost_ValidUpdate verifies valid edit submission redirects.
 func TestTxHandleEditPost_ValidUpdate(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -903,7 +1301,7 @@ func TestTxHandleEditPost_ValidUpdate(t *testing.T) {
 
 // TestTxHandleEditPost_InvalidData shows validation errors on form re-render.
 func TestTxHandleEditPost_InvalidData(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -946,7 +1344,7 @@ func TestTxHandleEditPost_InvalidData(t *testing.T) {
 
 // TestTxHandleEditPost_UserCurrencyOverride verifies user-entered currency is accepted.
 func TestTxHandleEditPost_UserCurrencyOverride(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -987,7 +1385,7 @@ func TestTxHandleEditPost_UserCurrencyOverride(t *testing.T) {
 
 // TestTxHandleDeletePage_Success verifies POST /transactions/{id}/delete redirects.
 func TestTxHandleDeletePage_Success(t *testing.T) {
-	handler, txSvc, accountRepo, _ := setupTransactionWebHandler(t)
+	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
@@ -1028,7 +1426,7 @@ func TestTxHandleDeletePage_Success(t *testing.T) {
 
 // TestTxHandleDeletePage_NotFound redirects without error for non-existent transaction.
 func TestTxHandleDeletePage_NotFound(t *testing.T) {
-	handler, _, _, _ := setupTransactionWebHandler(t)
+	handler, _, _, _, _ := setupTransactionWebHandler(t)
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "999")

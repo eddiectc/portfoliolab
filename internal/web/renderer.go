@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 )
@@ -55,41 +56,35 @@ func (r *Renderer) parseTemplates() error {
 		"add": func(a, b int) int {
 			return a + b
 		},
-		"queryPreserve": func(filter interface{}) string {
+		"queryPreserve": func(filter interface{}) template.HTMLAttr {
 			// Returns filter query params preserved for pagination links.
-			// Accepts a TransactionFilter struct and returns "&account_id=X&symbol=Y..."
-			// for non-empty fields.
-			type TransactionFilter struct {
-				AccountID string
-				Symbol    string
-				Type      string
-				DateFrom  string
-				DateTo    string
+			// Returns template.HTML to prevent double-escaping of & in hrefs.
+			// Uses reflection to read struct fields generically.
+			v := reflect.ValueOf(filter)
+			if v.Kind() == reflect.Ptr {
+				v = v.Elem()
 			}
-			f, ok := filter.(TransactionFilter)
-			if !ok {
+			if v.Kind() != reflect.Struct {
 				return ""
 			}
+			typeToParam := map[string]string{
+				"AccountID": "account_id",
+				"Symbol":    "symbol",
+				"Type":      "type",
+				"DateFrom":  "date_from",
+				"DateTo":    "date_to",
+			}
 			var parts []string
-			if f.AccountID != "" {
-				parts = append(parts, "account_id="+f.AccountID)
-			}
-			if f.Symbol != "" {
-				parts = append(parts, "symbol="+f.Symbol)
-			}
-			if f.Type != "" {
-				parts = append(parts, "type="+f.Type)
-			}
-			if f.DateFrom != "" {
-				parts = append(parts, "date_from="+f.DateFrom)
-			}
-			if f.DateTo != "" {
-				parts = append(parts, "date_to="+f.DateTo)
+			for fieldName, param := range typeToParam {
+				field := v.FieldByName(fieldName)
+				if field.IsValid() && field.String() != "" {
+					parts = append(parts, param+"="+field.String())
+				}
 			}
 			if len(parts) == 0 {
 				return ""
 			}
-			return "&" + strings.Join(parts, "&")
+			return template.HTMLAttr("&" + strings.Join(parts, "&"))
 		},
 	}
 
