@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/govalues/decimal"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
 )
 
 // SymbolMappingHandler handles HTTP requests for symbol mapping CRUD operations.
@@ -143,8 +146,20 @@ func (h *SymbolMappingHandler) HandleAddBrokerSymbol(w http.ResponseWriter, r *h
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// PreviewResponse wraps a market quote with auto-correction detection.
+// CorrectedSymbol is populated when the market data provider returns data
+// for a different symbol than requested (e.g. "AAP" → "AAPL").
+type PreviewResponse struct {
+	Symbol          string          `json:"symbol"`
+	Name            string          `json:"name"`
+	Exchange        string          `json:"exchange"`
+	Currency        string          `json:"currency"`
+	LatestPrice     decimal.Decimal `json:"latest_price"`
+	CorrectedSymbol string          `json:"corrected_symbol"`
+}
+
 // HandlePreview handles GET /api/symbol-mappings/preview?symbol=AAPL.
-// Returns a market data quote for the given symbol, or an error if unavailable.
+// Returns a market data quote for the given symbol with auto-correction detection.
 func (h *SymbolMappingHandler) HandlePreview(w http.ResponseWriter, r *http.Request) {
 	symbol := r.URL.Query().Get("symbol")
 	if symbol == "" {
@@ -158,7 +173,28 @@ func (h *SymbolMappingHandler) HandlePreview(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	writeJSON(w, http.StatusOK, quote)
+	resp := h.toPreviewResponse(quote, symbol)
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// toPreviewResponse converts a market.Quote to a PreviewResponse, detecting
+// auto-correction when the returned symbol differs from the requested symbol.
+func (h *SymbolMappingHandler) toPreviewResponse(quote *market.Quote, requestedSymbol string) PreviewResponse {
+	resp := PreviewResponse{
+		Symbol:      quote.Symbol,
+		Name:        quote.Name,
+		Exchange:    quote.Exchange,
+		Currency:    quote.Currency,
+		LatestPrice: quote.LatestPrice,
+	}
+
+	// Detect auto-correction: if the market data provider returned a different
+	// symbol than requested (case-insensitive comparison)
+	if !strings.EqualFold(quote.Symbol, requestedSymbol) {
+		resp.CorrectedSymbol = quote.Symbol
+	}
+
+	return resp
 }
 
 func (h *SymbolMappingHandler) handleServiceError(w http.ResponseWriter, err error) {

@@ -43,6 +43,59 @@
         {{if .FieldErrors.symbol}}<span class="field-error">{{.FieldErrors.symbol}}</span>{{end}}
     </div>
 
+    <div id="symbol-preview" class="symbol-preview" style="display:none;">
+        <div id="preview-loading" class="symbol-preview-loading" style="display:none;">
+            Fetching market data...
+        </div>
+
+        <div id="preview-existing" class="symbol-preview-existing" style="display:none;">
+            <div class="preview-indicator">●</div>
+            <div class="preview-details">
+                <strong id="preview-name"></strong> <span id="preview-symbol"></span>
+                <div class="preview-meta">
+                    <span id="preview-exchange"></span> · <span id="preview-currency"></span> · <span id="preview-price"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="preview-new" class="symbol-preview-new" style="display:none;">
+            <div class="preview-indicator">●</div>
+            <div class="preview-details">
+                <strong id="preview-new-name"></strong> <span id="preview-new-symbol"></span>
+                <div class="preview-meta">
+                    <span id="preview-new-exchange"></span> · <span id="preview-new-currency"></span> · <span id="preview-new-price"></span>
+                </div>
+                <p class="preview-note">This symbol does not yet exist in your symbol map.</p>
+                <button type="button" id="create-symbol-btn" class="btn btn-primary btn-sm create-symbol-btn">Create symbol</button>
+            </div>
+        </div>
+
+        <div id="preview-corrected" class="symbol-preview-corrected" style="display:none;">
+            <div class="preview-indicator">●</div>
+            <div class="preview-details">
+                <p>You typed <strong id="corrected-typed"></strong>, market data returned <strong id="corrected-actual"></strong>.</p>
+                <div class="preview-meta">
+                    <strong id="preview-corrected-name"></strong> · <span id="preview-corrected-exchange"></span> · <span id="preview-corrected-currency"></span> · <span id="preview-corrected-price"></span>
+                </div>
+                <button type="button" id="accept-correction-btn" class="btn btn-primary btn-sm">Accept <span id="accept-correction-symbol"></span></button>
+            </div>
+        </div>
+
+        <div id="preview-error" class="symbol-preview-error" style="display:none;">
+            <div class="preview-indicator">●</div>
+            <div class="preview-details">
+                <p>Could not fetch market data. Enter the market data symbol manually:</p>
+                <div class="manual-entry-fields">
+                    <div class="form-group">
+                        <label for="manual-market-data-symbol">Market Data Symbol</label>
+                        <input type="text" id="manual-market-data-symbol" maxlength="20" placeholder="e.g. AAPL">
+                    </div>
+                    <button type="button" id="manual-create-btn" class="btn btn-primary btn-sm create-symbol-btn">Create symbol</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="form-row">
         <div class="form-group">
             <label for="quantity">Quantity</label>
@@ -95,43 +148,316 @@
         <button type="submit" class="btn btn-primary">{{.SubmitText}}</button>
         <a href="{{.CancelHref}}" class="btn">Cancel</a>
     </div>
+
+    <script id="existing-symbols" type="application/json">[{{range $i, $sym := .Symbols}}{{if $i}},{{end}}"{{$sym.InternalSymbol}}"{{end}}]</script>
 </form>
 
 <script>
 (function() {
     var symbolInput = document.getElementById('symbol');
     var currencyInput = document.getElementById('currency');
+    var previewContainer = document.getElementById('symbol-preview');
     var debounceTimer = null;
+    var lastSymbol = '';
+    var currentPreviewData = null;
 
+    // Parse existing symbols into a Set for client-side existence checks
+    var existingSymbolsJSON = document.getElementById('existing-symbols');
+    var existingSymbols = new Set(JSON.parse(existingSymbolsJSON.textContent));
+
+    // Cash symbol pattern: $CASH- followed by exactly 3 uppercase letters
+    var cashSymbolRegex = /^\$CASH-[A-Z]{3}$/;
+    var cashSymbolExtractRegex = /^\$CASH-([A-Z]{3})$/;
+
+    // Preview panel elements
+    var panels = {
+        loading: document.getElementById('preview-loading'),
+        existing: document.getElementById('preview-existing'),
+        new: document.getElementById('preview-new'),
+        corrected: document.getElementById('preview-corrected'),
+        error: document.getElementById('preview-error')
+    };
+
+    function hideAllPanels() {
+        for (var key in panels) {
+            panels[key].style.display = 'none';
+        }
+        previewContainer.style.display = 'none';
+    }
+
+    function showPanel(name) {
+        hideAllPanels();
+        panels[name].style.display = 'block';
+        previewContainer.style.display = 'block';
+    }
+
+    function getCashCurrency(symbol) {
+        var match = cashSymbolExtractRegex.exec(symbol.toUpperCase());
+        return match ? match[1] : null;
+    }
+
+    function clearSymbolFieldErrors() {
+        var errors = symbolInput.parentElement.querySelectorAll('.field-error');
+        for (var i = 0; i < errors.length; i++) {
+            errors[i].remove();
+        }
+    }
+
+    function showSymbolFieldError(message) {
+        clearSymbolFieldErrors();
+        var error = document.createElement('span');
+        error.className = 'field-error';
+        error.textContent = message;
+        symbolInput.parentElement.appendChild(error);
+    }
+
+    function fetchPreview(symbol) {
+        showPanel('loading');
+
+        fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Fetch failed with status ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                currentPreviewData = data;
+                handlePreviewSuccess(data, symbol);
+            })
+            .catch(function() {
+                currentPreviewData = null;
+                showPanel('error');
+                var manualMds = document.getElementById('manual-market-data-symbol');
+                if (manualMds) {
+                    manualMds.value = symbol;
+                }
+            });
+    }
+
+    // Fetch preview and silently hide the panel on failure (used after symbol creation
+    // where we don't want to re-show the error panel).
+    function fetchPreviewSilent(symbol) {
+        showPanel('loading');
+
+        fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Fetch failed with status ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                currentPreviewData = data;
+                handlePreviewSuccess(data, symbol);
+            })
+            .catch(function() {
+                currentPreviewData = null;
+                hideAllPanels();
+            });
+    }
+
+    function handlePreviewSuccess(data, typedSymbol) {
+        // Auto-fill currency if empty
+        if (data.currency && currencyInput.value.trim() === '') {
+            currencyInput.value = data.currency;
+        }
+
+        var isExisting = existingSymbols.has(typedSymbol);
+        var isCorrected = data.corrected_symbol && data.corrected_symbol.length > 0;
+
+        if (isExisting) {
+            document.getElementById('preview-name').textContent = data.name;
+            document.getElementById('preview-symbol').textContent = '(' + data.symbol + ')';
+            document.getElementById('preview-exchange').textContent = data.exchange;
+            document.getElementById('preview-currency').textContent = data.currency;
+            document.getElementById('preview-price').textContent = data.latest_price + ' ' + data.currency;
+            showPanel('existing');
+        } else if (isCorrected) {
+            document.getElementById('corrected-typed').textContent = typedSymbol;
+            document.getElementById('corrected-actual').textContent = data.corrected_symbol;
+            document.getElementById('preview-corrected-name').textContent = data.name;
+            document.getElementById('preview-corrected-exchange').textContent = data.exchange;
+            document.getElementById('preview-corrected-currency').textContent = data.currency;
+            document.getElementById('preview-corrected-price').textContent = data.latest_price + ' ' + data.currency;
+            document.getElementById('accept-correction-symbol').textContent = data.corrected_symbol;
+            showPanel('corrected');
+        } else {
+            document.getElementById('preview-new-name').textContent = data.name;
+            document.getElementById('preview-new-symbol').textContent = '(' + data.symbol + ')';
+            document.getElementById('preview-new-exchange').textContent = data.exchange;
+            document.getElementById('preview-new-currency').textContent = data.currency;
+            document.getElementById('preview-new-price').textContent = data.latest_price + ' ' + data.currency;
+            showPanel('new');
+        }
+    }
+
+    function onSymbolCreated(symbol) {
+        existingSymbols.add(symbol);
+        // Re-fetch to show as existing with market data.
+        // Use silent fetch — if preview fails the symbol was still created successfully.
+        fetchPreviewSilent(symbol);
+    }
+
+    // --- Event: symbol input (debounced preview + cash validation) ---
     symbolInput.addEventListener('input', function() {
         var symbol = this.value.trim();
 
         if (debounceTimer) {
             clearTimeout(debounceTimer);
+            debounceTimer = null;
         }
 
-        // Only auto-fill if currency field is empty
-        if (symbol.length < 2 || currencyInput.value.trim() !== '') {
+        // Clear preview if field is empty
+        if (symbol === '') {
+            hideAllPanels();
+            clearSymbolFieldErrors();
+            lastSymbol = '';
+            currentPreviewData = null;
             return;
         }
 
-        debounceTimer = setTimeout(function() {
-            fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
-                .then(function(response) {
-                    if (!response.ok) {
-                        throw new Error('Fetch failed');
-                    }
-                    return response.json();
-                })
-                .then(function(data) {
-                    if (data.currency && currencyInput.value.trim() === '') {
-                        currencyInput.value = data.currency;
-                    }
-                })
-                .catch(function() {
-                    // Do nothing — user fills manually
-                });
-        }, 500);
+        // Cash symbol detection
+        if (symbol.indexOf('$CASH') === 0 || symbol.toUpperCase().indexOf('$CASH') === 0) {
+            hideAllPanels();
+            clearSymbolFieldErrors();
+
+            var upper = symbol.toUpperCase();
+            if (cashSymbolRegex.test(upper)) {
+                var cashCurrency = getCashCurrency(upper);
+                if (cashCurrency && currencyInput.value.trim() === '') {
+                    currencyInput.value = cashCurrency;
+                }
+
+                var txCurrency = currencyInput.value.trim().toUpperCase();
+                if (txCurrency && txCurrency !== cashCurrency) {
+                    showSymbolFieldError('Cash symbol currency (' + cashCurrency + ') does not match transaction currency (' + txCurrency + ')');
+                }
+            } else if (symbol.length >= 6) {
+                showSymbolFieldError('Invalid cash symbol format (expected $CASH-{currency}, e.g. $CASH-USD)');
+            }
+            lastSymbol = symbol;
+            currentPreviewData = null;
+            return;
+        }
+
+        // Clear cash symbol errors if switching away from cash
+        clearSymbolFieldErrors();
+
+        // Don't fetch for very short inputs
+        if (symbol.length < 2) {
+            hideAllPanels();
+            lastSymbol = symbol;
+            currentPreviewData = null;
+            return;
+        }
+
+        // Debounced fetch — only trigger on symbol change
+        if (symbol !== lastSymbol) {
+            lastSymbol = symbol;
+            debounceTimer = setTimeout(function() {
+                fetchPreview(symbol);
+            }, 500);
+        }
+    });
+
+    // --- Event: "Create symbol" button (new symbol preview) ---
+    document.getElementById('create-symbol-btn').addEventListener('click', function() {
+        var typedSymbol = symbolInput.value.trim();
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        var marketDataSymbol = currentPreviewData ? currentPreviewData.symbol : typedSymbol;
+
+        fetch('/api/symbol-mappings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                internal_symbol: typedSymbol,
+                market_data_symbol: marketDataSymbol
+            })
+        })
+        .then(function(response) {
+            if (response.ok || response.status === 409) {
+                onSymbolCreated(typedSymbol);
+            } else {
+                throw new Error('Failed to create symbol');
+            }
+        })
+        .catch(function(err) {
+            alert('Failed to create symbol: ' + err.message);
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Create symbol';
+        });
+    });
+
+    // --- Event: "Accept correction" button ---
+    document.getElementById('accept-correction-btn').addEventListener('click', function() {
+        var correctedSymbol = document.getElementById('accept-correction-symbol').textContent;
+        symbolInput.value = correctedSymbol;
+        lastSymbol = correctedSymbol;
+        currentPreviewData = null;
+
+        // Fetch preview for the corrected symbol (will show as "new" with create button)
+        fetchPreview(correctedSymbol);
+    });
+
+    // --- Event: Manual entry "Create" button ---
+    document.getElementById('manual-create-btn').addEventListener('click', function() {
+        var typedSymbol = symbolInput.value.trim();
+        var manualMds = document.getElementById('manual-market-data-symbol').value.trim();
+        var btn = this;
+
+        if (!manualMds) {
+            alert('Market data symbol is required');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        fetch('/api/symbol-mappings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                internal_symbol: typedSymbol,
+                market_data_symbol: manualMds
+            })
+        })
+        .then(function(response) {
+            if (response.ok || response.status === 409) {
+                onSymbolCreated(typedSymbol);
+            } else {
+                throw new Error('Failed to create symbol');
+            }
+        })
+        .catch(function(err) {
+            alert('Failed to create symbol: ' + err.message);
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Create symbol';
+        });
+    });
+
+    // --- Event: currency input change (re-check cash symbol mismatch) ---
+    currencyInput.addEventListener('input', function() {
+        var symbol = symbolInput.value.trim();
+        if (symbol.toUpperCase().indexOf('$CASH') === 0) {
+            var upper = symbol.toUpperCase();
+            if (cashSymbolRegex.test(upper)) {
+                var cashCurrency = getCashCurrency(upper);
+                var txCurrency = this.value.trim().toUpperCase();
+                if (txCurrency && txCurrency !== cashCurrency) {
+                    showSymbolFieldError('Cash symbol currency (' + cashCurrency + ') does not match transaction currency (' + txCurrency + ')');
+                } else {
+                    clearSymbolFieldErrors();
+                }
+            }
+        }
     });
 })();
 </script>

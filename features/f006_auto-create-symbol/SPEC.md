@@ -59,11 +59,13 @@ The `$CASH-{currency}` symbols remain as a separate, silent auto-create conventi
 **When** I type `UNKNOWN` in the symbol field on the transaction form
 **And** I pause typing briefly
 **Then** the preview area shows a warning that market data could not be fetched
-**And** I am presented with fields to manually enter all symbol details: name, exchange, currency, and market data provider symbol
-**When** I fill in all required fields and confirm creation
-**Then** the symbol mapping is created with the details I provided
+**And** I am presented with a field to enter the market data provider symbol
+**When** I fill in the market data symbol and confirm creation
+**Then** the symbol mapping is created with the internal symbol matching the typed symbol and the market data symbol I provided
 **And** the symbol field is now populated with the created symbol
 **And** I can continue filling out and submitting the transaction
+
+> **Note:** The symbol mapping model only stores `internal_symbol` and `market_data_symbol`. Fields like name, exchange, and currency are fetched from the market data provider later and are not persisted from manual entry.
 
 ### Scenario: Preview fails — user abandons symbol creation
 **Given** no symbol mapping for `UNKNOWN` exists

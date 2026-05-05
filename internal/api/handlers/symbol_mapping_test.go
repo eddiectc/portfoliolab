@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/govalues/decimal"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
 )
 
 // --- Test helpers ---
@@ -753,6 +755,144 @@ func TestHandlePreview_NoFetcher(t *testing.T) {
 	handler.RegisterRoutes(r)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAPL", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status 503, got %d", w.Code)
+	}
+
+	var errResp map[string]string
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp["code"] != "PREVIEW_FAILED" {
+		t.Errorf("expected error code PREVIEW_FAILED, got %q", errResp["code"])
+	}
+}
+
+// testQuoteFetcher is a mock QuoteFetcher for handler preview tests.
+// It maps requested symbols to quotes, allowing simulation of auto-correction.
+type testQuoteFetcher struct {
+	quotes map[string]*market.Quote
+	err    error
+}
+
+func (f *testQuoteFetcher) FetchQuote(_ context.Context, symbol string) (*market.Quote, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	q, ok := f.quotes[symbol]
+	if !ok {
+		return nil, fmt.Errorf("symbol not found: %s", symbol)
+	}
+	cp := *q
+	return &cp, nil
+}
+
+func TestHandlePreview_SymbolsMatch(t *testing.T) {
+	repo := newTestSMRepo()
+	fetcher := &testQuoteFetcher{
+		quotes: map[string]*market.Quote{
+			"AAPL": {Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
+		},
+	}
+	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	handler := NewSymbolMappingHandler(svc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAPL", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp PreviewResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Symbol != "AAPL" {
+		t.Errorf("expected symbol AAPL, got %q", resp.Symbol)
+	}
+	if resp.Name != "Apple Inc." {
+		t.Errorf("expected name Apple Inc., got %q", resp.Name)
+	}
+	if resp.CorrectedSymbol != "" {
+		t.Errorf("expected empty corrected_symbol when symbols match, got %q", resp.CorrectedSymbol)
+	}
+}
+
+func TestHandlePreview_AutoCorrectedSymbol(t *testing.T) {
+	repo := newTestSMRepo()
+	// Simulate go-yfinance auto-correcting "AAP" → "AAPL"
+	fetcher := &testQuoteFetcher{
+		quotes: map[string]*market.Quote{
+			"AAP": {Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
+		},
+	}
+	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	handler := NewSymbolMappingHandler(svc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAP", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp PreviewResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Symbol != "AAPL" {
+		t.Errorf("expected symbol AAPL, got %q", resp.Symbol)
+	}
+	if resp.CorrectedSymbol != "AAPL" {
+		t.Errorf("expected corrected_symbol AAPL, got %q", resp.CorrectedSymbol)
+	}
+}
+
+func TestHandlePreview_CaseInsensitiveMatch(t *testing.T) {
+	repo := newTestSMRepo()
+	// Fetcher returns a quote with lowercase symbol for uppercase request —
+	// this should NOT be flagged as auto-correction (same symbol, different case)
+	fetcher := &testQuoteFetcher{
+		quotes: map[string]*market.Quote{
+			"AAPL": {Symbol: "aapl", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
+		},
+	}
+	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	handler := NewSymbolMappingHandler(svc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	// Request uppercase, get lowercase back — should NOT be flagged as correction
+	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAPL", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp PreviewResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.CorrectedSymbol != "" {
+		t.Errorf("expected empty corrected_symbol for case-insensitive match, got %q", resp.CorrectedSymbol)
+	}
+}
+
+func TestHandlePreview_FetchError(t *testing.T) {
+	repo := newTestSMRepo()
+	fetcher := &testQuoteFetcher{
+		err: fmt.Errorf("network timeout"),
+	}
+	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	handler := NewSymbolMappingHandler(svc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=INVALID", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
