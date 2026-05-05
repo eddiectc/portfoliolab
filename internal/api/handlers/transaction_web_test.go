@@ -1468,3 +1468,130 @@ func TestTxHandleDeletePage_NotFound(t *testing.T) {
 		t.Fatalf("expected status %d (redirect), got %d", http.StatusSeeOther, resp.StatusCode)
 	}
 }
+
+// -- HandleNewPage preview element tests (f006_auto-create-symbol) --
+
+// TestTxHandleNewPage_PreviewElements verifies the transaction form renders with
+// the #existing-symbols script tag and all preview panel sub-elements.
+func TestTxHandleNewPage_PreviewElements(t *testing.T) {
+	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+
+	symbolSvc := symbolmapping.NewService(symbolRepo)
+	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
+
+	handler := NewTransactionWebHandler(txSvc, accountSvc, symbolSvc, newTestRenderer(t))
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions/new", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleNewPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	checkContains := func(label, text string) {
+		t.Helper()
+		if !strings.Contains(body, text) {
+			t.Errorf("page missing %s: %q", label, text)
+		}
+	}
+
+	// existing-symbols script tag
+	checkContains("existing-symbols script tag", `id="existing-symbols"`)
+	checkContains("existing-symbols script type", `type="application/json"`)
+
+	// Preview container
+	checkContains("preview container", `id="symbol-preview"`)
+	checkContains("preview container class", `class="symbol-preview"`)
+
+	// Sub-panels
+	checkContains("loading panel", `id="preview-loading"`)
+	checkContains("existing panel", `id="preview-existing"`)
+	checkContains("new panel", `id="preview-new"`)
+	checkContains("corrected panel", `id="preview-corrected"`)
+	checkContains("error panel", `id="preview-error"`)
+
+	// Key interactive elements
+	checkContains("create-symbol button", `id="create-symbol-btn"`)
+	checkContains("accept-correction button", `id="accept-correction-btn"`)
+	checkContains("manual-create button", `id="manual-create-btn"`)
+}
+
+// TestTxHandleNewPage_EmbeddedSymbolList verifies the form renders with the
+// embedded symbol list populated from the .Symbols template data.
+func TestTxHandleNewPage_EmbeddedSymbolList(t *testing.T) {
+	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+
+	symbolSvc := symbolmapping.NewService(symbolRepo)
+	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
+	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "GOOG", MarketDataSymbol: "GOOG"})
+	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT"})
+
+	handler := NewTransactionWebHandler(txSvc, accountSvc, symbolSvc, newTestRenderer(t))
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions/new", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleNewPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// Verify all three symbols appear in the embedded JSON list
+	for _, sym := range []string{"AAPL", "GOOG", "MSFT"} {
+		if !strings.Contains(body, `"`+sym+`"`) {
+			t.Errorf("expected symbol %q in embedded symbol list", sym)
+		}
+	}
+
+	// Verify the script tag contains a valid JSON array structure
+	if !strings.Contains(body, `id="existing-symbols"`) {
+		t.Error("missing existing-symbols script tag")
+	}
+}
+
+// TestTxHandleNewPage_EmptySymbolList verifies the form renders with an empty
+// JSON array when no symbols exist in the symbol map.
+func TestTxHandleNewPage_EmptySymbolList(t *testing.T) {
+	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+
+	// No symbols created
+	symbolSvc := symbolmapping.NewService(symbolRepo)
+
+	handler := NewTransactionWebHandler(txSvc, accountSvc, symbolSvc, newTestRenderer(t))
+
+	r := httptest.NewRequest(http.MethodGet, "/transactions/new", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleNewPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// Should still have the script tag with an empty array
+	if !strings.Contains(body, `id="existing-symbols"`) {
+		t.Error("missing existing-symbols script tag")
+	}
+	// Empty symbols list renders as []
+	if !strings.Contains(body, `[]`) {
+		t.Error("expected empty array [] in existing-symbols script tag")
+	}
+}
