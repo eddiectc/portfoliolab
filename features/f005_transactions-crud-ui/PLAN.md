@@ -248,4 +248,4 @@ Task 5 (routes) ─────────────────────�
 - [x] **Task 3:** Create transaction web handler
 - [x] **Task 4:** Create transaction templates + nav link
 - [x] **Task 5:** Wire routes
-- [ ] **Task 6:** Web handler unit tests
+- [x] **Task 6:** Web handler unit tests
