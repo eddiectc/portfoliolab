@@ -47,4 +47,4 @@
 - [x] Update NOTES.md to remove the "No clear filters button" known limitation (it's implemented) — **done**
 - [x] Consider a type-safe alternative to the reflection-based `queryPreserve` template function (e.g., `FilterEncoder` interface) — **done** (`FilterEncoder` interface on `TransactionFilter` and `ListFilters`, `reflect` removed from renderer)
 - [ ] Review migration 005 for potential floating-point precision issues; consider using integer arithmetic or an application-level migration script
-- [ ] Fix account field inline validation: map empty/zero account ID to an inline field error on `account_id` instead of a generic error banner
+- [x] Fix account field inline validation: map empty/zero account ID to an inline field error on `account_id` instead of a generic error banner — **done** (pre-validation in handler shows "Account is required" for empty dropdown)
