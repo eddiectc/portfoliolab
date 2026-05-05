@@ -93,6 +93,10 @@ Feature index: `features/README.md`.
 - **Ask for clarification** on ambiguous requirements
 - **Keep changes minimal and focused** — one concern per PR/commit
 
+### Feature Scoping
+- **User-facing features include web UI by default** — any feature that involves user interaction gets server-rendered web pages (`*_web.go` + templates + nav link) alongside the API. The plan must include tasks for both layers. If a feature is API-only or backend-only, explicitly state why in the spec's Non-Goals.
+- **Spec user stories are medium-agnostic** — write "I want to create X" not "I want to POST to /api/X". The plan decomposes into API + web tasks.
+
 ## Best Practices
 
 ### Unit Testing

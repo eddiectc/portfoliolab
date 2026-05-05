@@ -48,6 +48,8 @@
 
 - **Plan adapter types when crossing feature boundaries.** When a feature depends on interfaces from another feature (e.g., transaction depends on f002's account repo and f003's symbol service), plan for adapter/wrapper types in the router wiring task.
 
+- **CRUD features must include both API and web UI.** This feature only implemented the REST API layer. The established pattern from f001/f002/f003 is that every resource gets server-rendered web pages (`*_web.go` + templates + nav link) alongside the API. The plan missed this entirely — no web handler, no templates, no nav link activation. Added a "Feature Scoping" convention to AGENTS.md to prevent this in future features.
+
 - **Integration tests are worth the effort.** The SQLite timestamp precision issue and cascade delete verification would have been missed with unit tests alone. Keep this pattern for future features.
 
 - **DTO-level immutability is sufficient.** Not exposing `account_id` in `UpdateRequest` is a simpler and more robust approach than explicit rejection logic. Prefer this pattern for future immutable fields.
@@ -57,3 +59,4 @@
 - [x] Update `features/README.md` to mark f004 as "done"
 - [x] Address `ErrImmutableField` dead code: removed error constant from `service.go` and handler mapping from `transaction.go`
 - [x] Add `govalues/decimal` API reference to `AGENTS.md` (method names: `MustNew`, `IsPos`, `String`, `Equal`, `Parse`, `MustParse`)
+- [x] Add "Feature Scoping" convention to AGENTS.md: user-facing features include web UI by default
