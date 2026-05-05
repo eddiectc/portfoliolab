@@ -45,6 +45,6 @@
 - [x] Add unit tests for `Service.ListWithAccount` covering single-bound date filter synthesis, empty results, and pagination — **done** (6 tests added to `service_test.go`)
 - [x] Add unit tests for `repository.ListWithAccount` covering all filter combinations and edge cases — **done** (3 tests added to `transaction_repo_test.go`; single-bound date synthesis is a service-layer concern, not repo)
 - [x] Update NOTES.md to remove the "No clear filters button" known limitation (it's implemented) — **done**
-- [ ] Consider a type-safe alternative to the reflection-based `queryPreserve` template function (e.g., `FilterEncoder` interface)
+- [x] Consider a type-safe alternative to the reflection-based `queryPreserve` template function (e.g., `FilterEncoder` interface) — **done** (`FilterEncoder` interface on `TransactionFilter` and `ListFilters`, `reflect` removed from renderer)
 - [ ] Review migration 005 for potential floating-point precision issues; consider using integer arithmetic or an application-level migration script
 - [ ] Fix account field inline validation: map empty/zero account ID to an inline field error on `account_id` instead of a generic error banner
