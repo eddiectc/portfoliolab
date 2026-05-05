@@ -72,6 +72,18 @@ func (r *testTxRepo) List(_ context.Context, filters transaction.ListFilters, li
 	return result, nil
 }
 
+func (r *testTxRepo) ListWithAccount(_ context.Context, filters transaction.ListFilters, limit, offset int) ([]transaction.TransactionWithAccount, error) {
+	items, _ := r.List(nil, filters, limit, offset)
+	result := make([]transaction.TransactionWithAccount, len(items))
+	for i, t := range items {
+		result[i] = transaction.TransactionWithAccount{
+			Transaction: t,
+			AccountName: "",
+		}
+	}
+	return result, nil
+}
+
 func (r *testTxRepo) Update(_ context.Context, t *transaction.Transaction) error {
 	r.items[t.ID] = t
 	return nil

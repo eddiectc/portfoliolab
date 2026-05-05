@@ -12,6 +12,7 @@ type Repository interface {
 	Create(ctx context.Context, t *Transaction) error
 	GetByID(ctx context.Context, id int64) (*Transaction, error)
 	List(ctx context.Context, filters ListFilters, limit, offset int) ([]Transaction, error)
+	ListWithAccount(ctx context.Context, filters ListFilters, limit, offset int) ([]TransactionWithAccount, error)
 	Update(ctx context.Context, t *Transaction) error
 	Delete(ctx context.Context, id int64) error
 }
@@ -68,6 +69,9 @@ var (
 
 	// ErrInvalidNetCash indicates the net cash value is missing, null, or zero.
 	ErrInvalidNetCash = fmt.Errorf("invalid net_cash")
+
+	// ErrInvalidExternalField indicates an external field exceeds the 100-char limit.
+	ErrInvalidExternalField = fmt.Errorf("invalid external field")
 
 )
 
@@ -176,6 +180,36 @@ func (s *Service) List(ctx context.Context, filters ListFilters, limit, offset i
 	items, err := s.repo.List(ctx, f, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list transactions: %w", err)
+	}
+	return items, nil
+}
+
+// ListWithAccount retrieves transactions with account names resolved via a
+// SQL JOIN, with filtering and pagination.
+// A limit of 0 (or negative) defaults to defaultLimit (50).
+// offset<0 defaults to 0.
+func (s *Service) ListWithAccount(ctx context.Context, filters ListFilters, limit, offset int) ([]TransactionWithAccount, error) {
+	if limit <= 0 {
+		limit = defaultLimit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Handle single-bound date filters by synthesizing the missing bound.
+	f := filters
+	if f.DateFrom != nil && f.DateTo == nil {
+		to := time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+		f.DateTo = &to
+	}
+	if f.DateTo != nil && f.DateFrom == nil {
+		from := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+		f.DateFrom = &from
+	}
+
+	items, err := s.repo.ListWithAccount(ctx, f, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list transactions with account: %w", err)
 	}
 	return items, nil
 }
@@ -301,6 +335,8 @@ func mapValidationError(err error) error {
 		return ErrInvalidSymbol
 	case strings.Contains(msg, "net_cash"):
 		return ErrInvalidNetCash
+	case strings.Contains(msg, "external"):
+		return ErrInvalidExternalField
 	default:
 		return err
 	}
