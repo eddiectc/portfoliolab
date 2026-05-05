@@ -654,6 +654,123 @@ func TestService_List_Ordering(t *testing.T) {
 	}
 }
 
+// ==================== LIST WITH ACCOUNT ====================
+
+func TestService_ListWithAccount_Basic(t *testing.T) {
+	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
+	repo.setAccountName(3, "Broker A")
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(-150000, 2)))
+
+	items, err := svc.ListWithAccount(ctx, ListFilters{}, 0, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].AccountName != "Broker A" {
+		t.Errorf("expected AccountName 'Broker A', got %q", items[0].AccountName)
+	}
+	if items[0].Symbol != "AAPL" {
+		t.Errorf("expected Symbol 'AAPL', got %q", items[0].Symbol)
+	}
+}
+
+func TestService_ListWithAccount_DateFromOnly(t *testing.T) {
+	// Service should synthesize DateTo when only DateFrom is provided.
+	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
+	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-06-01", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+
+	from := mustParseDate("2025-03-01")
+	items, err := svc.ListWithAccount(ctx, ListFilters{DateFrom: &from}, 0, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 2 {
+		t.Errorf("expected 2 items from March onward, got %d", len(items))
+	}
+}
+
+func TestService_ListWithAccount_DateToOnly(t *testing.T) {
+	// Service should synthesize DateFrom when only DateTo is provided.
+	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
+	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-06-01", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+
+	to := mustParseDate("2025-02-28")
+	items, err := svc.ListWithAccount(ctx, ListFilters{DateTo: &to}, 0, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Errorf("expected 1 item until Feb, got %d", len(items))
+	}
+}
+
+func TestService_ListWithAccount_PaginationDefaults(t *testing.T) {
+	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
+	for i := 0; i < 10; i++ {
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	}
+
+	// limit=0 should default to 50
+	items, err := svc.ListWithAccount(ctx, ListFilters{}, 0, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 10 {
+		t.Errorf("expected 10 items with limit=0 (defaults to 50), got %d", len(items))
+	}
+
+	// offset=-1 should default to 0
+	items, err = svc.ListWithAccount(ctx, ListFilters{}, 3, -1)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 3 {
+		t.Errorf("expected 3 items with offset=-1 (defaulted to 0), got %d", len(items))
+	}
+}
+
+func TestService_ListWithAccount_EmptyResult(t *testing.T) {
+	svc, _, _ := setupService([]int64{}, []string{})
+	items, err := svc.ListWithAccount(ctx, ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected 0 items, got %d", len(items))
+	}
+}
+
+func TestService_ListWithAccount_Filtered(t *testing.T) {
+	svc, repo, _ := setupService([]int64{3, 5}, []string{"AAPL", "MSFT"})
+	repo.setAccountName(3, "Broker A")
+	repo.setAccountName(5, "Broker B")
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-16", "sell", "AAPL", "USD", dec(5, 0), dec(16000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(5, "2025-01-17", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), dec(0, 0)))
+
+	accountID := int64(3)
+	xtype := "buy"
+	items, err := svc.ListWithAccount(ctx, ListFilters{AccountID: &accountID, Type: &xtype}, 0, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].AccountName != "Broker A" {
+		t.Errorf("expected AccountName 'Broker A', got %q", items[0].AccountName)
+	}
+	if items[0].Symbol != "AAPL" {
+		t.Errorf("expected Symbol 'AAPL', got %q", items[0].Symbol)
+	}
+}
+
 // ==================== UPDATE ====================
 
 func TestService_Update_Date(t *testing.T) {
