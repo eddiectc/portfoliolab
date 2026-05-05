@@ -709,3 +709,89 @@ func TestTransactionRepository_ListWithAccount_Pagination(t *testing.T) {
 		t.Errorf("expected 1 item on page 2, got %d", len(items))
 	}
 }
+
+func TestTransactionRepository_ListWithAccount_AllFilters(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	_, err := db.Exec("UPDATE accounts SET name = 'Broker A' WHERE id = 1")
+	if err != nil {
+		t.Fatalf("update account: %v", err)
+	}
+	_, err = db.Exec("INSERT INTO accounts (name, portfolio_id) VALUES ('Broker B', 1)")
+	if err != nil {
+		t.Fatalf("insert account: %v", err)
+	}
+
+	// Account 1, AAPL, buy, Jan 15
+	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.MustNew(-150000, 2))
+	repo.Create(context.Background(), txn1)
+
+	// Account 1, AAPL, sell, Jan 20
+	txn2 := newTestTransaction(0, 1, "2025-01-20T00:00:00Z", "sell", "AAPL", "USD",
+		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), decimal.MustNew(80000, 2))
+	repo.Create(context.Background(), txn2)
+
+	// Account 2, MSFT, buy, Jan 25
+	txn3 := newTestTransaction(0, 2, "2025-01-25T00:00:00Z", "buy", "MSFT", "USD",
+		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.MustNew(-150000, 2))
+	repo.Create(context.Background(), txn3)
+
+	accountID := int64(1)
+	symbol := "AAPL"
+	txType := "buy"
+	from := mustParseTime("2025-01-01T00:00:00Z")
+	to := mustParseTime("2025-01-31T00:00:00Z")
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{
+		AccountID: &accountID, Symbol: &symbol, Type: &txType,
+		DateFrom: &from, DateTo: &to,
+	}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item with all filters, got %d", len(items))
+	}
+	if items[0].AccountName != "Broker A" {
+		t.Errorf("expected AccountName 'Broker A', got %q", items[0].AccountName)
+	}
+	if items[0].Symbol != "AAPL" {
+		t.Errorf("expected Symbol 'AAPL', got %q", items[0].Symbol)
+	}
+	if items[0].Type != "buy" {
+		t.Errorf("expected Type 'buy', got %q", items[0].Type)
+	}
+}
+
+func TestTransactionRepository_ListWithAccount_EmptyResult(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	symbol := "NONEXISTENT"
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{Symbol: &symbol}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected 0 items, got %d", len(items))
+	}
+}
+
+func TestTransactionRepository_ListWithAccount_ZeroLimit(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
+	repo.Create(context.Background(), txn)
+
+	// LIMIT 0 → empty result (real SQL behavior)
+	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{}, 0, 0)
+	if err != nil {
+		t.Fatalf("ListWithAccount: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected 0 items with limit=0, got %d", len(items))
+	}
+}

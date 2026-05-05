@@ -48,9 +48,6 @@ Default order: date descending, then symbol ascending, then type ascending, then
 
 ## Known Limitations
 
-### No clear filters button
-The spec mentions a "Clear filters" button, but the implementation relies on the user manually clearing filter inputs and submitting. The filter form uses `method="GET"` so clearing fields and pressing "Filter" resets to unfiltered view. A dedicated "Clear" button could be added as a follow-up.
-
 ### No symbol autocomplete
 The symbol field is a text input. Users must type the symbol manually. An autocomplete dropdown could be added as a follow-up (similar to the account dropdown pattern).
 
