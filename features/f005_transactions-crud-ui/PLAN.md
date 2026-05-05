@@ -246,6 +246,6 @@ Task 5 (routes) ─────────────────────�
 - [x] **Task 1:** Make netCash required (domain + API + migration + existing tests)
 - [x] **Task 2:** Add sqlc query for transaction list with account name
 - [x] **Task 3:** Create transaction web handler
-- [ ] **Task 4:** Create transaction templates + nav link
+- [x] **Task 4:** Create transaction templates + nav link
 - [ ] **Task 5:** Wire routes
 - [ ] **Task 6:** Web handler unit tests

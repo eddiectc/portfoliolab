@@ -1,0 +1,140 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>{{.Title}}</h1>
+</div>
+
+<form action="{{.Action}}" method="POST" class="form" id="transaction-form">
+    {{if .Error}}
+    <div class="alert alert-error">{{.Error}}</div>
+    {{end}}
+
+    <div class="form-group">
+        <label for="account_id">Account</label>
+        <select id="account_id" name="account_id" required>
+            <option value="">-- Select Account --</option>
+            {{range .Accounts}}
+            <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.AccountID}}selected{{end}}>{{.Name}}</option>
+            {{end}}
+        </select>
+        {{if .FieldErrors.account_id}}<span class="field-error">{{.FieldErrors.account_id}}</span>{{end}}
+    </div>
+
+    <div class="form-group">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" value="{{.Date}}" required>
+        {{if .FieldErrors.date}}<span class="field-error">{{.FieldErrors.date}}</span>{{end}}
+    </div>
+
+    <div class="form-group">
+        <label for="type">Type</label>
+        <select id="type" name="type" required>
+            <option value="">-- Select Type --</option>
+            {{range .Types}}
+            <option value="{{.}}" {{if eq . $.Type}}selected{{end}}>{{.}}</option>
+            {{end}}
+        </select>
+        {{if .FieldErrors.type}}<span class="field-error">{{.FieldErrors.type}}</span>{{end}}
+    </div>
+
+    <div class="form-group">
+        <label for="symbol">Symbol</label>
+        <input type="text" id="symbol" name="symbol" value="{{.Symbol}}" required maxlength="20" placeholder="e.g. AAPL or $CASH-USD">
+        <small>Symbol from symbol map, or $CASH-{currency} for cash transactions</small>
+        {{if .FieldErrors.symbol}}<span class="field-error">{{.FieldErrors.symbol}}</span>{{end}}
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="quantity">Quantity</label>
+            <input type="number" id="quantity" name="quantity" value="{{.Quantity}}" step="any" required>
+            <small>Can be negative for short sales</small>
+            {{if .FieldErrors.quantity}}<span class="field-error">{{.FieldErrors.quantity}}</span>{{end}}
+        </div>
+
+        <div class="form-group">
+            <label for="price">Price</label>
+            <input type="number" id="price" name="price" value="{{.Price}}" step="any" required>
+            <small>Per-unit price (must be positive)</small>
+            {{if .FieldErrors.price}}<span class="field-error">{{.FieldErrors.price}}</span>{{end}}
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="currency">Currency</label>
+            <input type="text" id="currency" name="currency" value="{{.Currency}}" maxlength="3" placeholder="e.g. USD">
+            <small>3-letter ISO 4217 code (auto-filled from symbol)</small>
+            {{if .FieldErrors.currency}}<span class="field-error">{{.FieldErrors.currency}}</span>{{end}}
+        </div>
+
+        <div class="form-group">
+            <label for="net_cash">Net Cash</label>
+            <input type="number" id="net_cash" name="net_cash" value="{{.NetCash}}" step="any" required>
+            <small>Negative for buys/sells, positive for deposits/dividends</small>
+            {{if .FieldErrors.net_cash}}<span class="field-error">{{.FieldErrors.net_cash}}</span>{{end}}
+        </div>
+    </div>
+
+    <fieldset class="form-group">
+        <legend>External Reference (optional)</legend>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="external_system">System</label>
+                <input type="text" id="external_system" name="external_system" value="{{.ExternalSystem}}" maxlength="100" placeholder="e.g. IBKR">
+            </div>
+
+            <div class="form-group">
+                <label for="external_reference">Reference</label>
+                <input type="text" id="external_reference" name="external_reference" value="{{.ExternalRef}}" maxlength="100" placeholder="e.g. order ID">
+            </div>
+        </div>
+        <small>Link to external broker system records</small>
+    </fieldset>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{.SubmitText}}</button>
+        <a href="{{.CancelHref}}" class="btn">Cancel</a>
+    </div>
+</form>
+
+<script>
+(function() {
+    var symbolInput = document.getElementById('symbol');
+    var currencyInput = document.getElementById('currency');
+    var debounceTimer = null;
+
+    symbolInput.addEventListener('input', function() {
+        var symbol = this.value.trim();
+
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
+
+        // Only auto-fill if currency field is empty
+        if (symbol.length < 2 || currencyInput.value.trim() !== '') {
+            return;
+        }
+
+        debounceTimer = setTimeout(function() {
+            fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Fetch failed');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.currency && currencyInput.value.trim() === '') {
+                        currencyInput.value = data.currency;
+                    }
+                })
+                .catch(function() {
+                    // Do nothing — user fills manually
+                });
+        }, 500);
+    });
+})();
+</script>
+{{end}}
+
+{{template "base" .}}
