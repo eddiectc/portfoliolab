@@ -28,7 +28,7 @@ func TestService_Create_BuyTransaction(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
 		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
-		NetCash: decp(-150000, 2),
+		NetCash: dec(-150000, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -53,7 +53,7 @@ func TestService_Create_SellTransaction(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-03-20", Type: "sell", Symbol: "AAPL",
 		Quantity: dec(-5, 0), Price: dec(17500, 2), Currency: "USD",
-		NetCash: decp(87000, 2),
+		NetCash: dec(87000, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -72,7 +72,7 @@ func TestService_Create_DepositAutoCreatesCashSymbol(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-01-01", Type: "deposit", Symbol: "$CASH-USD",
 		Quantity: dec(1000000, 2), Price: dec(1, 0), Currency: "USD",
-		NetCash: decp(1000000, 2),
+		NetCash: dec(1000000, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -92,7 +92,7 @@ func TestService_Create_Withdrawal(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-06-15", Type: "withdrawal", Symbol: "$CASH-USD",
 		Quantity: dec(-200000, 2), Price: dec(1, 0), Currency: "USD",
-		NetCash: decp(-200000, 2),
+		NetCash: dec(-200000, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -108,7 +108,7 @@ func TestService_Create_Dividend(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-03-14", Type: "dividend", Symbol: "MSFT",
 		Quantity: dec(1, 0), Price: dec(300, 2), Currency: "USD",
-		NetCash: decp(300, 2),
+		NetCash: dec(300, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -124,7 +124,7 @@ func TestService_Create_Fee(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-01-15", Type: "fee", Symbol: "$CASH-USD",
 		Quantity: dec(-495, 2), Price: dec(1, 0), Currency: "USD",
-		NetCash: decp(-495, 2),
+		NetCash: dec(-495, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -142,7 +142,7 @@ func TestService_Create_WithExternalReference(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-02-10", Type: "buy", Symbol: "VOO",
 		Quantity: dec(2, 0), Price: dec(25000, 2), Currency: "USD",
-		NetCash:         decp(-50500, 2),
+		NetCash:         dec(-50500, 2),
 		ExternalSystem:  &extSys,
 		ExternalReference: &extRef,
 	}
@@ -163,7 +163,7 @@ func TestService_Create_NegativeQuantityShortPosition(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "TSLA",
 		Quantity: dec(-100, 0), Price: dec(20000, 2), Currency: "USD",
-		NetCash: decp(2000000, 2),
+		NetCash: dec(2000000, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -179,7 +179,7 @@ func TestService_Create_NonUSDCurrency(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 5, Date: "2025-01-15", Type: "buy", Symbol: "VOD.L",
 		Quantity: dec(500, 0), Price: dec(75, 2), Currency: "GBP",
-		NetCash: decp(-37500, 2),
+		NetCash: dec(-37500, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -195,7 +195,7 @@ func TestService_Create_Interest(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-06-30", Type: "interest", Symbol: "$CASH-USD",
 		Quantity: dec(2550, 2), Price: dec(1, 0), Currency: "USD",
-		NetCash: decp(2550, 2),
+		NetCash: dec(2550, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -211,7 +211,7 @@ func TestService_Create_Tax(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-12-31", Type: "tax", Symbol: "$CASH-USD",
 		Quantity: dec(-15000, 2), Price: dec(1, 0), Currency: "USD",
-		NetCash: decp(-15000, 2),
+		NetCash: dec(-15000, 2),
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -228,7 +228,7 @@ func TestService_Create_NonExistentAccount(t *testing.T) {
 	svc, _, _ := setupService([]int64{3}, []string{"AAPL"})
 	req := CreateRequest{
 		AccountID: 999, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
-		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
+		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD", NetCash: dec(-150000, 2),
 	}
 	_, err := svc.Create(ctx, req)
 	if !errors.Is(err, ErrAccountNotFound) {
@@ -240,7 +240,7 @@ func TestService_Create_NonExistentSymbol(t *testing.T) {
 	svc, _, _ := setupService([]int64{3}, []string{"AAPL"})
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "XYZZY",
-		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
+		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD", NetCash: dec(-150000, 2),
 	}
 	_, err := svc.Create(ctx, req)
 	if !errors.Is(err, ErrSymbolNotFound) {
@@ -360,7 +360,7 @@ func TestService_Create_InvalidDateFormat(t *testing.T) {
 
 func TestService_Get_ByID(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	got, err := svc.Get(ctx, 1)
 	if err != nil {
@@ -387,7 +387,7 @@ func TestService_Get_NonExistent(t *testing.T) {
 func TestService_List_All(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3, 5}, []string{"AAPL", "MSFT"})
 	for i := 0; i < 5; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 
 	items, err := svc.List(ctx, ListFilters{}, 0, 0)
@@ -402,10 +402,10 @@ func TestService_List_All(t *testing.T) {
 func TestService_List_ByAccount(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3, 5}, []string{"AAPL", "MSFT"})
 	for i := 0; i < 3; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 	for i := 0; i < 2; i++ {
-		repo.Create(ctx, tx(5, "2025-01-15", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), nil))
+		repo.Create(ctx, tx(5, "2025-01-15", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), dec(0, 0)))
 	}
 
 	accountID := int64(3)
@@ -426,10 +426,10 @@ func TestService_List_ByAccount(t *testing.T) {
 func TestService_List_BySymbol(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL", "MSFT"})
 	for i := 0; i < 3; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 	for i := 0; i < 2; i++ {
-		repo.Create(ctx, tx(3, "2025-01-16", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-16", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), dec(0, 0)))
 	}
 
 	symbol := "AAPL"
@@ -444,11 +444,11 @@ func TestService_List_BySymbol(t *testing.T) {
 
 func TestService_List_ByType(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-16", "buy", "AAPL", "USD", dec(5, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-17", "sell", "AAPL", "USD", dec(3, 0), dec(16000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-18", "sell", "AAPL", "USD", dec(2, 0), dec(16500, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-19", "dividend", "AAPL", "USD", dec(1, 0), dec(300, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-16", "buy", "AAPL", "USD", dec(5, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-17", "sell", "AAPL", "USD", dec(3, 0), dec(16000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-18", "sell", "AAPL", "USD", dec(2, 0), dec(16500, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-19", "dividend", "AAPL", "USD", dec(1, 0), dec(300, 2), dec(0, 0)))
 
 	txType := "buy"
 	items, err := svc.List(ctx, ListFilters{Type: &txType}, 0, 0)
@@ -462,11 +462,11 @@ func TestService_List_ByType(t *testing.T) {
 
 func TestService_List_ByDateRange(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-06-01", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-06-01", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	from := mustParseDate("2025-03-01")
 	to := mustParseDate("2025-03-31")
@@ -481,11 +481,11 @@ func TestService_List_ByDateRange(t *testing.T) {
 
 func TestService_List_DateFromOnly(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-30", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-30", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	from := mustParseDate("2025-03-01")
 	items, err := svc.List(ctx, ListFilters{DateFrom: &from}, 0, 0)
@@ -499,11 +499,11 @@ func TestService_List_DateFromOnly(t *testing.T) {
 
 func TestService_List_DateToOnly(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-03-30", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-10", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-03-30", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	to := mustParseDate("2025-02-28")
 	items, err := svc.List(ctx, ListFilters{DateTo: &to}, 0, 0)
@@ -518,13 +518,13 @@ func TestService_List_DateToOnly(t *testing.T) {
 func TestService_List_CombinedFilters(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3, 5}, []string{"AAPL", "MSFT"})
 	for i := 0; i < 3; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 	for i := 0; i < 2; i++ {
-		repo.Create(ctx, tx(3, "2025-01-16", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-16", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), dec(0, 0)))
 	}
 	for i := 0; i < 5; i++ {
-		repo.Create(ctx, tx(5, "2025-01-17", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(5, "2025-01-17", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 
 	accountID := int64(3)
@@ -541,7 +541,7 @@ func TestService_List_CombinedFilters(t *testing.T) {
 func TestService_List_PaginationLimit(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
 	for i := 0; i < 10; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 
 	items, err := svc.List(ctx, ListFilters{}, 3, 0)
@@ -556,7 +556,7 @@ func TestService_List_PaginationLimit(t *testing.T) {
 func TestService_List_PaginationOffset(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
 	for i := 0; i < 5; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 
 	items, err := svc.List(ctx, ListFilters{}, 3, 2)
@@ -571,7 +571,7 @@ func TestService_List_PaginationOffset(t *testing.T) {
 func TestService_List_DefaultPagination(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
 	for i := 0; i < 10; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 
 	// No params → default limit 50, which covers all 10
@@ -587,7 +587,7 @@ func TestService_List_DefaultPagination(t *testing.T) {
 func TestService_List_ZeroLimitDefaultsTo50(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
 	for i := 0; i < 10; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 
 	items, err := svc.List(ctx, ListFilters{}, 0, 0)
@@ -602,7 +602,7 @@ func TestService_List_ZeroLimitDefaultsTo50(t *testing.T) {
 func TestService_List_NegativeOffsetDefaultsToZero(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
 	for i := 0; i < 5; i++ {
-		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+		repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 	}
 
 	items, err := svc.List(ctx, ListFilters{}, 3, -1)
@@ -628,10 +628,10 @@ func TestService_List_EmptyResult(t *testing.T) {
 func TestService_List_Ordering(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL", "MSFT"})
 	// Create in reverse order to test sorting
-	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-15", "sell", "AAPL", "USD", dec(5, 0), dec(16000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-20", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-15", "sell", "AAPL", "USD", dec(5, 0), dec(16000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "MSFT", "USD", dec(5, 0), dec(30000, 2), dec(0, 0)))
 
 	items, err := svc.List(ctx, ListFilters{}, 0, 0)
 	if err != nil {
@@ -658,7 +658,7 @@ func TestService_List_Ordering(t *testing.T) {
 
 func TestService_Update_Date(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	newDate := "2025-01-16"
 	got, err := svc.Update(ctx, 1, UpdateRequest{Date: &newDate})
@@ -672,7 +672,7 @@ func TestService_Update_Date(t *testing.T) {
 
 func TestService_Update_QuantityAndPrice(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	got, err := svc.Update(ctx, 1, UpdateRequest{
 		Quantity: decp(12, 0),
@@ -691,22 +691,22 @@ func TestService_Update_QuantityAndPrice(t *testing.T) {
 
 func TestService_Update_NetCash(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), decp(-150000, 2)))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(-150000, 2)))
 
 	got, err := svc.Update(ctx, 1, UpdateRequest{
-		NetCash: decp(-151000, 2),
+		NetCash: OptionalDecimal{Dec: dec(-151000, 2), IsSet: true},
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if got.NetCash == nil || !got.NetCash.Equal(dec(-151000, 2)) {
+	if !got.NetCash.Equal(dec(-151000, 2)) {
 		t.Errorf("expected NetCash -1510, got %v", got.NetCash)
 	}
 }
 
 func TestService_Update_Symbol(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL", "AAPL.WS"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	newSym := "AAPL.WS"
 	got, err := svc.Update(ctx, 1, UpdateRequest{Symbol: &newSym})
@@ -720,7 +720,7 @@ func TestService_Update_Symbol(t *testing.T) {
 
 func TestService_Update_Type(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	newType := "sell"
 	got, err := svc.Update(ctx, 1, UpdateRequest{Type: &newType})
@@ -734,7 +734,7 @@ func TestService_Update_Type(t *testing.T) {
 
 func TestService_Update_NoChanges(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	original := tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil)
+	original := tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0))
 	repo.Create(ctx, original)
 	originalUpdatedAt := original.UpdatedAt
 
@@ -759,7 +759,7 @@ func TestService_Update_NoChanges(t *testing.T) {
 
 func TestService_Update_NonExistentSymbol(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	newSym := "ZZZZZ"
 	_, err := svc.Update(ctx, 1, UpdateRequest{Symbol: &newSym})
@@ -770,7 +770,7 @@ func TestService_Update_NonExistentSymbol(t *testing.T) {
 
 func TestService_Update_InvalidPrice(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	_, err := svc.Update(ctx, 1, UpdateRequest{Price: decp(0, 0)})
 	if !errors.Is(err, ErrInvalidPrice) {
@@ -780,7 +780,7 @@ func TestService_Update_InvalidPrice(t *testing.T) {
 
 func TestService_Update_InvalidCurrency(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	newCurrency := "XX"
 	_, err := svc.Update(ctx, 1, UpdateRequest{Currency: &newCurrency})
@@ -791,7 +791,7 @@ func TestService_Update_InvalidCurrency(t *testing.T) {
 
 func TestService_Update_InvalidType(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	newType := "split"
 	_, err := svc.Update(ctx, 1, UpdateRequest{Type: &newType})
@@ -802,7 +802,7 @@ func TestService_Update_InvalidType(t *testing.T) {
 
 func TestService_Update_ZeroQuantity(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	_, err := svc.Update(ctx, 1, UpdateRequest{Quantity: decp(0, 0)})
 	if !errors.Is(err, ErrInvalidQuantity) {
@@ -812,7 +812,7 @@ func TestService_Update_ZeroQuantity(t *testing.T) {
 
 func TestService_Update_InvalidDate(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	newDate := "not-a-date"
 	_, err := svc.Update(ctx, 1, UpdateRequest{Date: &newDate})
@@ -833,7 +833,7 @@ func TestService_Update_NonExistent(t *testing.T) {
 
 func TestService_Delete(t *testing.T) {
 	svc, repo, _ := setupService([]int64{3}, []string{"AAPL"})
-	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), nil))
+	repo.Create(ctx, tx(3, "2025-01-15", "buy", "AAPL", "USD", dec(10, 0), dec(15000, 2), dec(0, 0)))
 
 	err := svc.Delete(ctx, 1)
 	if err != nil {

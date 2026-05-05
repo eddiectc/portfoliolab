@@ -160,6 +160,10 @@ func (h *TransactionHandler) handleServiceError(w http.ResponseWriter, err error
 		writeJSONError(w, http.StatusBadRequest, "INVALID_DATE", err.Error())
 		return
 	}
+	if errors.Is(err, transaction.ErrInvalidNetCash) {
+		writeJSONError(w, http.StatusBadRequest, "INVALID_NET_CASH", err.Error())
+		return
+	}
 	writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 }
 

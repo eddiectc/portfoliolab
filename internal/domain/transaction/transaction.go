@@ -17,7 +17,7 @@ type Transaction struct {
 	Quantity          decimal.Decimal  `json:"quantity"`
 	Price             decimal.Decimal  `json:"price"`
 	Currency          string           `json:"currency"`
-	NetCash           *decimal.Decimal `json:"net_cash,omitempty"`
+	NetCash           decimal.Decimal  `json:"net_cash"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
 	CreatedAt         time.Time        `json:"created_at"`
@@ -34,9 +34,52 @@ type CreateRequest struct {
 	Quantity          decimal.Decimal  `json:"quantity"`
 	Price             decimal.Decimal  `json:"price"`
 	Currency          string           `json:"currency"`
-	NetCash           *decimal.Decimal `json:"net_cash,omitempty"`
+	NetCash           decimal.Decimal  `json:"net_cash"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
+}
+
+// OptionalDecimal distinguishes between "field not sent" (IsSet=false) and
+// "field sent with a value" (IsSet=true). It is used for UpdateRequest fields
+// where the caller must explicitly provide a value (null/zero is rejected).
+type OptionalDecimal struct {
+	Dec   decimal.Decimal
+	IsSet bool
+}
+
+// UnmarshalJSON implements json.Unmarshaler for OptionalDecimal.
+// It tracks whether the field was present in the JSON to distinguish
+// "omitted" from "explicitly null".
+func (o *OptionalDecimal) UnmarshalJSON(data []byte) error {
+	// First check if the raw value is JSON null.
+	trimmed := []byte(data)
+	for len(trimmed) > 0 && (trimmed[0] == ' ' || trimmed[0] == '\t' || trimmed[0] == '\n' || trimmed[0] == '\r') {
+		trimmed = trimmed[1:]
+	}
+	if string(trimmed) == "null" {
+		o.IsSet = true
+		o.Dec = decimal.Zero
+		return nil
+	}
+	// Field is present with a non-null value.
+	o.IsSet = true
+	return o.Dec.UnmarshalJSON(data)
+}
+
+// MarshalJSON implements json.Marshaler for OptionalDecimal.
+func (o OptionalDecimal) MarshalJSON() ([]byte, error) {
+	if !o.IsSet {
+		return []byte("null"), nil
+	}
+	return o.Dec.MarshalJSON()
+}
+
+// Get returns the decimal pointer if the field was set, nil otherwise.
+func (o *OptionalDecimal) Get() *decimal.Decimal {
+	if !o.IsSet {
+		return nil
+	}
+	return &o.Dec
 }
 
 // UpdateRequest is the DTO for updating a transaction.
@@ -49,7 +92,7 @@ type UpdateRequest struct {
 	Quantity          *decimal.Decimal `json:"quantity,omitempty"`
 	Price             *decimal.Decimal `json:"price,omitempty"`
 	Currency          *string          `json:"currency,omitempty"`
-	NetCash           *decimal.Decimal `json:"net_cash,omitempty"`
+	NetCash           OptionalDecimal  `json:"net_cash"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
 }

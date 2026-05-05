@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/govalues/decimal"
 )
 
 // Repository defines the data access interface for transactions.
@@ -67,6 +65,9 @@ var (
 
 	// ErrInvalidDate indicates the date string does not parse as YYYY-MM-DD.
 	ErrInvalidDate = fmt.Errorf("invalid date")
+
+	// ErrInvalidNetCash indicates the net cash value is missing, null, or zero.
+	ErrInvalidNetCash = fmt.Errorf("invalid net_cash")
 
 )
 
@@ -240,8 +241,8 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Tra
 		changed = true
 	}
 
-	if req.NetCash != nil {
-		t.NetCash = req.NetCash
+	if req.NetCash.IsSet {
+		t.NetCash = req.NetCash.Dec
 		changed = true
 	}
 
@@ -298,12 +299,9 @@ func mapValidationError(err error) error {
 		return ErrInvalidDate
 	case strings.Contains(msg, "symbol is required"):
 		return ErrInvalidSymbol
+	case strings.Contains(msg, "net_cash"):
+		return ErrInvalidNetCash
 	default:
 		return err
 	}
-}
-
-// ensureDecimal is a helper that returns a decimal value or nil pointer.
-func ensureDecimal(d decimal.Decimal) *decimal.Decimal {
-	return &d
 }

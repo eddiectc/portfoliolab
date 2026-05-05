@@ -56,6 +56,9 @@ func ValidateCreateRequest(req CreateRequest) error {
 	if err := validateCashSymbolMatch(symbol, req.Currency); err != nil {
 		return ErrInvalidCurrency
 	}
+	if err := validateNetCash(req.NetCash); err != nil {
+		return ErrInvalidNetCash
+	}
 	if err := validateExternalFields(req.ExternalSystem, req.ExternalReference); err != nil {
 		return fmt.Errorf("invalid external fields")
 	}
@@ -102,8 +105,32 @@ func ValidateUpdateRequest(req UpdateRequest) error {
 			}
 		}
 	}
+	if req.NetCash.IsSet {
+		if err := validateOptionalNetCash(req.NetCash); err != nil {
+			return ErrInvalidNetCash
+		}
+	}
 	if err := validateExternalFields(req.ExternalSystem, req.ExternalReference); err != nil {
 		return fmt.Errorf("invalid external fields")
+	}
+	return nil
+}
+
+// validateNetCash checks that net cash is non-zero (required on create).
+func validateNetCash(d decimal.Decimal) error {
+	if d.IsZero() {
+		return fmt.Errorf("net_cash is required and must be non-zero")
+	}
+	return nil
+}
+
+// validateOptionalNetCash checks that an explicitly-set net cash is not null/zero.
+func validateOptionalNetCash(o OptionalDecimal) error {
+	if !o.IsSet {
+		return nil
+	}
+	if o.Dec.IsZero() {
+		return fmt.Errorf("net_cash cannot be null or zero")
 	}
 	return nil
 }

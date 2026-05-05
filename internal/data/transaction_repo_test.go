@@ -80,7 +80,7 @@ func setupTransactionDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func newTestTransaction(id int64, accountID int64, date string, txType, symbol, currency string, quantity, price decimal.Decimal, netCash *decimal.Decimal) *transaction.Transaction {
+func newTestTransaction(id int64, accountID int64, date string, txType, symbol, currency string, quantity, price, netCash decimal.Decimal) *transaction.Transaction {
 	return &transaction.Transaction{
 		ID:        id,
 		AccountID: accountID,
@@ -112,7 +112,7 @@ func TestTransactionRepository_CreateAndGet(t *testing.T) {
 
 	netCash := decimal.MustNew(15000, 2) // 150.00
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), &netCash)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), netCash)
 
 	err := repo.Create(context.Background(), txn)
 	if err != nil {
@@ -135,32 +135,8 @@ func TestTransactionRepository_CreateAndGet(t *testing.T) {
 	if !got.Price.Equal(decimal.MustNew(15000, 2)) {
 		t.Errorf("expected Price 150, got %q", got.Price.String())
 	}
-	if got.NetCash == nil {
-		t.Fatal("expected non-nil NetCash")
-	}
 	if !got.NetCash.Equal(decimal.MustNew(15000, 2)) {
 		t.Errorf("expected NetCash 150, got %q", got.NetCash.String())
-	}
-}
-
-func TestTransactionRepository_Create_NilNetCash(t *testing.T) {
-	db := setupTransactionDB(t)
-	repo := NewTransactionRepository(db)
-
-	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
-
-	err := repo.Create(context.Background(), txn)
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-
-	got, err := repo.GetByID(context.Background(), txn.ID)
-	if err != nil {
-		t.Fatalf("GetByID: %v", err)
-	}
-	if got.NetCash != nil {
-		t.Errorf("expected nil NetCash, got %v", got.NetCash)
 	}
 }
 
@@ -171,7 +147,7 @@ func TestTransactionRepository_Create_WithExternalFields(t *testing.T) {
 	extSys := "IBKR"
 	extRef := "TXN-12345"
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	txn.ExternalSystem = &extSys
 	txn.ExternalReference = &extRef
 
@@ -207,7 +183,7 @@ func TestTransactionRepository_Update(t *testing.T) {
 	repo := NewTransactionRepository(db)
 
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn)
 
 	// Update price and quantity
@@ -237,7 +213,7 @@ func TestTransactionRepository_Delete(t *testing.T) {
 	repo := NewTransactionRepository(db)
 
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn)
 
 	err := repo.Delete(context.Background(), txn.ID)
@@ -281,7 +257,7 @@ func TestTransactionRepository_DecimalRoundTrip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "TEST", "USD",
-				tt.quantity, tt.price, nil)
+				tt.quantity, tt.price, decimal.Zero)
 
 			err := repo.Create(context.Background(), txn)
 			if err != nil {
@@ -311,7 +287,7 @@ func TestTransactionRepository_List_NoFilters(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 		repo.Create(context.Background(), txn)
 	}
 
@@ -330,7 +306,7 @@ func TestTransactionRepository_List_Pagination(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 		repo.Create(context.Background(), txn)
 	}
 
@@ -365,13 +341,13 @@ func TestTransactionRepository_List_ByAccount(t *testing.T) {
 	// Transactions on account 1
 	for i := 0; i < 3; i++ {
 		txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 		repo.Create(context.Background(), txn)
 	}
 	// Transactions on account 2
 	for i := 0; i < 2; i++ {
 		txn := newTestTransaction(0, 2, "2025-01-15T00:00:00Z", "buy", "MSFT", "USD",
-			decimal.MustNew(5, 0), decimal.MustNew(30000, 2), nil)
+			decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
 		repo.Create(context.Background(), txn)
 	}
 
@@ -395,11 +371,11 @@ func TestTransactionRepository_List_BySymbol(t *testing.T) {
 	repo := NewTransactionRepository(db)
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-16T00:00:00Z", "buy", "MSFT", "USD",
-		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), nil)
+		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn2)
 
 	symbol := "AAPL"
@@ -420,11 +396,11 @@ func TestTransactionRepository_List_ByType(t *testing.T) {
 	repo := NewTransactionRepository(db)
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-16T00:00:00Z", "sell", "AAPL", "USD",
-		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), nil)
+		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn2)
 
 	txType := "sell"
@@ -443,17 +419,17 @@ func TestTransactionRepository_List_ByDateRange(t *testing.T) {
 
 	// Jan 10
 	txn1 := newTestTransaction(0, 1, "2025-01-10T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn1)
 
 	// Jan 20
 	txn2 := newTestTransaction(0, 1, "2025-01-20T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn2)
 
 	// Feb 1
 	txn3 := newTestTransaction(0, 1, "2025-02-01T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn3)
 
 	from := mustParseTime("2025-01-15T00:00:00Z")
@@ -472,11 +448,11 @@ func TestTransactionRepository_List_AccountAndSymbol(t *testing.T) {
 	repo := NewTransactionRepository(db)
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-16T00:00:00Z", "buy", "MSFT", "USD",
-		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), nil)
+		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn2)
 
 	accountID := int64(1)
@@ -497,15 +473,15 @@ func TestTransactionRepository_List_AllFilters(t *testing.T) {
 	repo := NewTransactionRepository(db)
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
-		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), nil)
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-20T00:00:00Z", "sell", "AAPL", "USD",
-		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), nil)
+		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn2)
 
 	txn3 := newTestTransaction(0, 1, "2025-01-25T00:00:00Z", "buy", "MSFT", "USD",
-		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), nil)
+		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
 	repo.Create(context.Background(), txn3)
 
 	accountID := int64(1)
