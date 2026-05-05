@@ -324,3 +324,358 @@ func (r *TransactionRepository) Delete(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+// ListWithAccount retrieves transactions matching the given filters with
+// account names resolved via a JOIN, with pagination.
+func (r *TransactionRepository) ListWithAccount(ctx context.Context, filters transaction.ListFilters, limit, offset int) ([]transaction.TransactionWithAccount, error) {
+	hasAccount := filters.AccountID != nil
+	hasSymbol := filters.Symbol != nil
+	hasType := filters.Type != nil
+	hasDate := filters.DateFrom != nil && filters.DateTo != nil
+
+	switch {
+	case hasAccount && hasSymbol && hasType && hasDate:
+		rows, err := r.q.ListTransactionsWithAccountByAllFilters(ctx, r.db, queries.ListTransactionsWithAccountByAllFiltersParams{
+			AccountID: *filters.AccountID,
+			Symbol:    *filters.Symbol,
+			Type:      *filters.Type,
+			Date:      filters.DateFrom.Format(time.RFC3339),
+			Date_2:    filters.DateTo.Format(time.RFC3339),
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasAccount && hasSymbol && hasType:
+		rows, err := r.q.ListTransactionsWithAccountByAccountSymbolType(ctx, r.db, queries.ListTransactionsWithAccountByAccountSymbolTypeParams{
+			AccountID: *filters.AccountID,
+			Symbol:    *filters.Symbol,
+			Type:      *filters.Type,
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasAccount && hasSymbol && hasDate:
+		rows, err := r.q.ListTransactionsWithAccountByAccountSymbolDateRange(ctx, r.db, queries.ListTransactionsWithAccountByAccountSymbolDateRangeParams{
+			AccountID: *filters.AccountID,
+			Symbol:    *filters.Symbol,
+			Date:      filters.DateFrom.Format(time.RFC3339),
+			Date_2:    filters.DateTo.Format(time.RFC3339),
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasAccount && hasType && hasDate:
+		rows, err := r.q.ListTransactionsWithAccountByAccountTypeDateRange(ctx, r.db, queries.ListTransactionsWithAccountByAccountTypeDateRangeParams{
+			AccountID: *filters.AccountID,
+			Type:      *filters.Type,
+			Date:      filters.DateFrom.Format(time.RFC3339),
+			Date_2:    filters.DateTo.Format(time.RFC3339),
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasSymbol && hasType && hasDate:
+		rows, err := r.q.ListTransactionsWithAccountBySymbolTypeDateRange(ctx, r.db, queries.ListTransactionsWithAccountBySymbolTypeDateRangeParams{
+			Symbol:    *filters.Symbol,
+			Type:      *filters.Type,
+			Date:      filters.DateFrom.Format(time.RFC3339),
+			Date_2:    filters.DateTo.Format(time.RFC3339),
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasAccount && hasSymbol:
+		rows, err := r.q.ListTransactionsWithAccountByAccountAndSymbol(ctx, r.db, queries.ListTransactionsWithAccountByAccountAndSymbolParams{
+			AccountID: *filters.AccountID,
+			Symbol:    *filters.Symbol,
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasAccount && hasType:
+		rows, err := r.q.ListTransactionsWithAccountByAccountAndType(ctx, r.db, queries.ListTransactionsWithAccountByAccountAndTypeParams{
+			AccountID: *filters.AccountID,
+			Type:      *filters.Type,
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasAccount && hasDate:
+		rows, err := r.q.ListTransactionsWithAccountByAccountAndDateRange(ctx, r.db, queries.ListTransactionsWithAccountByAccountAndDateRangeParams{
+			AccountID: *filters.AccountID,
+			Date:      filters.DateFrom.Format(time.RFC3339),
+			Date_2:    filters.DateTo.Format(time.RFC3339),
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasSymbol && hasType:
+		rows, err := r.q.ListTransactionsWithAccountBySymbolAndType(ctx, r.db, queries.ListTransactionsWithAccountBySymbolAndTypeParams{
+			Symbol: *filters.Symbol,
+			Type:   *filters.Type,
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasSymbol && hasDate:
+		rows, err := r.q.ListTransactionsWithAccountBySymbolAndDateRange(ctx, r.db, queries.ListTransactionsWithAccountBySymbolAndDateRangeParams{
+			Symbol: *filters.Symbol,
+			Date:   filters.DateFrom.Format(time.RFC3339),
+			Date_2: filters.DateTo.Format(time.RFC3339),
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasType && hasDate:
+		rows, err := r.q.ListTransactionsWithAccountByTypeAndDateRange(ctx, r.db, queries.ListTransactionsWithAccountByTypeAndDateRangeParams{
+			Type:   *filters.Type,
+			Date:   filters.DateFrom.Format(time.RFC3339),
+			Date_2: filters.DateTo.Format(time.RFC3339),
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasAccount:
+		rows, err := r.q.ListTransactionsWithAccountByAccount(ctx, r.db, queries.ListTransactionsWithAccountByAccountParams{
+			AccountID: *filters.AccountID,
+			Limit:     int64(limit),
+			Offset:    int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasSymbol:
+		rows, err := r.q.ListTransactionsWithAccountBySymbol(ctx, r.db, queries.ListTransactionsWithAccountBySymbolParams{
+			Symbol: *filters.Symbol,
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasType:
+		rows, err := r.q.ListTransactionsWithAccountByType(ctx, r.db, queries.ListTransactionsWithAccountByTypeParams{
+			Type:   *filters.Type,
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	case hasDate:
+		rows, err := r.q.ListTransactionsWithAccountByDateRange(ctx, r.db, queries.ListTransactionsWithAccountByDateRangeParams{
+			Date:   filters.DateFrom.Format(time.RFC3339),
+			Date_2: filters.DateTo.Format(time.RFC3339),
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	default:
+		rows, err := r.q.ListTransactionsWithAccount(ctx, r.db, queries.ListTransactionsWithAccountParams{
+			Limit:  int64(limit),
+			Offset: int64(offset),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list transactions with account: %w", err)
+		}
+		return toDomainWithAccount(toBaseRow(rows))
+	}
+}
+
+// toDomainWithAccount converts sqlc ListTransactionsWithAccountRow to domain TransactionWithAccount.
+// All *WithAccount*Row types from sqlc have identical fields, so we convert to the base Transaction
+// and add AccountName.
+func toDomainWithAccount(rows []queries.ListTransactionsWithAccountRow) ([]transaction.TransactionWithAccount, error) {
+	result := make([]transaction.TransactionWithAccount, len(rows))
+	for i, r := range rows {
+		d, err := toTransaction(queries.Transaction{
+			ID:                r.ID,
+			AccountID:         r.AccountID,
+			Date:              r.Date,
+			Type:              r.Type,
+			Symbol:            r.Symbol,
+			Quantity:          r.Quantity,
+			Price:             r.Price,
+			Currency:          r.Currency,
+			NetCash:           r.NetCash,
+			ExternalSystem:    r.ExternalSystem,
+			ExternalReference: r.ExternalReference,
+			CreatedAt:         r.CreatedAt,
+			UpdatedAt:         r.UpdatedAt,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("parse transaction %d: %w", r.ID, err)
+		}
+		result[i] = transaction.TransactionWithAccount{
+			Transaction: *d,
+			AccountName: r.AccountName,
+		}
+	}
+	return result, nil
+}
+
+// toBaseRow converts a sqlc row to the base ListTransactionsWithAccountRow.
+// All *WithAccount*Row types have identical fields.
+func toBaseRow(src any) []queries.ListTransactionsWithAccountRow {
+	switch v := src.(type) {
+	case []queries.ListTransactionsWithAccountRow:
+		return v
+	case []queries.ListTransactionsWithAccountByAccountRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountBySymbolRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByTypeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByDateRangeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByAccountAndSymbolRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByAccountAndTypeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByAccountAndDateRangeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountBySymbolAndTypeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountBySymbolAndDateRangeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByTypeAndDateRangeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByAccountSymbolTypeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByAccountSymbolDateRangeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByAccountTypeDateRangeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountBySymbolTypeDateRangeRow:
+		return toBaseFrom(v)
+	case []queries.ListTransactionsWithAccountByAllFiltersRow:
+		return toBaseFrom(v)
+	}
+	return nil
+}
+
+// withAccountFields is the common interface for all *WithAccount*Row types.
+type withAccountFields interface {
+	ID() int64
+	AccountID() int64
+	Date() string
+	Type() string
+	Symbol() string
+	Quantity() string
+	Price() string
+	Currency() string
+	NetCash() sql.NullString
+	ExternalSystem() sql.NullString
+	ExternalReference() sql.NullString
+	CreatedAt() string
+	UpdatedAt() string
+	AccountName() string
+}
+
+// toBaseFrom converts any row type with the common fields to base row.
+func toBaseFrom(rows any) []queries.ListTransactionsWithAccountRow {
+	// Use reflection-free field extraction via type assertions
+	var result []queries.ListTransactionsWithAccountRow
+	switch v := rows.(type) {
+	case []queries.ListTransactionsWithAccountByAccountRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountBySymbolRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByTypeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByDateRangeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByAccountAndSymbolRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByAccountAndTypeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByAccountAndDateRangeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountBySymbolAndTypeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountBySymbolAndDateRangeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByTypeAndDateRangeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByAccountSymbolTypeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByAccountSymbolDateRangeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByAccountTypeDateRangeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountBySymbolTypeDateRangeRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	case []queries.ListTransactionsWithAccountByAllFiltersRow:
+		for _, r := range v {
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+		}
+	}
+	return result
+}

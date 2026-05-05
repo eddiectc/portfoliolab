@@ -998,6 +998,1222 @@ func (q *Queries) ListTransactionsByTypeAndDateRange(ctx context.Context, db DBT
 	return items, nil
 }
 
+const listTransactionsWithAccount = `-- name: ListTransactionsWithAccount :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountParams struct {
+	Limit  int64 `db:"limit"`
+	Offset int64 `db:"offset"`
+}
+
+type ListTransactionsWithAccountRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccount(ctx context.Context, db DBTX, arg ListTransactionsWithAccountParams) ([]ListTransactionsWithAccountRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccount, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAccount = `-- name: ListTransactionsWithAccountByAccount :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAccountParams struct {
+	AccountID int64 `db:"account_id"`
+	Limit     int64 `db:"limit"`
+	Offset    int64 `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAccountRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAccount(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAccountParams) ([]ListTransactionsWithAccountByAccountRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAccount, arg.AccountID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAccountRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAccountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAccountAndDateRange = `-- name: ListTransactionsWithAccountByAccountAndDateRange :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAccountAndDateRangeParams struct {
+	AccountID int64  `db:"account_id"`
+	Date      string `db:"date"`
+	Date_2    string `db:"date_2"`
+	Limit     int64  `db:"limit"`
+	Offset    int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAccountAndDateRangeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAccountAndDateRange(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAccountAndDateRangeParams) ([]ListTransactionsWithAccountByAccountAndDateRangeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAccountAndDateRange,
+		arg.AccountID,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAccountAndDateRangeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAccountAndDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAccountAndSymbol = `-- name: ListTransactionsWithAccountByAccountAndSymbol :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAccountAndSymbolParams struct {
+	AccountID int64  `db:"account_id"`
+	Symbol    string `db:"symbol"`
+	Limit     int64  `db:"limit"`
+	Offset    int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAccountAndSymbolRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAccountAndSymbol(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAccountAndSymbolParams) ([]ListTransactionsWithAccountByAccountAndSymbolRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAccountAndSymbol,
+		arg.AccountID,
+		arg.Symbol,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAccountAndSymbolRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAccountAndSymbolRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAccountAndType = `-- name: ListTransactionsWithAccountByAccountAndType :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAccountAndTypeParams struct {
+	AccountID int64  `db:"account_id"`
+	Type      string `db:"type"`
+	Limit     int64  `db:"limit"`
+	Offset    int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAccountAndTypeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAccountAndType(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAccountAndTypeParams) ([]ListTransactionsWithAccountByAccountAndTypeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAccountAndType,
+		arg.AccountID,
+		arg.Type,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAccountAndTypeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAccountAndTypeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAccountSymbolDateRange = `-- name: ListTransactionsWithAccountByAccountSymbolDateRange :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAccountSymbolDateRangeParams struct {
+	AccountID int64  `db:"account_id"`
+	Symbol    string `db:"symbol"`
+	Date      string `db:"date"`
+	Date_2    string `db:"date_2"`
+	Limit     int64  `db:"limit"`
+	Offset    int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAccountSymbolDateRangeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAccountSymbolDateRange(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAccountSymbolDateRangeParams) ([]ListTransactionsWithAccountByAccountSymbolDateRangeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAccountSymbolDateRange,
+		arg.AccountID,
+		arg.Symbol,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAccountSymbolDateRangeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAccountSymbolDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAccountSymbolType = `-- name: ListTransactionsWithAccountByAccountSymbolType :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ? AND t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAccountSymbolTypeParams struct {
+	AccountID int64  `db:"account_id"`
+	Symbol    string `db:"symbol"`
+	Type      string `db:"type"`
+	Limit     int64  `db:"limit"`
+	Offset    int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAccountSymbolTypeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAccountSymbolType(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAccountSymbolTypeParams) ([]ListTransactionsWithAccountByAccountSymbolTypeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAccountSymbolType,
+		arg.AccountID,
+		arg.Symbol,
+		arg.Type,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAccountSymbolTypeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAccountSymbolTypeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAccountTypeDateRange = `-- name: ListTransactionsWithAccountByAccountTypeDateRange :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAccountTypeDateRangeParams struct {
+	AccountID int64  `db:"account_id"`
+	Type      string `db:"type"`
+	Date      string `db:"date"`
+	Date_2    string `db:"date_2"`
+	Limit     int64  `db:"limit"`
+	Offset    int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAccountTypeDateRangeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAccountTypeDateRange(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAccountTypeDateRangeParams) ([]ListTransactionsWithAccountByAccountTypeDateRangeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAccountTypeDateRange,
+		arg.AccountID,
+		arg.Type,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAccountTypeDateRangeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAccountTypeDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByAllFilters = `-- name: ListTransactionsWithAccountByAllFilters :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.account_id = ? AND t.symbol = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByAllFiltersParams struct {
+	AccountID int64  `db:"account_id"`
+	Symbol    string `db:"symbol"`
+	Type      string `db:"type"`
+	Date      string `db:"date"`
+	Date_2    string `db:"date_2"`
+	Limit     int64  `db:"limit"`
+	Offset    int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByAllFiltersRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByAllFilters(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByAllFiltersParams) ([]ListTransactionsWithAccountByAllFiltersRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByAllFilters,
+		arg.AccountID,
+		arg.Symbol,
+		arg.Type,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByAllFiltersRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByAllFiltersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByDateRange = `-- name: ListTransactionsWithAccountByDateRange :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByDateRangeParams struct {
+	Date   string `db:"date"`
+	Date_2 string `db:"date_2"`
+	Limit  int64  `db:"limit"`
+	Offset int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByDateRangeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByDateRange(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByDateRangeParams) ([]ListTransactionsWithAccountByDateRangeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByDateRange,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByDateRangeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountBySymbol = `-- name: ListTransactionsWithAccountBySymbol :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountBySymbolParams struct {
+	Symbol string `db:"symbol"`
+	Limit  int64  `db:"limit"`
+	Offset int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountBySymbolRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountBySymbol(ctx context.Context, db DBTX, arg ListTransactionsWithAccountBySymbolParams) ([]ListTransactionsWithAccountBySymbolRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountBySymbol, arg.Symbol, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountBySymbolRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountBySymbolRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountBySymbolAndDateRange = `-- name: ListTransactionsWithAccountBySymbolAndDateRange :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountBySymbolAndDateRangeParams struct {
+	Symbol string `db:"symbol"`
+	Date   string `db:"date"`
+	Date_2 string `db:"date_2"`
+	Limit  int64  `db:"limit"`
+	Offset int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountBySymbolAndDateRangeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountBySymbolAndDateRange(ctx context.Context, db DBTX, arg ListTransactionsWithAccountBySymbolAndDateRangeParams) ([]ListTransactionsWithAccountBySymbolAndDateRangeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountBySymbolAndDateRange,
+		arg.Symbol,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountBySymbolAndDateRangeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountBySymbolAndDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountBySymbolAndType = `-- name: ListTransactionsWithAccountBySymbolAndType :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ? AND t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountBySymbolAndTypeParams struct {
+	Symbol string `db:"symbol"`
+	Type   string `db:"type"`
+	Limit  int64  `db:"limit"`
+	Offset int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountBySymbolAndTypeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountBySymbolAndType(ctx context.Context, db DBTX, arg ListTransactionsWithAccountBySymbolAndTypeParams) ([]ListTransactionsWithAccountBySymbolAndTypeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountBySymbolAndType,
+		arg.Symbol,
+		arg.Type,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountBySymbolAndTypeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountBySymbolAndTypeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountBySymbolTypeDateRange = `-- name: ListTransactionsWithAccountBySymbolTypeDateRange :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.symbol = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountBySymbolTypeDateRangeParams struct {
+	Symbol string `db:"symbol"`
+	Type   string `db:"type"`
+	Date   string `db:"date"`
+	Date_2 string `db:"date_2"`
+	Limit  int64  `db:"limit"`
+	Offset int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountBySymbolTypeDateRangeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountBySymbolTypeDateRange(ctx context.Context, db DBTX, arg ListTransactionsWithAccountBySymbolTypeDateRangeParams) ([]ListTransactionsWithAccountBySymbolTypeDateRangeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountBySymbolTypeDateRange,
+		arg.Symbol,
+		arg.Type,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountBySymbolTypeDateRangeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountBySymbolTypeDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByType = `-- name: ListTransactionsWithAccountByType :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.type = ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByTypeParams struct {
+	Type   string `db:"type"`
+	Limit  int64  `db:"limit"`
+	Offset int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByTypeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByType(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByTypeParams) ([]ListTransactionsWithAccountByTypeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByType, arg.Type, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByTypeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByTypeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsWithAccountByTypeAndDateRange = `-- name: ListTransactionsWithAccountByTypeAndDateRange :many
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.type = ? AND t.date >= ? AND t.date <= ?
+ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListTransactionsWithAccountByTypeAndDateRangeParams struct {
+	Type   string `db:"type"`
+	Date   string `db:"date"`
+	Date_2 string `db:"date_2"`
+	Limit  int64  `db:"limit"`
+	Offset int64  `db:"offset"`
+}
+
+type ListTransactionsWithAccountByTypeAndDateRangeRow struct {
+	ID                int64          `db:"id"`
+	AccountID         int64          `db:"account_id"`
+	Date              string         `db:"date"`
+	Type              string         `db:"type"`
+	Symbol            string         `db:"symbol"`
+	Quantity          string         `db:"quantity"`
+	Price             string         `db:"price"`
+	Currency          string         `db:"currency"`
+	NetCash           sql.NullString `db:"net_cash"`
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
+	AccountName       string         `db:"account_name"`
+}
+
+func (q *Queries) ListTransactionsWithAccountByTypeAndDateRange(ctx context.Context, db DBTX, arg ListTransactionsWithAccountByTypeAndDateRangeParams) ([]ListTransactionsWithAccountByTypeAndDateRangeRow, error) {
+	rows, err := db.QueryContext(ctx, listTransactionsWithAccountByTypeAndDateRange,
+		arg.Type,
+		arg.Date,
+		arg.Date_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTransactionsWithAccountByTypeAndDateRangeRow{}
+	for rows.Next() {
+		var i ListTransactionsWithAccountByTypeAndDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTransaction = `-- name: UpdateTransaction :one
 UPDATE transactions
 SET date = ?, type = ?, symbol = ?, quantity = ?, price = ?, currency = ?, net_cash = ?, external_system = ?, external_reference = ?, updated_at = ?
