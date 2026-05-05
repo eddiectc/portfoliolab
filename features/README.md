@@ -16,4 +16,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f002 | Account CRUD | done | f001 |
 | f003 | Symbol Map | done | — |
 | f004 | Transaction CRUD | done | f002, f003 |
-| f005 | Transactions CRUD UI | spec | f004, f002, f003 |
+| f005 | Transactions CRUD UI | done | f004, f002, f003 |
