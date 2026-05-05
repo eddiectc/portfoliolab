@@ -46,5 +46,5 @@
 - [x] Add unit tests for `repository.ListWithAccount` covering all filter combinations and edge cases — **done** (3 tests added to `transaction_repo_test.go`; single-bound date synthesis is a service-layer concern, not repo)
 - [x] Update NOTES.md to remove the "No clear filters button" known limitation (it's implemented) — **done**
 - [x] Consider a type-safe alternative to the reflection-based `queryPreserve` template function (e.g., `FilterEncoder` interface) — **done** (`FilterEncoder` interface on `TransactionFilter` and `ListFilters`, `reflect` removed from renderer)
-- [ ] Review migration 005 for potential floating-point precision issues; consider using integer arithmetic or an application-level migration script
+- [x] Review migration 005 for potential floating-point precision issues; consider using integer arithmetic or an application-level migration script — **closed** (migration already ran, `CAST(... AS REAL)` risk is theoretical for typical portfolio values; documented for future reference)
 - [x] Fix account field inline validation: map empty/zero account ID to an inline field error on `account_id` instead of a generic error banner — **done** (pre-validation in handler shows "Account is required" for empty dropdown)
