@@ -37,11 +37,11 @@ func TestParseXML_ValidSample(t *testing.T) {
 	if report.Currency != "GBP" {
 		t.Errorf("expected Currency GBP, got %q", report.Currency)
 	}
-	if report.FromDate != "2025-04-01" {
-		t.Errorf("expected FromDate 2025-04-01, got %q", report.FromDate)
+	if report.FromDate != "20250401" {
+		t.Errorf("expected FromDate 20250401, got %q", report.FromDate)
 	}
-	if report.ToDate != "2025-09-30" {
-		t.Errorf("expected ToDate 2025-09-30, got %q", report.ToDate)
+	if report.ToDate != "20250930" {
+		t.Errorf("expected ToDate 20250930, got %q", report.ToDate)
 	}
 }
 
@@ -95,8 +95,8 @@ func TestParseXML_Trades_STK_COMMON_Buy(t *testing.T) {
 	if trade.TransactionID != "30000000001" {
 		t.Errorf("expected TransactionID 30000000001, got %q", trade.TransactionID)
 	}
-	if trade.ReportDate != "2025-04-15" {
-		t.Errorf("expected ReportDate 2025-04-15, got %q", trade.ReportDate)
+	if trade.ReportDate != "20250415" {
+		t.Errorf("expected ReportDate 20250415, got %q", trade.ReportDate)
 	}
 	if trade.IbCommission != "-3.80" {
 		t.Errorf("expected IbCommission -3.80, got %q", trade.IbCommission)
@@ -285,11 +285,11 @@ func TestParseXML_CashTransactions_Dividend(t *testing.T) {
 	if ct.TransactionID != "30000000010" {
 		t.Errorf("expected TransactionID 30000000010, got %q", ct.TransactionID)
 	}
-	if ct.ReportDate != "2025-05-31" {
-		t.Errorf("expected ReportDate 2025-05-31, got %q", ct.ReportDate)
+	if ct.ReportDate != "20250531" {
+		t.Errorf("expected ReportDate 20250531, got %q", ct.ReportDate)
 	}
-	if ct.ExDate != "2025-05-15" {
-		t.Errorf("expected ExDate 2025-05-15, got %q", ct.ExDate)
+	if ct.ExDate != "20250515" {
+		t.Errorf("expected ExDate 20250515, got %q", ct.ExDate)
 	}
 }
 
@@ -474,8 +474,8 @@ func TestParseXML_Transfers_Deposit(t *testing.T) {
 	if tr.TransactionID != "30000000020" {
 		t.Errorf("expected TransactionID 30000000020, got %q", tr.TransactionID)
 	}
-	if tr.Date != "2025-07-10" {
-		t.Errorf("expected Date 2025-07-10, got %q", tr.Date)
+	if tr.Date != "20250710" {
+		t.Errorf("expected Date 20250710, got %q", tr.Date)
 	}
 }
 
@@ -503,8 +503,8 @@ func TestParseXML_Transfers_Withdrawal(t *testing.T) {
 	if tr.TransactionID != "30000000021" {
 		t.Errorf("expected TransactionID 30000000021, got %q", tr.TransactionID)
 	}
-	if tr.Date != "2025-09-01" {
-		t.Errorf("expected Date 2025-09-01, got %q", tr.Date)
+	if tr.Date != "20250901" {
+		t.Errorf("expected Date 20250901, got %q", tr.Date)
 	}
 }
 
@@ -547,7 +547,7 @@ func TestParseXML_EmptySections(t *testing.T) {
 	data := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades></Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -608,10 +608,10 @@ func TestParseXML_TradeFields_Complete(t *testing.T) {
 		{"Isin", trade.Isin, "US0378331005"},
 		{"TradeID", trade.TradeID, "1000000001"},
 		{"Multiplier", trade.Multiplier, "1"},
-		{"ReportDate", trade.ReportDate, "2025-04-15"},
-		{"DateTime", trade.DateTime, "2025-04-15;143022"},
-		{"TradeDate", trade.TradeDate, "2025-04-15"},
-		{"SettleDateTarget", trade.SettleDateTarget, "2025-04-17"},
+		{"ReportDate", trade.ReportDate, "20250415"},
+		{"DateTime", trade.DateTime, "20250415;143022"},
+		{"TradeDate", trade.TradeDate, "20250415"},
+		{"SettleDateTarget", trade.SettleDateTarget, "20250417"},
 		{"TransactionType", trade.TransactionType, "ExchTrade"},
 		{"Exchange", trade.Exchange, "ARCA"},
 		{"Quantity", trade.Quantity, "100"},
@@ -664,13 +664,13 @@ func TestParseXML_CashTransactionFields_Dividend(t *testing.T) {
 		{"Description", ct.Description, "STHY(IE00B7N3YW49) CASH DIVIDEND USD 0.50 PER SHARE"},
 		{"Conid", ct.Conid, "104217732"},
 		{"Isin", ct.Isin, "IE00B7N3YW49"},
-		{"DateTime", ct.DateTime, "2025-05-30;200000"},
-		{"SettleDate", ct.SettleDate, "2025-05-30"},
+		{"DateTime", ct.DateTime, "20250530;200000"},
+		{"SettleDate", ct.SettleDate, "20250530"},
 		{"Amount", ct.Amount, "250.00"},
 		{"Type", ct.Type, "Dividends"},
 		{"TransactionID", ct.TransactionID, "30000000010"},
-		{"ReportDate", ct.ReportDate, "2025-05-31"},
-		{"ExDate", ct.ExDate, "2025-05-15"},
+		{"ReportDate", ct.ReportDate, "20250531"},
+		{"ExDate", ct.ExDate, "20250515"},
 	}
 
 	for _, tc := range tests {
@@ -701,10 +701,10 @@ func TestParseXML_TransferFields_Complete(t *testing.T) {
 		{"AssetCategory", tr.AssetCategory, "CASH"},
 		{"Symbol", tr.Symbol, "--"},
 		{"Description", tr.Description, "TRANSFER FROM U87654321 TO U12345678"},
-		{"ReportDate", tr.ReportDate, "2025-07-10"},
-		{"Date", tr.Date, "2025-07-10"},
-		{"DateTime", tr.DateTime, "2025-07-10;080000"},
-		{"SettleDate", tr.SettleDate, "2025-07-11"},
+		{"ReportDate", tr.ReportDate, "20250710"},
+		{"Date", tr.Date, "20250710"},
+		{"DateTime", tr.DateTime, "20250710;080000"},
+		{"SettleDate", tr.SettleDate, "20250711"},
 		{"Type", tr.Type, "INTERNAL"},
 		{"Direction", tr.Direction, "IN"},
 		{"Account", tr.Account, "U****4321"},

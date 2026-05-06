@@ -96,7 +96,7 @@ func validXML() string {
   <Statements>
     <Statement>
       <Trades>
-        <Trade tradeDate="2024-01-15" transactionID="T001" assetCategory="STK" subCategory="COMMON" symbol="AAPL" buySell="BUY" tradePrice="150.00" quantity="10" currency="USD" netCash="-1500.00" proceeds="1500.00" ibCommission="1.00" description="Bought 10 AAPL"/>
+        <Trade tradeDate="20240115" transactionID="T001" assetCategory="STK" subCategory="COMMON" symbol="AAPL" buySell="BUY" tradePrice="150.00" quantity="10" currency="USD" netCash="-1500.00" proceeds="1500.00" ibCommission="1.00" description="Bought 10 AAPL"/>
       </Trades>
       <CashTransactions/>
       <Transfers/>

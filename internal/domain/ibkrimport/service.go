@@ -143,6 +143,14 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 			skipped = append(skipped, SkippedTransaction{
 				ExternalReference: trade.TransactionID,
 				Reason:            "duplicate — already imported",
+				Date:              trade.TradeDate,
+				Type:              typ,
+				Symbol:            trade.Symbol,
+				Quantity:          absStr(trade.Quantity),
+				Price:             trade.TradePrice,
+				Currency:          trade.Currency,
+				NetCash:           absStr(trade.NetCash),
+				Description:       trade.Description,
 			})
 			continue
 		}
@@ -173,6 +181,14 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 			skipped = append(skipped, SkippedTransaction{
 				ExternalReference: ct.TransactionID,
 				Reason:            "duplicate — already imported",
+				Date:              ct.ReportDate,
+				Type:              entry.Type,
+				Symbol:            entry.Symbol,
+				Quantity:          entry.Quantity,
+				Price:             entry.Price,
+				Currency:          entry.Currency,
+				NetCash:           entry.NetCash,
+				Description:       entry.Description,
 			})
 			continue
 		}
@@ -193,9 +209,18 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 			continue
 		}
 		if s.dupCheck.ExternalReferenceExists(ctx, externalSystem, tr.TransactionID) {
+			trTyp := classifyTransfer(tr)
 			skipped = append(skipped, SkippedTransaction{
 				ExternalReference: tr.TransactionID,
 				Reason:            "duplicate — already imported",
+				Date:              tr.Date,
+				Type:              trTyp,
+				Symbol:            cashSymbol(tr.Currency),
+				Quantity:          tr.CashTransfer,
+				Price:             "1",
+				Currency:          tr.Currency,
+				NetCash:           tr.CashTransfer,
+				Description:       tr.Description,
 			})
 			continue
 		}
@@ -330,6 +355,14 @@ func (s *Service) processTrade(ctx context.Context, trade Trade) (string, tradeR
 		return "", tradeResult{}, &SkippedTransaction{
 			ExternalReference: trade.TransactionID,
 			Reason:            "unsupported instrument type",
+			Date:              trade.TradeDate,
+			Type:              classifyTrade(trade),
+			Symbol:            trade.Symbol,
+			Quantity:          absStr(trade.Quantity),
+			Price:             trade.TradePrice,
+			Currency:          trade.Currency,
+			NetCash:           absStr(trade.NetCash),
+			Description:       trade.Description,
 		}, nil
 	}
 
@@ -338,7 +371,16 @@ func (s *Service) processTrade(ctx context.Context, trade Trade) (string, tradeR
 	if internalSymbol == "" {
 		return "", tradeResult{}, &SkippedTransaction{
 			ExternalReference: trade.TransactionID,
-			Reason:            "unmapped symbol",
+			Reason:            "unmapped symbol: " + trade.Symbol,
+			BrokerSymbol:      trade.Symbol,
+			Date:              trade.TradeDate,
+			Type:              classifyTrade(trade),
+			Symbol:            trade.Symbol,
+			Quantity:          absStr(trade.Quantity),
+			Price:             trade.TradePrice,
+			Currency:          trade.Currency,
+			NetCash:           absStr(trade.NetCash),
+			Description:       trade.Description,
 		}, nil
 	}
 
@@ -389,7 +431,7 @@ func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int
 	qty, _ := decimal.Parse(trade.Quantity)
 	price, _ := decimal.Parse(trade.TradePrice)
 	netCash, _ := decimal.Parse(trade.NetCash)
-	date, _ := time.Parse("2006-01-02", trade.TradeDate)
+	date := parseDate(trade.TradeDate)
 
 	return typ, tradeResult{
 		singleTxn: &transaction.Transaction{
@@ -456,7 +498,7 @@ func (s *Service) buildFXTxns(trade Trade, accountID int64, now time.Time, extSy
 	}
 	proceeds, _ := decimal.Parse(absStr(trade.Proceeds))
 	qty, _ := decimal.Parse(trade.Quantity)
-	date, _ := time.Parse("2006-01-02", trade.TradeDate)
+	date := parseDate(trade.TradeDate)
 
 	withdrawalRef := trade.TransactionID + "_fx_withdrawal"
 	depositRef := trade.TransactionID + "_fx_deposit"
@@ -502,9 +544,19 @@ func (s *Service) processCashTransaction(ctx context.Context, ct CashTransaction
 	if needsSymbol {
 		symbol = s.resolveSymbol(ctx, ct.Symbol)
 		if symbol == "" {
+			typ, _ := classifyCashTransaction(ct)
 			return nil, &SkippedTransaction{
 				ExternalReference: ct.TransactionID,
-				Reason:            "unmapped symbol",
+				Reason:            "unmapped symbol: " + ct.Symbol,
+				BrokerSymbol:      ct.Symbol,
+				Date:              ct.ReportDate,
+				Type:              typ,
+				Symbol:            ct.Symbol,
+				Quantity:          ct.Amount,
+				Price:             "1",
+				Currency:          ct.Currency,
+				NetCash:           ct.Amount,
+				Description:       ct.Description,
 			}, nil
 		}
 	} else {
@@ -547,7 +599,7 @@ func (s *Service) buildCashTxn(ctx context.Context, ct CashTransaction, accountI
 	}
 
 	amount, _ := decimal.Parse(ct.Amount)
-	date, _ := time.Parse("2006-01-02", ct.ReportDate)
+	date := parseDate(ct.ReportDate)
 
 	return &transaction.Transaction{
 		AccountID:         accountID,
@@ -596,7 +648,7 @@ func (s *Service) buildTransferTxn(ctx context.Context, tr Transfer, accountID i
 	}
 
 	amount, _ := decimal.Parse(tr.CashTransfer)
-	date, _ := time.Parse("2006-01-02", tr.Date)
+	date := parseDate(tr.Date)
 
 	netCash := amount
 
@@ -701,4 +753,16 @@ func cashSymbol(currency string) string {
 // absStr removes a leading '-' from a string (for display purposes).
 func absStr(s string) string {
 	return strings.TrimPrefix(s, "-")
+}
+
+// parseDate parses a date string in YYYYMMDD or YYYY-MM-DD format.
+// IBKR Flex XML uses YYYYMMDD without dashes.
+func parseDate(s string) time.Time {
+	if t, err := time.Parse("20060102", s); err == nil {
+		return t
+	}
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t
+	}
+	return time.Time{}
 }
