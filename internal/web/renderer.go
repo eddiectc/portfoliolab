@@ -55,6 +55,9 @@ func (r *Renderer) parseTemplates() error {
 		"add": func(a, b int) int {
 			return a + b
 		},
+		"contains": func(substr, s string) bool {
+			return strings.Contains(s, substr)
+		},
 		"queryPreserve": func(filter interface{}) template.HTMLAttr {
 			// Returns filter query params preserved for pagination links.
 			// Returns template.HTML to prevent double-escaping of & in hrefs.

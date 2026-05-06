@@ -77,10 +77,16 @@ For cash transactions classified as withdrawals (negative `amount`), the `Quanti
 | `CreateRequest` built in ConfirmImport | `*transaction.Transaction` built directly | `BatchCreate` interface accepts `[]*transaction.Transaction`; `CreateRequest` is API-layer only |
 | 16 skipped for all-duplicates preview | 15 skipped | FX trade is 1 source record → 1 skip, not 2 entries |
 | Instrument type check first | FX check first | `isSupportedTrade` rejects `CASH` instruments; FX must be handled before that check |
+| `HandleCreateSymbolPost` form handler | AJAX to existing API endpoint | `ImportService` interface doesn't expose `CreateSymbol`; follows existing transaction form pattern (AJAX symbol creation) |
+| `HandleAddBrokerSymbolPost` form handler | AJAX to existing API endpoint | Reuses existing `/api/transactions/import/ibkr/broker-symbols` endpoint |
+| Separate `import_result.html` template | Redirect to `/transactions` with flash | Simpler UX — flash message summarizes result; user lands on transactions list to verify |
+| XML data passed as file re-upload | Base64-encoded hidden form field | Avoids re-uploading the file; hidden input carries the data through preview → confirm flow |
+| `contains` template function added | Added `strings.Contains` to renderer funcMap | Needed for conditional rendering of "Resolve Symbol" button on unmapped symbols |
 
 ## Test Coverage
 
-- 59 tests total (27 parser + 32 service)
-- All tests pass: `go test ./internal/domain/ibkrimport/...`
+- 69 tests total (27 parser + 32 service + 10 web handler)
+- All tests pass: `go test ./...`
 - Full sample XML integration test verifies all 16 transactions created correctly
 - Edge cases: all-duplicates, unmapped symbols, FX trades, transfers, cash transaction types, rollback, empty report
+- Web handler tests: upload page rendering, preview with valid/invalid XML, account not found, missing account, confirm success/error, route registration

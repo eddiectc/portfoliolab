@@ -1,0 +1,272 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Import Preview</h1>
+    <div class="header-actions">
+        <a href="/transactions/import/ibkr" class="btn">Upload New File</a>
+        <a href="/transactions" class="btn">Cancel</a>
+    </div>
+</div>
+
+{{if .Error}}
+<div class="alert alert-error">{{.Error}}</div>
+{{end}}
+
+<!-- Summary counts -->
+<div class="preview-summary">
+    <div class="summary-item summary-importable">
+        <span class="summary-count">{{.Preview.ImportableCount}}</span>
+        <span class="summary-label">Importable</span>
+    </div>
+    <div class="summary-item summary-skipped">
+        <span class="summary-count">{{.Preview.SkippedCount}}</span>
+        <span class="summary-label">Skipped</span>
+    </div>
+    <div class="summary-item summary-errored">
+        <span class="summary-count">{{.Preview.ErroredCount}}</span>
+        <span class="summary-label">Errored</span>
+    </div>
+</div>
+
+<!-- Filter tabs -->
+<div class="filter-tabs">
+    <a href="#all" class="tab active" data-tab="all">All</a>
+    <a href="#importable" class="tab" data-tab="importable">Importable ({{.Preview.ImportableCount}})</a>
+    <a href="#skipped" class="tab" data-tab="skipped">Skipped ({{.Preview.SkippedCount}})</a>
+    <a href="#errored" class="tab" data-tab="errored">Errored ({{.Preview.ErroredCount}})</a>
+</div>
+
+<!-- Confirm form (wraps the table so XML data is re-submitted) -->
+<form action="/transactions/import/ibkr/confirm" method="POST" id="confirm-form" enctype="multipart/form-data">
+    <input type="hidden" name="account_id" value="{{.AccountID}}">
+    <input type="hidden" name="xml_data" id="xml-data-input" value="{{.XMLData}}">
+
+    <!-- Importable transactions -->
+    <div class="tab-content" data-group="importable">
+        <h2 class="section-title">Importable Transactions</h2>
+        {{if eq (len .Preview.Importable) 0}}
+        <p class="empty-state">No importable transactions found.</p>
+        {{else}}
+        <table class="table import-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Symbol</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Net Cash</th>
+                    <th>Currency</th>
+                    <th>Description</th>
+                    <th>Ref</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Preview.Importable}}
+                <tr>
+                    <td>{{.Date}}</td>
+                    <td><span class="type-badge type-{{.Type}}">{{.Type}}</span></td>
+                    <td>{{.Symbol}}</td>
+                    <td>{{.Quantity}}</td>
+                    <td>{{.Price}}</td>
+                    <td>{{.NetCash}}</td>
+                    <td>{{.Currency}}</td>
+                    <td class="description">{{.Description}}</td>
+                    <td class="ref">{{.ExternalReference}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{end}}
+    </div>
+
+    <!-- Skipped transactions -->
+    <div class="tab-content" data-group="skipped">
+        <h2 class="section-title">Skipped Transactions</h2>
+        {{if eq (len .Preview.Skipped) 0}}
+        <p class="empty-state">No skipped transactions.</p>
+        {{else}}
+        <table class="table import-table">
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Reason</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Preview.Skipped}}
+                <tr>
+                    <td class="ref">{{.ExternalReference}}</td>
+                    <td>{{.Reason}}</td>
+                    <td class="actions">
+                        {{if contains "unmapped symbol" .Reason}}
+                        <button type="button" class="btn btn-sm btn-primary resolve-symbol-btn" data-ref="{{.ExternalReference}}">Resolve Symbol</button>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{end}}
+    </div>
+
+    <!-- Errored transactions -->
+    <div class="tab-content" data-group="errored">
+        <h2 class="section-title">Errored Transactions</h2>
+        {{if eq (len .Preview.Errored) 0}}
+        <p class="empty-state">No errors.</p>
+        {{else}}
+        <table class="table import-table">
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Preview.Errored}}
+                <tr>
+                    <td class="ref">{{.ExternalReference}}</td>
+                    <td class="error-text">{{.ErrorMessage}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{end}}
+    </div>
+
+    <!-- Confirm button -->
+    <div class="form-actions confirm-actions">
+        {{if gt .Preview.ImportableCount 0}}
+        <button type="submit" class="btn btn-primary" onclick="return confirm('Import {{.Preview.ImportableCount}} transaction(s)? This cannot be undone.')">Confirm Import ({{.Preview.ImportableCount}})</button>
+        {{else}}
+        <button type="submit" class="btn btn-primary" disabled>Confirm Import (0)</button>
+        {{end}}
+        <a href="/transactions/import/ibkr" class="btn">Cancel</a>
+    </div>
+</form>
+
+<!-- Resolve symbol modal (hidden by default) -->
+<div id="resolve-symbol-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h3>Resolve Unmapped Symbol</h3>
+        <p>A transaction was skipped because its symbol is not in your symbol map.</p>
+        <p>Reference: <strong id="modal-ref"></strong></p>
+
+        <div class="modal-actions">
+            <div class="form-group">
+                <label for="modal-internal-symbol">Internal Symbol</label>
+                <input type="text" id="modal-internal-symbol" placeholder="e.g. AAPL">
+            </div>
+            <div class="form-group">
+                <label for="modal-market-data-symbol">Market Data Symbol</label>
+                <input type="text" id="modal-market-data-symbol" placeholder="e.g. AAPL">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" id="modal-create-symbol-btn" class="btn btn-primary">Create Symbol</button>
+            <button type="button" class="btn" onclick="document.getElementById('resolve-symbol-modal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // --- Filter tabs ---
+    var tabs = document.querySelectorAll('.tab');
+    var contents = document.querySelectorAll('.tab-content');
+
+    function showTab(name) {
+        tabs.forEach(function(t) {
+            t.classList.toggle('active', t.getAttribute('data-tab') === name);
+        });
+        contents.forEach(function(c) {
+            c.style.display = (name === 'all' || c.getAttribute('data-group') === name) ? 'block' : 'none';
+        });
+    }
+
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            showTab(this.getAttribute('data-tab'));
+        });
+    });
+
+    // Default: show all
+    showTab('all');
+
+    // --- Resolve symbol modal ---
+    var resolveBtns = document.querySelectorAll('.resolve-symbol-btn');
+    var modal = document.getElementById('resolve-symbol-modal');
+
+    resolveBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('modal-ref').textContent = this.getAttribute('data-ref');
+            document.getElementById('modal-internal-symbol').value = '';
+            document.getElementById('modal-market-data-symbol').value = '';
+            modal.style.display = 'block';
+        });
+    });
+
+    document.getElementById('modal-create-symbol-btn').addEventListener('click', function() {
+        var internal = document.getElementById('modal-internal-symbol').value.trim();
+        var marketData = document.getElementById('modal-market-data-symbol').value.trim();
+
+        if (!internal || !marketData) {
+            alert('Both fields are required');
+            return;
+        }
+
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        fetch('/api/transactions/import/ibkr/symbols', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                internal_symbol: internal,
+                market_data_symbol: marketData
+            })
+        })
+        .then(function(response) {
+            if (response.ok || response.status === 409) {
+                // Add broker symbol mapping
+                return fetch('/api/transactions/import/ibkr/broker-symbols', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        broker_name: 'IBKR',
+                        broker_symbol: document.getElementById('modal-ref').textContent,
+                        internal_symbol: internal
+                    })
+                });
+            } else {
+                return response.json().then(function(err) {
+                    throw new Error(err.error || 'Failed to create symbol');
+                });
+            }
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                return response.json().then(function(err) {
+                    throw new Error(err.error || 'Failed to add broker mapping');
+                });
+            }
+            // Re-submit preview to refresh
+            document.getElementById('confirm-form').submit();
+        })
+        .catch(function(err) {
+            alert(err.message);
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Create Symbol';
+        });
+    });
+})();
+</script>
+{{end}}
+
+{{template "base" .}}
