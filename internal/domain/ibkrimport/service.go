@@ -230,7 +230,7 @@ func (s *Service) ConfirmImport(ctx context.Context, xmlData []byte, accountID i
 	extSys := externalSystem
 
 	for _, trade := range report.Trades {
-		typ, entries, skip, err := s.buildTradeTxns(trade, accountID, now, &extSys)
+		typ, entries, skip, err := s.buildTradeTxns(ctx, trade, accountID, now, &extSys)
 		if err != nil {
 			skippedCount++
 			continue
@@ -247,7 +247,7 @@ func (s *Service) ConfirmImport(ctx context.Context, xmlData []byte, accountID i
 	}
 
 	for _, ct := range report.CashTransactions {
-		txn, skip, err := s.buildCashTxn(ct, accountID, now, &extSys)
+		txn, skip, err := s.buildCashTxn(ctx, ct, accountID, now, &extSys)
 		if err != nil {
 			skippedCount++
 			continue
@@ -260,7 +260,7 @@ func (s *Service) ConfirmImport(ctx context.Context, xmlData []byte, accountID i
 	}
 
 	for _, tr := range report.Transfers {
-		txn, skip, err := s.buildTransferTxn(tr, accountID, now, &extSys)
+		txn, skip, err := s.buildTransferTxn(ctx, tr, accountID, now, &extSys)
 		if err != nil {
 			skippedCount++
 			continue
@@ -347,10 +347,10 @@ func (s *Service) processTrade(trade Trade) (string, tradeResult, *SkippedTransa
 	}, nil, nil
 }
 
-func (s *Service) buildTradeTxns(trade Trade, accountID int64, now time.Time, extSys *string) (string, tradeResult, bool, error) {
+func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int64, now time.Time, extSys *string) (string, tradeResult, bool, error) {
 	// FX trade (assetCategory=CASH) — handled before instrument check
 	if trade.AssetCategory == "CASH" {
-		if s.dupCheck.ExternalReferenceExists(context.Background(), *extSys, trade.TransactionID) {
+		if s.dupCheck.ExternalReferenceExists(ctx, *extSys, trade.TransactionID) {
 			return "", tradeResult{}, true, nil
 		}
 		txns := s.buildFXTxns(trade, accountID, now, extSys)
@@ -366,7 +366,7 @@ func (s *Service) buildTradeTxns(trade Trade, accountID int64, now time.Time, ex
 		return "", tradeResult{}, true, nil
 	}
 
-	if s.dupCheck.ExternalReferenceExists(context.Background(), *extSys, trade.TransactionID) {
+	if s.dupCheck.ExternalReferenceExists(ctx, *extSys, trade.TransactionID) {
 		return "", tradeResult{}, true, nil
 	}
 
@@ -514,7 +514,7 @@ func (s *Service) processCashTransaction(ct CashTransaction) (*PreviewTransactio
 	}, nil, nil
 }
 
-func (s *Service) buildCashTxn(ct CashTransaction, accountID int64, now time.Time, extSys *string) (*transaction.Transaction, bool, error) {
+func (s *Service) buildCashTxn(ctx context.Context, ct CashTransaction, accountID int64, now time.Time, extSys *string) (*transaction.Transaction, bool, error) {
 	typ, needsSymbol := classifyCashTransaction(ct)
 
 	var symbol string
@@ -527,7 +527,7 @@ func (s *Service) buildCashTxn(ct CashTransaction, accountID int64, now time.Tim
 		symbol = cashSymbol(ct.Currency)
 	}
 
-	if s.dupCheck.ExternalReferenceExists(context.Background(), *extSys, ct.TransactionID) {
+	if s.dupCheck.ExternalReferenceExists(ctx, *extSys, ct.TransactionID) {
 		return nil, true, nil
 	}
 
@@ -573,10 +573,10 @@ func (s *Service) processTransfer(tr Transfer) (*PreviewTransaction, *SkippedTra
 	}, nil, nil
 }
 
-func (s *Service) buildTransferTxn(tr Transfer, accountID int64, now time.Time, extSys *string) (*transaction.Transaction, bool, error) {
+func (s *Service) buildTransferTxn(ctx context.Context, tr Transfer, accountID int64, now time.Time, extSys *string) (*transaction.Transaction, bool, error) {
 	typ := classifyTransfer(tr)
 
-	if s.dupCheck.ExternalReferenceExists(context.Background(), *extSys, tr.TransactionID) {
+	if s.dupCheck.ExternalReferenceExists(ctx, *extSys, tr.TransactionID) {
 		return nil, true, nil
 	}
 
