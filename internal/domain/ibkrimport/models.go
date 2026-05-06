@@ -26,9 +26,23 @@ type PreviewTransaction struct {
 }
 
 // SkippedTransaction holds the reference and reason for a skipped record.
+// BrokerSymbol is populated when the reason is an unmapped symbol,
+// indicating which broker symbol could not be resolved.
+// Display fields (Date, Type, Symbol, etc.) mirror PreviewTransaction
+// so skipped rows can be shown in the same table as importable ones.
 type SkippedTransaction struct {
 	ExternalReference string `json:"external_reference"`
 	Reason            string `json:"reason"`
+	BrokerSymbol      string `json:"broker_symbol,omitempty"`
+	// Display fields (populated for consistent table rendering)
+	Date      string `json:"date"`
+	Type      string `json:"type"`
+	Symbol    string `json:"symbol"`
+	Quantity  string `json:"quantity"`
+	Price     string `json:"price"`
+	Currency  string `json:"currency"`
+	NetCash   string `json:"net_cash"`
+	Description string `json:"description"`
 }
 
 // ErroredTransaction holds the reference and error message for a failed record.

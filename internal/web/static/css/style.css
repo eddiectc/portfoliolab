@@ -761,6 +761,33 @@ legend {
     border-top: 1px solid #eee;
 }
 
+/* Import preview: unified table */
+.skipped-row {
+    background: #fff8e1;
+}
+
+.errored-row {
+    background: #fde8e8;
+}
+
+.reason-cell {
+    font-size: 0.8125rem;
+    max-width: 180px;
+}
+
+.reason-skipped {
+    color: #856404;
+}
+
+.reason-error {
+    color: #721c24;
+}
+
+.import-table .actions {
+    white-space: nowrap;
+    width: 1%;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .page-header {

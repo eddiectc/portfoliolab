@@ -103,7 +103,7 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 		transactionWebHandler.RegisterRoutes(r)
 
 		// IBKR import web pages
-		importWebHandler := handlers.NewImportWebHandler(importSvc, accountSvc, renderer)
+		importWebHandler := handlers.NewImportWebHandler(importSvc, accountSvc, symbolMappingSvc, renderer)
 		importWebHandler.RegisterRoutes(r)
 
 		// Root redirect

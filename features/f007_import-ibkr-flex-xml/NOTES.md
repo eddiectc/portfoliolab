@@ -129,6 +129,152 @@ Added 5 unit tests for `BatchCreate` in `transaction_repo_test.go`:
 - `TestTransactionRepository_BatchCreate_RollbackOnFKViolation` — FK violation mid-batch rolls back all
 - `TestTransactionRepository_BatchCreate_EmptyBatch` — empty batch succeeds as no-op
 
+## Session: Import Preview UX Fixes
+
+### Spec/Plan Gaps Identified
+
+Three gaps discovered during manual testing of the import preview flow:
+
+1. **Broker symbol not shown in skipped reason** (spec gap) — The reason column shows "unmapped symbol" without telling the user *which* broker symbol is unmapped. The user has no way to know what to type in the resolve modal.
+
+2. **No market data preview in resolve modal** (plan gap) — The spec constraint states "Symbol creation, broker symbol mapping, and **market data preview are all inline on the import page**" but the plan only said "modal with AJAX to API endpoints" and the implementation produced two bare text inputs. The transaction form already has a polished preview mechanism (fetches `/api/symbol-mappings/preview`, shows name/exchange/currency/price with existing/new/corrected/error panels) that should be reused.
+
+3. **No grouping of same unmapped symbol** (spec gap) — If 5 trades share the same unmapped broker symbol (e.g., STHY appears 5 times in the sample XML), the user sees 5 separate "Resolve Symbol" buttons and must resolve one, re-submit, repeat 4 more times.
+
+### Implementation Decisions
+
+#### BrokerSymbol field on SkippedTransaction
+
+Added `BrokerSymbol string` field to `SkippedTransaction`. Only populated when `Reason` contains "unmapped symbol". The Reason string now includes the broker symbol: "unmapped symbol: {brokerSymbol}".
+
+#### Modal field order: Market Data Symbol first, Internal Symbol second
+
+The modal follows the same field order as the transaction form:
+1. **Market Data Symbol** (first, with live preview) — user types the ticker (e.g., "AAPL"), preview shows name/exchange/currency/price inline
+2. **Internal Symbol** (second, defaults to market data symbol) — user can override if they want a different internal name (e.g., market data = "BRK-B", internal = "BRK.B")
+
+This matches the transaction form pattern where the market data symbol is the primary lookup and the internal symbol is a secondary choice.
+
+#### Preview panels reused from transaction form
+
+The modal reuses the same 5-panel preview pattern as `templates/transaction/form.html`:
+- `preview-loading` — "Fetching market data..."
+- `preview-existing` — green indicator, shows symbol exists in symbol map
+- `preview-new` — blue indicator, shows market data found, "Create & Map" button
+- `preview-corrected` — yellow indicator, shows auto-correction (e.g., "AAP" → "AAPL")
+- `preview-error` — red indicator, fallback manual entry
+
+The modal fetches `/api/symbol-mappings/preview?symbol=...` with 500ms debounce, same as the transaction form.
+
+#### Existing symbols check
+
+The modal embeds the existing symbols list (from `/api/symbol-mappings`) as a JSON script tag, parsed into a `Set` for client-side existence checks. This determines whether the preview shows as "existing" (just needs broker mapping) or "new" (needs symbol creation + mapping).
+
+#### Create-then-map flow
+
+When the user clicks "Create & Map" or "Map":
+1. POST to `/api/symbol-mappings` (create symbol) — 201 or 409 (already exists, both OK)
+2. POST to `/api/transactions/import/ibkr/broker-symbols` (add broker mapping)
+3. Re-submit the confirm form to refresh the preview
+
+This is the same two-step flow as before, but now the market data symbol from the preview (or corrected symbol) is used instead of requiring the user to type it separately.
+
+#### Grouped unmapped symbols section
+
+The skipped table is restructured:
+- **Grouped unmapped symbols** section at the top — one row per unique broker symbol, showing count (e.g., "STHY (5 transactions)") with a single "Resolve" button
+- **Other skipped** section below — duplicates and unsupported instrument types, one row each
+
+This eliminates the repeat-resolve loop. Resolving one symbol in the group immediately resolves all its transactions.
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| `internal/domain/ibkrimport/models.go` | Add `BrokerSymbol string` to `SkippedTransaction` |
+| `internal/domain/ibkrimport/service.go` | Populate `BrokerSymbol` and include it in `Reason` for unmapped cases |
+| `internal/domain/ibkrimport/service_test.go` | Update tests that check unmapped symbol reason |
+| `templates/transaction/import_preview.html` | Restructure skipped table (grouped + other), rewrite modal with preview |
+| `internal/api/handlers/ibkr_import_web.go` | Add `Symbols` to preview page data (existing symbol list for client-side checks) |
+| `internal/api/handlers/ibkr_import_web_test.go` | Update test data to include `BrokerSymbol` |
+| `internal/web/static/css/style.css` | Add styles for grouped section, modal preview panels |
+
+### Implementation Plan
+
+#### Task A: Model + Service — Add BrokerSymbol to SkippedTransaction [PRIORITY: HIGH]
+
+**Files:** `models.go`, `service.go`, `service_test.go`
+
+- [x] Add `BrokerSymbol string json:"broker_symbol,omitempty"` to `SkippedTransaction`
+- [x] In `processTrade`: when symbol is unmapped, set `BrokerSymbol: trade.Symbol` and `Reason: "unmapped symbol: " + trade.Symbol`
+- [x] In `processCashTransaction`: when symbol is unmapped, set `BrokerSymbol: ct.Symbol` and `Reason: "unmapped symbol: " + ct.Symbol`
+- [x] Update `service_test.go` tests that check "unmapped symbol" reason to match new format
+- [x] Verify: `go test ./internal/domain/ibkrimport/...`
+
+#### Task B: Preview Page Data — Add Existing Symbols [PRIORITY: MEDIUM]
+
+**Files:** `ibkr_import_web.go`, `ibkr_import.go` (for service interface)
+
+- [x] Add method to `ImportService` interface (or reuse existing symbol service) to list existing internal symbols
+- [x] Add `ExistingSymbols []string` to `previewPageData`
+- [x] In `HandleImportPost`, fetch existing symbols and pass to template
+- [x] Verify: `go test ./internal/api/handlers/... -run ImportWeb`
+
+#### Task C: Skipped Table — Grouped Unmapped Symbols [PRIORITY: HIGH]
+
+**Files:** `templates/transaction/import_preview.html`, `style.css`
+
+- [x] Split skipped section into two subsections:
+  - "Unmapped Symbols" — grouped by broker symbol, one row per unique symbol with count
+  - "Other Skipped" — duplicates, unsupported types, one row each
+- [x] Grouped row format: `BrokerSymbol (N transactions) | reason | Resolve button`
+- [x] The Resolve button passes the broker symbol (not transaction ref) to the modal
+- [x] Add CSS for `.grouped-symbol-row` styling
+- [x] Verify: page renders correctly with sample XML
+
+#### Task D: Resolve Modal — Market Data Preview [PRIORITY: HIGH]
+
+**Files:** `templates/transaction/import_preview.html`, `style.css`
+
+- [x] Rewrite modal HTML:
+  - Show broker symbol as read-only label
+  - Market Data Symbol input with debounced preview (same 5 panels as transaction form)
+  - Internal Symbol input (defaults to market data symbol, editable)
+  - Action button ("Create & Map" or "Map" depending on existence)
+- [x] Rewrite modal JavaScript:
+  - Debounced fetch to `/api/symbol-mappings/preview?symbol=...`
+  - Handle existing/new/corrected/error panels
+  - Auto-fill internal symbol from preview data
+  - Accept correction flow
+  - Create-then-map API calls
+  - Re-submit preview form on success
+- [x] Add CSS for modal preview panels (reuse `.symbol-preview` styles)
+- [x] Embed existing symbols as JSON script tag for client-side existence check
+- [ ] Verify: modal works end-to-end with live server
+
+#### Task E: Tests [PRIORITY: MEDIUM]
+
+**Files:** `service_test.go`, `ibkr_import_web_test.go`
+
+- [x] Update `SkippedTransaction` test data to include `BrokerSymbol` field
+- [x] Update reason string assertions to match new format
+- [x] Add web handler test verifying symbols are passed to template
+- [x] Verify: `go test ./...`
+
+### Task Dependencies
+
+```
+Task A (Model + Service)
+        ↓
+Task B (Page Data)    Task C (Grouped Table)
+        ↓                 ↓
+        └─────→ Task D (Modal) ← needs symbols from B, broker symbol from C
+                    ↓
+              Task E (Tests)
+```
+
+Tasks B and C are independent. Task D depends on both (needs existing symbols for preview existence check, needs broker symbol from grouped table).
+
 ## Session: Integration Tests + FX Duplicate Fix
 
 ### FX trade duplicate detection bug
@@ -159,3 +305,14 @@ Created `tests/integration/ibkr_import_test.go` with 15 tests covering:
 ### Test schema update
 
 Updated `tests/integration/portfolio_test.go` to include migration 006 unique index and bump goose version to 6.
+
+### Date format: IBKR uses YYYYMMDD, not YYYY-MM-DD (post-implementation fix)
+
+The sample XML in `testdata/ibkr_sample.xml` was generated with `YYYY-MM-DD` dates (e.g., `2025-04-15`), but real IBKR Flex XML uses `YYYYMMDD` without dashes (e.g., `20241204`). This caused all imported transactions to have date `0001-01-01` because `time.Parse("2006-01-02", "20241204")` fails silently.
+
+**Fix:**
+- Added `parseDate(s string) time.Time` helper in `service.go` that tries `20060102` first, then falls back to `2006-01-02` for backward compatibility
+- Replaced all `time.Parse("2006-01-02", ...)` calls in `buildTradeTxns`, `buildFXTxns`, `buildCashTxn`, `buildTransferTxn` with `parseDate(...)`
+- Updated `testdata/ibkr_sample.xml` to use `YYYYMMDD` format throughout
+- Updated all test assertions in `parser_test.go`, `service_test.go`, and `ibkr_import_web_test.go` to match
+- Added `TestParseDate` unit test covering both formats and edge cases

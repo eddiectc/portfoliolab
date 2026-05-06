@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/api"
@@ -456,10 +457,10 @@ func TestIBKRImport_UnmappedSymbolsSkipped(t *testing.T) {
 		t.Errorf("expected 6 skipped without symbol mappings, got %d", preview.SkippedCount)
 	}
 
-	// Verify skipped reasons include "unmapped symbol"
+	// Verify skipped reasons include "unmapped symbol" with broker symbol
 	unmappedCount := 0
 	for _, s := range preview.Skipped {
-		if s.Reason == "unmapped symbol" {
+		if strings.HasPrefix(s.Reason, "unmapped symbol:") {
 			unmappedCount++
 		}
 	}

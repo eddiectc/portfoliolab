@@ -246,6 +246,9 @@ func TestService_Preview_UnmappedSymbols(t *testing.T) {
 	for _, s := range got.Skipped {
 		if strings.Contains(s.Reason, "unmapped") {
 			skippedUnmapped++
+			if s.BrokerSymbol == "" {
+				t.Errorf("skipped transaction with reason %q has empty BrokerSymbol", s.Reason)
+			}
 		}
 	}
 	if skippedUnmapped == 0 {
@@ -259,9 +262,9 @@ func TestService_Preview_FXTrades(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades>
-						<Trade accountId="U111" acctAlias="TEST" currency="GBP" fxRateToBase="1" assetCategory="CASH" subCategory="" symbol="GBP.USD" description="GBP.USD" conid="" isin="" tradeID="" multiplier="1" reportDate="2025-06-01" dateTime="2025-06-01;100000" tradeDate="2025-06-01" settleDateTarget="2025-06-03" transactionType="ExchTrade" exchange="IDEALFX" quantity="10000" tradePrice="1.27" tradeMoney="12700" proceeds="-12700" taxes="0" ibCommission="-1.27" ibCommissionCurrency="GBP" netCash="0" closePrice="0" buySell="BUY" ibOrderID="5000000005" transactionID="30000000006" ibExecID="" />
+						<Trade accountId="U111" acctAlias="TEST" currency="GBP" fxRateToBase="1" assetCategory="CASH" subCategory="" symbol="GBP.USD" description="GBP.USD" conid="" isin="" tradeID="" multiplier="1" reportDate="20250601" dateTime="20250601;100000" tradeDate="20250601" settleDateTarget="20250603" transactionType="ExchTrade" exchange="IDEALFX" quantity="10000" tradePrice="1.27" tradeMoney="12700" proceeds="-12700" taxes="0" ibCommission="-1.27" ibCommissionCurrency="GBP" netCash="0" closePrice="0" buySell="BUY" ibOrderID="5000000005" transactionID="30000000006" ibExecID="" />
 					</Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -311,12 +314,12 @@ func TestService_Preview_Transfers(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades></Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers>
-						<Transfer accountId="U111" acctAlias="TEST" currency="GBP" fxRateToBase="1" assetCategory="CASH" symbol="--" description="TRANSFER IN" reportDate="2025-07-10" date="2025-07-10" dateTime="2025-07-10;080000" settleDate="2025-07-11" type="INTERNAL" direction="IN" cashTransfer="250.00" transactionID="30000000020" />
-						<Transfer accountId="U111" acctAlias="TEST" currency="GBP" fxRateToBase="1" assetCategory="CASH" symbol="--" description="TRANSFER OUT" reportDate="2025-09-01" date="2025-09-01" dateTime="2025-09-01;140000" settleDate="2025-09-02" type="INTERNAL" direction="OUT" cashTransfer="-100.00" transactionID="30000000021" />
+						<Transfer accountId="U111" acctAlias="TEST" currency="GBP" fxRateToBase="1" assetCategory="CASH" symbol="--" description="TRANSFER IN" reportDate="20250710" date="20250710" dateTime="20250710;080000" settleDate="20250711" type="INTERNAL" direction="IN" cashTransfer="250.00" transactionID="30000000020" />
+						<Transfer accountId="U111" acctAlias="TEST" currency="GBP" fxRateToBase="1" assetCategory="CASH" symbol="--" description="TRANSFER OUT" reportDate="20250901" date="20250901" dateTime="20250901;140000" settleDate="20250902" type="INTERNAL" direction="OUT" cashTransfer="-100.00" transactionID="30000000021" />
 					</Transfers>
 				</FlexStatement>
 			</FlexStatements>
@@ -351,15 +354,15 @@ func TestService_Preview_CashTransactions(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades></Trades>
 					<CashTransactions>
-						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIV" amount="250.00" type="Dividends" transactionID="10" reportDate="2025-05-31" />
-						<CashTransaction accountId="U111" currency="GBP" description="INT" amount="12.50" type="Broker Interest Received" transactionID="11" reportDate="2025-06-04" />
-						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="TAX" amount="-25.00" type="Withholding Tax" transactionID="12" reportDate="2025-05-31" />
-						<CashTransaction accountId="U111" currency="USD" description="FEE" amount="-0.15" type="Other Fees" transactionID="13" reportDate="2025-08-15" />
-						<CashTransaction accountId="U111" currency="GBP" description="DEPOSIT" amount="5000" type="Deposits/Withdrawals" transactionID="14" reportDate="2025-04-10" />
-						<CashTransaction accountId="U111" currency="GBP" description="WITHDRAWAL" amount="-3000" type="Deposits/Withdrawals" transactionID="15" reportDate="2025-09-20" />
+						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIV" amount="250.00" type="Dividends" transactionID="10" reportDate="20250531" />
+						<CashTransaction accountId="U111" currency="GBP" description="INT" amount="12.50" type="Broker Interest Received" transactionID="11" reportDate="20250604" />
+						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="TAX" amount="-25.00" type="Withholding Tax" transactionID="12" reportDate="20250531" />
+						<CashTransaction accountId="U111" currency="USD" description="FEE" amount="-0.15" type="Other Fees" transactionID="13" reportDate="20250815" />
+						<CashTransaction accountId="U111" currency="GBP" description="DEPOSIT" amount="5000" type="Deposits/Withdrawals" transactionID="14" reportDate="20250410" />
+						<CashTransaction accountId="U111" currency="GBP" description="WITHDRAWAL" amount="-3000" type="Deposits/Withdrawals" transactionID="15" reportDate="20250920" />
 					</CashTransactions>
 					<Transfers></Transfers>
 				</FlexStatement>
@@ -421,7 +424,7 @@ func TestService_Preview_EmptySections(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades></Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -459,10 +462,10 @@ func TestService_ConfirmImport_Basic(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades>
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="2025-04-15" transactionID="30000000001" ibOrderID="5000000001" />
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="-50" tradePrice="220" tradeMoney="-11000" proceeds="11000" netCash="10997.80" buySell="SELL" tradeDate="2025-07-20" transactionID="30000000002" ibOrderID="5000000002" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="-50" tradePrice="220" tradeMoney="-11000" proceeds="11000" netCash="10997.80" buySell="SELL" tradeDate="20250720" transactionID="30000000002" ibOrderID="5000000002" />
 					</Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -501,10 +504,10 @@ func TestService_ConfirmImport_RollbackOnFailure(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades>
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="2025-04-15" transactionID="30000000001" ibOrderID="5000000001" />
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="-50" tradePrice="220" tradeMoney="-11000" proceeds="11000" netCash="10997.80" buySell="SELL" tradeDate="2025-07-20" transactionID="30000000002" ibOrderID="5000000002" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="-50" tradePrice="220" tradeMoney="-11000" proceeds="11000" netCash="10997.80" buySell="SELL" tradeDate="20250720" transactionID="30000000002" ibOrderID="5000000002" />
 					</Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -533,10 +536,10 @@ func TestService_ConfirmImport_DetectsNewDuplicates(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades>
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="2025-04-15" transactionID="30000000001" ibOrderID="5000000001" />
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="-50" tradePrice="220" tradeMoney="-11000" proceeds="11000" netCash="10997.80" buySell="SELL" tradeDate="2025-07-20" transactionID="30000000002" ibOrderID="5000000002" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="-50" tradePrice="220" tradeMoney="-11000" proceeds="11000" netCash="10997.80" buySell="SELL" tradeDate="20250720" transactionID="30000000002" ibOrderID="5000000002" />
 					</Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -582,9 +585,9 @@ func TestService_ConfirmImport_FXTrades(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="GBP" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades>
-						<Trade accountId="U111" currency="GBP" assetCategory="CASH" subCategory="" symbol="GBP.USD" description="GBP.USD" quantity="10000" tradePrice="1.27" tradeMoney="12700" proceeds="-12700" netCash="0" buySell="BUY" tradeDate="2025-06-01" transactionID="30000000006" ibOrderID="5000000005" />
+						<Trade accountId="U111" currency="GBP" assetCategory="CASH" subCategory="" symbol="GBP.USD" description="GBP.USD" quantity="10000" tradePrice="1.27" tradeMoney="12700" proceeds="-12700" netCash="0" buySell="BUY" tradeDate="20250601" transactionID="30000000006" ibOrderID="5000000005" />
 					</Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -628,17 +631,17 @@ func TestService_ConfirmImport_MixedRecords(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades>
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="2025-04-15" transactionID="30000000001" ibOrderID="5000000001" />
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="UNKNOWN" description="UNKNOWN" quantity="10" tradePrice="50" tradeMoney="500" proceeds="-500" netCash="-500" buySell="BUY" tradeDate="2025-04-15" transactionID="30000000099" ibOrderID="5000000099" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="UNKNOWN" description="UNKNOWN" quantity="10" tradePrice="50" tradeMoney="500" proceeds="-500" netCash="-500" buySell="BUY" tradeDate="20250415" transactionID="30000000099" ibOrderID="5000000099" />
 					</Trades>
 					<CashTransactions>
-						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIV" amount="250.00" type="Dividends" transactionID="30000000010" reportDate="2025-05-31" />
-						<CashTransaction accountId="U111" currency="GBP" description="INT" amount="12.50" type="Broker Interest Received" transactionID="30000000011" reportDate="2025-06-04" />
+						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIV" amount="250.00" type="Dividends" transactionID="30000000010" reportDate="20250531" />
+						<CashTransaction accountId="U111" currency="GBP" description="INT" amount="12.50" type="Broker Interest Received" transactionID="30000000011" reportDate="20250604" />
 					</CashTransactions>
 					<Transfers>
-						<Transfer accountId="U111" currency="GBP" description="TRANSFER IN" date="2025-07-10" type="INTERNAL" direction="IN" cashTransfer="250.00" transactionID="30000000020" />
+						<Transfer accountId="U111" currency="GBP" description="TRANSFER IN" date="20250710" type="INTERNAL" direction="IN" cashTransfer="250.00" transactionID="30000000020" />
 					</Transfers>
 				</FlexStatement>
 			</FlexStatements>
@@ -667,9 +670,9 @@ func TestService_ConfirmImport_TradeFieldValues(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades>
-						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="2025-04-15" transactionID="30000000001" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
 					</Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -729,10 +732,10 @@ func TestService_ConfirmImport_CashTransactionFieldValues(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades></Trades>
 					<CashTransactions>
-						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIV" amount="250.00" type="Dividends" transactionID="30000000010" reportDate="2025-05-31" />
+						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIV" amount="250.00" type="Dividends" transactionID="30000000010" reportDate="20250531" />
 					</CashTransactions>
 					<Transfers></Transfers>
 				</FlexStatement>
@@ -775,7 +778,7 @@ func TestService_ConfirmImport_EmptyReport(t *testing.T) {
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
 			<FlexStatements count="1">
-				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="2025-01-01" toDate="2025-12-31" period="test" whenGenerated="2025-12-31;120000">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
 					<Trades></Trades>
 					<CashTransactions></CashTransactions>
 					<Transfers></Transfers>
@@ -936,6 +939,31 @@ func TestCashSymbol(t *testing.T) {
 		if got != tt.expected {
 			t.Errorf("cashSymbol(%q) = %q, want %q", tt.currency, got, tt.expected)
 		}
+	}
+}
+
+func TestParseDate(t *testing.T) {
+	tests := []struct {
+		input  string
+		wantYear int
+		wantMonth time.Month
+		wantDay  int
+	}{
+		{"20241204", 2024, 12, 4},
+		{"20250415", 2025, 4, 15},
+		{"2025-04-15", 2025, 4, 15},
+		{"2024-01-01", 2024, 1, 1},
+		{"", 0001, 1, 1},
+		{"invalid", 0001, 1, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseDate(tt.input)
+			if got.Year() != tt.wantYear || got.Month() != tt.wantMonth || got.Day() != tt.wantDay {
+				t.Errorf("parseDate(%q) = %v, want %04d-%02d-%02d", tt.input, got, tt.wantYear, tt.wantMonth, tt.wantDay)
+			}
+		})
 	}
 }
 

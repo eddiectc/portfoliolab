@@ -35,105 +35,91 @@
     <a href="#errored" class="tab" data-tab="errored">Errored ({{.Preview.ErroredCount}})</a>
 </div>
 
+<!-- Preview re-submission form (used after resolving a symbol) -->
+<form action="/transactions/import/ibkr?tab=skipped" method="POST" id="preview-resubmit-form" enctype="multipart/form-data" style="display:none;">
+    <input type="hidden" name="xml_data" value="{{.XMLData}}">
+    <input type="hidden" name="account_id" value="{{.AccountID}}">
+</form>
+
 <!-- Confirm form (wraps the table so XML data is re-submitted) -->
 <form action="/transactions/import/ibkr/confirm" method="POST" id="confirm-form" enctype="multipart/form-data">
     <input type="hidden" name="account_id" value="{{.AccountID}}">
     <input type="hidden" name="xml_data" id="xml-data-input" value="{{.XMLData}}">
 
-    <!-- Importable transactions -->
-    <div class="tab-content" data-group="importable">
-        <h2 class="section-title">Importable Transactions</h2>
-        {{if eq (len .Preview.Importable) 0}}
-        <p class="empty-state">No importable transactions found.</p>
-        {{else}}
-        <table class="table import-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Symbol</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Net Cash</th>
-                    <th>Currency</th>
-                    <th>Description</th>
-                    <th>Ref</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .Preview.Importable}}
-                <tr>
-                    <td>{{.Date}}</td>
-                    <td><span class="type-badge type-{{.Type}}">{{.Type}}</span></td>
-                    <td>{{.Symbol}}</td>
-                    <td>{{.Quantity}}</td>
-                    <td>{{.Price}}</td>
-                    <td>{{.NetCash}}</td>
-                    <td>{{.Currency}}</td>
-                    <td class="description">{{.Description}}</td>
-                    <td class="ref">{{.ExternalReference}}</td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
-        {{end}}
-    </div>
-
-    <!-- Skipped transactions -->
-    <div class="tab-content" data-group="skipped">
-        <h2 class="section-title">Skipped Transactions</h2>
-        {{if eq (len .Preview.Skipped) 0}}
-        <p class="empty-state">No skipped transactions.</p>
-        {{else}}
-        <table class="table import-table">
-            <thead>
-                <tr>
-                    <th>Reference</th>
-                    <th>Reason</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .Preview.Skipped}}
-                <tr>
-                    <td class="ref">{{.ExternalReference}}</td>
-                    <td>{{.Reason}}</td>
-                    <td class="actions">
-                        {{if contains "unmapped symbol" .Reason}}
-                        <button type="button" class="btn btn-sm btn-primary resolve-symbol-btn" data-ref="{{.ExternalReference}}">Resolve Symbol</button>
-                        {{end}}
-                    </td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
-        {{end}}
-    </div>
-
-    <!-- Errored transactions -->
-    <div class="tab-content" data-group="errored">
-        <h2 class="section-title">Errored Transactions</h2>
-        {{if eq (len .Preview.Errored) 0}}
-        <p class="empty-state">No errors.</p>
-        {{else}}
-        <table class="table import-table">
-            <thead>
-                <tr>
-                    <th>Reference</th>
-                    <th>Error</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .Preview.Errored}}
-                <tr>
-                    <td class="ref">{{.ExternalReference}}</td>
-                    <td class="error-text">{{.ErrorMessage}}</td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
-        {{end}}
-    </div>
+    <!-- Unified transactions table -->
+    <table class="table import-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Symbol</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Net Cash</th>
+                <th>Currency</th>
+                <th>Description</th>
+                <th>Ref</th>
+                <th>Reason</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Preview.Importable}}
+            <tr data-status="importable">
+                <td>{{.Date}}</td>
+                <td><span class="type-badge type-{{.Type}}">{{.Type}}</span></td>
+                <td>{{.Symbol}}</td>
+                <td>{{.Quantity}}</td>
+                <td>{{.Price}}</td>
+                <td>{{.NetCash}}</td>
+                <td>{{.Currency}}</td>
+                <td class="description">{{.Description}}</td>
+                <td class="ref">{{.ExternalReference}}</td>
+                <td class="reason-cell"></td>
+                <td class="actions"></td>
+            </tr>
+            {{end}}
+            {{range .Preview.Skipped}}
+            <tr data-status="skipped" class="skipped-row">
+                <td>{{.Date}}</td>
+                <td><span class="type-badge type-{{.Type}}">{{.Type}}</span></td>
+                <td>{{.Symbol}}</td>
+                <td>{{.Quantity}}</td>
+                <td>{{.Price}}</td>
+                <td>{{.NetCash}}</td>
+                <td>{{.Currency}}</td>
+                <td class="description">{{.Description}}</td>
+                <td class="ref">{{.ExternalReference}}</td>
+                <td class="reason-cell reason-skipped">{{.Reason}}</td>
+                <td class="actions">
+                    {{if .BrokerSymbol}}
+                    <button type="button" class="btn btn-sm btn-primary resolve-symbol-btn" data-broker-symbol="{{.BrokerSymbol}}">Resolve Symbol</button>
+                    {{end}}
+                </td>
+            </tr>
+            {{end}}
+            {{range .Preview.Errored}}
+            <tr data-status="errored" class="errored-row">
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="ref">{{.ExternalReference}}</td>
+                <td class="reason-cell reason-error">{{.ErrorMessage}}</td>
+                <td class="actions"></td>
+            </tr>
+            {{end}}
+            {{if and (eq (len .Preview.Importable) 0) (eq (len .Preview.Skipped) 0) (eq (len .Preview.Errored) 0)}}
+            <tr>
+                <td colspan="11" class="empty-state">No transactions found.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
 
     <!-- Confirm button -->
     <div class="form-actions confirm-actions">
@@ -150,39 +136,75 @@
 <div id="resolve-symbol-modal" class="modal" style="display:none;">
     <div class="modal-content">
         <h3>Resolve Unmapped Symbol</h3>
-        <p>A transaction was skipped because its symbol is not in your symbol map.</p>
-        <p>Reference: <strong id="modal-ref"></strong></p>
+        <p>A transaction was skipped because its broker symbol is not mapped to an internal symbol.</p>
+        <p>Broker Symbol: <strong id="modal-broker-symbol"></strong></p>
 
         <div class="modal-actions">
+            <div class="form-group">
+                <label for="modal-market-data-symbol">Market Data Symbol</label>
+                <input type="text" id="modal-market-data-symbol" placeholder="e.g. AAPL" autocomplete="off">
+                <div id="modal-preview-panel" class="symbol-preview" style="display:none;">
+                    <div id="modal-preview-loading" class="symbol-preview-loading" style="display:none;">
+                        <span class="preview-loading-text">Looking up symbol...</span>
+                    </div>
+                    <div id="modal-preview-existing" class="symbol-preview-existing" style="display:none;">
+                        <div class="preview-header">
+                            <strong id="modal-preview-name"></strong> <span id="modal-preview-symbol"></span>
+                        </div>
+                        <div class="preview-details">
+                            <span id="modal-preview-exchange"></span> · <span id="modal-preview-currency"></span> · <span id="modal-preview-price"></span>
+                        </div>
+                        <div class="preview-note">Symbol already exists — will add broker mapping only.</div>
+                    </div>
+                    <div id="modal-preview-new" class="symbol-preview-new" style="display:none;">
+                        <div class="preview-header">
+                            <strong id="modal-preview-new-name"></strong> <span id="modal-preview-new-symbol"></span>
+                        </div>
+                        <div class="preview-details">
+                            <span id="modal-preview-new-exchange"></span> · <span id="modal-preview-new-currency"></span> · <span id="modal-preview-new-price"></span>
+                        </div>
+                        <div class="preview-note">New symbol — will be created with broker mapping.</div>
+                    </div>
+                    <div id="modal-preview-corrected" class="symbol-preview-corrected" style="display:none;">
+                        <p class="preview-corrected-msg">Symbol <code id="modal-corrected-typed"></code> not found. Did you mean <strong id="modal-corrected-actual"></strong>?</p>
+                        <div class="preview-details">
+                            <strong id="modal-preview-corrected-name"></strong> · <span id="modal-preview-corrected-exchange"></span> · <span id="modal-preview-corrected-currency"></span> · <span id="modal-preview-corrected-price"></span>
+                        </div>
+                        <button type="button" class="btn btn-sm accept-correction-btn" id="modal-accept-correction-symbol">Accept</button>
+                    </div>
+                    <div id="modal-preview-error" class="symbol-preview-error" style="display:none;">
+                        Could not look up this symbol. You can still create it manually.
+                    </div>
+                </div>
+            </div>
             <div class="form-group">
                 <label for="modal-internal-symbol">Internal Symbol</label>
                 <input type="text" id="modal-internal-symbol" placeholder="e.g. AAPL">
             </div>
-            <div class="form-group">
-                <label for="modal-market-data-symbol">Market Data Symbol</label>
-                <input type="text" id="modal-market-data-symbol" placeholder="e.g. AAPL">
-            </div>
         </div>
 
         <div class="form-actions">
-            <button type="button" id="modal-create-symbol-btn" class="btn btn-primary">Create Symbol</button>
+            <button type="button" id="modal-create-symbol-btn" class="btn btn-primary">Create &amp; Map</button>
             <button type="button" class="btn" onclick="document.getElementById('resolve-symbol-modal').style.display='none'">Cancel</button>
         </div>
     </div>
 </div>
 
+<!-- Embed existing symbols as JSON for client-side existence check -->
+<script id="existing-symbols-data" type="application/json">[{{range $i, $sym := .ExistingSymbols}}{{if $i}},{{end}}"{{$sym}}"{{end}}]</script>
+
 <script>
 (function() {
     // --- Filter tabs ---
     var tabs = document.querySelectorAll('.tab');
-    var contents = document.querySelectorAll('.tab-content');
+    var rows = document.querySelectorAll('.import-table tbody tr[data-status]');
 
     function showTab(name) {
         tabs.forEach(function(t) {
             t.classList.toggle('active', t.getAttribute('data-tab') === name);
         });
-        contents.forEach(function(c) {
-            c.style.display = (name === 'all' || c.getAttribute('data-group') === name) ? 'block' : 'none';
+        rows.forEach(function(row) {
+            row.style.display = (name === 'all' || row.getAttribute('data-status') === name) ? '' : 'none';
         });
     }
 
@@ -193,25 +215,149 @@
         });
     });
 
-    // Default: show all
-    showTab('all');
+    // Activate tab from server (e.g. "skipped" after resolving a symbol)
+    showTab('{{.ActiveTab}}');
 
     // --- Resolve symbol modal ---
-    var resolveBtns = document.querySelectorAll('.resolve-symbol-btn');
     var modal = document.getElementById('resolve-symbol-modal');
+    var brokerSymbolEl = document.getElementById('modal-broker-symbol');
+    var mdsInput = document.getElementById('modal-market-data-symbol');
+    var internalInput = document.getElementById('modal-internal-symbol');
+    var createBtn = document.getElementById('modal-create-symbol-btn');
+    var previewPanel = document.getElementById('modal-preview-panel');
+    var debounceTimer = null;
+    var currentPreviewData = null;
+    var currentBrokerSymbol = '';
 
+    // Parse existing symbols into a Set for client-side existence checks
+    var existingSymbolsJSON = document.getElementById('existing-symbols-data');
+    var existingSymbols = new Set(JSON.parse(existingSymbolsJSON.textContent));
+
+    // Preview panel elements
+    var panels = {
+        loading: document.getElementById('modal-preview-loading'),
+        existing: document.getElementById('modal-preview-existing'),
+        new: document.getElementById('modal-preview-new'),
+        corrected: document.getElementById('modal-preview-corrected'),
+        error: document.getElementById('modal-preview-error')
+    };
+
+    function hideAllPanels() {
+        for (var key in panels) {
+            panels[key].style.display = 'none';
+        }
+        previewPanel.style.display = 'none';
+    }
+
+    function showPanel(name) {
+        hideAllPanels();
+        panels[name].style.display = 'block';
+        previewPanel.style.display = 'block';
+    }
+
+    // Open modal with broker symbol
+    var resolveBtns = document.querySelectorAll('.resolve-symbol-btn');
     resolveBtns.forEach(function(btn) {
         btn.addEventListener('click', function() {
-            document.getElementById('modal-ref').textContent = this.getAttribute('data-ref');
-            document.getElementById('modal-internal-symbol').value = '';
-            document.getElementById('modal-market-data-symbol').value = '';
+            currentBrokerSymbol = this.getAttribute('data-broker-symbol');
+            brokerSymbolEl.textContent = currentBrokerSymbol;
+            mdsInput.value = '';
+            internalInput.value = '';
+            hideAllPanels();
+            currentPreviewData = null;
+            createBtn.textContent = 'Create & Map';
+            createBtn.disabled = false;
             modal.style.display = 'block';
         });
     });
 
-    document.getElementById('modal-create-symbol-btn').addEventListener('click', function() {
-        var internal = document.getElementById('modal-internal-symbol').value.trim();
-        var marketData = document.getElementById('modal-market-data-symbol').value.trim();
+    // Debounced preview fetch on market data symbol input
+    mdsInput.addEventListener('input', function() {
+        var symbol = this.value.trim();
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+        }
+        if (symbol.length < 2) {
+            hideAllPanels();
+            currentPreviewData = null;
+            return;
+        }
+        debounceTimer = setTimeout(function() {
+            fetchModalPreview(symbol);
+        }, 350);
+    });
+
+    function fetchModalPreview(symbol) {
+        showPanel('loading');
+        fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+            .then(function(response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then(function(data) {
+                currentPreviewData = data;
+                handlePreviewSuccess(data, symbol);
+                // Auto-fill internal symbol from preview
+                var autoSymbol = data.corrected_symbol || data.symbol;
+                if (autoSymbol && autoSymbol.length > 0) {
+                    internalInput.value = autoSymbol;
+                }
+            })
+            .catch(function() {
+                currentPreviewData = null;
+                showPanel('error');
+            });
+    }
+
+    function handlePreviewSuccess(data, typedSymbol) {
+        var isExisting = existingSymbols.has(typedSymbol);
+        var isCorrected = data.corrected_symbol && data.corrected_symbol.length > 0;
+
+        if (isExisting) {
+            document.getElementById('modal-preview-name').textContent = data.name;
+            document.getElementById('modal-preview-symbol').textContent = '(' + data.symbol + ')';
+            document.getElementById('modal-preview-exchange').textContent = data.exchange;
+            document.getElementById('modal-preview-currency').textContent = data.currency;
+            document.getElementById('modal-preview-price').textContent = data.latest_price + ' ' + data.currency;
+            showPanel('existing');
+            internalInput.value = typedSymbol;
+            createBtn.textContent = 'Map';
+        } else if (isCorrected) {
+            document.getElementById('modal-corrected-typed').textContent = typedSymbol;
+            document.getElementById('modal-corrected-actual').textContent = data.corrected_symbol;
+            document.getElementById('modal-preview-corrected-name').textContent = data.name;
+            document.getElementById('modal-preview-corrected-exchange').textContent = data.exchange;
+            document.getElementById('modal-preview-corrected-currency').textContent = data.currency;
+            document.getElementById('modal-preview-corrected-price').textContent = data.latest_price + ' ' + data.currency;
+            document.getElementById('modal-accept-correction-symbol').textContent = data.corrected_symbol;
+            showPanel('corrected');
+            internalInput.value = data.corrected_symbol;
+            createBtn.textContent = 'Create & Map';
+        } else {
+            document.getElementById('modal-preview-new-name').textContent = data.name;
+            document.getElementById('modal-preview-new-symbol').textContent = '(' + data.symbol + ')';
+            document.getElementById('modal-preview-new-exchange').textContent = data.exchange;
+            document.getElementById('modal-preview-new-currency').textContent = data.currency;
+            document.getElementById('modal-preview-new-price').textContent = data.latest_price + ' ' + data.currency;
+            showPanel('new');
+            createBtn.textContent = 'Create & Map';
+        }
+    }
+
+    // Accept correction button (in the corrected panel)
+    document.getElementById('modal-accept-correction-symbol').addEventListener('click', function() {
+        var corrected = this.textContent.trim();
+        mdsInput.value = corrected;
+        internalInput.value = corrected;
+        // Re-fetch preview with corrected symbol to show as existing/new
+        fetchModalPreview(corrected);
+    });
+
+    // Create & Map button
+    createBtn.addEventListener('click', function() {
+        var internal = internalInput.value.trim();
+        var marketData = mdsInput.value.trim();
 
         if (!internal || !marketData) {
             alert('Both fields are required');
@@ -222,48 +368,76 @@
         btn.disabled = true;
         btn.textContent = 'Creating...';
 
-        fetch('/api/transactions/import/ibkr/symbols', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                internal_symbol: internal,
-                market_data_symbol: marketData
+        // Check if symbol already exists — if so, just add broker mapping
+        if (existingSymbols.has(internal)) {
+            // Symbol exists, just add broker mapping
+            fetch('/api/transactions/import/ibkr/broker-symbols', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    broker_name: 'IBKR',
+                    broker_symbol: currentBrokerSymbol,
+                    internal_symbol: internal
+                })
             })
-        })
-        .then(function(response) {
-            if (response.ok || response.status === 409) {
-                // Add broker symbol mapping
-                return fetch('/api/transactions/import/ibkr/broker-symbols', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        broker_name: 'IBKR',
-                        broker_symbol: document.getElementById('modal-ref').textContent,
-                        internal_symbol: internal
-                    })
-                });
-            } else {
-                return response.json().then(function(err) {
-                    throw new Error(err.error || 'Failed to create symbol');
-                });
-            }
-        })
-        .then(function(response) {
-            if (!response.ok) {
-                return response.json().then(function(err) {
-                    throw new Error(err.error || 'Failed to add broker mapping');
-                });
-            }
-            // Re-submit preview to refresh
-            document.getElementById('confirm-form').submit();
-        })
-        .catch(function(err) {
-            alert(err.message);
-        })
-        .finally(function() {
-            btn.disabled = false;
-            btn.textContent = 'Create Symbol';
-        });
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(err) {
+                        throw new Error(err.error || 'Failed to add broker mapping');
+                    });
+                }
+                document.getElementById('preview-resubmit-form').submit();
+            })
+            .catch(function(err) {
+                alert(err.message);
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.textContent = 'Map';
+            });
+        } else {
+            // Create new symbol, then add broker mapping
+            fetch('/api/transactions/import/ibkr/symbols', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    internal_symbol: internal,
+                    market_data_symbol: marketData
+                })
+            })
+            .then(function(response) {
+                if (response.ok || response.status === 409) {
+                    return fetch('/api/transactions/import/ibkr/broker-symbols', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            broker_name: 'IBKR',
+                            broker_symbol: currentBrokerSymbol,
+                            internal_symbol: internal
+                        })
+                    });
+                } else {
+                    return response.json().then(function(err) {
+                        throw new Error(err.error || 'Failed to create symbol');
+                    });
+                }
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(err) {
+                        throw new Error(err.error || 'Failed to add broker mapping');
+                    });
+                }
+                document.getElementById('preview-resubmit-form').submit();
+            })
+            .catch(function(err) {
+                alert(err.message);
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.textContent = 'Create & Map';
+            });
+        }
     });
 })();
 </script>
