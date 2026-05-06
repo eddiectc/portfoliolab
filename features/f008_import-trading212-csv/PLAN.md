@@ -166,37 +166,37 @@ Tasks 0–5 are sequential. Task 0 is a small refactoring of existing IBKR code.
 
 **Description:** Create API handlers for the Trading 212 import workflow: upload CSV → get preview → confirm import. Also handles inline symbol creation and broker symbol mapping. Routes are under `/api/transactions/import/trading212/`.
 
-- [ ] Create `internal/api/handlers/trading212_import.go`:
-  - [ ] `Trading212ImportHandler` struct with dependencies (import service, symbol service, max file size)
-  - [ ] Import `ImportService` from `brokerimport` and `SymbolService` from `import_service.go` (shared interfaces from Task 0)
-  - [ ] `HandlePreview(w, r)` — POST `/api/transactions/import/trading212/preview`:
-    - [ ] Parse multipart form with CSV file and account_id
-    - [ ] Call import service Preview
-    - [ ] Return JSON preview response
-    - [ ] Handle errors: invalid CSV → 400, account not found → 404
-  - [ ] `HandleConfirm(w, r)` — POST `/api/transactions/import/trading212/confirm`:
-    - [ ] Parse multipart form with CSV file and account_id
-    - [ ] Call import service ConfirmImport
-    - [ ] Return JSON import result summary
-    - [ ] Handle errors: account not found → 404, creation failure → 500
-  - [ ] `HandleCreateSymbol(w, r)` — POST `/api/transactions/import/trading212/symbols`:
-    - [ ] Accept JSON body with internal_symbol and market_data_symbol
-    - [ ] Call symbol service Create
-    - [ ] Return created symbol mapping
-  - [ ] `HandleAddBrokerSymbol(w, r)` — POST `/api/transactions/import/trading212/broker-symbols`:
-    - [ ] Accept JSON body with broker_name, broker_symbol, internal_symbol
-    - [ ] Add broker symbol via import service
-    - [ ] Return success
-  - [ ] `RegisterRoutes(r)` — mount routes on chi.Mux
-  - [ ] Helper: `readCSVFile(r *http.Request) ([]byte, error)` — reads CSV file from multipart form
-- [ ] Write unit tests for handlers:
-  - [ ] Preview with valid CSV → 200 with preview data
-  - [ ] Preview with invalid CSV → 400
-  - [ ] Preview with missing account → 404
-  - [ ] Confirm with valid CSV → 200 with result
-  - [ ] Confirm with all duplicates → 200 with zero created
-  - [ ] Create symbol → 201
-  - [ ] Add broker symbol → 200
+- [x] Create `internal/api/handlers/trading212_import.go`:
+  - [x] `Trading212ImportHandler` struct with dependencies (import service, symbol service, max file size)
+  - [x] Import `ImportService` from `brokerimport` and `SymbolService` from `import_service.go` (shared interfaces from Task 0)
+  - [x] `HandlePreview(w, r)` — POST `/api/transactions/import/trading212/preview`:
+    - [x] Parse multipart form with CSV file and account_id
+    - [x] Call import service Preview
+    - [x] Return JSON preview response
+    - [x] Handle errors: invalid CSV → 400, account not found → 404
+  - [x] `HandleConfirm(w, r)` — POST `/api/transactions/import/trading212/confirm`:
+    - [x] Parse multipart form with CSV file and account_id
+    - [x] Call import service ConfirmImport
+    - [x] Return JSON import result summary
+    - [x] Handle errors: account not found → 404, creation failure → 500
+  - [x] `HandleCreateSymbol(w, r)` — POST `/api/transactions/import/trading212/symbols`:
+    - [x] Accept JSON body with internal_symbol and market_data_symbol
+    - [x] Call symbol service Create
+    - [x] Return created symbol mapping
+  - [x] `HandleAddBrokerSymbol(w, r)` — POST `/api/transactions/import/trading212/broker-symbols`:
+    - [x] Accept JSON body with broker_name, broker_symbol, internal_symbol
+    - [x] Add broker symbol via import service
+    - [x] Return success
+  - [x] `RegisterRoutes(r)` — mount routes on chi.Mux
+  - [x] Helper: `readCSVFile(r *http.Request) ([]byte, error)` — reads CSV file from multipart form
+- [x] Write unit tests for handlers:
+  - [x] Preview with valid CSV → 200 with preview data
+  - [x] Preview with invalid CSV → 400
+  - [x] Preview with missing account → 404
+  - [x] Confirm with valid CSV → 200 with result
+  - [x] Confirm with all duplicates → 200 with zero created
+  - [x] Create symbol → 201
+  - [x] Add broker symbol → 200
 
 **Verification:** `go test ./internal/api/handlers/... -run Trading212` passes.
 
