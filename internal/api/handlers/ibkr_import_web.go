@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/brokerimport"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/ibkrimport"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
@@ -51,7 +52,7 @@ type importPageData struct {
 // previewPageData holds data for the preview page.
 type previewPageData struct {
 	web.PageData
-	Preview         *ibkrimport.PreviewResponse
+	Preview         *brokerimport.PreviewResponse
 	XMLData         string   // base64-encoded XML for re-submission
 	AccountID       string   // pre-selected account
 	ExistingSymbols []string // internal symbols already in the system
@@ -263,5 +264,3 @@ func (h *ImportWebHandler) getExistingSymbols(ctx context.Context) []string {
 	}
 	return symbols
 }
-
-

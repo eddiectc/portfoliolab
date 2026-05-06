@@ -32,30 +32,30 @@ Tasks 0–5 are sequential. Task 0 is a small refactoring of existing IBKR code.
 
 **Description:** Extract the broker-agnostic DTO types and handler interfaces from the IBKR-specific packages into neutral locations. This enables both IBKR and Trading 212 import handlers to share the same contracts without cross-package coupling.
 
-- [ ] Create `internal/domain/brokerimport/types.go`:
-  - [ ] Move `PreviewResponse`, `PreviewTransaction`, `SkippedTransaction`, `ErroredTransaction`, `ImportResult` from `internal/domain/ibkrimport/models.go` to `brokerimport/types.go`
-  - [ ] Keep the same field definitions, json tags, and comments
-- [ ] Create `internal/domain/brokerimport/interfaces.go`:
-  - [ ] Move `ImportService` interface from `internal/api/handlers/ibkr_import.go` to `brokerimport/interfaces.go`
-  - [ ] Update method signatures to use `brokerimport.PreviewResponse` and `brokerimport.ImportResult`
-  - [ ] Also move the domain-level interfaces (`SymbolResolver`, `DuplicateChecker`, `TransactionCreator`, `AccountChecker`, `SymbolCreator`, `BrokerSymbolAdder`) — these are already broker-agnostic and used by both import services
-- [ ] Create `internal/api/handlers/import_service.go`:
-  - [ ] Move `SymbolService` interface from `internal/api/handlers/ibkr_import.go` to `import_service.go`
-  - [ ] This is a handler-layer concern that both IBKR and Trading 212 handlers need
-- [ ] Update `internal/domain/ibkrimport/models.go`:
-  - [ ] Remove type definitions (now in `brokerimport`)
-  - [ ] Add type aliases: `PreviewResponse = brokerimport.PreviewResponse`, etc. (for backward compatibility within the package)
-- [ ] Update `internal/domain/ibkrimport/service.go`:
-  - [ ] Remove interface definitions (now in `brokerimport`)
-  - [ ] Import from `brokerimport` for types and interfaces
-  - [ ] Update `Preview` and `ConfirmImport` return types to use `brokerimport` types
-- [ ] Update `internal/api/handlers/ibkr_import.go`:
-  - [ ] Remove `ImportService` and `SymbolService` interface definitions
-  - [ ] Import `ImportService` from `brokerimport`
-  - [ ] Import `SymbolService` from handlers package (`import_service.go`)
-- [ ] Update `internal/api/handlers/ibkr_import_web.go`:
-  - [ ] Update imports to use `brokerimport` types and shared interfaces
-- [ ] Run `go build ./...` and `go test ./...` — ensure no regressions
+- [x] Create `internal/domain/brokerimport/types.go`:
+  - [x] Move `PreviewResponse`, `PreviewTransaction`, `SkippedTransaction`, `ErroredTransaction`, `ImportResult` from `internal/domain/ibkrimport/models.go` to `brokerimport/types.go`
+  - [x] Keep the same field definitions, json tags, and comments
+- [x] Create `internal/domain/brokerimport/interfaces.go`:
+  - [x] Move `ImportService` interface from `internal/api/handlers/ibkr_import.go` to `brokerimport/interfaces.go`
+  - [x] Update method signatures to use `brokerimport.PreviewResponse` and `brokerimport.ImportResult`
+  - [x] Also move the domain-level interfaces (`SymbolResolver`, `DuplicateChecker`, `TransactionCreator`, `AccountChecker`, `SymbolCreator`, `BrokerSymbolAdder`) — these are already broker-agnostic and used by both import services
+- [x] Create `internal/api/handlers/import_service.go`:
+  - [x] Move `SymbolService` interface from `internal/api/handlers/ibkr_import.go` to `import_service.go`
+  - [x] This is a handler-layer concern that both IBKR and Trading 212 handlers need
+- [x] Update `internal/domain/ibkrimport/models.go`:
+  - [x] Remove type definitions (now in `brokerimport`)
+  - [x] Add type aliases: `PreviewResponse = brokerimport.PreviewResponse`, etc. (for backward compatibility within the package)
+- [x] Update `internal/domain/ibkrimport/service.go`:
+  - [x] Remove interface definitions (now in `brokerimport`)
+  - [x] Import from `brokerimport` for types and interfaces
+  - [x] Update `Preview` and `ConfirmImport` return types to use `brokerimport` types
+- [x] Update `internal/api/handlers/ibkr_import.go`:
+  - [x] Remove `ImportService` and `SymbolService` interface definitions
+  - [x] Import `ImportService` from `brokerimport`
+  - [x] Import `SymbolService` from handlers package (`import_service.go`)
+- [x] Update `internal/api/handlers/ibkr_import_web.go`:
+  - [x] Update imports to use `brokerimport` types and shared interfaces
+- [x] Run `go build ./...` and `go test ./...` — ensure no regressions
 
 **Verification:** `go build ./...` succeeds. All existing tests pass (`go test ./...`). No behavioral changes to IBKR import.
 

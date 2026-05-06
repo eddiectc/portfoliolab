@@ -11,20 +11,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/brokerimport"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/ibkrimport"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
 )
 
 // ImportService defines the import operations needed by the HTTP handler.
 type ImportService interface {
-	Preview(ctx context.Context, xmlData []byte, accountID int64) (*ibkrimport.PreviewResponse, error)
-	ConfirmImport(ctx context.Context, xmlData []byte, accountID int64) (*ibkrimport.ImportResult, error)
+	Preview(ctx context.Context, data []byte, accountID int64) (*brokerimport.PreviewResponse, error)
+	ConfirmImport(ctx context.Context, data []byte, accountID int64) (*brokerimport.ImportResult, error)
 	AddBrokerSymbolMapping(ctx context.Context, brokerName, brokerSymbol, internalSymbol string) error
-}
-
-// SymbolService defines the symbol operations needed by the HTTP handler.
-type SymbolService interface {
-	Create(ctx context.Context, req symbolmapping.CreateRequest) (*symbolmapping.SymbolMapping, error)
 }
 
 // ImportHandler handles HTTP requests for IBKR Flex XML import.
