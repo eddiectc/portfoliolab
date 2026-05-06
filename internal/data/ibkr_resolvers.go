@@ -19,12 +19,12 @@ func NewSymbolResolver(repo *SymbolMappingRepository) *SymbolResolverImpl {
 
 // ResolveBrokerSymbol looks up a broker symbol for a given broker name
 // and returns the associated internal symbol. Returns empty string if not found.
-func (r *SymbolResolverImpl) ResolveBrokerSymbol(brokerName, brokerSymbol string) string {
-	bs, err := r.repo.GetBrokerSymbolByBroker(context.Background(), brokerName, brokerSymbol)
+func (r *SymbolResolverImpl) ResolveBrokerSymbol(ctx context.Context, brokerName, brokerSymbol string) string {
+	bs, err := r.repo.GetBrokerSymbolByBroker(ctx, brokerName, brokerSymbol)
 	if err != nil {
 		return ""
 	}
-	sm, err := r.repo.GetByID(context.Background(), bs.SymbolID)
+	sm, err := r.repo.GetByID(ctx, bs.SymbolID)
 	if err != nil {
 		return ""
 	}
@@ -32,8 +32,8 @@ func (r *SymbolResolverImpl) ResolveBrokerSymbol(brokerName, brokerSymbol string
 }
 
 // SymbolExists checks if an internal symbol exists in the symbol map.
-func (r *SymbolResolverImpl) SymbolExists(symbol string) bool {
-	_, err := r.repo.GetByInternalSymbol(context.Background(), symbol)
+func (r *SymbolResolverImpl) SymbolExists(ctx context.Context, symbol string) bool {
+	_, err := r.repo.GetByInternalSymbol(ctx, symbol)
 	return err == nil
 }
 

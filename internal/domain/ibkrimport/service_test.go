@@ -34,11 +34,11 @@ func (m *mockSymbolResolver) addBrokerSymbol(brokerName, brokerSymbol, internalS
 	m.brokerSymbols[brokerName+"|"+brokerSymbol] = internalSymbol
 }
 
-func (m *mockSymbolResolver) ResolveBrokerSymbol(brokerName, brokerSymbol string) string {
+func (m *mockSymbolResolver) ResolveBrokerSymbol(_ context.Context, brokerName, brokerSymbol string) string {
 	return m.brokerSymbols[brokerName+"|"+brokerSymbol]
 }
 
-func (m *mockSymbolResolver) SymbolExists(symbol string) bool {
+func (m *mockSymbolResolver) SymbolExists(_ context.Context, symbol string) bool {
 	return m.symbols[symbol]
 }
 
