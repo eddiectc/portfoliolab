@@ -220,17 +220,17 @@ Tasks 1 and 2 are independent and can be done in parallel. Task 3 depends on bot
 
 **Description:** Wire the import handlers into the application router and add an "Import" dropdown to the Transactions page header (next to "Add Transaction" button), structured to support multiple brokers.
 
-- [ ] Update `internal/api/router.go`:
-  - [ ] Create import service instance with dependencies
-  - [ ] Create `ImportHandler` and register API routes
-  - [ ] Create `ImportWebHandler` and register web routes (inside the renderer block)
-- [ ] Update `templates/transaction/list.html`:
-  - [ ] Add an "Import" dropdown next to "Add Transaction" in the page header, with "IBKR Flex XML" link to `/transactions/import/ibkr` (structured for future broker additions)
-- [ ] Verify the full flow end-to-end:
-  - [ ] Navigate to /transactions, click Import → IBKR Flex XML
-  - [ ] Upload sample XML, see preview
-  - [ ] Confirm import, see result
-  - [ ] Verify transactions appear in /transactions list
+- [x] Update `internal/api/router.go`:
+  - [x] Create import service instance with dependencies
+  - [x] Create `ImportHandler` and register API routes
+  - [x] Create `ImportWebHandler` and register web routes (inside the renderer block)
+- [x] Update `templates/transaction/list.html`:
+  - [x] Add an "Import" dropdown next to "Add Transaction" in the page header, with "IBKR Flex XML" link to `/transactions/import/ibkr` (structured for future broker additions)
+- [x] Verify the full flow end-to-end:
+  - [x] Navigate to /transactions, click Import → IBKR Flex XML
+  - [x] Upload sample XML, see preview
+  - [x] Confirm import, see result
+  - [x] Verify transactions appear in /transactions list
 
 **Verification:** Server starts without errors. Full import flow works end-to-end with sample XML.
 
