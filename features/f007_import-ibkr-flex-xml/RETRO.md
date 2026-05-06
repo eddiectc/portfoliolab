@@ -86,10 +86,13 @@
 
 - **Partial unique indexes in SQLite** are a powerful pattern — the `WHERE external_system IS NOT NULL AND external_reference IS NOT NULL` clause allows NULL rows for manual transactions while enforcing uniqueness for imports.
 
+- **Composite references need matching duplicate checks** — When a source record generates multiple target transactions with composite external references (e.g., `txnID_fx_withdrawal`), the duplicate check must look for those composites, not the raw source ID. Integration tests caught this bug that unit tests missed.
+
 ## Action Items
 
 - [x] Remove dead code: empty `if` block in `buildTransferTxn` and unused `ImportRequest` model
 - [x] Add `context.Context` parameter to `SymbolResolver` interface for consistency (propagated through `resolveSymbol`, `processTrade`, `processCashTransaction`, and `SymbolResolverImpl`)
 - [x] Update `features/README.md` to mark f007 as "done"
-- [ ] Add an integration test for the IBKR import flow using in-memory SQLite with real schema (follow `tests/integration/` pattern)
+- [x] Add integration tests for IBKR import flow (15 tests in `tests/integration/ibkr_import_test.go`)
+- [x] Fix FX trade duplicate detection to check composite references (`txnID_fx_withdrawal` / `txnID_fx_deposit`)
 - [ ] Consider a server-side temp file or session token for the confirm flow instead of base64-encoded XML in a hidden form field (for large files)
