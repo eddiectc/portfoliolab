@@ -128,7 +128,18 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 			continue
 		}
 		// Check duplicate
-		if s.dupCheck.ExternalReferenceExists(ctx, externalSystem, trade.TransactionID) {
+		// For FX trades, check composite references (fx_withdrawal / fx_deposit)
+		// For other trades, check the raw transaction ID
+		isDuplicate := false
+		if typ == "fx" {
+			withdrawalRef := trade.TransactionID + "_fx_withdrawal"
+			depositRef := trade.TransactionID + "_fx_deposit"
+			isDuplicate = s.dupCheck.ExternalReferenceExists(ctx, externalSystem, withdrawalRef) ||
+				s.dupCheck.ExternalReferenceExists(ctx, externalSystem, depositRef)
+		} else {
+			isDuplicate = s.dupCheck.ExternalReferenceExists(ctx, externalSystem, trade.TransactionID)
+		}
+		if isDuplicate {
 			skipped = append(skipped, SkippedTransaction{
 				ExternalReference: trade.TransactionID,
 				Reason:            "duplicate — already imported",
@@ -350,7 +361,11 @@ func (s *Service) processTrade(ctx context.Context, trade Trade) (string, tradeR
 func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int64, now time.Time, extSys *string) (string, tradeResult, bool, error) {
 	// FX trade (assetCategory=CASH) — handled before instrument check
 	if trade.AssetCategory == "CASH" {
-		if s.dupCheck.ExternalReferenceExists(ctx, *extSys, trade.TransactionID) {
+		// Check composite references for FX trades
+		withdrawalRef := trade.TransactionID + "_fx_withdrawal"
+		depositRef := trade.TransactionID + "_fx_deposit"
+		if s.dupCheck.ExternalReferenceExists(ctx, *extSys, withdrawalRef) ||
+			s.dupCheck.ExternalReferenceExists(ctx, *extSys, depositRef) {
 			return "", tradeResult{}, true, nil
 		}
 		txns := s.buildFXTxns(trade, accountID, now, extSys)

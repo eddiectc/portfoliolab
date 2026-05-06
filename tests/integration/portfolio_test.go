@@ -90,6 +90,9 @@ func setupTestDB(t *testing.T) *sql.DB {
 		CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date DESC);
 		CREATE INDEX IF NOT EXISTS idx_transactions_symbol ON transactions(symbol);
 		CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_external_ref
+			ON transactions(external_system, external_reference)
+			WHERE external_system IS NOT NULL AND external_reference IS NOT NULL;
 
 		CREATE TABLE IF NOT EXISTS goose_db_version (
 			id INTEGER PRIMARY KEY,
@@ -97,7 +100,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			is_applied INTEGER NOT NULL DEFAULT 1,
 			tstamp TIMESTAMP DEFAULT (datetime('now'))
 		);
-		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (4, 1);
+		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (6, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)
