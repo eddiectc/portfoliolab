@@ -1,0 +1,164 @@
+
+pub fn process_t212(path: &std::path::PathBuf, symbol_map: &mut SymbolMap) -> Result<Vec<Transaction>, Box<dyn Error>> {
+    let mut reader = csv::ReaderBuilder::new()
+        .flexible(true)
+        .from_path(path)
+        .unwrap_or_else(|_| panic!("Fail to read {}", path.display()));
+
+    let mut records = Vec::new();
+
+    for result in reader.deserialize() {
+        if let Err(err) = result {
+            log::warn!("Error parsing csv {}", err);
+            continue;
+        }
+
+        let record: Record = result?;
+
+        let recs = match record.action.clone() {
+            T212Action::LimitBuy        => process_trade(record, Action::Buy, symbol_map),
+            T212Action::MarketBuy       => process_trade(record, Action::Buy, symbol_map),
+            T212Action::LimitSell       => process_trade(record, Action::Sell, symbol_map),
+            T212Action::MarketSell      => process_trade(record, Action::Sell, symbol_map),
+            T212Action::Interest        => process_cash(record, Action::Interest),
+            T212Action::Deposit         => process_cash(record, Action::Deposit),
+            T212Action::Withdrawal      => process_cash(record, Action::Withdrawal),
+            T212Action::Unknown         => continue,
+        };
+
+        records.extend(recs);
+    }
+
+    Ok(records)
+}
+
+fn process_trade(record: Record, t_type: Action, symbol_map: &mut SymbolMap) -> Vec<Transaction> {
+    let mut records = Vec::new();
+
+    let ticker = record.ticker.clone().unwrap_or_default();
+    if ticker.is_empty() {
+        return records;
+    }
+    let symbol = match symbol_map.resolve(&ticker, "LSE") {
+        Some(s) => s,
+        None    => return records,
+    };
+    let exchange = Some(Exchange::LSE);
+    let raw_ccy = record.currency.clone().unwrap_or_default();
+
+    records.push(Transaction{
+        account: "".into(),
+        id: "t212-".to_owned() + &record.id.clone(),
+        lot_id: record.id.clone(),
+        action: t_type.clone(),
+        date: record.time.date(),
+        symbol,
+        description: Some(record.name.unwrap_or(record.notes.unwrap_or_default())),
+        isin: record.isin,
+        exchange,
+        currency: if raw_ccy == "GBX" { "GBP".into() } else { raw_ccy.clone() },
+        quantity: record.quantity.unwrap_or_default(),
+        price: if raw_ccy == "GBX" { record.price.unwrap_or_default() / dec!(100) } else { record.price.unwrap_or_default() },
+        net_cash: if t_type == Action::Sell { record.total } else { record.total * dec!(-1) },
+    });
+
+    records
+}
+
+fn process_cash(record: Record, t_type: Action) -> Vec<Transaction> {
+    let mut records = Vec::new();
+
+    let raw_ccy = record.currency_total.clone().unwrap_or_default();
+
+    records.push(Transaction{
+        account: "".into(),
+        id: "t212-".to_owned() + &record.id.clone(),
+        lot_id: record.id.clone(),
+        action: t_type.clone(),
+        date: record.time.date(),
+        symbol: "$CASH-".to_owned() + &record.currency_total.unwrap_or_default(),
+        description: Some(record.name.unwrap_or(record.notes.unwrap_or_default())),
+        isin: record.isin,
+        exchange: None,
+        currency: if raw_ccy == "GBX" { "GBP".into() } else { raw_ccy.clone() },
+        quantity: record.total,
+        price: dec!(1),
+        net_cash: if t_type == Action::Withdrawal { record.total * dec!(-1) } else { record.total },
+    });
+
+    records
+}
+
+
+
+/// Trading212 csv format
+#[derive(Debug, Deserialize, PartialEq)]
+struct Record {
+    #[serde(rename = "Action")]
+    action: T212Action,
+
+    #[serde(rename = "Time", with = "trading212_date_format")]
+    time: NaiveDateTime,
+
+    #[serde(rename = "ISIN", default)]
+    isin: Option<String>,
+
+    #[serde(rename = "Ticker", default)]
+    ticker: Option<String>,
+
+    #[serde(rename = "Name", default)]
+    name: Option<String>,
+
+    #[serde(rename = "Notes", default)]
+    notes: Option<String>,
+
+    #[serde(rename = "ID", default)]
+    id: String,
+
+    // signed
+    #[serde(rename = "No. of shares")]
+    quantity: Option<Decimal>,
+
+    #[serde(rename = "Price / share")]
+    price: Option<Decimal>,
+
+    #[serde(rename = "Currency (Price / share)")]
+    currency: Option<String>,
+
+    #[serde(rename = "Exchange rate")]
+    exchange_rate: Option<Decimal>,
+
+    // no sign
+    #[serde(rename = "Total")]
+    total: Decimal,
+
+    #[serde(rename = "Currency (Total)")]
+    currency_total: Option<String>,
+}
+
+
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+enum T212Action {
+    #[serde(rename = "Limit buy")]
+    LimitBuy,
+
+    #[serde(rename = "Market buy")]
+    MarketBuy,
+
+    #[serde(rename = "Limit sell")]
+    LimitSell,
+
+    #[serde(rename = "Market sell")]
+    MarketSell,
+
+    #[serde(rename = "Deposit")]
+    Deposit,
+    Withdrawal,
+
+    #[serde(rename = "Interest on cash")]
+    Interest,
+    #[serde(other)]
+    Unknown,
+}
+
+
