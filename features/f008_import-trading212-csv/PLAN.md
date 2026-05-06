@@ -67,33 +67,33 @@ Tasks 0–5 are sequential. Task 0 is a small refactoring of existing IBKR code.
 
 **Description:** Create a pure Go CSV parser that reads Trading 212 CSV exports and extracts structured records. Uses `encoding/csv` (stdlib). Returns a `ParsedReport` with all rows and a `ParsedRow` struct per record. The parser handles GBX→GBP price conversion at the parsing layer.
 
-- [ ] Define `internal/domain/trading212import/parser.go` with:
-  - [ ] `ParsedRow` struct with fields: Action, Date (parsed from Time), Ticker, Name, ID, Quantity, Price (already converted from GBX if needed), Currency (already converted to GBP if needed), Total, TotalCurrency
-  - [ ] `ParsedReport` struct containing `[]ParsedRow` slice
-  - [ ] Action constants: `LimitBuy`, `MarketBuy`, `LimitSell`, `MarketSell`, `Deposit`, `Withdrawal`, `InterestOnCash`, `Unknown`
-- [ ] Implement `ParseCSV(data []byte) (*ParsedReport, error)`:
-  - [ ] Use `encoding/csv.Reader` with standard settings
-  - [ ] Read header row and validate expected columns (Action, Time, Ticker, ID, No. of shares, Price / share, Currency (Price / share), Total, Currency (Total))
-  - [ ] For each data row: extract fields, parse date from "Time" column (format: `2006-01-02 15:04:05`), parse numeric fields
-  - [ ] GBX conversion: if `Currency (Price / share)` is "GBX", divide price by 100 and set currency to "GBP"
-  - [ ] Classify action into known types; unrecognized actions → `Unknown`
-  - [ ] Handle empty/missing fields gracefully (e.g., Ticker empty for deposits/withdrawals/interest)
-  - [ ] Return descriptive errors for malformed CSV, empty file, missing columns
-- [ ] Copy `trading212_sample.csv` to `internal/domain/trading212import/testdata/trading212_sample.csv` as test fixture
-- [ ] Write unit tests using the sample CSV:
-  - [ ] Parse all 15 rows — correct count
-  - [ ] Verify Deposit row: action=Deposit, no ticker, total=5000.00, currency=GBP
-  - [ ] Verify Limit buy row (AAPL): ticker=AAPL, quantity=10, price=150.00 (converted from 15000 GBX), currency=GBP
-  - [ ] Verify Market buy row (MSFT): ticker=MSFT, quantity=5, price=380.00 (converted from 38000 GBX), currency=GBP
-  - [ ] Verify Interest on cash row: action=InterestOnCash, no ticker, total=0.68, currency=GBP
-  - [ ] Verify Limit sell row (AAPL): ticker=AAPL, quantity=5, price=155.00 (converted from 15500 GBX), currency=GBP
-  - [ ] Verify Market sell row (MSFT): ticker=MSFT, quantity=2, price=390.00 (converted from 39000 GBX), currency=GBP
-  - [ ] Verify Withdrawal row: action=Withdrawal, no ticker, total=2000.00, currency=GBP
-  - [ ] Verify ETF rows (QGRP, DBMG): correct ticker, quantity, price conversion
-  - [ ] Reject empty CSV data
-  - [ ] Reject CSV with no header row
-  - [ ] Reject CSV with only header and no data rows
-  - [ ] Handle CSV with unexpected Action values (classified as Unknown)
+- [x] Define `internal/domain/trading212import/parser.go` with:
+  - [x] `ParsedRow` struct with fields: Action, Date (parsed from Time), Ticker, Name, ID, Quantity, Price (already converted from GBX if needed), Currency (already converted to GBP if needed), Total, TotalCurrency
+  - [x] `ParsedReport` struct containing `[]ParsedRow` slice
+  - [x] Action constants: `LimitBuy`, `MarketBuy`, `LimitSell`, `MarketSell`, `Deposit`, `Withdrawal`, `InterestOnCash`, `Unknown`
+- [x] Implement `ParseCSV(data []byte) (*ParsedReport, error)`:
+  - [x] Use `encoding/csv.Reader` with standard settings
+  - [x] Read header row and validate expected columns (Action, Time, Ticker, ID, No. of shares, Price / share, Currency (Price / share), Total, Currency (Total))
+  - [x] For each data row: extract fields, parse date from "Time" column (format: `2006-01-02 15:04:05`), parse numeric fields
+  - [x] GBX conversion: if `Currency (Price / share)` is "GBX", divide price by 100 and set currency to "GBP"
+  - [x] Classify action into known types; unrecognized actions → `Unknown`
+  - [x] Handle empty/missing fields gracefully (e.g., Ticker empty for deposits/withdrawals/interest)
+  - [x] Return descriptive errors for malformed CSV, empty file, missing columns
+- [x] Copy `trading212_sample.csv` to `internal/domain/trading212import/testdata/trading212_sample.csv` as test fixture
+- [x] Write unit tests using the sample CSV:
+  - [x] Parse all 15 rows — correct count
+  - [x] Verify Deposit row: action=Deposit, no ticker, total=5000.00, currency=GBP
+  - [x] Verify Limit buy row (AAPL): ticker=AAPL, quantity=10, price=150.00 (converted from 15000 GBX), currency=GBP
+  - [x] Verify Market buy row (MSFT): ticker=MSFT, quantity=5, price=380.00 (converted from 38000 GBX), currency=GBP
+  - [x] Verify Interest on cash row: action=InterestOnCash, no ticker, total=0.68, currency=GBP
+  - [x] Verify Limit sell row (AAPL): ticker=AAPL, quantity=5, price=155.00 (converted from 15500 GBX), currency=GBP
+  - [x] Verify Market sell row (MSFT): ticker=MSFT, quantity=2, price=390.00 (converted from 39000 GBX), currency=GBP
+  - [x] Verify Withdrawal row: action=Withdrawal, no ticker, total=2000.00, currency=GBP
+  - [x] Verify ETF rows (QGRP, DBMG): correct ticker, quantity, price conversion
+  - [x] Reject empty CSV data
+  - [x] Reject CSV with no header row
+  - [x] Reject CSV with only header and no data rows
+  - [x] Handle CSV with unexpected Action values (classified as Unknown)
 
 **Verification:** `go test ./internal/domain/trading212import/... -run Parser` passes. Parser correctly extracts all 15 records from the sample CSV with GBX→GBP conversion.
 
@@ -105,56 +105,56 @@ Tasks 0–5 are sequential. Task 0 is a small refactoring of existing IBKR code.
 
 **Description:** Create the import domain service that orchestrates preview generation (symbol resolution, duplicate detection, classification, net cash calculation) and transactional import. Reuses existing interfaces from f007 (SymbolResolver, DuplicateChecker, TransactionCreator, AccountChecker, SymbolCreator, BrokerSymbolAdder).
 
-- [ ] Define `internal/domain/trading212import/models.go` with:
-  - [ ] Type aliases importing from `brokerimport`: `PreviewResponse`, `PreviewTransaction`, `SkippedTransaction`, `ErroredTransaction`, `ImportResult` (shared types from Task 0)
-- [ ] Define service interfaces (reusing from `brokerimport/interfaces.go` via Task 0):
-  - [ ] `SymbolResolver`, `DuplicateChecker`, `TransactionCreator`, `AccountChecker`, `SymbolCreator`, `BrokerSymbolAdder` — all defined in `brokerimport`
-- [ ] Define service errors: `ErrAccountNotFound`, `ErrInvalidCSV`, `ErrNoImportableTransactions`
-- [ ] Implement `Service` struct with dependencies injected via constructor `NewService(...)`
-- [ ] Implement `Preview(ctx, csvData []byte, accountID int64) (*PreviewResponse, error)`:
-  - [ ] Check account exists
-  - [ ] Parse CSV using parser from Task 1
-  - [ ] For each row:
-    - [ ] Classify by action type (buy/sell/deposit/withdrawal/interest/unknown)
-    - [ ] Unknown actions → skipped with reason "unsupported action type"
-    - [ ] For trades (buy/sell): resolve symbol via broker symbol map (broker name = "Trading212"), skip if unmapped with brokerSymbol populated
-    - [ ] For cash transactions (deposit/withdrawal/interest): use `$CASH-{currency}` symbol
-    - [ ] Check duplicate via `ExternalReferenceExists(ctx, "Trading212", row.ID)`
-    - [ ] Calculate net cash: buys → negative total, sells → positive total, deposits/interest → positive total, withdrawals → negative total
-    - [ ] Build preview entry with all display fields
-  - [ ] Return categorized results (importable, skipped, errored)
-  - [ ] Ensure empty slices (not nil) for JSON serialization consistency
-- [ ] Implement `ConfirmImport(ctx, csvData []byte, accountID int64) (*ImportResult, error)`:
-  - [ ] Check account exists
-  - [ ] Parse CSV again (stateless — no server-side session)
-  - [ ] Re-resolve symbols and re-check duplicates
-  - [ ] Build `*transaction.Transaction` for each importable row:
-    - [ ] Set `ExternalSystem = "Trading212"` and `ExternalReference = row.ID`
-    - [ ] Set correct date, type, symbol, quantity, price, currency, netCash
-    - [ ] For trades: quantity positive, price from parser (already GBX→GBP converted)
-    - [ ] For cash: quantity = total amount, price = 1
-  - [ ] Create all transactions within a single SQLite transaction via `BatchCreate`
-  - [ ] If any creation fails, rollback — none committed
-  - [ ] Return summary of created/skipped counts
-- [ ] Implement `CreateSymbol(ctx, internalSymbol, marketDataSymbol string) error` — delegates to symbol creator
-- [ ] Implement `AddBrokerSymbolMapping(ctx, brokerName, brokerSymbol, internalSymbol string) error` — delegates to broker symbol adder
-- [ ] Write comprehensive unit tests (following IBKR service_test.go pattern with hand-written mocks):
-  - [ ] Mocks: `mockSymbolResolver`, `mockDuplicateChecker`, `mockTransactionCreator`, `mockAccountChecker`, `mockSymbolCreator`, `mockBrokerSymbolAdder`
-  - [ ] Preview with sample CSV — correct counts for importable/skipped/errored
-  - [ ] Preview with all duplicates — all skipped with "duplicate" reason
-  - [ ] Preview with unmapped symbols — skipped with "unmapped symbol" reason and BrokerSymbol populated
-  - [ ] Preview with unsupported action types — skipped with "unsupported action type" reason
-  - [ ] Preview net cash calculation: buy → negative, sell → positive, deposit → positive, withdrawal → negative, interest → positive
-  - [ ] Preview GBX price conversion already applied (parser handles it)
-  - [ ] Confirm import creates transactions atomically
-  - [ ] Confirm import rolls back on BatchCreate failure
-  - [ ] Confirm import detects new duplicates (added between preview and confirm)
-  - [ ] Reject preview for invalid CSV
-  - [ ] Reject preview for non-existent account
-  - [ ] Reject confirm for non-existent account
-  - [ ] CreateSymbol delegates correctly
-  - [ ] AddBrokerSymbolMapping delegates correctly
-  - [ ] Empty CSV (header only) — zero importable, zero skipped
+- [x] Define `internal/domain/trading212import/models.go` with:
+  - [x] Type aliases importing from `brokerimport`: `PreviewResponse`, `PreviewTransaction`, `SkippedTransaction`, `ErroredTransaction`, `ImportResult` (shared types from Task 0)
+- [x] Define service interfaces (reusing from `brokerimport/interfaces.go` via Task 0):
+  - [x] `SymbolResolver`, `DuplicateChecker`, `TransactionCreator`, `AccountChecker`, `SymbolCreator`, `BrokerSymbolAdder` — all defined in `brokerimport`
+- [x] Define service errors: `ErrAccountNotFound`, `ErrInvalidCSV`, `ErrNoImportableTransactions`
+- [x] Implement `Service` struct with dependencies injected via constructor `NewService(...)`
+- [x] Implement `Preview(ctx, csvData []byte, accountID int64) (*PreviewResponse, error)`:
+  - [x] Check account exists
+  - [x] Parse CSV using parser from Task 1
+  - [x] For each row:
+    - [x] Classify by action type (buy/sell/deposit/withdrawal/interest/unknown)
+    - [x] Unknown actions → skipped with reason "unsupported action type"
+    - [x] For trades (buy/sell): resolve symbol via broker symbol map (broker name = "Trading212"), skip if unmapped with brokerSymbol populated
+    - [x] For cash transactions (deposit/withdrawal/interest): use `$CASH-{currency}` symbol
+    - [x] Check duplicate via `ExternalReferenceExists(ctx, "Trading212", row.ID)`
+    - [x] Calculate net cash: buys → negative total, sells → positive total, deposits/interest → positive total, withdrawals → negative total
+    - [x] Build preview entry with all display fields
+  - [x] Return categorized results (importable, skipped, errored)
+  - [x] Ensure empty slices (not nil) for JSON serialization consistency
+- [x] Implement `ConfirmImport(ctx, csvData []byte, accountID int64) (*ImportResult, error)`:
+  - [x] Check account exists
+  - [x] Parse CSV again (stateless — no server-side session)
+  - [x] Re-resolve symbols and re-check duplicates
+  - [x] Build `*transaction.Transaction` for each importable row:
+    - [x] Set `ExternalSystem = "Trading212"` and `ExternalReference = row.ID`
+    - [x] Set correct date, type, symbol, quantity, price, currency, netCash
+    - [x] For trades: quantity positive, price from parser (already GBX→GBP converted)
+    - [x] For cash: quantity = total amount, price = 1
+  - [x] Create all transactions within a single SQLite transaction via `BatchCreate`
+  - [x] If any creation fails, rollback — none committed
+  - [x] Return summary of created/skipped counts
+- [x] Implement `CreateSymbol(ctx, internalSymbol, marketDataSymbol string) error` — delegates to symbol creator
+- [x] Implement `AddBrokerSymbolMapping(ctx, brokerName, brokerSymbol, internalSymbol string) error` — delegates to broker symbol adder
+- [x] Write comprehensive unit tests (following IBKR service_test.go pattern with hand-written mocks):
+  - [x] Mocks: `mockSymbolResolver`, `mockDuplicateChecker`, `mockTransactionCreator`, `mockAccountChecker`, `mockSymbolCreator`, `mockBrokerSymbolAdder`
+  - [x] Preview with sample CSV — correct counts for importable/skipped/errored
+  - [x] Preview with all duplicates — all skipped with "duplicate" reason
+  - [x] Preview with unmapped symbols — skipped with "unmapped symbol" reason and BrokerSymbol populated
+  - [x] Preview with unsupported action types — skipped with "unsupported action type" reason
+  - [x] Preview net cash calculation: buy → negative, sell → positive, deposit → positive, withdrawal → negative, interest → positive
+  - [x] Preview GBX price conversion already applied (parser handles it)
+  - [x] Confirm import creates transactions atomically
+  - [x] Confirm import rolls back on BatchCreate failure
+  - [x] Confirm import detects new duplicates (added between preview and confirm)
+  - [x] Reject preview for invalid CSV
+  - [x] Reject preview for non-existent account
+  - [x] Reject confirm for non-existent account
+  - [x] CreateSymbol delegates correctly
+  - [x] AddBrokerSymbolMapping delegates correctly
+  - [x] Empty CSV (header only) — zero importable, zero skipped
 
 **Verification:** `go test ./internal/domain/trading212import/... -run Service` passes. All scenarios from the spec are covered by unit tests.
 
