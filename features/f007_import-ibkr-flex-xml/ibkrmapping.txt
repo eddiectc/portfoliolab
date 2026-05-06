@@ -1,0 +1,230 @@
+
+pub fn process_ibkr(path: &std::path::PathBuf, symbol_map: &mut SymbolMap) -> Result<Vec<Transaction>, Box<dyn Error>> {
+    let mut xml = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("Fail to read {}", path.display()));
+
+    xml = preprocess_ibkr(&xml)?;
+
+    let statement = ib_flex::parse_activity_flex(&xml)?;
+
+    let mut records = Vec::new();
+
+    for trade in &statement.trades.items {
+        let recs = match trade.asset_category {
+            ib_flex::AssetCategory::Cash    => process_ibkr_fx(trade)?,
+            _                               => process_ibkr_trade(trade, symbol_map)?,
+        };
+
+        records.extend(recs);
+    }
+
+    for cash in &statement.cash_transactions.items {
+        let recs = process_ibkr_cash(cash, symbol_map)?;
+        
+        records.extend(recs);
+    }
+
+    for transfer in &statement.transfers.items {
+        let recs = process_ibkr_transfer(transfer)?;
+        
+        records.extend(recs);
+    }
+
+    Ok(records)
+}
+
+// only cash transfer
+fn process_ibkr_transfer(transfer: &ib_flex::types::Transfer) -> Result<Vec<Transaction>, MappingError> {
+    let mut records = Vec::new();
+
+    if transfer.asset_category != Some(ib_flex::AssetCategory::Cash) {
+        return Err(MappingError{
+            id: transfer.transaction_id.clone().unwrap_or_default(),
+            field: "asset_category".into(),
+            value: format!("{:?}", transfer.asset_category),
+        });
+    }
+
+    let action= if transfer.cash_transfer.unwrap_or_default() > dec!(0) {
+        Action::Deposit
+    } else {
+        Action::Withdrawal
+    };
+
+    records.push(Transaction {
+        id: transfer.transaction_id.clone().unwrap_or_default(),
+        account: transfer.acct_alias.clone().unwrap_or(transfer.account_id.clone()),
+        action,
+        lot_id: "".into(),
+        date: transfer.date,
+        symbol: format!("$CASH-{}", transfer.currency.clone().unwrap_or_default()),
+        description: transfer.description.clone(),
+        isin: None,
+        exchange: None,
+        currency: transfer.currency.clone().unwrap_or_default(),
+        quantity: transfer.cash_transfer.unwrap_or_default(),
+        price: dec!(1),
+        net_cash: transfer.cash_transfer.unwrap_or_default(),
+    });
+
+    Ok(records)
+}
+
+fn process_ibkr_cash(cash: &ib_flex::CashTransaction, symbol_map: &mut SymbolMap) -> Result<Vec<Transaction>, MappingError> {
+    let mut records = Vec::new();
+
+    let exchange = map_ibkr_trade_exchange(cash.listing_exchange.clone().unwrap_or_default());
+    let exchange_str = exchange_to_str(&exchange);
+
+    let action = match cash.transaction_type.clone().unwrap_or_default().to_uppercase().as_str() {
+        "WITHHOLDING TAX"           => Action::Tax,
+        "DIVIDENDS"                 => Action::Dividend,
+        "BROKER INTEREST RECEIVED"  => Action::Interest,
+        "OTHER FEES"                => Action::Fee,
+        _                           => if cash.amount >= dec!(0) { Action::Deposit } else { Action::Withdrawal },
+    };
+
+    let symbol = if action == Action::Dividend {
+        match symbol_map.resolve(&cash.symbol.clone().unwrap_or_default(), &exchange_str) {
+            Some(s) => s,
+            None    => return Ok(records),
+        }
+    } else {
+        format!("$CASH-{}", cash.currency)
+    };
+
+    records.push(Transaction {
+        id: "ibkr-".to_owned() + &cash.transaction_id.clone().unwrap_or_default(),
+        account: cash.acct_alias.clone().unwrap_or(cash.account_id.clone()),
+        action,
+        lot_id: cash.transaction_id.clone().unwrap_or_default(),
+        date: cash.report_date.unwrap_or_default(),
+        symbol,
+        description: cash.description.clone(),
+        isin: cash.isin.clone(),
+        exchange,
+        currency: cash.currency.clone(),
+        quantity: cash.amount,
+        price: dec!(1),
+        net_cash: cash.amount,
+    });
+
+    Ok(records)
+}
+
+fn process_ibkr_fx(trade: &ib_flex::Trade) -> Result<Vec<Transaction>, MappingError> {
+    let mut records = Vec::new();
+
+    // an fx txn will be transform into one deposit and one withdraw
+    // TODO: comission handling
+    records.push(Transaction {
+        account: trade.acct_alias.clone().unwrap_or(trade.account_id.clone()),
+        id: "ibkr-".to_owned() + &trade.transaction_id.clone().unwrap_or_default() + "_fx_withdrawal",
+        action: Action::Withdrawal,
+        lot_id: trade.ib_order_id.clone().unwrap_or_default(),
+        date: trade.trade_date.unwrap_or_default(),
+        symbol: format!("$CASH-{}", trade.currency),
+        description: Some(format!("{} {}", trade.description.clone().unwrap_or_default(), trade.price.unwrap_or_default())),
+        isin: None,
+        exchange: None,
+        currency: trade.currency.clone(),
+        quantity: trade.trade_money.unwrap_or_default(),
+        price: dec!(1),
+        net_cash: trade.proceeds.unwrap_or_default(),
+    });
+
+    let another_currency = trade.symbol.replace( &(".".to_owned() + &trade.currency), "");
+    records.push(Transaction {
+        id: "ibkr-".to_owned() + &trade.transaction_id.clone().unwrap_or_default() + "_fx_deposit",
+        account: trade.acct_alias.clone().unwrap_or(trade.account_id.clone()),
+        action: Action::Deposit,
+        lot_id: trade.ib_order_id.clone().unwrap_or_default(),
+        date: trade.trade_date.unwrap_or_default(),
+        symbol: format!("$CASH-{}", another_currency),
+        description: Some(format!("{} {}", trade.description.clone().unwrap_or_default(), trade.price.unwrap_or_default())),
+        isin: None,
+        exchange: None,
+        currency: another_currency,
+        quantity: trade.quantity.unwrap_or_default(),
+        price: dec!(1),
+        net_cash: trade.quantity.unwrap_or_default(),
+    });
+
+    Ok(records)
+}
+
+fn process_ibkr_trade(trade: &ib_flex::Trade, symbol_map: &mut SymbolMap) -> Result<Vec<Transaction>, MappingError> {
+    let mut records = Vec::new();
+
+    let action= map_ibkr_trade_transaction_type(trade);
+    if action.is_none() {
+        return Err(MappingError{
+            id: trade.transaction_id.clone().unwrap_or_default(),
+            field: "buy_sell".into(),
+            value: format!("{:?}", trade.buy_sell),
+        });
+    }
+
+    let exchange = map_ibkr_trade_exchange(trade.listing_exchange.clone().unwrap_or_default());
+    let exchange_str = exchange_to_str(&exchange);
+
+    let symbol = match symbol_map.resolve(&trade.symbol, &exchange_str) {
+        Some(s) => s,
+        None    => return Ok(records),
+    };
+
+    records.push(Transaction {
+        id: "ibkr-".to_owned() + &trade.transaction_id.clone().unwrap_or_default(),
+        account: trade.acct_alias.clone().unwrap_or(trade.account_id.clone()),
+        action: action.unwrap(),
+        lot_id: trade.ib_order_id.clone().unwrap_or_default(),
+        date: trade.trade_date.unwrap_or_default(),
+        symbol,
+        description: trade.description.clone(),
+        isin: trade.isin.clone(),
+        exchange,
+        currency: trade.currency.clone(),
+        quantity: trade.quantity.unwrap_or_default(),
+        price: trade.price.unwrap_or_default(),
+        net_cash: trade.net_cash.unwrap_or_default(),
+    });
+
+    Ok(records)
+}
+
+fn exchange_to_str(exchange: &Option<Exchange>) -> String {
+    match exchange {
+        Some(Exchange::LSE)     => "LSE".into(),
+        Some(Exchange::NYSE)    => "NYSE".into(),
+        Some(Exchange::NASDAQ)  => "NASDAQ".into(),
+        Some(Exchange::HKEX)    => "HKEX".into(),
+        None                    => String::new(),
+    }
+}
+
+// Workaround: Manually fix the tag mismatch in memory
+fn preprocess_ibkr(xml: &str) -> Result<String, Box<dyn Error>> {
+    Ok(xml
+        .replace("tradePrice=", "price=")
+        .replace("ibOrderID=", "orderID=")
+    )
+}
+
+fn map_ibkr_trade_transaction_type(trade: &ib_flex::Trade) -> Option<Action> {
+    match trade.buy_sell.unwrap_or(ib_flex::BuySell::Unknown) {
+        ib_flex::BuySell::Buy   => Some(Action::Buy),
+        ib_flex::BuySell::Sell  => Some(Action::Sell),
+        _ => None,
+    }
+}
+
+fn map_ibkr_trade_exchange(exchange: String) -> Option<Exchange> {
+    match exchange.to_uppercase().as_str() {
+        "LSE"           => Some(Exchange::LSE),
+        "LSEETF"        => Some(Exchange::LSE),
+        "NYSE"          => Some(Exchange::NYSE),
+        "NASDAQ"        => Some(Exchange::NASDAQ),
+        _               => None,
+    }
+}
+
+
