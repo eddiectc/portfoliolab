@@ -60,6 +60,9 @@ func setupTransactionDB(t *testing.T) *sql.DB {
 		CREATE INDEX idx_transactions_date ON transactions(date);
 		CREATE INDEX idx_transactions_symbol ON transactions(symbol);
 		CREATE INDEX idx_transactions_type ON transactions(type);
+		CREATE UNIQUE INDEX idx_transactions_external_ref
+		    ON transactions(external_system, external_reference)
+		    WHERE external_system IS NOT NULL AND external_reference IS NOT NULL;
 	`)
 	if err != nil {
 		t.Fatalf("create tables: %v", err)
@@ -863,5 +866,209 @@ func TestTransactionRepository_ExternalReferenceExists_WithoutExternalFields(t *
 	// Should not match a transaction without external fields
 	if repo.ExternalReferenceExists(context.Background(), "IBKR", "TXN-12345") {
 		t.Error("expected ExternalReferenceExists to return false when no transaction has those external fields")
+	}
+}
+
+// --- BatchCreate Tests ---
+
+func TestTransactionRepository_BatchCreate_Success(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	now := time.Now()
+	xtns := []*transaction.Transaction{
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-15T00:00:00Z"), Type: "buy",
+			Symbol: "AAPL", Quantity: decimal.MustNew(10, 0), Price: decimal.MustNew(15000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-150000, 2),
+			CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-16T00:00:00Z"), Type: "sell",
+			Symbol: "AAPL", Quantity: decimal.MustNew(5, 0), Price: decimal.MustNew(16000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(80000, 2),
+			CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-17T00:00:00Z"), Type: "buy",
+			Symbol: "MSFT", Quantity: decimal.MustNew(3, 0), Price: decimal.MustNew(30000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-90000, 2),
+			CreatedAt: now, UpdatedAt: now,
+		},
+	}
+
+	err := repo.BatchCreate(context.Background(), xtns)
+	if err != nil {
+		t.Fatalf("BatchCreate: %v", err)
+	}
+
+	// Verify all three were inserted
+	items, err := repo.List(context.Background(), transaction.ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(items) != 3 {
+		t.Errorf("expected 3 items, got %d", len(items))
+	}
+}
+
+func TestTransactionRepository_BatchCreate_WithExternalFields(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	now := time.Now()
+	extSys := "IBKR"
+	ref1 := "TXN-001"
+	ref2 := "TXN-002"
+	xtns := []*transaction.Transaction{
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-15T00:00:00Z"), Type: "buy",
+			Symbol: "AAPL", Quantity: decimal.MustNew(10, 0), Price: decimal.MustNew(15000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-150000, 2),
+			ExternalSystem: &extSys, ExternalReference: &ref1,
+			CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-16T00:00:00Z"), Type: "buy",
+			Symbol: "MSFT", Quantity: decimal.MustNew(5, 0), Price: decimal.MustNew(30000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-150000, 2),
+			ExternalSystem: &extSys, ExternalReference: &ref2,
+			CreatedAt: now, UpdatedAt: now,
+		},
+	}
+
+	err := repo.BatchCreate(context.Background(), xtns)
+	if err != nil {
+		t.Fatalf("BatchCreate: %v", err)
+	}
+
+	// Verify external fields preserved
+	items, err := repo.List(context.Background(), transaction.ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+	for i, item := range items {
+		if item.ExternalSystem == nil || *item.ExternalSystem != "IBKR" {
+			t.Errorf("item %d: expected ExternalSystem 'IBKR', got %v", i, item.ExternalSystem)
+		}
+		if item.ExternalReference == nil {
+			t.Errorf("item %d: expected non-nil ExternalReference", i)
+		}
+	}
+}
+
+func TestTransactionRepository_BatchCreate_RollbackOnDuplicate(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	now := time.Now()
+	extSys := "IBKR"
+	ref1 := "TXN-001"
+	ref2 := "TXN-001" // duplicate of ref1 — should trigger unique index violation
+
+	// Pre-insert one transaction with this external reference
+	preTxn := &transaction.Transaction{
+		AccountID: 1, Date: mustParseTime("2025-01-10T00:00:00Z"), Type: "buy",
+		Symbol: "GOOG", Quantity: decimal.MustNew(1, 0), Price: decimal.MustNew(10000, 2),
+		Currency: "USD", NetCash: decimal.MustNew(-10000, 2),
+		ExternalSystem: &extSys, ExternalReference: &ref1,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	repo.Create(context.Background(), preTxn)
+
+	// BatchCreate two new transactions; the second has a duplicate external ref.
+	// The entire batch should be rolled back.
+	xtns := []*transaction.Transaction{
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-15T00:00:00Z"), Type: "buy",
+			Symbol: "AAPL", Quantity: decimal.MustNew(10, 0), Price: decimal.MustNew(15000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-150000, 2),
+			ExternalSystem: &extSys, ExternalReference: new(string), // *"TXN-NEW"
+			CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-16T00:00:00Z"), Type: "buy",
+			Symbol: "MSFT", Quantity: decimal.MustNew(5, 0), Price: decimal.MustNew(30000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-150000, 2),
+			ExternalSystem: &extSys, ExternalReference: &ref2, // duplicate
+			CreatedAt: now, UpdatedAt: now,
+		},
+	}
+
+	err := repo.BatchCreate(context.Background(), xtns)
+	if err == nil {
+		t.Fatal("expected BatchCreate to fail due to duplicate external reference, got nil")
+	}
+
+	// Verify the first new transaction was NOT inserted (rollback)
+	items, err := repo.List(context.Background(), transaction.ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(items) != 1 {
+		t.Errorf("expected only the pre-inserted transaction (rollback), got %d items", len(items))
+	}
+	if len(items) > 0 && items[0].Symbol != "GOOG" {
+		t.Errorf("expected only the pre-inserted 'GOOG' transaction, got %q", items[0].Symbol)
+	}
+}
+
+func TestTransactionRepository_BatchCreate_RollbackOnFKViolation(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	now := time.Now()
+
+	// First txn is valid (account_id=1), second has invalid account_id=999.
+	// The batch should fail and roll back the first.
+	xtns := []*transaction.Transaction{
+		{
+			AccountID: 1, Date: mustParseTime("2025-01-15T00:00:00Z"), Type: "buy",
+			Symbol: "AAPL", Quantity: decimal.MustNew(10, 0), Price: decimal.MustNew(15000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-150000, 2),
+			CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			AccountID: 999, Date: mustParseTime("2025-01-16T00:00:00Z"), Type: "buy",
+			Symbol: "MSFT", Quantity: decimal.MustNew(5, 0), Price: decimal.MustNew(30000, 2),
+			Currency: "USD", NetCash: decimal.MustNew(-150000, 2),
+			CreatedAt: now, UpdatedAt: now,
+		},
+	}
+
+	err := repo.BatchCreate(context.Background(), xtns)
+	if err == nil {
+		t.Fatal("expected BatchCreate to fail due to FK violation, got nil")
+	}
+
+	// Verify the first valid transaction was rolled back
+	items, err := repo.List(context.Background(), transaction.ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected 0 items after rollback, got %d", len(items))
+	}
+}
+
+func TestTransactionRepository_BatchCreate_EmptyBatch(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	// Empty batch should succeed (no-op)
+	err := repo.BatchCreate(context.Background(), []*transaction.Transaction{})
+	if err != nil {
+		t.Fatalf("BatchCreate with empty batch: %v", err)
+	}
+
+	items, err := repo.List(context.Background(), transaction.ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected 0 items, got %d", len(items))
 	}
 }

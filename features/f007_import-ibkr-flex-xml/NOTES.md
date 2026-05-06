@@ -96,8 +96,35 @@ Added a CSS-only dropdown (click-to-toggle via a tiny inline `onclick`) in the T
 
 ## Test Coverage
 
-- 69 tests total (27 parser + 32 service + 10 web handler)
+- 74 tests total (27 parser + 32 service + 5 BatchCreate repo + 10 web handler)
 - All tests pass: `go test ./...`
 - Full sample XML integration test verifies all 16 transactions created correctly
 - Edge cases: all-duplicates, unmapped symbols, FX trades, transfers, cash transaction types, rollback, empty report
 - Web handler tests: upload page rendering, preview with valid/invalid XML, account not found, missing account, confirm success/error, route registration
+
+## Post-Review Fixes (Implementation Review)
+
+### Unique index on (external_system, external_reference)
+
+Added migration `006_add_external_ref_unique_index.sql` with a partial unique index:
+
+```sql
+CREATE UNIQUE INDEX idx_transactions_external_ref
+    ON transactions(external_system, external_reference)
+    WHERE external_system IS NOT NULL AND external_reference IS NOT NULL;
+```
+
+The `WHERE` clause allows multiple NULL/NULL rows (manually entered transactions) while enforcing uniqueness for imported transactions. Includes a defensive `DELETE` to clean any pre-existing duplicates before creating the index. This eliminates the race condition risk where two concurrent imports could both pass the application-level duplicate check before either commits.
+
+### Context propagation in ConfirmImport helpers
+
+Changed `buildTradeTxns`, `buildCashTxn`, and `buildTransferTxn` to accept `ctx context.Context` as their first parameter and pass it through to `DuplicateChecker.ExternalReferenceExists` instead of using `context.Background()`. This ensures the caller's context (deadlines, cancellation) is respected during duplicate detection in the confirm phase.
+
+### BatchCreate repository tests
+
+Added 5 unit tests for `BatchCreate` in `transaction_repo_test.go`:
+- `TestTransactionRepository_BatchCreate_Success` — 3 transactions, all inserted
+- `TestTransactionRepository_BatchCreate_WithExternalFields` — external fields preserved
+- `TestTransactionRepository_BatchCreate_RollbackOnDuplicate` — unique index violation mid-batch rolls back all
+- `TestTransactionRepository_BatchCreate_RollbackOnFKViolation` — FK violation mid-batch rolls back all
+- `TestTransactionRepository_BatchCreate_EmptyBatch` — empty batch succeeds as no-op
