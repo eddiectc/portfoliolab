@@ -15,3 +15,6 @@
 
 ## Known Issues
 - None.
+
+## Session Log
+- 2026-05-06: Task 4 (Web UI) completed. Created `trading212_import_web.go` (web handler), `t212_import.html` (upload page), `t212_import_preview.html` (preview page with resolve modal), and `trading212_import_web_test.go` (11 tests). Follows IBKR pattern exactly, targeting Trading 212 API endpoints and using "Trading212" as broker name.

@@ -1,0 +1,53 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Import Trading 212 CSV</h1>
+    <a href="/transactions" class="btn">Back to Transactions</a>
+</div>
+
+{{if .Error}}
+<div class="alert alert-error">{{.Error}}</div>
+{{end}}
+
+<div class="info-panel">
+    <h2>Supported Transaction Types</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>Trades</strong>
+            <p>Limit buy, Market buy, Limit sell, Market sell</p>
+        </div>
+        <div class="info-item">
+            <strong>Cash Transactions</strong>
+            <p>Deposit, Withdrawal, Interest on cash</p>
+        </div>
+    </div>
+    <p class="info-note">Requires a Trading 212 CSV export file.<br>
+    Prices in GBX (pence) are automatically converted to GBP.<br>
+    Unsupported action types (dividends, fees, taxes) are skipped during import.</p>
+</div>
+
+<form action="/transactions/import/trading212" method="POST" enctype="multipart/form-data" class="form import-form">
+    <div class="form-group">
+        <label for="account_id">Account</label>
+        <select id="account_id" name="account_id" required>
+            <option value="">-- Select Account --</option>
+            {{range .Accounts}}
+            <option value="{{.ID}}">{{.Name}}</option>
+            {{end}}
+        </select>
+        <small>Transactions will be created under this account</small>
+    </div>
+
+    <div class="form-group">
+        <label for="csv_file">Trading 212 CSV File</label>
+        <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+        <small>Upload a Trading 212 CSV export file</small>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Preview Import</button>
+        <a href="/transactions" class="btn">Cancel</a>
+    </div>
+</form>
+{{end}}
+
+{{template "base" .}}

@@ -208,63 +208,63 @@ Tasks 0–5 are sequential. Task 0 is a small refactoring of existing IBKR code.
 
 **Description:** Create server-rendered web pages for the Trading 212 import workflow with inline symbol management. Structure mirrors the IBKR import pages.
 
-- [ ] Create `internal/api/handlers/trading212_import_web.go`:
-  - [ ] `Trading212ImportWebHandler` struct with dependencies (import service, account service, symbol mapping service, renderer, max file size)
-  - [ ] `HandleImportPage(w, r)` — GET `/transactions/import/trading212`:
-    - [ ] Fetch accounts list
-    - [ ] Render upload page with file upload form, account dropdown, supported types info panel
-  - [ ] `HandleImportPost(w, r)` — POST `/transactions/import/trading212`:
-    - [ ] Parse multipart form (CSV file + account_id)
-    - [ ] Also accept base64-encoded CSV data for re-submission after resolving symbols
-    - [ ] Call import service Preview
-    - [ ] Render preview page showing importable/skipped/errored transactions with filter tabs
-    - [ ] Include inline forms for creating symbols and adding broker symbol mappings (via AJAX to API endpoints)
-    - [ ] Include confirm button (POST with base64-encoded CSV data)
-    - [ ] Fetch existing internal symbols for client-side existence check
-  - [ ] `HandleConfirmPost(w, r)` — POST `/transactions/import/trading212/confirm`:
-    - [ ] Decode base64-encoded CSV data and account_id
-    - [ ] Call import service ConfirmImport
-    - [ ] Redirect to /transactions with flash message summarizing result
-    - [ ] On failure: re-render preview page with error
-  - [ ] `RegisterRoutes(r)` — mount web routes (POST confirm before POST catch-all, GET last)
-  - [ ] Helper: `renderImportPage` — re-renders upload page with error message
-  - [ ] Helper: `getExistingSymbols` — fetches unique internal symbols for client-side checks
-- [ ] Create `templates/transaction/t212_import.html` — upload page:
-  - [ ] Page header: "Import Trading 212 CSV" with "Back to Transactions" link
-  - [ ] Error display area
-  - [ ] Info panel showing supported transaction types (Limit buy, Market buy, Limit sell, Market sell, Deposit, Withdrawal, Interest on cash)
-  - [ ] Note about GBX→GBP price conversion
-  - [ ] Form: account dropdown, CSV file input (accept=".csv"), submit button, cancel link
-- [ ] Create `templates/transaction/t212_import_preview.html` — preview page:
-  - [ ] Page header: "Import Preview" with "Upload New File" and "Cancel" links
-  - [ ] Summary counts (importable, skipped, errored)
-  - [ ] Filter tabs (all, importable, skipped, errored)
-  - [ ] Hidden re-submission form (for after resolving symbols)
-  - [ ] Confirm form wrapping the table:
-    - [ ] Hidden fields for base64 CSV data and account_id
-    - [ ] Unified transactions table with columns: Date, Type, Symbol, Qty, Price, Net Cash, Currency, Description, Ref, Reason, Action
-    - [ ] Importable rows: full details, no action button
-    - [ ] Skipped rows: show reason, "Resolve Symbol" button for unmapped symbols
-    - [ ] Errored rows: show error message
-    - [ ] Confirm button (disabled if zero importable) with count
-  - [ ] Resolve symbol modal (same structure as IBKR):
-    - [ ] Broker symbol display
-    - [ ] Market data symbol input with debounced preview fetch
-    - [ ] Internal symbol input
-    - [ ] Symbol preview panels (existing, new, corrected, error)
-    - [ ] "Create & Map" button calling Trading 212 API endpoints
-  - [ ] Embedded existing symbols JSON for client-side existence check
-  - [ ] JavaScript for filter tabs, resolve modal, preview fetching (same pattern as IBKR, targeting Trading 212 API endpoints)
-- [ ] Write tests for web handlers:
-  - [ ] GET /transactions/import/trading212 → 200, renders upload page
-  - [ ] GET /transactions/import/trading212 with no accounts → 200, shows empty account dropdown
-  - [ ] POST /transactions/import/trading212 with valid CSV → 200, renders preview
-  - [ ] POST /transactions/import/trading212 with invalid CSV → 200, shows error on upload page
-  - [ ] POST /transactions/import/trading212 with missing account → 200, shows error on upload page
-  - [ ] POST /transactions/import/trading212/confirm → redirects with flash
-  - [ ] POST /transactions/import/trading212/confirm with missing CSV data → 400
-  - [ ] POST /transactions/import/trading212/confirm with missing account → 400
-  - [ ] RegisterRoutes — all routes wired
+- [x] Create `internal/api/handlers/trading212_import_web.go`:
+  - [x] `Trading212ImportWebHandler` struct with dependencies (import service, account service, symbol mapping service, renderer, max file size)
+  - [x] `HandleImportPage(w, r)` — GET `/transactions/import/trading212`:
+    - [x] Fetch accounts list
+    - [x] Render upload page with file upload form, account dropdown, supported types info panel
+  - [x] `HandleImportPost(w, r)` — POST `/transactions/import/trading212`:
+    - [x] Parse multipart form (CSV file + account_id)
+    - [x] Also accept base64-encoded CSV data for re-submission after resolving symbols
+    - [x] Call import service Preview
+    - [x] Render preview page showing importable/skipped/errored transactions with filter tabs
+    - [x] Include inline forms for creating symbols and adding broker symbol mappings (via AJAX to API endpoints)
+    - [x] Include confirm button (POST with base64-encoded CSV data)
+    - [x] Fetch existing internal symbols for client-side existence check
+  - [x] `HandleConfirmPost(w, r)` — POST `/transactions/import/trading212/confirm`:
+    - [x] Decode base64-encoded CSV data and account_id
+    - [x] Call import service ConfirmImport
+    - [x] Redirect to /transactions with flash message summarizing result
+    - [x] On failure: re-render preview page with error
+  - [x] `RegisterRoutes(r)` — mount web routes (POST confirm before POST catch-all, GET last)
+  - [x] Helper: `renderImportPage` — re-renders upload page with error message
+  - [x] Helper: `getExistingSymbols` — fetches unique internal symbols for client-side checks
+- [x] Create `templates/transaction/t212_import.html` — upload page:
+  - [x] Page header: "Import Trading 212 CSV" with "Back to Transactions" link
+  - [x] Error display area
+  - [x] Info panel showing supported transaction types (Limit buy, Market buy, Limit sell, Market sell, Deposit, Withdrawal, Interest on cash)
+  - [x] Note about GBX→GBP price conversion
+  - [x] Form: account dropdown, CSV file input (accept=".csv"), submit button, cancel link
+- [x] Create `templates/transaction/t212_import_preview.html` — preview page:
+  - [x] Page header: "Import Preview" with "Upload New File" and "Cancel" links
+  - [x] Summary counts (importable, skipped, errored)
+  - [x] Filter tabs (all, importable, skipped, errored)
+  - [x] Hidden re-submission form (for after resolving symbols)
+  - [x] Confirm form wrapping the table:
+    - [x] Hidden fields for base64 CSV data and account_id
+    - [x] Unified transactions table with columns: Date, Type, Symbol, Qty, Price, Net Cash, Currency, Description, Ref, Reason, Action
+    - [x] Importable rows: full details, no action button
+    - [x] Skipped rows: show reason, "Resolve Symbol" button for unmapped symbols
+    - [x] Errored rows: show error message
+    - [x] Confirm button (disabled if zero importable) with count
+  - [x] Resolve symbol modal (same structure as IBKR):
+    - [x] Broker symbol display
+    - [x] Market data symbol input with debounced preview fetch
+    - [x] Internal symbol input
+    - [x] Symbol preview panels (existing, new, corrected, error)
+    - [x] "Create & Map" button calling Trading 212 API endpoints
+  - [x] Embedded existing symbols JSON for client-side existence check
+  - [x] JavaScript for filter tabs, resolve modal, preview fetching (same pattern as IBKR, targeting Trading 212 API endpoints)
+- [x] Write tests for web handlers:
+  - [x] GET /transactions/import/trading212 → 200, renders upload page
+  - [x] GET /transactions/import/trading212 with no accounts → 200, shows empty account dropdown
+  - [x] POST /transactions/import/trading212 with valid CSV → 200, renders preview
+  - [x] POST /transactions/import/trading212 with invalid CSV → 200, shows error on upload page
+  - [x] POST /transactions/import/trading212 with missing account → 200, shows error on upload page
+  - [x] POST /transactions/import/trading212/confirm → redirects with flash
+  - [x] POST /transactions/import/trading212/confirm with missing CSV data → 400
+  - [x] POST /transactions/import/trading212/confirm with missing account → 400
+  - [x] RegisterRoutes — all routes wired
 
 **Verification:** `go test ./internal/api/handlers/... -run Trading212.*Web` passes. Pages render correctly with `go run cmd/server/main.go`.
 
