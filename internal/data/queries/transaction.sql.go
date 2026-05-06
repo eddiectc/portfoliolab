@@ -102,6 +102,24 @@ func (q *Queries) GetTransaction(ctx context.Context, db DBTX, id int64) (Transa
 	return i, err
 }
 
+const hasExternalReference = `-- name: HasExternalReference :one
+SELECT 1 FROM transactions
+WHERE external_system = ? AND external_reference = ?
+LIMIT 1
+`
+
+type HasExternalReferenceParams struct {
+	ExternalSystem    sql.NullString `db:"external_system"`
+	ExternalReference sql.NullString `db:"external_reference"`
+}
+
+func (q *Queries) HasExternalReference(ctx context.Context, db DBTX, arg HasExternalReferenceParams) (int64, error) {
+	row := db.QueryRowContext(ctx, hasExternalReference, arg.ExternalSystem, arg.ExternalReference)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listTransactions = `-- name: ListTransactions :many
 SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
 ORDER BY date DESC, symbol ASC, type ASC, id ASC

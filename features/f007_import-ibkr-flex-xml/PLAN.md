@@ -55,11 +55,11 @@ Tasks 1 and 2 are independent and can be done in parallel. Task 3 depends on bot
 
 **Description:** Add a database query to check if a transaction with a given `external_system` + `external_reference` combination already exists, and expose it through the transaction repository.
 
-- [ ] Add SQL query to `internal/data/queries/transaction.sql`: `HasExternalReference` — `SELECT 1 FROM transactions WHERE external_system = ? AND external_reference = ? LIMIT 1`
-- [ ] Run `sqlc generate` to regenerate Go code
-- [ ] Add `ExternalReferenceExists(ctx, externalSystem, externalReference string) bool` method to `TransactionRepository`
-- [ ] Add `ExternalReferenceChecker` interface to `internal/domain/transaction/` (or define in `ibkrimport` package)
-- [ ] Write unit tests for the repository method (using mock or in-memory SQLite)
+- [x] Add SQL query to `internal/data/queries/transaction.sql`: `HasExternalReference` — `SELECT 1 FROM transactions WHERE external_system = ? AND external_reference = ? LIMIT 1`
+- [x] Run `sqlc generate` to regenerate Go code
+- [x] Add `ExternalReferenceExists(ctx, externalSystem, externalReference string) bool` method to `TransactionRepository`
+- [x] Add `ExternalReferenceChecker` interface to `internal/domain/transaction/` (or define in `ibkrimport` package)
+- [x] Write unit tests for the repository method (using mock or in-memory SQLite)
 
 **Verification:** `go test ./internal/data/...` passes. Method correctly returns true for existing references and false for non-existing ones.
 

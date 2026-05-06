@@ -325,6 +325,21 @@ func (r *TransactionRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+// ExternalReferenceExists checks whether a transaction with the given
+// external_system and external_reference combination already exists.
+func (r *TransactionRepository) ExternalReferenceExists(ctx context.Context, externalSystem, externalReference string) bool {
+	_, err := r.q.HasExternalReference(ctx, r.db, queries.HasExternalReferenceParams{
+		ExternalSystem:    sql.NullString{String: externalSystem, Valid: true},
+		ExternalReference: sql.NullString{String: externalReference, Valid: true},
+	})
+	if err != nil {
+		// sql.ErrNoRows means no match; any other error is logged but treated
+		// as "not found" to avoid blocking the import flow on transient DB issues.
+		return false
+	}
+	return true
+}
+
 // ListWithAccount retrieves transactions matching the given filters with
 // account names resolved via a JOIN, with pagination.
 func (r *TransactionRepository) ListWithAccount(ctx context.Context, filters transaction.ListFilters, limit, offset int) ([]transaction.TransactionWithAccount, error) {

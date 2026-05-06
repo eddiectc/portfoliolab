@@ -795,3 +795,73 @@ func TestTransactionRepository_ListWithAccount_ZeroLimit(t *testing.T) {
 		t.Errorf("expected 0 items with limit=0, got %d", len(items))
 	}
 }
+
+// --- ExternalReferenceExists Tests ---
+
+func TestTransactionRepository_ExternalReferenceExists_Found(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	extSys := "IBKR"
+	extRef := "TXN-12345"
+	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
+	txn.ExternalSystem = &extSys
+	txn.ExternalReference = &extRef
+	repo.Create(context.Background(), txn)
+
+	if !repo.ExternalReferenceExists(context.Background(), "IBKR", "TXN-12345") {
+		t.Error("expected ExternalReferenceExists to return true")
+	}
+}
+
+func TestTransactionRepository_ExternalReferenceExists_NotFound(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	if repo.ExternalReferenceExists(context.Background(), "IBKR", "NONEXISTENT") {
+		t.Error("expected ExternalReferenceExists to return false for non-existent reference")
+	}
+}
+
+func TestTransactionRepository_ExternalReferenceExists_DifferentSystem(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	extSys := "IBKR"
+	extRef := "TXN-12345"
+	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
+	txn.ExternalSystem = &extSys
+	txn.ExternalReference = &extRef
+	repo.Create(context.Background(), txn)
+
+	// Same reference but different system should not match
+	if repo.ExternalReferenceExists(context.Background(), "DEGIRO", "TXN-12345") {
+		t.Error("expected ExternalReferenceExists to return false for different external system")
+	}
+}
+
+func TestTransactionRepository_ExternalReferenceExists_EmptyTable(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	if repo.ExternalReferenceExists(context.Background(), "IBKR", "TXN-12345") {
+		t.Error("expected ExternalReferenceExists to return false on empty table")
+	}
+}
+
+func TestTransactionRepository_ExternalReferenceExists_WithoutExternalFields(t *testing.T) {
+	db := setupTransactionDB(t)
+	repo := NewTransactionRepository(db)
+
+	// Create a transaction without external fields
+	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
+		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
+	repo.Create(context.Background(), txn)
+
+	// Should not match a transaction without external fields
+	if repo.ExternalReferenceExists(context.Background(), "IBKR", "TXN-12345") {
+		t.Error("expected ExternalReferenceExists to return false when no transaction has those external fields")
+	}
+}
