@@ -128,3 +128,34 @@ Added 5 unit tests for `BatchCreate` in `transaction_repo_test.go`:
 - `TestTransactionRepository_BatchCreate_RollbackOnDuplicate` — unique index violation mid-batch rolls back all
 - `TestTransactionRepository_BatchCreate_RollbackOnFKViolation` — FK violation mid-batch rolls back all
 - `TestTransactionRepository_BatchCreate_EmptyBatch` — empty batch succeeds as no-op
+
+## Session: Integration Tests + FX Duplicate Fix
+
+### FX trade duplicate detection bug
+
+Discovered during integration testing: FX trades create two transactions with composite external references (`txnID_fx_withdrawal` and `txnID_fx_deposit`), but the duplicate check in both `Preview` and `ConfirmImport` was checking the raw `txnID`. This meant FX trades were never detected as duplicates on re-import.
+
+**Fix**: Updated duplicate check to look for composite references for FX trades:
+- `Preview`: checks `txnID_fx_withdrawal` OR `txnID_fx_deposit`
+- `ConfirmImport` (`buildTradeTxns`): same composite reference check
+
+### Integration test suite
+
+Created `tests/integration/ibkr_import_test.go` with 15 tests covering:
+- Full import flow (preview → confirm → verify DB)
+- Duplicate detection (re-import all 15 records skipped)
+- Invalid XML and empty XML handling
+- Account not found and missing account_id
+- FX trades create two transactions (withdrawal + deposit) with composite refs
+- Cash transaction classification (dividend, interest, tax, fee, deposit)
+- Transfer classification (deposit vs withdrawal)
+- Unmapped symbols skipped (10 importable, 6 skipped without mappings)
+- Broker symbol mapping (direct symbol match)
+- Unique index prevents DB-level duplicates
+- Stock/ETF trade types (buy and sell)
+- Negative quantity on sells (preserved from IBKR)
+- List transactions after import (external_system = "IBKR")
+
+### Test schema update
+
+Updated `tests/integration/portfolio_test.go` to include migration 006 unique index and bump goose version to 6.
