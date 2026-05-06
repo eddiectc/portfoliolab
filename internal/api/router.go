@@ -16,6 +16,7 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/ibkrimport"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/trading212import"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
@@ -78,6 +79,11 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	importHandler := handlers.NewImportHandler(importSvc, symbolMappingSvc)
 	importHandler.RegisterRoutes(r)
 
+	// Trading 212 CSV Import (API)
+	t212Svc := trading212import.NewService(symbolResolver, transactionRepo, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder)
+	t212Handler := handlers.NewTrading212ImportHandler(t212Svc, symbolMappingSvc)
+	t212Handler.RegisterRoutes(r)
+
 	// Portfolio web pages
 	renderer, err := web.NewRenderer("templates")
 	if err != nil {
@@ -105,6 +111,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 		// IBKR import web pages
 		importWebHandler := handlers.NewImportWebHandler(importSvc, accountSvc, symbolMappingSvc, renderer)
 		importWebHandler.RegisterRoutes(r)
+
+		// Trading 212 import web pages
+		t212WebHandler := handlers.NewTrading212ImportWebHandler(t212Svc, accountSvc, symbolMappingSvc, renderer)
+		t212WebHandler.RegisterRoutes(r)
 
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
