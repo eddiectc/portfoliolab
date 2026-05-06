@@ -130,36 +130,36 @@ Tasks 1 and 2 are independent and can be done in parallel. Task 3 depends on bot
 
 **Description:** Create API handlers for the import workflow: upload XML → get preview → confirm import. Also handles inline symbol creation and broker symbol mapping. Routes are under `/api/transactions/import/ibkr/` to live within the transactions section.
 
-- [ ] Create `internal/api/handlers/ibkr_import.go`:
-  - [ ] `ImportHandler` struct with dependencies (import service, symbol service, account service)
-  - [ ] `HandlePreview(w, r)` — POST `/api/transactions/import/ibkr/preview`:
-    - [ ] Parse multipart form with XML file and account_id
-    - [ ] Call import service Preview
-    - [ ] Return JSON preview response with importable/skipped/errored transactions
-    - [ ] Handle errors: invalid XML → 400, account not found → 404
-  - [ ] `HandleConfirm(w, r)` — POST `/api/transactions/import/ibkr/confirm`:
-    - [ ] Parse multipart form with XML file and account_id
-    - [ ] Call import service ConfirmImport
-    - [ ] Return JSON import result summary
-    - [ ] Handle errors: account not found → 404, creation failure → 500
-  - [ ] `HandleCreateSymbol(w, r)` — POST `/api/transactions/import/ibkr/symbols`:
-    - [ ] Accept JSON body with internal_symbol and market_data_symbol
-    - [ ] Call symbol service Create
-    - [ ] Return created symbol mapping
-  - [ ] `HandleAddBrokerSymbol(w, r)` — POST `/api/transactions/import/ibkr/broker-symbols`:
-    - [ ] Accept JSON body with broker_name, broker_symbol, internal_symbol
-    - [ ] Resolve internal symbol to mapping ID
-    - [ ] Add broker symbol via service
-    - [ ] Return success
-  - [ ] `RegisterRoutes(r)` — mount routes on chi.Mux
-- [ ] Write unit tests for handlers:
-  - [ ] Preview with valid XML → 200 with preview data
-  - [ ] Preview with invalid XML → 400
-  - [ ] Preview with missing account → 404
-  - [ ] Confirm with valid XML → 200 with result
-  - [ ] Confirm with all duplicates → 200 with zero created
-  - [ ] Create symbol → 201
-  - [ ] Add broker symbol → 200
+- [x] Create `internal/api/handlers/ibkr_import.go`:
+  - [x] `ImportHandler` struct with dependencies (import service, symbol service, account service)
+  - [x] `HandlePreview(w, r)` — POST `/api/transactions/import/ibkr/preview`:
+    - [x] Parse multipart form with XML file and account_id
+    - [x] Call import service Preview
+    - [x] Return JSON preview response with importable/skipped/errored transactions
+    - [x] Handle errors: invalid XML → 400, account not found → 404
+  - [x] `HandleConfirm(w, r)` — POST `/api/transactions/import/ibkr/confirm`:
+    - [x] Parse multipart form with XML file and account_id
+    - [x] Call import service ConfirmImport
+    - [x] Return JSON import result summary
+    - [x] Handle errors: account not found → 404, creation failure → 500
+  - [x] `HandleCreateSymbol(w, r)` — POST `/api/transactions/import/ibkr/symbols`:
+    - [x] Accept JSON body with internal_symbol and market_data_symbol
+    - [x] Call symbol service Create
+    - [x] Return created symbol mapping
+  - [x] `HandleAddBrokerSymbol(w, r)` — POST `/api/transactions/import/ibkr/broker-symbols`:
+    - [x] Accept JSON body with broker_name, broker_symbol, internal_symbol
+    - [x] Resolve internal symbol to mapping ID
+    - [x] Add broker symbol via service
+    - [x] Return success
+  - [x] `RegisterRoutes(r)` — mount routes on chi.Mux
+- [x] Write unit tests for handlers:
+  - [x] Preview with valid XML → 200 with preview data
+  - [x] Preview with invalid XML → 400
+  - [x] Preview with missing account → 404
+  - [x] Confirm with valid XML → 200 with result
+  - [x] Confirm with all duplicates → 200 with zero created
+  - [x] Create symbol → 201
+  - [x] Add broker symbol → 200
 
 **Verification:** `go test ./internal/api/handlers/... -run Import` passes.
 

@@ -2,6 +2,22 @@
 
 ## Implementation Decisions
 
+### Handler accepts interfaces, not concrete types (Task 4)
+
+The `ImportHandler` defines its own `ImportService` and `SymbolService` interfaces rather than accepting `*ibkrimport.Service` and `*symbolmapping.Service` directly. This enables hand-written mocks in handler tests without depending on the concrete service implementations. The router passes the real services which satisfy the interfaces.
+
+### Data-layer adapters for IBKR import (Task 4)
+
+Created `internal/data/ibkr_resolvers.go` with two adapters:
+- `SymbolResolverImpl` — bridges `SymbolMappingRepository` to `ibkrimport.SymbolResolver` (two-step lookup: broker symbol → symbol mapping → internal symbol)
+- `BrokerSymbolAdderImpl` — bridges `SymbolMappingRepository` + `symbolmapping.Service` to `ibkrimport.BrokerSymbolAdder` (resolves internal symbol to mapping ID, then delegates to service)
+
+### BatchCreate added to TransactionRepository (Task 4)
+
+Added `BatchCreate(ctx, []*transaction.Transaction) error` to `TransactionRepository` using `sqlDB.BeginTx()` for atomic all-or-nothing inserts. The repo struct now stores both `db queries.DBTX` (for single-row queries) and `sqlDB *sql.DB` (for transaction support).
+
+### XML attribute name preprocessing (Task 1)
+
 ### XML attribute name preprocessing (Task 1)
 
 IBKR uses camelCase attributes (`tradePrice`, `ibOrderID`, `ibCommission`, `ibExecID`) that don't map cleanly to Go's `encoding/xml` tag conventions. Chose simple `strings.ReplaceAll` preprocessing over custom `UnmarshalXML` — fewer moving parts, easier to reason about. Required 4 replacements (not just the 2 mentioned in the plan: `ibCommission` and `ibExecID` also needed it).
