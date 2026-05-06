@@ -32,18 +32,18 @@ Tasks 1 and 2 are independent and can be done in parallel. Task 3 depends on bot
 
 **Description:** Create a pure Go XML parser that extracts Trades, CashTransactions, and Transfers from IBKR Flex Web Report XML files. Uses `encoding/xml` (stdlib). Returns structured intermediate records with all fields needed for preview and import.
 
-- [ ] Define `internal/domain/ibkrimport/parser.go` with XML structs for Trade, CashTransaction, Transfer, and FlexStatement (matching IBKR Flex XML schema — all self-closing tags with attributes)
-- [ ] Implement `ParseXML(data []byte) (*ParsedReport, error)` that unmarshals XML and extracts Trades, CashTransactions, Transfers
-- [ ] Implement `ParsedReport` struct containing slices of raw trade/cash/transfer records plus summary metadata (date range, account alias)
-- [ ] Handle XML parsing errors gracefully — return descriptive errors for malformed XML
-- [ ] Handle the `tradePrice=` / `ibOrderID=` attribute name mismatch documented in the Rust reference (preprocess XML string before parsing, or use custom UnmarshalXML)
-- [ ] Write unit tests using `ibkr_sample_redacted.xml` as test fixture:
-  - [ ] Parse all 6 Trades (2 STK COMMON, 2 STK ETF sell, 1 STK ETF buy, 1 CASH FX)
-  - [ ] Parse all 7 CashTransactions (dividend, 2x interest, withholding tax, other fees, deposit, withdrawal)
-  - [ ] Parse both Transfers (deposit, withdrawal)
-  - [ ] Reject invalid/malformed XML
-  - [ ] Reject empty XML
-  - [ ] Handle XML with no Trades/CashTransactions/Transfers
+- [x] Define `internal/domain/ibkrimport/parser.go` with XML structs for Trade, CashTransaction, Transfer, and FlexStatement (matching IBKR Flex XML schema — all self-closing tags with attributes)
+- [x] Implement `ParseXML(data []byte) (*ParsedReport, error)` that unmarshals XML and extracts Trades, CashTransactions, Transfers
+- [x] Implement `ParsedReport` struct containing slices of raw trade/cash/transfer records plus summary metadata (date range, account alias)
+- [x] Handle XML parsing errors gracefully — return descriptive errors for malformed XML
+- [x] Handle the `tradePrice=` / `ibOrderID=` attribute name mismatch documented in the Rust reference (preprocess XML string before parsing, or use custom UnmarshalXML)
+- [x] Write unit tests using `ibkr_sample_redacted.xml` as test fixture:
+  - [x] Parse all 6 Trades (2 STK COMMON, 2 STK ETF sell, 1 STK ETF buy, 1 CASH FX)
+  - [x] Parse all 7 CashTransactions (dividend, 2x interest, withholding tax, other fees, deposit, withdrawal)
+  - [x] Parse both Transfers (deposit, withdrawal)
+  - [x] Reject invalid/malformed XML
+  - [x] Reject empty XML
+  - [x] Handle XML with no Trades/CashTransactions/Transfers
 
 **Verification:** `go test ./internal/domain/ibkrimport/...` passes. Parser correctly extracts all records from the sample XML.
 
