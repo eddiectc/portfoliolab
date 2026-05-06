@@ -2,6 +2,16 @@
 
 ## Implementation Decisions
 
+### XML attribute name preprocessing (Task 1)
+
+IBKR uses camelCase attributes (`tradePrice`, `ibOrderID`, `ibCommission`, `ibExecID`) that don't map cleanly to Go's `encoding/xml` tag conventions. Chose simple `strings.ReplaceAll` preprocessing over custom `UnmarshalXML` — fewer moving parts, easier to reason about. Required 4 replacements (not just the 2 mentioned in the plan: `ibCommission` and `ibExecID` also needed it).
+
+### Wrapper struct slice tags (Task 1)
+
+The inner `[]tradeXML` in the `trades` wrapper struct needed an explicit `xml:"Trade"` tag on the slice field itself — not just on the element struct's `XMLName`. Without it, Go's xml decoder silently returns zero elements. Same for `cashTransactions` and `transfers`.
+
+### FX trades processed before instrument type check
+
 ### FX trades processed before instrument type check
 
 The plan lists "classify instrument type" as the first step in `processTrade`. However, FX trades (`assetCategory=CASH`) must be handled **before** the `isSupportedTrade` check, since `isSupportedTrade` only accepts `STK` instruments and would reject FX trades as "unsupported". The ordering is:
