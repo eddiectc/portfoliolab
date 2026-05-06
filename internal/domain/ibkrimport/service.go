@@ -17,9 +17,9 @@ import (
 type SymbolResolver interface {
 	// ResolveBrokerSymbol looks up a broker symbol for a given broker name
 	// and returns the associated internal symbol. Returns empty string if not found.
-	ResolveBrokerSymbol(brokerName, brokerSymbol string) string
+	ResolveBrokerSymbol(ctx context.Context, brokerName, brokerSymbol string) string
 	// SymbolExists checks if an internal symbol exists in the symbol map.
-	SymbolExists(symbol string) bool
+	SymbolExists(ctx context.Context, symbol string) bool
 }
 
 // DuplicateChecker checks whether an external reference already exists.
@@ -115,7 +115,7 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 	var errored []ErroredTransaction
 
 	for _, trade := range report.Trades {
-		typ, entry, skip, err := s.processTrade(trade)
+		typ, entry, skip, err := s.processTrade(ctx, trade)
 		if err != nil {
 			errored = append(errored, ErroredTransaction{
 				ExternalReference: trade.TransactionID,
@@ -146,7 +146,7 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 	}
 
 	for _, ct := range report.CashTransactions {
-		entry, skip, err := s.processCashTransaction(ct)
+		entry, skip, err := s.processCashTransaction(ctx, ct)
 		if err != nil {
 			errored = append(errored, ErroredTransaction{
 				ExternalReference: ct.TransactionID,
@@ -308,7 +308,7 @@ type tradeResult struct {
 	fxTxns     []*transaction.Transaction
 }
 
-func (s *Service) processTrade(trade Trade) (string, tradeResult, *SkippedTransaction, error) {
+func (s *Service) processTrade(ctx context.Context, trade Trade) (string, tradeResult, *SkippedTransaction, error) {
 	// FX trade (assetCategory=CASH) — handled before instrument check
 	if trade.AssetCategory == "CASH" {
 		return "fx", s.buildFXPreview(trade, ""), nil, nil
@@ -323,7 +323,7 @@ func (s *Service) processTrade(trade Trade) (string, tradeResult, *SkippedTransa
 	}
 
 	// Resolve symbol
-	internalSymbol := s.resolveSymbol(trade.Symbol)
+	internalSymbol := s.resolveSymbol(ctx, trade.Symbol)
 	if internalSymbol == "" {
 		return "", tradeResult{}, &SkippedTransaction{
 			ExternalReference: trade.TransactionID,
@@ -361,7 +361,7 @@ func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int
 		return "", tradeResult{}, true, nil
 	}
 
-	internalSymbol := s.resolveSymbol(trade.Symbol)
+	internalSymbol := s.resolveSymbol(ctx, trade.Symbol)
 	if internalSymbol == "" {
 		return "", tradeResult{}, true, nil
 	}
@@ -480,12 +480,12 @@ func (s *Service) buildFXTxns(trade Trade, accountID int64, now time.Time, extSy
 
 // ---- Cash transaction processing ----
 
-func (s *Service) processCashTransaction(ct CashTransaction) (*PreviewTransaction, *SkippedTransaction, error) {
+func (s *Service) processCashTransaction(ctx context.Context, ct CashTransaction) (*PreviewTransaction, *SkippedTransaction, error) {
 	typ, needsSymbol := classifyCashTransaction(ct)
 
 	var symbol string
 	if needsSymbol {
-		symbol = s.resolveSymbol(ct.Symbol)
+		symbol = s.resolveSymbol(ctx, ct.Symbol)
 		if symbol == "" {
 			return nil, &SkippedTransaction{
 				ExternalReference: ct.TransactionID,
@@ -519,7 +519,7 @@ func (s *Service) buildCashTxn(ctx context.Context, ct CashTransaction, accountI
 
 	var symbol string
 	if needsSymbol {
-		symbol = s.resolveSymbol(ct.Symbol)
+		symbol = s.resolveSymbol(ctx, ct.Symbol)
 		if symbol == "" {
 			return nil, true, nil
 		}
@@ -584,12 +584,6 @@ func (s *Service) buildTransferTxn(ctx context.Context, tr Transfer, accountID i
 	date, _ := time.Parse("2006-01-02", tr.Date)
 
 	netCash := amount
-	if typ == "withdrawal" {
-		// For withdrawals, netCash should be negative
-		if amount.IsPos() {
-			// Already handled by absStr in preview; for actual txn, use original
-		}
-	}
 
 	return &transaction.Transaction{
 		AccountID:         accountID,
@@ -671,14 +665,14 @@ func isSupportedTrade(trade Trade) bool {
 }
 
 // resolveSymbol tries broker symbol map first, then direct internal symbol match.
-func (s *Service) resolveSymbol(brokerSymbol string) string {
+func (s *Service) resolveSymbol(ctx context.Context, brokerSymbol string) string {
 	// Check broker symbol map first
-	internal := s.resolver.ResolveBrokerSymbol(externalSystem, brokerSymbol)
+	internal := s.resolver.ResolveBrokerSymbol(ctx, externalSystem, brokerSymbol)
 	if internal != "" {
 		return internal
 	}
 	// Fall back to direct match
-	if s.resolver.SymbolExists(brokerSymbol) {
+	if s.resolver.SymbolExists(ctx, brokerSymbol) {
 		return brokerSymbol
 	}
 	return ""

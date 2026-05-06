@@ -37,12 +37,6 @@ type ErroredTransaction struct {
 	ErrorMessage      string `json:"error_message"`
 }
 
-// ImportRequest is the DTO for the ConfirmImport endpoint.
-type ImportRequest struct {
-	XMLData   []byte `json:"xml_data"`
-	AccountID int64  `json:"account_id"`
-}
-
 // ImportResult summarizes the outcome of a confirmed import.
 type ImportResult struct {
 	CreatedCount int      `json:"created_count"`
