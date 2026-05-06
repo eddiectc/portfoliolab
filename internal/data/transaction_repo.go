@@ -17,13 +17,15 @@ import (
 type TransactionRepository struct {
 	q    *queries.Queries
 	db   queries.DBTX
+	sqlDB *sql.DB
 }
 
 // NewTransactionRepository creates a new transaction repository.
 func NewTransactionRepository(db *sql.DB) *TransactionRepository {
 	return &TransactionRepository{
-		q:  queries.New(),
-		db: db,
+		q:     queries.New(),
+		db:    db,
+		sqlDB: db,
 	}
 }
 
@@ -134,6 +136,43 @@ func (r *TransactionRepository) Create(ctx context.Context, t *transaction.Trans
 		return fmt.Errorf("insert transaction: %w", err)
 	}
 	t.ID = result.ID
+	return nil
+}
+
+// BatchCreate inserts multiple transactions within a single database
+// transaction (all-or-nothing). If any insert fails, the entire batch
+// is rolled back.
+func (r *TransactionRepository) BatchCreate(ctx context.Context, txns []*transaction.Transaction) error {
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	q := r.q
+	for _, t := range txns {
+		_, err := q.CreateTransaction(ctx, tx, queries.CreateTransactionParams{
+			AccountID:         t.AccountID,
+			Date:              t.Date.Format(time.RFC3339),
+			Type:              t.Type,
+			Symbol:            t.Symbol,
+			Quantity:          t.Quantity.String(),
+			Price:             t.Price.String(),
+			Currency:          t.Currency,
+			NetCash:           toNullDecimal(t.NetCash),
+			ExternalSystem:    toNullString(t.ExternalSystem),
+			ExternalReference: toNullString(t.ExternalReference),
+			CreatedAt:         t.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
+		})
+		if err != nil {
+			return fmt.Errorf("insert transaction: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
 	return nil
 }
 

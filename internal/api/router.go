@@ -14,6 +14,7 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/api/middleware"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/data"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/ibkrimport"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
@@ -69,6 +70,13 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator)
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)
 	transactionHandler.RegisterRoutes(r)
+
+	// IBKR Flex XML Import (API)
+	symbolResolver := data.NewSymbolResolver(symbolMappingRepo)
+	brokerSymbolAdder := data.NewBrokerSymbolAdder(symbolMappingRepo, symbolMappingSvc)
+	importSvc := ibkrimport.NewService(symbolResolver, transactionRepo, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder)
+	importHandler := handlers.NewImportHandler(importSvc, symbolMappingSvc)
+	importHandler.RegisterRoutes(r)
 
 	// Portfolio web pages
 	renderer, err := web.NewRenderer("templates")
