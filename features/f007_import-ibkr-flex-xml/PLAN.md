@@ -71,54 +71,54 @@ Tasks 1 and 2 are independent and can be done in parallel. Task 3 depends on bot
 
 **Description:** Create the import domain service that orchestrates preview generation (symbol resolution, duplicate detection, classification) and transactional import. This is the core business logic layer.
 
-- [ ] Define `internal/domain/ibkrimport/models.go` with:
-  - [ ] `PreviewResponse` — contains `Importable []PreviewTransaction`, `Skipped []SkippedTransaction`, `Errored []ErroredTransaction`, counts
-  - [ ] `PreviewTransaction` — fields for display: date, type, symbol, quantity, price, currency, netCash, externalReference, description
-  - [ ] `SkippedTransaction` — externalReference, reason (e.g., "unsupported instrument type", "duplicate", "unmapped symbol")
-  - [ ] `ErroredTransaction` — externalReference, error message
-  - [ ] `ImportRequest` — DTO for confirm endpoint: XML data ([]byte), account ID
-  - [ ] `ImportResult` — summary: created count, skipped count, any errors
-- [ ] Define service interfaces (minimal, for testability):
-  - [ ] `SymbolResolver` — resolves broker symbol to internal symbol, checks symbol existence
-  - [ ] `DuplicateChecker` — checks if external reference exists
-  - [ ] `TransactionCreator` — creates transactions (supports batch/transactional creation)
-  - [ ] `AccountChecker` — checks account existence (reuse existing `transaction.AccountChecker`)
-  - [ ] `SymbolCreator` — creates new symbol mappings (reuse existing `transaction.SymbolCreator`)
-  - [ ] `BrokerSymbolAdder` — adds broker symbol mappings
-- [ ] Implement `Service` struct with dependencies injected via constructor
-- [ ] Implement `Preview(ctx, xmlData []byte, accountID int64) (*PreviewResponse, error)`:
-  - [ ] Parse XML using parser from Task 1
-  - [ ] For each Trade: classify instrument type (STK COMMON/ETF = supported, others = skipped), resolve symbol via broker symbol map, check duplicate, build preview entry
-  - [ ] For each CashTransaction: classify by type (Dividends → dividend, Withholding Tax → tax, Broker Interest Received → interest, Other Fees → fee, positive amount → deposit, negative → withdrawal), resolve symbol for dividends, check duplicate, build preview entry
-  - [ ] For each FX Trade (assetCategory=CASH): generate two preview entries (withdrawal in source currency, deposit in target currency)
-  - [ ] For each Transfer: generate one preview entry (deposit if cashTransfer > 0, withdrawal if < 0)
-  - [ ] Handle negative quantities on sells (IBKR reports sells with negative quantity — use absolute value for display, keep as-is for import)
-  - [ ] Handle zero netCash on FX trades
-  - [ ] Return categorized results (importable, skipped, errored)
-- [ ] Implement `ConfirmImport(ctx, xmlData []byte, accountID int64) (*ImportResult, error)`:
-  - [ ] Parse XML again (stateless — no server-side session)
-  - [ ] Re-resolve symbols and re-check duplicates (data may have changed since preview)
-  - [ ] Build `transaction.CreateRequest` for each importable transaction
-  - [ ] Set `ExternalSystem = "IBKR"` and `ExternalReference = transactionID` on each
-  - [ ] Create all transactions within a single SQLite transaction (BEGIN/COMMIT)
-  - [ ] If any creation fails, rollback — none are committed
-  - [ ] Return summary of created/skipped counts
-- [ ] Implement `CreateSymbol(ctx, internalSymbol, marketDataSymbol string) error` — delegates to symbol service
-- [ ] Implement `AddBrokerSymbolMapping(ctx, brokerName, brokerSymbol, internalSymbol string) error` — resolves internal symbol to mapping ID, adds broker symbol
-- [ ] Write comprehensive unit tests:
-  - [ ] Preview with sample XML — correct counts for importable/skipped/errored
-  - [ ] Preview with all duplicates — all skipped
-  - [ ] Preview with unmapped symbols — skipped with reason
-  - [ ] Preview with unsupported instrument types — skipped
-  - [ ] Preview with FX trades — generates 2 entries per FX trade
-  - [ ] Preview with transfers — correct deposit/withdrawal classification
-  - [ ] Preview with cash transactions — correct type classification
-  - [ ] Confirm import creates transactions atomically
-  - [ ] Confirm import rolls back on failure
-  - [ ] Confirm import detects new duplicates (added between preview and confirm)
-  - [ ] Reject preview for invalid XML
-  - [ ] Reject preview for non-existent account
-  - [ ] Reject confirm for non-existent account
+- [x] Define `internal/domain/ibkrimport/models.go` with:
+  - [x] `PreviewResponse` — contains `Importable []PreviewTransaction`, `Skipped []SkippedTransaction`, `Errored []ErroredTransaction`, counts
+  - [x] `PreviewTransaction` — fields for display: date, type, symbol, quantity, price, currency, netCash, externalReference, description
+  - [x] `SkippedTransaction` — externalReference, reason (e.g., "unsupported instrument type", "duplicate", "unmapped symbol")
+  - [x] `ErroredTransaction` — externalReference, error message
+  - [x] `ImportRequest` — DTO for confirm endpoint: XML data ([]byte), account ID
+  - [x] `ImportResult` — summary: created count, skipped count, any errors
+- [x] Define service interfaces (minimal, for testability):
+  - [x] `SymbolResolver` — resolves broker symbol to internal symbol, checks symbol existence
+  - [x] `DuplicateChecker` — checks if external reference exists
+  - [x] `TransactionCreator` — creates transactions (supports batch/transactional creation)
+  - [x] `AccountChecker` — checks account existence (reuse existing `transaction.AccountChecker`)
+  - [x] `SymbolCreator` — creates new symbol mappings (reuse existing `transaction.SymbolCreator`)
+  - [x] `BrokerSymbolAdder` — adds broker symbol mappings
+- [x] Implement `Service` struct with dependencies injected via constructor
+- [x] Implement `Preview(ctx, xmlData []byte, accountID int64) (*PreviewResponse, error)`:
+  - [x] Parse XML using parser from Task 1
+  - [x] For each Trade: classify instrument type (STK COMMON/ETF = supported, others = skipped), resolve symbol via broker symbol map, check duplicate, build preview entry
+  - [x] For each CashTransaction: classify by type (Dividends → dividend, Withholding Tax → tax, Broker Interest Received → interest, Other Fees → fee, positive amount → deposit, negative → withdrawal), resolve symbol for dividends, check duplicate, build preview entry
+  - [x] For each FX Trade (assetCategory=CASH): generate two preview entries (withdrawal in source currency, deposit in target currency)
+  - [x] For each Transfer: generate one preview entry (deposit if cashTransfer > 0, withdrawal if < 0)
+  - [x] Handle negative quantities on sells (IBKR reports sells with negative quantity — use absolute value for display, keep as-is for import)
+  - [x] Handle zero netCash on FX trades
+  - [x] Return categorized results (importable, skipped, errored)
+- [x] Implement `ConfirmImport(ctx, xmlData []byte, accountID int64) (*ImportResult, error)`:
+  - [x] Parse XML again (stateless — no server-side session)
+  - [x] Re-resolve symbols and re-check duplicates (data may have changed since preview)
+  - [x] Build `transaction.CreateRequest` for each importable transaction
+  - [x] Set `ExternalSystem = "IBKR"` and `ExternalReference = transactionID` on each
+  - [x] Create all transactions within a single SQLite transaction (BEGIN/COMMIT)
+  - [x] If any creation fails, rollback — none are committed
+  - [x] Return summary of created/skipped counts
+- [x] Implement `CreateSymbol(ctx, internalSymbol, marketDataSymbol string) error` — delegates to symbol service
+- [x] Implement `AddBrokerSymbolMapping(ctx, brokerName, brokerSymbol, internalSymbol string) error` — resolves internal symbol to mapping ID, adds broker symbol
+- [x] Write comprehensive unit tests:
+  - [x] Preview with sample XML — correct counts for importable/skipped/errored
+  - [x] Preview with all duplicates — all skipped
+  - [x] Preview with unmapped symbols — skipped with reason
+  - [x] Preview with unsupported instrument types — skipped
+  - [x] Preview with FX trades — generates 2 entries per FX trade
+  - [x] Preview with transfers — correct deposit/withdrawal classification
+  - [x] Preview with cash transactions — correct type classification
+  - [x] Confirm import creates transactions atomically
+  - [x] Confirm import rolls back on failure
+  - [x] Confirm import detects new duplicates (added between preview and confirm)
+  - [x] Reject preview for invalid XML
+  - [x] Reject preview for non-existent account
+  - [x] Reject confirm for non-existent account
 
 **Verification:** `go test ./internal/domain/ibkrimport/...` passes. All scenarios from the spec are covered by unit tests.
 
