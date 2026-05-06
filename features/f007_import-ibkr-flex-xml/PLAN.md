@@ -171,49 +171,44 @@ Tasks 1 and 2 are independent and can be done in parallel. Task 3 depends on bot
 
 **Description:** Create server-rendered web pages for the import workflow with inline symbol management. Accessible from the Transactions page header via an "Import" dropdown (extensible for future brokers).
 
-- [ ] Create `internal/api/handlers/ibkr_import_web.go`:
-  - [ ] `ImportWebHandler` struct with dependencies
-  - [ ] `HandleImportPage(w, r)` — GET `/transactions/import/ibkr`:
-    - [ ] Render import page with file upload form, account dropdown, supported types info panel
-  - [ ] `HandleImportPost(w, r)` — POST `/transactions/import/ibkr`:
-    - [ ] Parse multipart form (XML file + account_id)
-    - [ ] Call import service Preview
-    - [ ] Render preview page showing importable/skipped/errored transactions with filter tabs
-    - [ ] Include inline forms for creating symbols and adding broker symbol mappings
-    - [ ] Include confirm button (POST with same XML data)
-  - [ ] `HandleConfirmPost(w, r)` — POST `/transactions/import/ibkr/confirm`:
-    - [ ] Re-submit XML data and account_id
-    - [ ] Call import service ConfirmImport
-    - [ ] Render result summary page (or redirect with flash message)
-  - [ ] `HandleCreateSymbolPost(w, r)` — POST `/transactions/import/ibkr/symbols`:
-    - [ ] Accept form data for inline symbol creation
-    - [ ] Create symbol, redirect back to preview with updated data
-  - [ ] `HandleAddBrokerSymbolPost(w, r)` — POST `/transactions/import/ibkr/broker-symbols`:
-    - [ ] Accept form data for inline broker symbol mapping
-    - [ ] Add mapping, redirect back to preview with updated data
-  - [ ] `RegisterRoutes(r)` — mount web routes
-- [ ] Create `templates/transaction/import.html` — upload page:
-  - [ ] File input for XML upload
-  - [ ] Account dropdown (populated from account service)
-  - [ ] Collapsible panel showing supported transaction types (Trades: stocks/ETFs, CashTransactions: dividends/interest/fees/taxes/deposits/withdrawals, Transfers)
-  - [ ] Submit button
-- [ ] Create `templates/transaction/import_preview.html` — preview page:
-  - [ ] Summary counts (importable, skipped, errored)
-  - [ ] Filter tabs (all, importable, skipped, errored)
-  - [ ] Table of transactions with full details
-  - [ ] Skipped items show reason
-  - [ ] Unmapped symbols show inline form to create symbol or add broker mapping
-  - [ ] Confirm import button (disabled if zero importable)
-  - [ ] Cancel link
-- [ ] Create `templates/transaction/import_result.html` — result page:
-  - [ ] Summary of created/skipped counts
-  - [ ] Link back to import page
-  - [ ] Link to transactions list
-- [ ] Write tests for web handlers:
-  - [ ] GET /transactions/import/ibkr → 200, renders upload page
-  - [ ] POST /transactions/import/ibkr with valid XML → 200, renders preview
-  - [ ] POST /transactions/import/ibkr with invalid XML → 200, shows error
-  - [ ] POST /transactions/import/ibkr/confirm → redirects with flash
+- [x] Create `internal/api/handlers/ibkr_import_web.go`:
+  - [x] `ImportWebHandler` struct with dependencies
+  - [x] `HandleImportPage(w, r)` — GET `/transactions/import/ibkr`:
+    - [x] Render import page with file upload form, account dropdown, supported types info panel
+  - [x] `HandleImportPost(w, r)` — POST `/transactions/import/ibkr`:
+    - [x] Parse multipart form (XML file + account_id)
+    - [x] Call import service Preview
+    - [x] Render preview page showing importable/skipped/errored transactions with filter tabs
+    - [x] Include inline forms for creating symbols and adding broker symbol mappings (via AJAX to API endpoints)
+    - [x] Include confirm button (POST with base64-encoded XML data)
+  - [x] `HandleConfirmPost(w, r)` — POST `/transactions/import/ibkr/confirm`:
+    - [x] Re-submit XML data (base64-encoded) and account_id
+    - [x] Call import service ConfirmImport
+    - [x] Redirect to /transactions with flash message (no separate result page)
+  - [x] `RegisterRoutes(r)` — mount web routes
+- [x] Create `templates/transaction/import.html` — upload page:
+  - [x] File input for XML upload
+  - [x] Account dropdown (populated from account service)
+  - [x] Info panel showing supported transaction types (Trades: stocks/ETFs, CashTransactions: dividends/interest/fees/taxes/deposits/withdrawals, FX Trades, Transfers)
+  - [x] Submit button
+- [x] Create `templates/transaction/import_preview.html` — preview page:
+  - [x] Summary counts (importable, skipped, errored)
+  - [x] Filter tabs (all, importable, skipped, errored)
+  - [x] Table of transactions with full details
+  - [x] Skipped items show reason
+  - [x] Unmapped symbols show "Resolve Symbol" button (modal with AJAX to API endpoints)
+  - [x] Confirm import button (disabled if zero importable)
+  - [x] Cancel link
+- [x] Write tests for web handlers:
+  - [x] GET /transactions/import/ibkr → 200, renders upload page
+  - [x] POST /transactions/import/ibkr with valid XML → 200, renders preview
+  - [x] POST /transactions/import/ibkr with invalid XML → 200, shows error
+  - [x] POST /transactions/import/ibkr with account not found → 200, shows error
+  - [x] POST /transactions/import/ibkr with missing account → 200, shows error
+  - [x] POST /transactions/import/ibkr/confirm → redirects with flash
+  - [x] POST /transactions/import/ibkr/confirm with missing XML data → 400
+  - [x] POST /transactions/import/ibkr/confirm with missing account → 400
+  - [x] RegisterRoutes — all routes wired
 
 **Verification:** `go test ./internal/api/handlers/... -run ImportWeb` passes. Pages render correctly with `go run cmd/server/main.go`.
 

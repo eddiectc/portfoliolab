@@ -1,0 +1,60 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Import IBKR Flex XML</h1>
+    <a href="/transactions" class="btn">Back to Transactions</a>
+</div>
+
+{{if .Error}}
+<div class="alert alert-error">{{.Error}}</div>
+{{end}}
+
+<div class="info-panel">
+    <h2>Supported Transaction Types</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>Trades</strong>
+            <p>Stocks (common shares) and ETFs — buys and sells</p>
+        </div>
+        <div class="info-item">
+            <strong>Cash Transactions</strong>
+            <p>Dividends, interest, withholding tax, broker fees, deposits, withdrawals</p>
+        </div>
+        <div class="info-item">
+            <strong>FX Trades</strong>
+            <p>Currency conversions — recorded as withdrawal + deposit in respective currencies</p>
+        </div>
+        <div class="info-item">
+            <strong>Transfers</strong>
+            <p>Internal account transfers — recorded as deposits or withdrawals</p>
+        </div>
+    </div>
+    <p class="info-note">Requires an IBKR Flex Web Report XML file (Account Activity statement).<br>
+    Unsupported instrument types (options, futures, bonds) are skipped during import.</p>
+</div>
+
+<form action="/transactions/import/ibkr" method="POST" enctype="multipart/form-data" class="form import-form">
+    <div class="form-group">
+        <label for="account_id">Account</label>
+        <select id="account_id" name="account_id" required>
+            <option value="">-- Select Account --</option>
+            {{range .Accounts}}
+            <option value="{{.ID}}">{{.Name}}</option>
+            {{end}}
+        </select>
+        <small>Transactions will be created under this account</small>
+    </div>
+
+    <div class="form-group">
+        <label for="xml_file">IBKR Flex XML File</label>
+        <input type="file" id="xml_file" name="xml_file" accept=".xml" required>
+        <small>Upload an IBKR Flex Web Report XML file (Account Activity statement)</small>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Preview Import</button>
+        <a href="/transactions" class="btn">Cancel</a>
+    </div>
+</form>
+{{end}}
+
+{{template "base" .}}
