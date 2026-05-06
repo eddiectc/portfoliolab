@@ -276,21 +276,21 @@ Tasks 0–5 are sequential. Task 0 is a small refactoring of existing IBKR code.
 
 **Description:** Wire the Trading 212 import handlers into the application router and add "Trading 212 CSV" to the Import dropdown on the Transactions page.
 
-- [ ] Update `internal/api/router.go`:
-  - [ ] Create `trading212import.Service` instance with dependencies (reuse existing symbolResolver, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder from IBKR wiring)
-  - [ ] Create `Trading212ImportHandler` and register API routes
-  - [ ] Create `Trading212ImportWebHandler` and register web routes (inside the renderer block)
-- [ ] Update `templates/transaction/list.html`:
-  - [ ] Add "Trading 212 CSV" link to the Import dropdown (below "IBKR Flex XML")
-- [ ] Update `features/README.md`:
-  - [ ] Change f008 status from "spec" to "planning"
-- [ ] Verify the full flow end-to-end:
-  - [ ] Navigate to /transactions, click Import → Trading 212 CSV
-  - [ ] Upload sample CSV, see preview with correct counts
-  - [ ] Verify GBX→GBP price conversion in preview
-  - [ ] Verify duplicate detection works
-  - [ ] Confirm import, see result flash message
-  - [ ] Verify transactions appear in /transactions list with correct data
+- [x] Update `internal/api/router.go`:
+  - [x] Create `trading212import.Service` instance with dependencies (reuse existing symbolResolver, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder from IBKR wiring)
+  - [x] Create `Trading212ImportHandler` and register API routes
+  - [x] Create `Trading212ImportWebHandler` and register web routes (inside the renderer block)
+- [x] Update `templates/transaction/list.html`:
+  - [x] Add "Trading 212 CSV" link to the Import dropdown (below "IBKR Flex XML")
+- [x] Update `features/README.md`:
+  - [x] Change f008 status from "spec" to "planning"
+- [x] Verify the full flow end-to-end:
+  - [x] Navigate to /transactions, click Import → Trading 212 CSV
+  - [x] Upload sample CSV, see preview with correct counts
+  - [x] Verify GBX→GBP price conversion in preview
+  - [x] Verify duplicate detection works
+  - [x] Confirm import, see result flash message
+  - [x] Verify transactions appear in /transactions list with correct data
 
 **Verification:** Server starts without errors. Full import flow works end-to-end with sample CSV. `go test ./...` passes.
 

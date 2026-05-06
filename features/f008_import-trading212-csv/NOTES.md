@@ -18,3 +18,4 @@
 
 ## Session Log
 - 2026-05-06: Task 4 (Web UI) completed. Created `trading212_import_web.go` (web handler), `t212_import.html` (upload page), `t212_import_preview.html` (preview page with resolve modal), and `trading212_import_web_test.go` (11 tests). Follows IBKR pattern exactly, targeting Trading 212 API endpoints and using "Trading212" as broker name.
+- 2026-05-06: Task 5 (Router Wiring + Navigation) completed. Wired `trading212import.Service`, `Trading212ImportHandler`, and `Trading212ImportWebHandler` into `router.go` reusing the same dependency instances (symbolResolver, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder) as IBKR. Added "Trading 212 CSV" link to the Import dropdown in `templates/transaction/list.html`. Updated features/README.md status to "in-progress". `go build ./...` and `go test ./...` both pass.
