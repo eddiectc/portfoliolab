@@ -83,6 +83,17 @@ For cash transactions classified as withdrawals (negative `amount`), the `Quanti
 | XML data passed as file re-upload | Base64-encoded hidden form field | Avoids re-uploading the file; hidden input carries the data through preview → confirm flow |
 | `contains` template function added | Added `strings.Contains` to renderer funcMap | Needed for conditional rendering of "Resolve Symbol" button on unmapped symbols |
 
+## Session: Task 6 (Router Wiring + Navigation)
+
+The API handler (`ImportHandler`) was already wired in router.go from a previous session — it was created and registered outside the renderer block. Task 6 only needed to add the web handler (`ImportWebHandler`) inside the renderer block, since it depends on the `*web.Renderer`.
+
+Added a CSS-only dropdown (click-to-toggle via a tiny inline `onclick`) in the Transactions page header. The dropdown uses a `.dropdown.open` class toggle rather than `:hover` to work better on mobile/touch. Structured with a `.dropdown-menu` that's ready for future broker additions (e.g., Trading 212).
+
+### Files changed
+- `internal/api/router.go` — added `ImportWebHandler` registration inside renderer block
+- `templates/transaction/list.html` — added Import dropdown with header-actions wrapper
+- `internal/web/static/css/style.css` — added `.dropdown`, `.dropdown-toggle`, `.dropdown-menu` styles
+
 ## Test Coverage
 
 - 69 tests total (27 parser + 32 service + 10 web handler)

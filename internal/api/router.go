@@ -102,6 +102,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 		transactionWebHandler := handlers.NewTransactionWebHandler(transactionSvc, accountSvc, symbolMappingSvc, renderer)
 		transactionWebHandler.RegisterRoutes(r)
 
+		// IBKR import web pages
+		importWebHandler := handlers.NewImportWebHandler(importSvc, accountSvc, renderer)
+		importWebHandler.RegisterRoutes(r)
+
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/portfolios", http.StatusSeeOther)
