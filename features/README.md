@@ -18,3 +18,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f004 | Transaction CRUD | done | f002, f003 |
 | f005 | Transactions CRUD UI | done | f004, f002, f003 |
 | f006 | Auto-create Symbol | done | f003, f004, f005 |
+| f007 | Import IBKR Flex XML | spec | f002, f003, f004 |
