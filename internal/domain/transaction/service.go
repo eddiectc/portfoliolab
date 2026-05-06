@@ -32,6 +32,12 @@ type SymbolCreator interface {
 	CreateSymbol(ctx context.Context, internalSymbol, marketDataSymbol string) error
 }
 
+// ExternalReferenceChecker defines the interface for checking whether
+// an external system reference already exists (used for duplicate detection).
+type ExternalReferenceChecker interface {
+	ExternalReferenceExists(ctx context.Context, externalSystem, externalReference string) bool
+}
+
 const (
 	// defaultLimit is the default pagination limit when not specified.
 	defaultLimit = 50

@@ -229,6 +229,11 @@ WHERE t.symbol = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
 ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
 LIMIT ? OFFSET ?;
 
+-- name: HasExternalReference :one
+SELECT 1 FROM transactions
+WHERE external_system = ? AND external_reference = ?
+LIMIT 1;
+
 -- name: ListTransactionsWithAccountByAllFilters :many
 SELECT t.*, a.name AS account_name
 FROM transactions t
