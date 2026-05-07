@@ -121,7 +121,7 @@ This feature establishes the import workflow (upload → preview → map → con
 - **All transactions are duplicates** — preview shows all as skipped with reasons
 - **Mixed currencies in trades** — each transaction preserves its original currency from the XML
 - **Negative quantities on sells** — IBKR reports sells with negative quantity; system handles this correctly
-- **Zero netCash on FX trades** — FX trades may have netCash=0; system handles this without rejecting the transaction
+- **Zero netCash on FX trades** — FX trades are constructed from non-zero withdrawal/deposit amounts in the XML, so netCash is always non-zero in practice. The import bypasses the transaction validator (which rejects zero netCash) and uses BatchCreate directly.
 - **Very large XML file with thousands of transactions** — system processes the file without timing out
 - **Re-importing a previously imported file** — all duplicates detected and skipped, no new records created
 - **XML containing derivatives (options, futures)** — unsupported instrument types are skipped with reason "unsupported instrument type"

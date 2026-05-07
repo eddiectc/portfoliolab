@@ -161,6 +161,7 @@ The import API is designed to be broker-agnostic at the workflow level (upload â
 - Symbol creation, broker symbol mapping, and market data preview are all inline on the import page â€” no navigation to other pages required
 - Web UI is required for the import flow; the same API is used by the web UI
 - Supported transaction types: Limit buy, Market buy, Limit sell, Market sell, Deposit, Withdrawal, Interest on cash
+- Unsupported transaction types (skipped with reason "unsupported action type"): Dividend, Fee, Tax, and any other unrecognized Action values
 - Duplicate detection uses the `ID` column from the CSV
 
 ## Non-Goals

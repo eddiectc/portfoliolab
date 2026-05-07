@@ -320,7 +320,7 @@ As an investor, I want to remove an erroneous transaction from the web interface
 - **Error display**: validation errors are shown inline on the form, preserving all previously entered values
 - **Success feedback**: after create/update/delete, a confirmation message is displayed
 - **Delete confirmation**: deletion requires explicit user confirmation
-- **netCash**: required field on both create and edit forms; required at the API level as well (changed from optional in f004)
+- **netCash**: required field on both create and edit forms; required and non-zero at the API level as well (changed from optional in f004). Enforced by the application validator and by a NOT NULL constraint in the database schema.
 - **External fields**: `external_system` and `external_reference` are optional, max 100 characters each
 - **Migration**: existing transactions with null netCash are migrated with `netCash = quantity × price`
 
