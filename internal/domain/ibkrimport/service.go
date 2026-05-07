@@ -119,10 +119,10 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 				Date:              trade.TradeDate,
 				Type:              typ,
 				Symbol:            trade.Symbol,
-				Quantity:          absStr(trade.Quantity),
+				Quantity:          trade.Quantity,
 				Price:             trade.TradePrice,
 				Currency:          trade.Currency,
-				NetCash:           absStr(trade.NetCash),
+				NetCash:           trade.NetCash,
 				Description:       trade.Description,
 			})
 			continue
@@ -331,10 +331,10 @@ func (s *Service) processTrade(ctx context.Context, trade Trade) (string, tradeR
 			Date:              trade.TradeDate,
 			Type:              classifyTrade(trade),
 			Symbol:            trade.Symbol,
-			Quantity:          absStr(trade.Quantity),
+			Quantity:          trade.Quantity,
 			Price:             trade.TradePrice,
 			Currency:          trade.Currency,
-			NetCash:           absStr(trade.NetCash),
+			NetCash:           trade.NetCash,
 			Description:       trade.Description,
 		}, nil
 	}
@@ -349,10 +349,10 @@ func (s *Service) processTrade(ctx context.Context, trade Trade) (string, tradeR
 			Date:              trade.TradeDate,
 			Type:              classifyTrade(trade),
 			Symbol:            trade.Symbol,
-			Quantity:          absStr(trade.Quantity),
+			Quantity:          trade.Quantity,
 			Price:             trade.TradePrice,
 			Currency:          trade.Currency,
-			NetCash:           absStr(trade.NetCash),
+			NetCash:           trade.NetCash,
 			Description:       trade.Description,
 		}, nil
 	}
@@ -363,10 +363,10 @@ func (s *Service) processTrade(ctx context.Context, trade Trade) (string, tradeR
 			Date:              trade.TradeDate,
 			Type:              typ,
 			Symbol:            internalSymbol,
-			Quantity:          absStr(trade.Quantity),
+			Quantity:          trade.Quantity,
 			Price:             trade.TradePrice,
 			Currency:          trade.Currency,
-			NetCash:           absStr(trade.NetCash),
+			NetCash:           trade.NetCash,
 			ExternalReference: trade.TransactionID,
 			Description:       trade.Description,
 		},
@@ -432,7 +432,8 @@ func (s *Service) buildFXPreview(trade Trade, _ string) tradeResult {
 	if len(parts) == 2 {
 		targetCurrency = parts[1]
 	}
-	proceeds := absStr(trade.Proceeds)
+	// Use raw Proceeds (already negative for FX withdrawal leg)
+	// so preview matches the stored transaction values.
 
 	return tradeResult{
 		fxEntries: []PreviewTransaction{
@@ -440,10 +441,10 @@ func (s *Service) buildFXPreview(trade Trade, _ string) tradeResult {
 				Date:              trade.TradeDate,
 				Type:              "withdrawal",
 				Symbol:            cashSymbol(trade.Currency),
-				Quantity:          proceeds,
+				Quantity:          trade.Proceeds,
 				Price:             "1",
 				Currency:          trade.Currency,
-				NetCash:           proceeds,
+				NetCash:           trade.Proceeds,
 				ExternalReference: trade.TransactionID + "_fx_withdrawal",
 				Description:       trade.Description + " " + trade.TradePrice,
 			},
@@ -482,7 +483,7 @@ func (s *Service) buildFXTxns(trade Trade, accountID int64, now time.Time, extSy
 			Date:              date,
 			Type:              "withdrawal",
 			Symbol:            cashSymbol(trade.Currency),
-			Quantity:          proceeds,
+			Quantity:          proceeds.Neg(),
 			Price:             decimal.One,
 			Currency:          trade.Currency,
 			NetCash:           proceeds.Neg(),
@@ -536,10 +537,9 @@ func (s *Service) processCashTransaction(ctx context.Context, ct CashTransaction
 		symbol = cashSymbol(ct.Currency)
 	}
 
+	// Use raw amount (signed) so preview matches the stored transaction.
+	// Deposits are positive, withdrawals are negative.
 	amount := ct.Amount
-	if typ == "withdrawal" {
-		amount = absStr(amount)
-	}
 
 	return &PreviewTransaction{
 		Date:              ct.ReportDate,
@@ -595,10 +595,9 @@ func (s *Service) buildCashTxn(ctx context.Context, ct CashTransaction, accountI
 func (s *Service) processTransfer(tr Transfer) (*PreviewTransaction, *SkippedTransaction, error) {
 	typ := classifyTransfer(tr)
 
+	// Use raw cashTransfer (signed) so preview matches the stored transaction.
+	// IN (deposit) is positive, OUT (withdrawal) is negative.
 	amount := tr.CashTransfer
-	if typ == "withdrawal" {
-		amount = absStr(amount)
-	}
 
 	return &PreviewTransaction{
 		Date:              tr.Date,

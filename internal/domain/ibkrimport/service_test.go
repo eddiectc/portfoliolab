@@ -292,6 +292,13 @@ func TestService_Preview_FXTrades(t *testing.T) {
 	if withdrawal.Currency != "GBP" {
 		t.Errorf("expected currency GBP, got %q", withdrawal.Currency)
 	}
+	// Withdrawal preview must show signed values matching stored transactions
+	if withdrawal.Quantity != "-12700" {
+		t.Errorf("expected withdrawal quantity -12700, got %q", withdrawal.Quantity)
+	}
+	if withdrawal.NetCash != "-12700" {
+		t.Errorf("expected withdrawal net cash -12700, got %q", withdrawal.NetCash)
+	}
 
 	deposit := got.Importable[1]
 	if deposit.Type != "deposit" {
@@ -305,6 +312,9 @@ func TestService_Preview_FXTrades(t *testing.T) {
 	}
 	if deposit.Quantity != "10000" {
 		t.Errorf("expected quantity 10000, got %q", deposit.Quantity)
+	}
+	if deposit.NetCash != "10000" {
+		t.Errorf("expected deposit net cash 10000, got %q", deposit.NetCash)
 	}
 }
 
@@ -341,9 +351,23 @@ func TestService_Preview_Transfers(t *testing.T) {
 	if got.Importable[0].Symbol != "$CASH-GBP" {
 		t.Errorf("expected symbol $CASH-GBP, got %q", got.Importable[0].Symbol)
 	}
+	// Deposit preview: positive values
+	if got.Importable[0].Quantity != "250.00" {
+		t.Errorf("expected deposit quantity 250.00, got %q", got.Importable[0].Quantity)
+	}
+	if got.Importable[0].NetCash != "250.00" {
+		t.Errorf("expected deposit net cash 250.00, got %q", got.Importable[0].NetCash)
+	}
 
 	if got.Importable[1].Type != "withdrawal" {
 		t.Errorf("expected withdrawal type, got %q", got.Importable[1].Type)
+	}
+	// Withdrawal preview: negative values (matches stored transaction)
+	if got.Importable[1].Quantity != "-100.00" {
+		t.Errorf("expected withdrawal quantity -100.00, got %q", got.Importable[1].Quantity)
+	}
+	if got.Importable[1].NetCash != "-100.00" {
+		t.Errorf("expected withdrawal net cash -100.00, got %q", got.Importable[1].NetCash)
 	}
 }
 
@@ -391,6 +415,20 @@ func TestService_Preview_CashTransactions(t *testing.T) {
 	}
 	if got.Importable[1].Symbol != "$CASH-GBP" {
 		t.Errorf("interest: expected symbol $CASH-GBP, got %q", got.Importable[1].Symbol)
+	}
+	// Deposit preview: positive values
+	if got.Importable[4].Quantity != "5000" {
+		t.Errorf("deposit: expected quantity 5000, got %q", got.Importable[4].Quantity)
+	}
+	if got.Importable[4].NetCash != "5000" {
+		t.Errorf("deposit: expected net cash 5000, got %q", got.Importable[4].NetCash)
+	}
+	// Withdrawal preview: negative values (matches stored transaction)
+	if got.Importable[5].Quantity != "-3000" {
+		t.Errorf("withdrawal: expected quantity -3000, got %q", got.Importable[5].Quantity)
+	}
+	if got.Importable[5].NetCash != "-3000" {
+		t.Errorf("withdrawal: expected net cash -3000, got %q", got.Importable[5].NetCash)
 	}
 }
 
@@ -614,6 +652,20 @@ func TestService_ConfirmImport_FXTrades(t *testing.T) {
 	}
 	if txns[0].Symbol != "$CASH-GBP" {
 		t.Errorf("expected first FX txn symbol $CASH-GBP, got %q", txns[0].Symbol)
+	}
+	// Withdrawal leg: both Quantity and NetCash must be negative
+	if !txns[0].Quantity.IsNeg() {
+		t.Errorf("expected first FX txn Quantity to be negative, got %v", txns[0].Quantity)
+	}
+	if !txns[0].NetCash.IsNeg() {
+		t.Errorf("expected first FX txn NetCash to be negative, got %v", txns[0].NetCash)
+	}
+	// Deposit leg: both Quantity and NetCash must be positive
+	if !txns[1].Quantity.IsPos() {
+		t.Errorf("expected second FX txn Quantity to be positive, got %v", txns[1].Quantity)
+	}
+	if !txns[1].NetCash.IsPos() {
+		t.Errorf("expected second FX txn NetCash to be positive, got %v", txns[1].NetCash)
 	}
 	if txns[1].Type != "deposit" {
 		t.Errorf("expected second FX txn to be deposit, got %q", txns[1].Type)
