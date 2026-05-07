@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
@@ -47,10 +48,25 @@ func (h *AccountHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleList handles GET /api/accounts.
+// Supports optional portfolio_id query parameter to filter accounts by portfolio.
 func (h *AccountHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 	limit, offset := parsePagination(r.URL.Query())
 
-	accounts, err := h.service.List(r.Context(), limit, offset)
+	var accounts []account.Account
+	var err error
+
+	portfolioIDStr := r.URL.Query().Get("portfolio_id")
+	if portfolioIDStr != "" {
+		portfolioID, parseErr := strconv.ParseInt(portfolioIDStr, 10, 64)
+		if parseErr != nil {
+			writeJSONError(w, http.StatusBadRequest, "INVALID_PORTFOLIO_ID", "invalid portfolio_id parameter")
+			return
+		}
+		accounts, err = h.service.ListByPortfolio(r.Context(), portfolioID, limit, offset)
+	} else {
+		accounts, err = h.service.List(r.Context(), limit, offset)
+	}
+
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list accounts")
 		return

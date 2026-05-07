@@ -315,6 +315,72 @@ func TestAccountHandleList_DefaultPagination(t *testing.T) {
 	}
 }
 
+func TestAccountHandleList_ByPortfolio(t *testing.T) {
+	handler, repo := setupAccountHandler(t, 1, 2)
+
+	// Create accounts across two portfolios
+	repo.accounts[1] = &account.Account{ID: 1, Name: "Acc1", PortfolioID: 1}
+	repo.accounts[2] = &account.Account{ID: 2, Name: "Acc2", PortfolioID: 2}
+	repo.accounts[3] = &account.Account{ID: 3, Name: "Acc3", PortfolioID: 1}
+	repo.byPortfolio[1] = []int64{1, 3}
+	repo.byPortfolio[2] = []int64{2}
+
+	// Filter by portfolio_id=1 — should return 2 accounts
+	req := httptest.NewRequest(http.MethodGet, "/api/accounts?portfolio_id=1", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleList(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var accounts []account.Account
+	json.NewDecoder(w.Body).Decode(&accounts)
+	if len(accounts) != 2 {
+		t.Errorf("expected 2 accounts for portfolio 1, got %d", len(accounts))
+	}
+	for _, a := range accounts {
+		if a.PortfolioID != 1 {
+			t.Errorf("expected portfolio_id 1, got %d", a.PortfolioID)
+		}
+	}
+}
+
+func TestAccountHandleList_ByPortfolio_InvalidID(t *testing.T) {
+	handler, _ := setupAccountHandler(t, 1)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/accounts?portfolio_id=not-a-number", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleList(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestAccountHandleList_ByPortfolio_Empty(t *testing.T) {
+	handler, repo := setupAccountHandler(t, 1)
+
+	// No accounts for portfolio 999
+	req := httptest.NewRequest(http.MethodGet, "/api/accounts?portfolio_id=999", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleList(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var accounts []account.Account
+	json.NewDecoder(w.Body).Decode(&accounts)
+	if len(accounts) != 0 {
+		t.Errorf("expected 0 accounts for non-existent portfolio, got %d", len(accounts))
+	}
+	_ = repo
+}
+
 func TestAccountHandleGet_Success(t *testing.T) {
 	repo := newTestAccountRepo()
 	checker := newTestPortfolioChecker(1)

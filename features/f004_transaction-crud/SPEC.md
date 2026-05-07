@@ -334,13 +334,6 @@ As an investor, I want to remove an erroneous transaction so that it no longer a
 **And** all transaction fields remain unchanged
 **And** the updated_at timestamp is unchanged
 
-### Scenario: Reject update of account_id (immutable)
-**Given** a transaction with ID 5 and account ID 3 exists
-**And** an account with ID 7 exists
-**When** I update the transaction with ID 5 setting account ID to 7
-**Then** the request is rejected with status 400 Bad Request
-**And** the error code is "IMMUTABLE_FIELD"
-
 ### Scenario: Reject update with non-existent symbol
 **Given** a transaction with ID 5 exists
 **And** no symbol "ZZZZZ" exists in the symbol map
@@ -428,7 +421,7 @@ As an investor, I want to remove an erroneous transaction so that it no longer a
 - Creating a cash transaction with the `$CASH-{currency}` symbol (auto-created if missing)
 - Creating a transaction with `$CASH-{currency}` symbol where the currency in the symbol doesn't match the transaction's currency field (rejected — INVALID_CURRENCY)
 - Getting/updating/deleting a non-existent transaction ID
-- Attempting to change the account_id of an existing transaction (immutable — rejected)
+- The account_id of a transaction is implicitly immutable (not included in the update request)
 - Updating with no fields to change (no-op, returns current state, timestamps unchanged)
 - Listing with limit=0 (defaults to 50) or negative offset (defaults to 0)
 - Listing when no transactions exist (returns empty array, not error)
@@ -439,21 +432,21 @@ As an investor, I want to remove an erroneous transaction so that it no longer a
 - Creating/updating a transaction with leading/trailing whitespace in the symbol (trimmed before validation/storage)
 
 ## Constraints
-- **account_id**: required on creation, immutable after creation
+- **account_id**: required on creation, immutable after creation (not included in update request)
 - **date**: date only (no time component), must be a valid calendar date, any date allowed (past, present, or future)
 - **type**: one of `buy`, `sell`, `deposit`, `withdrawal`, `dividend`, `interest`, `fee`, `tax`
 - **symbol**: required, trimmed of leading/trailing whitespace before validation, must be non-empty after trimming, must exist in the symbol map system; `$CASH-{currency}` symbols are auto-created if missing
 - **quantity**: signed decimal, must be non-zero (positive for long direction, negative for short direction); position for a symbol = SUM(quantity) across all transactions
 - **price**: positive decimal only (must be > 0)
 - **currency**: ISO 4217, 3-letter uppercase (`^[A-Z]{3}$`); when using `$CASH-{currency}` symbol, the currency portion of the symbol must match the transaction's currency field
-- **netCash**: signed decimal, user-provided, no validation against quantity × price
+- **netCash**: signed decimal, required, must be non-zero, user-provided (no validation against quantity × price)
 - **external_system**: optional text field, max 100 characters
 - **external_reference**: optional text field, max 100 characters
 - **Cash convention**: cash movements use symbol `$CASH-{currency}` (e.g., `$CASH-USD`, `$CASH-GBP`), quantity = cash value, price = 1, netCash = quantity
 - **Sorting**: default order is date descending, then symbol ascending, then type ascending, then ID ascending
 - **Pagination**: follows existing pattern — `limit` and `offset` query params, default limit 50, limit=0 or limit<0 defaults to 50, negative offset defaults to 0
 - **Error responses**: `{"error": "message", "code": "ERROR_CODE"}`
-- **Error codes**: `TRANSACTION_NOT_FOUND`, `ACCOUNT_NOT_FOUND`, `SYMBOL_NOT_FOUND`, `INVALID_SYMBOL`, `INVALID_PRICE`, `INVALID_CURRENCY`, `INVALID_TYPE`, `INVALID_QUANTITY`, `INVALID_DATE`, `IMMUTABLE_FIELD`
+- **Error codes**: `TRANSACTION_NOT_FOUND`, `ACCOUNT_NOT_FOUND`, `SYMBOL_NOT_FOUND`, `INVALID_SYMBOL`, `INVALID_PRICE`, `INVALID_CURRENCY`, `INVALID_TYPE`, `INVALID_QUANTITY`, `INVALID_DATE`
 - All CRUD operations complete in under 100ms for typical datasets (< 10,000 transactions)
 
 ## Non-Goals
