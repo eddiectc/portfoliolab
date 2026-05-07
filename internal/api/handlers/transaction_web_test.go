@@ -750,11 +750,77 @@ func TestTxHandleListPage_PaginationPreservesFilters(t *testing.T) {
 	if !strings.Contains(body, "Previous") {
 		t.Error("expected Previous link on page 2")
 	}
-	// Check that filter params are preserved in pagination links
-	// (URL-encoded as type%3dbuy in href attributes)
-	if !strings.Contains(body, "type%3dbuy") {
-		t.Error("expected type=buy filter preserved in pagination links")
+	// Check that filter params are preserved in pagination links as separate query parameters.
+	// In HTML, & is escaped as &amp; in attribute values, which browsers correctly decode to &.
+	// The href must be: ?page=1&amp;type=buy (NOT ?page=1%26type%3dbuy which embeds & in the page value)
+	if !strings.Contains(body, `href="?page=1&amp;type=buy"`) {
+		t.Errorf("expected pagination link with separate query params, got body fragment: %s", extractPaginationLink(body))
 	}
+}
+
+// TestTxHandleListPage_PaginationFilterRoundTrip verifies that navigating to page 2
+// with a filter applied still applies the filter (i.e., the pagination link URL is valid).
+func TestTxHandleListPage_PaginationFilterRoundTrip(t *testing.T) {
+	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
+
+	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
+	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	registerAccountName(txRepo, acc)
+
+	// Create 25 buy transactions and 25 sell transactions
+	for i := 0; i < 25; i++ {
+		txSvc.Create(nil, transaction.CreateRequest{
+			AccountID: 1,
+			Date:      "2024-01-15",
+			Type:      "buy",
+			Symbol:    "AAPL",
+			Quantity:  decimal.MustNew(1000, 2),
+			Price:     decimal.MustNew(15000, 2),
+			Currency:  "USD",
+			NetCash:   decimal.MustNew(-1500000, 2),
+		})
+		txSvc.Create(nil, transaction.CreateRequest{
+			AccountID: 1,
+			Date:      "2024-01-15",
+			Type:      "sell",
+			Symbol:    "GOOG",
+			Quantity:  decimal.MustNew(500, 2),
+			Price:     decimal.MustNew(14000, 2),
+			Currency:  "USD",
+			NetCash:   decimal.MustNew(700000, 2),
+		})
+	}
+
+	// Simulate clicking the "Next" link from page 1 with type=buy filter.
+	// The pagination link should produce URL like ?page=2&type=buy
+	// and the handler should still filter by type=buy.
+	r := httptest.NewRequest(http.MethodGet, "/transactions?type=buy&page=2", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListPage(w, r)
+
+	body := w.Body.String()
+	// Page 2 of filtered results should still only show buy transactions
+	if strings.Contains(body, "140.00") {
+		t.Error("page 2 with type=buy filter should not contain sell transactions (GOOG at 140.00)")
+	}
+	// Should contain buy transactions (AAPL at 150.00)
+	if !strings.Contains(body, "150.00") {
+		t.Error("page 2 with type=buy filter should contain buy transactions (AAPL at 150.00)")
+	}
+}
+
+// extractPaginationLink extracts a snippet around the pagination link for error messages.
+func extractPaginationLink(body string) string {
+	idx := strings.Index(body, "class=\"pagination\"")
+	if idx < 0 {
+		return "(no pagination div found)"
+	}
+	end := idx + 300
+	if end > len(body) {
+		end = len(body)
+	}
+	return body[idx:end]
 }
 
 // -- HandleNewPage tests --
