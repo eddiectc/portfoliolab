@@ -17,6 +17,8 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
 )
 
+const defaultPageLimit = 20
+
 // allowedTransactionTypes is the list of valid transaction types for dropdowns.
 var allowedTransactionTypes = []string{
 	"buy", "sell", "deposit", "withdrawal", "dividend", "interest", "fee", "tax",
@@ -85,6 +87,7 @@ type TransactionFilter struct {
 // QueryParams serializes non-empty filter fields into a URL query fragment
 // like "&account_id=1&symbol=AAPL". Returns "" if all fields are empty.
 // Implements web.FilterEncoder for type-safe query preservation in templates.
+// Deprecated: use PaginationQuery instead, which properly URL-encodes values.
 func (f TransactionFilter) QueryParams() string {
 	var parts []string
 	if f.AccountID != "" {
@@ -106,6 +109,30 @@ func (f TransactionFilter) QueryParams() string {
 		return ""
 	}
 	return "&" + strings.Join(parts, "&")
+}
+
+// PaginationQuery returns a complete query string with the given page number
+// and all non-empty filter fields, properly URL-encoded for use in href attributes.
+// e.g., "?page=2&type=buy&symbol=AAPL"
+func (f TransactionFilter) PaginationQuery(page int) string {
+	values := url.Values{}
+	values.Set("page", strconv.Itoa(page))
+	if f.AccountID != "" {
+		values.Set("account_id", f.AccountID)
+	}
+	if f.Symbol != "" {
+		values.Set("symbol", f.Symbol)
+	}
+	if f.Type != "" {
+		values.Set("type", f.Type)
+	}
+	if f.DateFrom != "" {
+		values.Set("date_from", f.DateFrom)
+	}
+	if f.DateTo != "" {
+		values.Set("date_to", f.DateTo)
+	}
+	return "?" + values.Encode()
 }
 
 // TransactionWebHandler handles server-rendered transaction pages.
@@ -147,7 +174,7 @@ func (h *TransactionWebHandler) HandleListPage(w http.ResponseWriter, r *http.Re
 	if page < 1 {
 		page = 1
 	}
-	limit := 20
+	limit := defaultPageLimit
 	offset := (page - 1) * limit
 
 	// Build domain filters

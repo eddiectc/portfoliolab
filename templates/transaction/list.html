@@ -101,13 +101,13 @@
 {{if or .HasPrev .HasNext}}
 <div class="pagination">
     {{if .HasPrev}}
-    <a href="?page={{add .Page -1}}{{queryPreserve .Filter}}" class="btn btn-sm">&larr; Previous</a>
+    <a href="{{.Filter.PaginationQuery (add .Page -1)}}" class="btn btn-sm">&larr; Previous</a>
     {{else}}
     <span class="btn btn-sm" style="opacity:0.4;pointer-events:none;">&larr; Previous</span>
     {{end}}
     <span class="page-indicator">Page {{.Page}}</span>
     {{if .HasNext}}
-    <a href="?page={{add .Page 1}}{{queryPreserve .Filter}}" class="btn btn-sm">Next &rarr;</a>
+    <a href="{{.Filter.PaginationQuery (add .Page 1)}}" class="btn btn-sm">Next &rarr;</a>
     {{else}}
     <span class="btn btn-sm" style="opacity:0.4;pointer-events:none;">Next &rarr;</span>
     {{end}}
