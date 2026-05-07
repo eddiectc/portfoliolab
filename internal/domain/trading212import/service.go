@@ -17,9 +17,6 @@ var (
 
 	// ErrInvalidCSV indicates the CSV data could not be parsed.
 	ErrInvalidCSV = fmt.Errorf("invalid CSV data")
-
-	// ErrNoImportableTransactions indicates the preview produced zero importable transactions.
-	ErrNoImportableTransactions = fmt.Errorf("no importable transactions")
 )
 
 const (
@@ -247,6 +244,12 @@ func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransa
 	}
 	symbol := cashSymbol(currency)
 
+	// Net cash: deposits and interest are inflows (positive), withdrawals are outflows (negative).
+	netCash := row.Total
+	if txnType == "withdrawal" {
+		netCash = "-" + row.Total
+	}
+
 	return &PreviewTransaction{
 		Date:              row.Date,
 		Type:              txnType,
@@ -254,7 +257,7 @@ func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransa
 		Quantity:          row.Total,
 		Price:             "1",
 		Currency:          currency,
-		NetCash:           row.Total,
+		NetCash:           netCash,
 		ExternalReference: row.ID,
 		Description:       row.Name,
 	}, nil, nil

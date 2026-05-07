@@ -322,8 +322,10 @@ func TestService_Preview_NetCashCalculation(t *testing.T) {
 				t.Errorf("deposit: expected positive net cash, got %q", entry.NetCash)
 			}
 		case "withdrawal":
-			// Withdrawals: the display shows positive total (same as row.Total)
-			// The sign is handled at the transaction level, not display level
+			// Withdrawals should have negative net cash (money leaving the account)
+			if !strings.HasPrefix(entry.NetCash, "-") {
+				t.Errorf("withdrawal: expected negative net cash, got %q", entry.NetCash)
+			}
 		case "interest":
 			// Interest should have positive net cash
 			if strings.HasPrefix(entry.NetCash, "-") {
@@ -409,6 +411,52 @@ func TestService_Preview_EmptySections(t *testing.T) {
 	_, err := svc.Preview(ctx, []byte("Action,Time,ISIN,Ticker,Name,Notes,ID,No. of shares,Price / share,Currency (Price / share),Exchange rate,Total,Currency (Total)\n"), 1)
 	if err == nil {
 		t.Fatal("expected error for CSV with no data rows, got nil")
+	}
+}
+
+func TestService_Preview_UnsupportedActionTypes(t *testing.T) {
+	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
+
+	// CSV with unsupported action types (Dividend, Fee, Tax)
+	csvData := []byte(`Action,Time,ISIN,Ticker,Name,Notes,ID,No. of shares,Price / share,Currency (Price / share),Exchange rate,Total,Currency (Total)
+Dividend,2026-01-10 09:00:00,US5949181045,AAPL,"Apple Inc.",,DIV001,,,"1.00","GBP",,25.00,"GBP"
+Fee,2026-01-11 10:00:00,,,,"Account Fee",FEE001,,,,,5.00,"GBP"
+Tax,2026-01-12 11:00:00,,,,"Tax Adjustment",TAX001,,,,,3.50,"GBP"
+Limit buy,2026-01-06 10:15:30,US5949181045,AAPL,"Apple Inc.",,EOF50000000001,10.0000000000,15000.0000000000,GBX,100.00000000,1500.00,"GBP"`)
+
+	got, err := svc.Preview(ctx, csvData, 1)
+	if err != nil {
+		t.Fatalf("Preview: %v", err)
+	}
+
+	// 3 unsupported actions should be skipped, 1 valid buy should be skipped (unmapped symbol)
+	if got.ImportableCount != 0 {
+		t.Errorf("expected 0 importable, got %d", got.ImportableCount)
+	}
+	if got.SkippedCount != 4 {
+		t.Errorf("expected 4 skipped, got %d", got.SkippedCount)
+	}
+
+	unsupportedCount := 0
+	for _, s := range got.Skipped {
+		if s.Reason == "unsupported action type" {
+			unsupportedCount++
+		}
+	}
+	if unsupportedCount != 3 {
+		t.Errorf("expected 3 skipped with 'unsupported action type', got %d", unsupportedCount)
+	}
+
+	// Verify the unsupported rows have their IDs and display fields
+	for _, s := range got.Skipped {
+		if s.Reason == "unsupported action type" {
+			if s.ExternalReference == "" {
+				t.Error("unsupported action skip should have ExternalReference")
+			}
+			if s.Type != "unknown" {
+				t.Errorf("unsupported action skip should have type 'unknown', got %q", s.Type)
+			}
+		}
 	}
 }
 
