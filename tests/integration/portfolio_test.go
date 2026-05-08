@@ -198,7 +198,7 @@ func testLogger() *slog.Logger {
 
 func TestIntegration_CreateAndGet(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger())
+	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	body := `{"name": "Integration Test", "currency": "GBP"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString(body))
@@ -241,7 +241,7 @@ func TestIntegration_CreateAndGet(t *testing.T) {
 
 func TestIntegration_ListEmpty(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger())
+	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -260,7 +260,7 @@ func TestIntegration_ListEmpty(t *testing.T) {
 
 func TestIntegration_CreateListDelete(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger())
+	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create two portfolios
 	for _, name := range []string{"Portfolio A", "Portfolio B"} {
@@ -311,7 +311,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 
 func TestIntegration_Update(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger())
+	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create
 	body := json.RawMessage(`{"name": "Original", "currency": "USD"}`)
@@ -345,7 +345,7 @@ func TestIntegration_Update(t *testing.T) {
 
 func TestIntegration_DuplicateName(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger())
+	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create first
 	body := json.RawMessage(`{"name": "Unique", "currency": "USD"}`)
@@ -369,7 +369,7 @@ func TestIntegration_DuplicateName(t *testing.T) {
 
 func TestIntegration_Pagination(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger())
+	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create 5 portfolios
 	for i := 0; i < 5; i++ {

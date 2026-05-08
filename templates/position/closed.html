@@ -75,7 +75,7 @@
                 {{if .FxRateFallback}}<span class="fx-warning" title="FX rate was estimated (current spot used instead of historical rate)">⚠</span>{{end}}
                 {{else}}—{{end}}
             </td>
-            <td class="num">{{fxRateDisplay .Currency .BaseCurrency .FxRateUsed}}</td>
+            <td class="num">{{fxRateDisplay .Currency $.BaseCurrency .FxRateUsed}}</td>
             {{end}}
             <td>{{.Currency}}</td>
             <td>{{.AccountName}}</td>
