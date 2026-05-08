@@ -1079,3 +1079,216 @@ func TestEnrichWithMarketData_GbpNotConvertedForNonGbpPosition(t *testing.T) {
 		t.Errorf("expected MarketPrice 350.00 (unchanged), got %v", r.MarketPrice)
 	}
 }
+
+func TestGetClosedPositionsSummary_SumsAllPositions(t *testing.T) {
+	repo := newMockPositionRepository()
+	list := &mockAccountLister{
+		allAccounts: []AccountRef{
+			{ID: 1, Name: "Acc1", PortfolioID: 1, PortfolioCurrency: "USD"},
+		},
+	}
+	svc := NewService(repo, newMockTransactionRepository(),
+		newMockAccountChecker(), newMockPortfolioChecker(),
+		list, nil, nil)
+
+	// Create 3 closed positions with known RealizedPnlBase.
+	rpnl1 := decimal.MustNew(20000, 2) // 200.00
+	rpnl2 := decimal.MustNew(-5000, 2)  // -50.00
+	rpnl3 := decimal.MustNew(30000, 2)  // 300.00
+	repo.CreatePosition(ctx, &Position{
+		AccountID: 1, Symbol: "AAPL", Currency: "USD", IsClosed: true,
+		RealizedPnlBase: &rpnl1,
+	})
+	repo.CreatePosition(ctx, &Position{
+		AccountID: 1, Symbol: "MSFT", Currency: "USD", IsClosed: true,
+		RealizedPnlBase: &rpnl2,
+	})
+	repo.CreatePosition(ctx, &Position{
+		AccountID: 1, Symbol: "GOOG", Currency: "USD", IsClosed: true,
+		RealizedPnlBase: &rpnl3,
+	})
+
+	summary, err := svc.GetClosedPositionsSummary(ctx, ListFilters{}, "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// 200.00 + (-50.00) + 300.00 = 450.00
+	want := decimal.MustNew(45000, 2)
+	if !summary.TotalRealizedPnLB.Equal(want) {
+		t.Errorf("expected TotalRealizedPnLB %s, got %s", want.String(), summary.TotalRealizedPnLB.String())
+	}
+}
+
+func TestGetClosedPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) {
+	repo := newMockPositionRepository()
+	list := &mockAccountLister{
+		allAccounts: []AccountRef{
+			{ID: 1, Name: "Acc1", PortfolioID: 1, PortfolioCurrency: "USD"},
+		},
+	}
+	svc := NewService(repo, newMockTransactionRepository(),
+		newMockAccountChecker(), newMockPortfolioChecker(),
+		list, nil, nil)
+
+	// Create 50 closed positions, each with RealizedPnlBase = 100.00
+	for i := 0; i < 50; i++ {
+		rpnl := decimal.MustNew(10000, 2)
+		repo.CreatePosition(ctx, &Position{
+			AccountID: 1, Symbol: fmt.Sprintf("SYM%02d", i), Currency: "USD", IsClosed: true,
+			RealizedPnlBase: &rpnl,
+		})
+	}
+
+	// Fetch only 10 positions (page 1) — should NOT affect the summary.
+	_, err := svc.GetClosedPositionsFiltered(ctx, ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Summary should sum ALL 50 positions, not just the 10 on the page.
+	summary, err := svc.GetClosedPositionsSummary(ctx, ListFilters{}, "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := decimal.MustNew(500000, 2) // 50 × 100.00 = 5000.00
+	if !summary.TotalRealizedPnLB.Equal(want) {
+		t.Errorf("expected TotalRealizedPnLB %s (all 50), got %s", want.String(), summary.TotalRealizedPnLB.String())
+	}
+}
+
+func TestGetClosedPositionsSummary_FilterByAccount(t *testing.T) {
+	repo := newMockPositionRepository()
+	list := &mockAccountLister{
+		allAccounts: []AccountRef{
+			{ID: 1, Name: "Acc1", PortfolioID: 1, PortfolioCurrency: "USD"},
+			{ID: 2, Name: "Acc2", PortfolioID: 1, PortfolioCurrency: "USD"},
+		},
+	}
+	svc := NewService(repo, newMockTransactionRepository(),
+		newMockAccountChecker(), newMockPortfolioChecker(),
+		list, nil, nil)
+
+	// Account 1: 200.00
+	rpnl1 := decimal.MustNew(20000, 2)
+	repo.CreatePosition(ctx, &Position{
+		AccountID: 1, Symbol: "AAPL", Currency: "USD", IsClosed: true,
+		RealizedPnlBase: &rpnl1,
+	})
+	// Account 2: 300.00
+	rpnl2 := decimal.MustNew(30000, 2)
+	repo.CreatePosition(ctx, &Position{
+		AccountID: 2, Symbol: "MSFT", Currency: "USD", IsClosed: true,
+		RealizedPnlBase: &rpnl2,
+	})
+
+	// Filter by account 1 only.
+	accountID := int64(1)
+	summary, err := svc.GetClosedPositionsSummary(ctx, ListFilters{AccountID: &accountID}, "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := decimal.MustNew(20000, 2)
+	if !summary.TotalRealizedPnLB.Equal(want) {
+		t.Errorf("expected TotalRealizedPnLB %s (account 1 only), got %s", want.String(), summary.TotalRealizedPnLB.String())
+	}
+}
+
+func TestGetOpenPositionsSummary_SumsAllPositions(t *testing.T) {
+	repo := newMockPositionRepository()
+	list := &mockAccountLister{
+		allAccounts: []AccountRef{
+			{ID: 1, Name: "Acc1", PortfolioID: 1, PortfolioCurrency: "USD"},
+		},
+	}
+	svc := NewService(repo, newMockTransactionRepository(),
+		newMockAccountChecker(), newMockPortfolioChecker(),
+		list, nil, nil)
+
+	// Create 3 open positions with known values.
+	// CostBasis is negative (cash outflow), so total cost = Abs(CostBasis).
+	cb1 := decimal.MustNew(-1000000, 2) // -10000.00
+	cb2 := decimal.MustNew(-2000000, 2) // -20000.00
+	repo.CreatePosition(ctx, &Position{
+		AccountID: 1, Symbol: "AAPL", Currency: "USD", IsClosed: false,
+		Quantity: decimal.MustNew(10000, 2), CostBasis: cb1,
+	})
+	repo.CreatePosition(ctx, &Position{
+		AccountID: 1, Symbol: "MSFT", Currency: "USD", IsClosed: false,
+		Quantity: decimal.MustNew(10000, 2), CostBasis: cb2,
+	})
+
+	// Wire a market data fetcher so enrichment works.
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(11000, 2), Currency: "USD"},
+			"MSFT": {Symbol: "MSFT", Price: decimal.MustNew(22000, 2), Currency: "USD"},
+		},
+	}
+	svc.WithMarketDataFetcher(fetcher, &mockMarketDataRepo{}, nil)
+
+	summary, err := svc.GetOpenPositionsSummary(ctx, ListFilters{}, "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Cost basis: 10000.00 + 20000.00 = 30000.00
+	wantCB := decimal.MustNew(3000000, 2)
+	if !summary.TotalCostBasisBase.Equal(wantCB) {
+		t.Errorf("expected TotalCostBasisBase %s, got %s", wantCB.String(), summary.TotalCostBasisBase.String())
+	}
+	// Market value: 100×110 + 100×220 = 11000 + 22000 = 33000.00
+	wantMV := decimal.MustNew(3300000, 2)
+	if !summary.TotalMktValueBase.Equal(wantMV) {
+		t.Errorf("expected TotalMktValueBase %s, got %s", wantMV.String(), summary.TotalMktValueBase.String())
+	}
+	// Unrealized P&L: 33000 - 30000 = 3000.00
+	wantPnL := decimal.MustNew(300000, 2)
+	if !summary.TotalUnrealizedPnLB.Equal(wantPnL) {
+		t.Errorf("expected TotalUnrealizedPnLB %s, got %s", wantPnL.String(), summary.TotalUnrealizedPnLB.String())
+	}
+}
+
+func TestGetOpenPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) {
+	repo := newMockPositionRepository()
+	list := &mockAccountLister{
+		allAccounts: []AccountRef{
+			{ID: 1, Name: "Acc1", PortfolioID: 1, PortfolioCurrency: "USD"},
+		},
+	}
+	svc := NewService(repo, newMockTransactionRepository(),
+		newMockAccountChecker(), newMockPortfolioChecker(),
+		list, nil, nil)
+
+	// Create 25 open positions, each with cost basis -1000.00
+	for i := 0; i < 25; i++ {
+		cb := decimal.MustNew(-100000, 2)
+		repo.CreatePosition(ctx, &Position{
+			AccountID: 1, Symbol: fmt.Sprintf("SYM%02d", i), Currency: "USD", IsClosed: false,
+			Quantity: decimal.MustNew(10000, 2), CostBasis: cb,
+		})
+	}
+
+	// Wire a market data fetcher with same price as cost basis (P&L = 0).
+	quotes := make(map[string]*market.MarketData)
+	for i := 0; i < 25; i++ {
+		sym := fmt.Sprintf("SYM%02d", i)
+		quotes[sym] = &market.MarketData{Symbol: sym, Price: decimal.MustNew(10000, 2), Currency: "USD"}
+	}
+	fetcher := &mockMarketDataFetcher{quotes: quotes}
+	svc.WithMarketDataFetcher(fetcher, &mockMarketDataRepo{}, nil)
+
+	// Fetch only 10 positions (page 1) — should NOT affect the summary.
+	_, err := svc.GetOpenPositionsFiltered(ctx, ListFilters{}, 10, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Summary should sum ALL 25 positions.
+	summary, err := svc.GetOpenPositionsSummary(ctx, ListFilters{}, "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantCB := decimal.MustNew(2500000, 2) // 25 × 1000.00
+	if !summary.TotalCostBasisBase.Equal(wantCB) {
+		t.Errorf("expected TotalCostBasisBase %s (all 25), got %s", wantCB.String(), summary.TotalCostBasisBase.String())
+	}
+}

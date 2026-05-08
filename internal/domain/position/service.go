@@ -385,6 +385,79 @@ func (s *Service) GetClosedPositionsFiltered(ctx context.Context, filters ListFi
 	return s.GetClosedPositions(ctx, accountIDs, limit, offset)
 }
 
+// ClosedPositionSummary aggregates realized P&L across all closed positions.
+type ClosedPositionSummary struct {
+	TotalRealizedPnLB decimal.Decimal
+}
+
+// OpenPositionSummary aggregates totals across all open positions.
+type OpenPositionSummary struct {
+	TotalCostBasisBase  decimal.Decimal
+	TotalMktValueBase   decimal.Decimal
+	TotalUnrealizedPnLB decimal.Decimal
+}
+
+// GetClosedPositionsSummary computes the summary from ALL closed positions
+// (not limited by pagination), respecting the given filters.
+func (s *Service) GetClosedPositionsSummary(ctx context.Context, filters ListFilters, baseCurrency string) (ClosedPositionSummary, error) {
+	accountIDs, err := s.resolveAccountIDs(ctx, filters)
+	if err != nil {
+		return ClosedPositionSummary{}, err
+	}
+	var summary ClosedPositionSummary
+	const fetchLimit = 10000
+	for _, id := range accountIDs {
+		items, err := s.positions.GetClosedPositions(ctx, id, fetchLimit, 0)
+		if err != nil {
+			return ClosedPositionSummary{}, fmt.Errorf("get closed positions for account %d: %w", id, err)
+		}
+		for _, p := range items {
+			if p.RealizedPnlBase != nil {
+				summary.TotalRealizedPnLB, _ = summary.TotalRealizedPnLB.Add(*p.RealizedPnlBase)
+			}
+		}
+	}
+	return summary, nil
+}
+
+// GetOpenPositionsSummary computes the summary from ALL open positions
+// (not limited by pagination), respecting the given filters.
+// It enriches positions with market data using the provided baseCurrency.
+func (s *Service) GetOpenPositionsSummary(ctx context.Context, filters ListFilters, baseCurrency string) (OpenPositionSummary, error) {
+	accountIDs, err := s.resolveAccountIDs(ctx, filters)
+	if err != nil {
+		return OpenPositionSummary{}, err
+	}
+	// Fetch all open positions (unbounded).
+	const fetchLimit = 10000
+	var all []Position
+	for _, id := range accountIDs {
+		items, err := s.positions.GetOpenPositions(ctx, id, fetchLimit, 0)
+		if err != nil {
+			return OpenPositionSummary{}, fmt.Errorf("get open positions for account %d: %w", id, err)
+		}
+		all = append(all, items...)
+	}
+	// Enrich with market data.
+	enriched := s.EnrichWithMarketData(ctx, all, baseCurrency)
+	var summary OpenPositionSummary
+	for _, p := range enriched {
+		if !p.MarketDataAvailable {
+			continue
+		}
+		if p.CostBasisBase != nil {
+			summary.TotalCostBasisBase, _ = summary.TotalCostBasisBase.Add(*p.CostBasisBase)
+		}
+		if p.MarketValueBase != nil {
+			summary.TotalMktValueBase, _ = summary.TotalMktValueBase.Add(*p.MarketValueBase)
+		}
+		if p.UnrealizedPnLBase != nil {
+			summary.TotalUnrealizedPnLB, _ = summary.TotalUnrealizedPnLB.Add(*p.UnrealizedPnLBase)
+		}
+	}
+	return summary, nil
+}
+
 // GetLotDetails retrieves a lot with its consumptions.
 func (s *Service) GetLotDetails(ctx context.Context, lotID string) (*LotWithDetails, error) {
 	lot, err := s.positions.GetLotByLotID(ctx, lotID)
