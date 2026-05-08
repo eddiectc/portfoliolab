@@ -11,9 +11,9 @@ import (
 )
 
 const createTransaction = `-- name: CreateTransaction :one
-INSERT INTO transactions (account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at
+INSERT INTO transactions (account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, lot_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id
 `
 
 type CreateTransactionParams struct {
@@ -24,9 +24,10 @@ type CreateTransactionParams struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
+	LotID             sql.NullString `db:"lot_id"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
 }
@@ -43,6 +44,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, db DBTX, arg CreateTran
 		arg.NetCash,
 		arg.ExternalSystem,
 		arg.ExternalReference,
+		arg.LotID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -61,6 +63,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, db DBTX, arg CreateTran
 		&i.ExternalReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LotID,
 	)
 	return i, err
 }
@@ -78,7 +81,7 @@ func (q *Queries) DeleteTransaction(ctx context.Context, db DBTX, id int64) (int
 }
 
 const getTransaction = `-- name: GetTransaction :one
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions WHERE id = ?
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions WHERE id = ?
 `
 
 func (q *Queries) GetTransaction(ctx context.Context, db DBTX, id int64) (Transaction, error) {
@@ -98,6 +101,7 @@ func (q *Queries) GetTransaction(ctx context.Context, db DBTX, id int64) (Transa
 		&i.ExternalReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LotID,
 	)
 	return i, err
 }
@@ -121,7 +125,7 @@ func (q *Queries) HasExternalReference(ctx context.Context, db DBTX, arg HasExte
 }
 
 const listTransactions = `-- name: ListTransactions :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
 `
@@ -154,6 +158,7 @@ func (q *Queries) ListTransactions(ctx context.Context, db DBTX, arg ListTransac
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -169,7 +174,7 @@ func (q *Queries) ListTransactions(ctx context.Context, db DBTX, arg ListTransac
 }
 
 const listTransactionsByAccount = `-- name: ListTransactionsByAccount :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -204,6 +209,7 @@ func (q *Queries) ListTransactionsByAccount(ctx context.Context, db DBTX, arg Li
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -219,7 +225,7 @@ func (q *Queries) ListTransactionsByAccount(ctx context.Context, db DBTX, arg Li
 }
 
 const listTransactionsByAccountAndDateRange = `-- name: ListTransactionsByAccountAndDateRange :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -262,6 +268,7 @@ func (q *Queries) ListTransactionsByAccountAndDateRange(ctx context.Context, db 
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -277,7 +284,7 @@ func (q *Queries) ListTransactionsByAccountAndDateRange(ctx context.Context, db 
 }
 
 const listTransactionsByAccountAndSymbol = `-- name: ListTransactionsByAccountAndSymbol :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ? AND symbol = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -318,6 +325,7 @@ func (q *Queries) ListTransactionsByAccountAndSymbol(ctx context.Context, db DBT
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -333,7 +341,7 @@ func (q *Queries) ListTransactionsByAccountAndSymbol(ctx context.Context, db DBT
 }
 
 const listTransactionsByAccountAndType = `-- name: ListTransactionsByAccountAndType :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ? AND type = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -374,6 +382,7 @@ func (q *Queries) ListTransactionsByAccountAndType(ctx context.Context, db DBTX,
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -389,7 +398,7 @@ func (q *Queries) ListTransactionsByAccountAndType(ctx context.Context, db DBTX,
 }
 
 const listTransactionsByAccountSymbolDateRange = `-- name: ListTransactionsByAccountSymbolDateRange :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ? AND symbol = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -434,6 +443,7 @@ func (q *Queries) ListTransactionsByAccountSymbolDateRange(ctx context.Context, 
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -449,7 +459,7 @@ func (q *Queries) ListTransactionsByAccountSymbolDateRange(ctx context.Context, 
 }
 
 const listTransactionsByAccountSymbolType = `-- name: ListTransactionsByAccountSymbolType :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ? AND symbol = ? AND type = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -492,6 +502,7 @@ func (q *Queries) ListTransactionsByAccountSymbolType(ctx context.Context, db DB
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -507,7 +518,7 @@ func (q *Queries) ListTransactionsByAccountSymbolType(ctx context.Context, db DB
 }
 
 const listTransactionsByAccountTypeDateRange = `-- name: ListTransactionsByAccountTypeDateRange :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ? AND type = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -552,6 +563,7 @@ func (q *Queries) ListTransactionsByAccountTypeDateRange(ctx context.Context, db
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -567,7 +579,7 @@ func (q *Queries) ListTransactionsByAccountTypeDateRange(ctx context.Context, db
 }
 
 const listTransactionsByAllFilters = `-- name: ListTransactionsByAllFilters :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE account_id = ? AND symbol = ? AND type = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -614,6 +626,7 @@ func (q *Queries) ListTransactionsByAllFilters(ctx context.Context, db DBTX, arg
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -629,7 +642,7 @@ func (q *Queries) ListTransactionsByAllFilters(ctx context.Context, db DBTX, arg
 }
 
 const listTransactionsByDateRange = `-- name: ListTransactionsByDateRange :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -670,6 +683,7 @@ func (q *Queries) ListTransactionsByDateRange(ctx context.Context, db DBTX, arg 
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -685,7 +699,7 @@ func (q *Queries) ListTransactionsByDateRange(ctx context.Context, db DBTX, arg 
 }
 
 const listTransactionsBySymbol = `-- name: ListTransactionsBySymbol :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE symbol = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -720,6 +734,7 @@ func (q *Queries) ListTransactionsBySymbol(ctx context.Context, db DBTX, arg Lis
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -735,7 +750,7 @@ func (q *Queries) ListTransactionsBySymbol(ctx context.Context, db DBTX, arg Lis
 }
 
 const listTransactionsBySymbolAndDateRange = `-- name: ListTransactionsBySymbolAndDateRange :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE symbol = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -778,6 +793,7 @@ func (q *Queries) ListTransactionsBySymbolAndDateRange(ctx context.Context, db D
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -793,7 +809,7 @@ func (q *Queries) ListTransactionsBySymbolAndDateRange(ctx context.Context, db D
 }
 
 const listTransactionsBySymbolAndType = `-- name: ListTransactionsBySymbolAndType :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE symbol = ? AND type = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -834,6 +850,7 @@ func (q *Queries) ListTransactionsBySymbolAndType(ctx context.Context, db DBTX, 
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -849,7 +866,7 @@ func (q *Queries) ListTransactionsBySymbolAndType(ctx context.Context, db DBTX, 
 }
 
 const listTransactionsBySymbolTypeDateRange = `-- name: ListTransactionsBySymbolTypeDateRange :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE symbol = ? AND type = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -894,6 +911,7 @@ func (q *Queries) ListTransactionsBySymbolTypeDateRange(ctx context.Context, db 
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -909,7 +927,7 @@ func (q *Queries) ListTransactionsBySymbolTypeDateRange(ctx context.Context, db 
 }
 
 const listTransactionsByType = `-- name: ListTransactionsByType :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE type = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -944,6 +962,7 @@ func (q *Queries) ListTransactionsByType(ctx context.Context, db DBTX, arg ListT
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -959,7 +978,7 @@ func (q *Queries) ListTransactionsByType(ctx context.Context, db DBTX, arg ListT
 }
 
 const listTransactionsByTypeAndDateRange = `-- name: ListTransactionsByTypeAndDateRange :many
-SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at FROM transactions
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 WHERE type = ? AND date >= ? AND date <= ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?
@@ -1002,6 +1021,7 @@ func (q *Queries) ListTransactionsByTypeAndDateRange(ctx context.Context, db DBT
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 		); err != nil {
 			return nil, err
 		}
@@ -1017,7 +1037,7 @@ func (q *Queries) ListTransactionsByTypeAndDateRange(ctx context.Context, db DBT
 }
 
 const listTransactionsWithAccount = `-- name: ListTransactionsWithAccount :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 ORDER BY t.date DESC, t.symbol ASC, t.type ASC, t.id ASC
@@ -1038,11 +1058,12 @@ type ListTransactionsWithAccountRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1069,6 +1090,7 @@ func (q *Queries) ListTransactionsWithAccount(ctx context.Context, db DBTX, arg 
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1085,7 +1107,7 @@ func (q *Queries) ListTransactionsWithAccount(ctx context.Context, db DBTX, arg 
 }
 
 const listTransactionsWithAccountByAccount = `-- name: ListTransactionsWithAccountByAccount :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ?
@@ -1108,11 +1130,12 @@ type ListTransactionsWithAccountByAccountRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1139,6 +1162,7 @@ func (q *Queries) ListTransactionsWithAccountByAccount(ctx context.Context, db D
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1155,7 +1179,7 @@ func (q *Queries) ListTransactionsWithAccountByAccount(ctx context.Context, db D
 }
 
 const listTransactionsWithAccountByAccountAndDateRange = `-- name: ListTransactionsWithAccountByAccountAndDateRange :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ? AND t.date >= ? AND t.date <= ?
@@ -1180,11 +1204,12 @@ type ListTransactionsWithAccountByAccountAndDateRangeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1217,6 +1242,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountAndDateRange(ctx context.C
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1233,7 +1259,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountAndDateRange(ctx context.C
 }
 
 const listTransactionsWithAccountByAccountAndSymbol = `-- name: ListTransactionsWithAccountByAccountAndSymbol :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ? AND t.symbol = ?
@@ -1257,11 +1283,12 @@ type ListTransactionsWithAccountByAccountAndSymbolRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1293,6 +1320,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountAndSymbol(ctx context.Cont
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1309,7 +1337,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountAndSymbol(ctx context.Cont
 }
 
 const listTransactionsWithAccountByAccountAndType = `-- name: ListTransactionsWithAccountByAccountAndType :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ? AND t.type = ?
@@ -1333,11 +1361,12 @@ type ListTransactionsWithAccountByAccountAndTypeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1369,6 +1398,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountAndType(ctx context.Contex
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1385,7 +1415,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountAndType(ctx context.Contex
 }
 
 const listTransactionsWithAccountByAccountSymbolDateRange = `-- name: ListTransactionsWithAccountByAccountSymbolDateRange :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ? AND t.symbol = ? AND t.date >= ? AND t.date <= ?
@@ -1411,11 +1441,12 @@ type ListTransactionsWithAccountByAccountSymbolDateRangeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1449,6 +1480,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountSymbolDateRange(ctx contex
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1465,7 +1497,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountSymbolDateRange(ctx contex
 }
 
 const listTransactionsWithAccountByAccountSymbolType = `-- name: ListTransactionsWithAccountByAccountSymbolType :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ? AND t.symbol = ? AND t.type = ?
@@ -1490,11 +1522,12 @@ type ListTransactionsWithAccountByAccountSymbolTypeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1527,6 +1560,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountSymbolType(ctx context.Con
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1543,7 +1577,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountSymbolType(ctx context.Con
 }
 
 const listTransactionsWithAccountByAccountTypeDateRange = `-- name: ListTransactionsWithAccountByAccountTypeDateRange :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
@@ -1569,11 +1603,12 @@ type ListTransactionsWithAccountByAccountTypeDateRangeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1607,6 +1642,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountTypeDateRange(ctx context.
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1623,7 +1659,7 @@ func (q *Queries) ListTransactionsWithAccountByAccountTypeDateRange(ctx context.
 }
 
 const listTransactionsWithAccountByAllFilters = `-- name: ListTransactionsWithAccountByAllFilters :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.account_id = ? AND t.symbol = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
@@ -1650,11 +1686,12 @@ type ListTransactionsWithAccountByAllFiltersRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1689,6 +1726,7 @@ func (q *Queries) ListTransactionsWithAccountByAllFilters(ctx context.Context, d
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1705,7 +1743,7 @@ func (q *Queries) ListTransactionsWithAccountByAllFilters(ctx context.Context, d
 }
 
 const listTransactionsWithAccountByDateRange = `-- name: ListTransactionsWithAccountByDateRange :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.date >= ? AND t.date <= ?
@@ -1729,11 +1767,12 @@ type ListTransactionsWithAccountByDateRangeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1765,6 +1804,7 @@ func (q *Queries) ListTransactionsWithAccountByDateRange(ctx context.Context, db
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1781,7 +1821,7 @@ func (q *Queries) ListTransactionsWithAccountByDateRange(ctx context.Context, db
 }
 
 const listTransactionsWithAccountBySymbol = `-- name: ListTransactionsWithAccountBySymbol :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.symbol = ?
@@ -1804,11 +1844,12 @@ type ListTransactionsWithAccountBySymbolRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1835,6 +1876,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbol(ctx context.Context, db DB
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1851,7 +1893,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbol(ctx context.Context, db DB
 }
 
 const listTransactionsWithAccountBySymbolAndDateRange = `-- name: ListTransactionsWithAccountBySymbolAndDateRange :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.symbol = ? AND t.date >= ? AND t.date <= ?
@@ -1876,11 +1918,12 @@ type ListTransactionsWithAccountBySymbolAndDateRangeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1913,6 +1956,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbolAndDateRange(ctx context.Co
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -1929,7 +1973,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbolAndDateRange(ctx context.Co
 }
 
 const listTransactionsWithAccountBySymbolAndType = `-- name: ListTransactionsWithAccountBySymbolAndType :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.symbol = ? AND t.type = ?
@@ -1953,11 +1997,12 @@ type ListTransactionsWithAccountBySymbolAndTypeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -1989,6 +2034,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbolAndType(ctx context.Context
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -2005,7 +2051,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbolAndType(ctx context.Context
 }
 
 const listTransactionsWithAccountBySymbolTypeDateRange = `-- name: ListTransactionsWithAccountBySymbolTypeDateRange :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.symbol = ? AND t.type = ? AND t.date >= ? AND t.date <= ?
@@ -2031,11 +2077,12 @@ type ListTransactionsWithAccountBySymbolTypeDateRangeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -2069,6 +2116,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbolTypeDateRange(ctx context.C
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -2085,7 +2133,7 @@ func (q *Queries) ListTransactionsWithAccountBySymbolTypeDateRange(ctx context.C
 }
 
 const listTransactionsWithAccountByType = `-- name: ListTransactionsWithAccountByType :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.type = ?
@@ -2108,11 +2156,12 @@ type ListTransactionsWithAccountByTypeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -2139,6 +2188,7 @@ func (q *Queries) ListTransactionsWithAccountByType(ctx context.Context, db DBTX
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -2155,7 +2205,7 @@ func (q *Queries) ListTransactionsWithAccountByType(ctx context.Context, db DBTX
 }
 
 const listTransactionsWithAccountByTypeAndDateRange = `-- name: ListTransactionsWithAccountByTypeAndDateRange :many
-SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, a.name AS account_name
+SELECT t.id, t.account_id, t.date, t.type, t.symbol, t.quantity, t.price, t.currency, t.net_cash, t.external_system, t.external_reference, t.created_at, t.updated_at, t.lot_id, a.name AS account_name
 FROM transactions t
 JOIN accounts a ON t.account_id = a.id
 WHERE t.type = ? AND t.date >= ? AND t.date <= ?
@@ -2180,11 +2230,12 @@ type ListTransactionsWithAccountByTypeAndDateRangeRow struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 	AccountName       string         `db:"account_name"`
 }
 
@@ -2217,6 +2268,7 @@ func (q *Queries) ListTransactionsWithAccountByTypeAndDateRange(ctx context.Cont
 			&i.ExternalReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LotID,
 			&i.AccountName,
 		); err != nil {
 			return nil, err
@@ -2234,9 +2286,9 @@ func (q *Queries) ListTransactionsWithAccountByTypeAndDateRange(ctx context.Cont
 
 const updateTransaction = `-- name: UpdateTransaction :one
 UPDATE transactions
-SET date = ?, type = ?, symbol = ?, quantity = ?, price = ?, currency = ?, net_cash = ?, external_system = ?, external_reference = ?, updated_at = ?
+SET date = ?, type = ?, symbol = ?, quantity = ?, price = ?, currency = ?, net_cash = ?, external_system = ?, external_reference = ?, lot_id = ?, updated_at = ?
 WHERE id = ?
-RETURNING id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at
+RETURNING id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id
 `
 
 type UpdateTransactionParams struct {
@@ -2246,9 +2298,10 @@ type UpdateTransactionParams struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
+	LotID             sql.NullString `db:"lot_id"`
 	UpdatedAt         string         `db:"updated_at"`
 	ID                int64          `db:"id"`
 }
@@ -2264,6 +2317,7 @@ func (q *Queries) UpdateTransaction(ctx context.Context, db DBTX, arg UpdateTran
 		arg.NetCash,
 		arg.ExternalSystem,
 		arg.ExternalReference,
+		arg.LotID,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -2282,6 +2336,7 @@ func (q *Queries) UpdateTransaction(ctx context.Context, db DBTX, arg UpdateTran
 		&i.ExternalReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LotID,
 	)
 	return i, err
 }

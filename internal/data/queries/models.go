@@ -24,12 +24,68 @@ type BrokerSymbolMapping struct {
 	CreatedAt       string `db:"created_at"`
 }
 
+type Lot struct {
+	ID          int64          `db:"id"`
+	LotID       string         `db:"lot_id"`
+	AccountID   int64          `db:"account_id"`
+	Symbol      string         `db:"symbol"`
+	LotType     string         `db:"lot_type"`
+	Quantity    string         `db:"quantity"`
+	CostBasis   string         `db:"cost_basis"`
+	SellPrice   sql.NullString `db:"sell_price"`
+	RealizedPnl string         `db:"realized_pnl"`
+	OpenDate    string         `db:"open_date"`
+	CloseDate   sql.NullString `db:"close_date"`
+	CreatedAt   string         `db:"created_at"`
+	UpdatedAt   string         `db:"updated_at"`
+}
+
+type LotConsumption struct {
+	ID                int64  `db:"id"`
+	SellLotID         string `db:"sell_lot_id"`
+	BuyLotID          string `db:"buy_lot_id"`
+	QuantityConsumed  string `db:"quantity_consumed"`
+	CostBasisConsumed string `db:"cost_basis_consumed"`
+	RealizedPnl       string `db:"realized_pnl"`
+	CreatedAt         string `db:"created_at"`
+}
+
+type MarketDatum struct {
+	ID        int64          `db:"id"`
+	Symbol    string         `db:"symbol"`
+	Price     string         `db:"price"`
+	Currency  string         `db:"currency"`
+	DataType  string         `db:"data_type"`
+	Source    string         `db:"source"`
+	Date      sql.NullString `db:"date"`
+	FetchedAt string         `db:"fetched_at"`
+	CreatedAt string         `db:"created_at"`
+}
+
 type Portfolio struct {
 	ID        int64  `db:"id"`
 	Name      string `db:"name"`
 	Currency  string `db:"currency"`
 	CreatedAt string `db:"created_at"`
 	UpdatedAt string `db:"updated_at"`
+}
+
+type Position struct {
+	ID              int64          `db:"id"`
+	AccountID       int64          `db:"account_id"`
+	Symbol          string         `db:"symbol"`
+	Currency        string         `db:"currency"`
+	Quantity        string         `db:"quantity"`
+	CostBasis       string         `db:"cost_basis"`
+	AvgOpenPrice    sql.NullString `db:"avg_open_price"`
+	AvgClosePrice   sql.NullString `db:"avg_close_price"`
+	RealizedPnl     string         `db:"realized_pnl"`
+	RealizedPnlBase sql.NullString `db:"realized_pnl_base"`
+	OpenDate        string         `db:"open_date"`
+	CloseDate       sql.NullString `db:"close_date"`
+	IsClosed        int64          `db:"is_closed"`
+	CreatedAt       string         `db:"created_at"`
+	UpdatedAt       string         `db:"updated_at"`
 }
 
 type SymbolMapping struct {
@@ -49,9 +105,10 @@ type Transaction struct {
 	Quantity          string         `db:"quantity"`
 	Price             string         `db:"price"`
 	Currency          string         `db:"currency"`
-	NetCash           sql.NullString `db:"net_cash"`
+	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
+	LotID             sql.NullString `db:"lot_id"`
 }
