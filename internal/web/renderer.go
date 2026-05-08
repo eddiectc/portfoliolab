@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	"github.com/govalues/decimal"
 )
 
 // Renderer parses and executes HTML templates.
@@ -93,39 +91,6 @@ func (r *Renderer) parseTemplates() error {
 		},
 		"cssHash": func() string {
 			return r.cssHash
-		},
-		"rowClass": func(costBasis, realizedPnL, marketValue string) string {
-			// Returns a CSS class for row-level P&L color accent.
-			// Computes total P&L ratio = (realized_pnl + market_value) / |cost_basis|
-			// "row-profit" if ≥ 5%, "row-loss" if ≤ -5%, "" otherwise.
-			cb, err := decimal.Parse(costBasis)
-			if err != nil || cb.Equal(decimal.Zero) {
-				return ""
-			}
-			rp, err := decimal.Parse(realizedPnL)
-			if err != nil {
-				rp = decimal.Zero
-			}
-			var mv decimal.Decimal
-			if marketValue != "" {
-				mv, err = decimal.Parse(marketValue)
-				if err != nil {
-					mv = decimal.Zero
-				}
-			}
-			totalPnL, _ := rp.Add(mv)
-			absCost := cb.Abs()
-			pct, _ := totalPnL.Quo(absCost)
-			// pct is a ratio (e.g. 0.05 = 5%). Compare against ±0.05.
-			threshold, _ := decimal.Parse("0.05")
-			if !pct.Less(threshold) {
-				return "row-profit"
-			}
-			negThreshold := threshold.Neg()
-			if pct.Less(negThreshold) || pct.Equal(negThreshold) {
-				return "row-loss"
-			}
-			return ""
 		},
 		"eq": func(a, b interface{}) bool {
 			switch a := a.(type) {

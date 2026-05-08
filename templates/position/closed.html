@@ -46,7 +46,7 @@
     </thead>
     <tbody>
         {{range .Positions}}
-        <tr class="{{rowClass .CostBasis.String .RealizedPnL.String ""}}">
+        <tr>
             <td>{{.Symbol}}</td>
             <td class="num">{{formatMoney .Quantity}}</td>
             <td class="num">{{formatMoney .AvgOpenPrice}}</td>
