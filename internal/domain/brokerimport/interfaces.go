@@ -3,7 +3,7 @@ package brokerimport
 import (
 	"context"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // SymbolResolver resolves broker symbols to internal symbols and

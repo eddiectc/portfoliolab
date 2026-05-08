@@ -1,6 +1,6 @@
 package trading212import
 
-import "github.com/arch-portfolio-lab/portfoliolab/internal/domain/brokerimport"
+import "codeberg.org/eddiectc/portfoliolab/internal/domain/brokerimport"
 
 // Type aliases for shared import types (defined in brokerimport).
 type (

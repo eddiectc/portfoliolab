@@ -13,8 +13,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/api"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/api"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {

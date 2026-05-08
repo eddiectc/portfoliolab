@@ -9,8 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
 // SymbolMappingHandler handles HTTP requests for symbol mapping CRUD operations.

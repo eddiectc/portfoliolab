@@ -6,7 +6,7 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // makeTxnWithID builds a transaction.Transaction with an explicit ID for test fixtures.

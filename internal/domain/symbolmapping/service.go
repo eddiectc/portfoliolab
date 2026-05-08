@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
 const (

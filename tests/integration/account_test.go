@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/api"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/api"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 )
 
 func TestAccount_CreateAndGet(t *testing.T) {

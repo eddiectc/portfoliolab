@@ -8,11 +8,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/brokerimport"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/trading212import"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/brokerimport"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/trading212import"
+	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
 // Trading212ImportWebHandler handles server-rendered Trading 212 CSV import pages.

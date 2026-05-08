@@ -1,4 +1,4 @@
-module github.com/arch-portfolio-lab/portfoliolab
+module codeberg.org/eddiectc/portfoliolab
 
 go 1.26.2
 

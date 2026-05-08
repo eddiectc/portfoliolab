@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/data/queries"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"github.com/govalues/decimal"
 )
 

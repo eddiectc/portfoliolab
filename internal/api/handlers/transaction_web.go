@@ -11,10 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
 const defaultPageLimit = 20

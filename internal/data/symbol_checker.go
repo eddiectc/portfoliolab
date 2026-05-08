@@ -3,7 +3,7 @@ package data
 import (
 	"context"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 )
 
 // SymbolCheckerImpl checks symbol existence via the symbol mapping repository.

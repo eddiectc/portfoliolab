@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 )
 
 // setupSymbolMappingDB creates an in-memory SQLite database with the symbol

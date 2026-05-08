@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"github.com/govalues/decimal"
 )
 

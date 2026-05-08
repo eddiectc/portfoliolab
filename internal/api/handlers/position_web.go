@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/position"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/web"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
 // PositionFilter holds parsed filter parameters from query string for position pages.
