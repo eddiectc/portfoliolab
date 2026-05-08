@@ -63,6 +63,18 @@ type positionListPageData struct {
 	HasNext   bool
 }
 
+// openPositionListPageData is the data struct for the open positions template,
+// with positions enriched with market data.
+type openPositionListPageData struct {
+	web.PageData
+	Positions []position.PositionWithMarket
+	Accounts  []account.Account
+	Filter    PositionFilter
+	Page      int
+	HasPrev   bool
+	HasNext   bool
+}
+
 // lotDetailPageData is the data struct for the lot detail template.
 type lotDetailPageData struct {
 	web.PageData
@@ -101,6 +113,7 @@ func (h *PositionWebHandler) RegisterRoutes(r *chi.Mux) {
 }
 
 // HandleOpenPositions renders GET /positions (open positions list with filters and pagination).
+// Positions are enriched with current market data (price, market value, unrealized P&L).
 func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.Request) {
 	filter := parsePositionFilter(r.URL.Query())
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -129,24 +142,27 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Enrich with market data (current price, market value, unrealized P&L).
+	enriched := h.positionSvc.EnrichWithMarketData(r.Context(), items)
+
 	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
 
-	data := positionListPageData{
+	data := openPositionListPageData{
 		PageData: web.PageData{
 			Title: "Open Positions",
 			Flash: getFlash(w, r),
 		},
-		Positions: items,
+		Positions: enriched,
 		Accounts:  accounts,
 		Filter:    filter,
 		Page:      page,
 		HasPrev:   page > 1,
-		HasNext:   len(items) == limit,
+		HasNext:   len(enriched) == limit,
 	}
 
 	if data.Positions == nil {
-		data.Positions = []position.Position{}
+		data.Positions = []position.PositionWithMarket{}
 	}
 	if data.Accounts == nil {
 		data.Accounts = []account.Account{}

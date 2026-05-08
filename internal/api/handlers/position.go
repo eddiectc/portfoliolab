@@ -31,6 +31,7 @@ func (h *PositionHandler) RegisterRoutes(r *chi.Mux) {
 }
 
 // HandleListOpen handles GET /api/positions (open positions).
+// Returns positions enriched with current market data (price, market value, unrealized P&L).
 func (h *PositionHandler) HandleListOpen(w http.ResponseWriter, r *http.Request) {
 	filters, limit, offset := parsePositionListParams(r.URL.Query())
 
@@ -40,11 +41,14 @@ func (h *PositionHandler) HandleListOpen(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if items == nil {
-		items = []position.Position{}
+	// Enrich with market data (current price, market value, unrealized P&L).
+	enriched := h.service.EnrichWithMarketData(r.Context(), items)
+
+	if enriched == nil {
+		enriched = []position.PositionWithMarket{}
 	}
 
-	writeJSON(w, http.StatusOK, items)
+	writeJSON(w, http.StatusOK, enriched)
 }
 
 // HandleListClosed handles GET /api/positions/closed (closed positions).

@@ -3,11 +3,13 @@ package position
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
+	"github.com/govalues/decimal"
 )
 
 // PositionRepository defines the data access interface for positions.
@@ -70,13 +72,16 @@ var (
 
 // Service handles position business logic: recalculation and queries.
 type Service struct {
-	positions               PositionRepository
-	transactions            TransactionRepository
-	accounts                AccountChecker
-	portfolios              PortfolioChecker
-	accountLister           AccountLister
+	positions                PositionRepository
+	transactions             TransactionRepository
+	accounts                 AccountChecker
+	portfolios               PortfolioChecker
+	accountLister            AccountLister
 	portfolioCurrencyChecker PortfolioCurrencyChecker
-	fxProvider              FxRateProvider
+	fxProvider               FxRateProvider
+	marketFetcher            market.MarketDataFetcher
+	marketDataRepo           MarketDataRepository
+	logger                   *slog.Logger
 }
 
 // NewService creates a new position service.
@@ -98,6 +103,15 @@ func NewService(
 		portfolioCurrencyChecker: portfolioCurrencyChecker,
 		fxProvider:               fxProvider,
 	}
+}
+
+// WithMarketDataFetcher sets the market data fetcher and repository for
+// enriching open positions with live market data. Both must be non-nil.
+// If either is nil, market data enrichment is disabled.
+func (s *Service) WithMarketDataFetcher(fetcher market.MarketDataFetcher, repo MarketDataRepository, logger *slog.Logger) {
+	s.marketFetcher = fetcher
+	s.marketDataRepo = repo
+	s.logger = logger
 }
 
 // RecalculateAccount fetches all transactions for the account, runs the
@@ -371,6 +385,85 @@ func (s *Service) GetLotInfo(ctx context.Context, lotID string) (*transaction.Lo
 		Symbol:    lot.Symbol,
 		LotType:   lot.LotType,
 	}, nil
+}
+
+// EnrichWithMarketData fetches current market prices for open positions and
+// computes MarketValue, UnrealizedPnL, and UnrealizedPnlPct. Cash positions
+// get MarketValue = balance with no P&L. If the market fetcher is not configured,
+// returns positions with MarketDataAvailable=false and zero market values.
+func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position) []PositionWithMarket {
+	if s.marketFetcher == nil || s.marketDataRepo == nil {
+		// No market data fetcher configured — return positions with no market data.
+		result := make([]PositionWithMarket, len(positions))
+		for i, p := range positions {
+			result[i] = PositionWithMarket{
+				Position:            p,
+				MarketDataAvailable: false,
+			}
+		}
+		return result
+	}
+
+	result := make([]PositionWithMarket, len(positions))
+	for i, p := range positions {
+		if isCashPosition(p.Symbol) {
+			// Cash positions: MarketValue = balance (quantity), no P&L, no market fetch.
+			result[i] = PositionWithMarket{
+				Position:            p,
+				MarketValue:         p.Quantity,
+				MarketDataAvailable: true,
+			}
+			continue
+		}
+
+		// Fetch current market price.
+		quote, err := s.marketFetcher.FetchQuote(ctx, p.Symbol)
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Debug("failed to fetch market quote", "symbol", p.Symbol, "error", err)
+			}
+			result[i] = PositionWithMarket{
+				Position:            p,
+				MarketDataAvailable: false,
+			}
+			continue
+		}
+
+		// Cache the quote in the market_data table.
+		if cacheErr := s.marketDataRepo.Upsert(ctx, quote); cacheErr != nil {
+			if s.logger != nil {
+				s.logger.Debug("failed to cache market data", "symbol", p.Symbol, "error", cacheErr)
+			}
+		}
+
+		// Compute market value and unrealized P&L.
+		// CostBasis is negative (cash outflow), so total cost = Abs(CostBasis).
+		// MarketValue = quantity * price (positive for long, negative for short).
+		marketValue, _ := p.Quantity.Mul(quote.Price)
+		// UnrealizedPnL = market_value - total_cost = market_value + cost_basis
+		// (since cost_basis is negative, adding it is equivalent to subtracting abs).
+		unrealizedPnL, _ := marketValue.Add(p.CostBasis)
+
+		entry := PositionWithMarket{
+			Position:            p,
+			MarketPrice:         &quote.Price,
+			MarketValue:         marketValue,
+			UnrealizedPnL:       unrealizedPnL,
+			MarketDataAvailable: true,
+		}
+
+		// Compute P&L percentage relative to total cost.
+		totalCost := p.CostBasis.Abs()
+		if !totalCost.IsZero() {
+			pct, _ := unrealizedPnL.Quo(totalCost)
+			pct, _ = pct.Mul(decimal.MustNew(10000, 2)) // × 100 for percentage
+			entry.UnrealizedPnlPct = &pct
+		}
+
+		result[i] = entry
+	}
+
+	return result
 }
 
 // isCashPosition returns true if the symbol represents a cash position.

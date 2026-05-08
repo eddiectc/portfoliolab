@@ -83,6 +83,8 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	positionRepo := data.NewPositionRepository(db)
 	accountLister := data.NewAccountLister(accountRepo)
 	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister, portfolioCurrencyChecker, fxConverter)
+	// Wire market data fetcher for enriching open positions with live prices.
+	positionSvc.WithMarketDataFetcher(yahooFetcher, marketDataRepo, logger)
 
 	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator, positionSvc, positionSvc)
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)

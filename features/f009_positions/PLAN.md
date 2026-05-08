@@ -437,8 +437,8 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Fetch current market prices for open positions at read time (not stored).
 
-- [ ] Update position service to accept `market.MarketDataFetcher` dependency
-- [ ] In `HandleListOpen` (API handler), after fetching positions:
+- [x] Update position service to accept `market.MarketDataFetcher` dependency
+- [x] In `HandleListOpen` (API handler), after fetching positions:
   - For each non-cash position, fetch current quote via `MarketDataFetcher`
   - Store fetched quotes in `market_data` table (latest, date=NULL) for caching
   - Compute `MarketValue = quantity × current_price`
@@ -446,11 +446,11 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - Compute `UnrealizedPnlPct = unrealized_pnl / total_cost × 100`
   - If quote fetch fails, mark `MarketDataAvailable = false` (position still shown)
   - Cash positions: `MarketValue = balance`, no P&L, no market data fetch
-- [ ] In `HandleListClosed` (API handler), skip market data fetch entirely
-- [ ] Update position web templates to show market data columns (price, market value, unrealized P&L, P&L %) with "—" when unavailable
-- [ ] Update `router.go` to pass `YahooFinanceFetcher` to position handler
+- [x] In `HandleListClosed` (API handler), skip market data fetch entirely
+- [x] Update position web templates to show market data columns (price, market value, unrealized P&L, P&L %) with "—" when unavailable
+- [x] Update `router.go` to pass `YahooFinanceFetcher` to position handler
 
-**Verification:** Open positions show current market data; closed positions don't; unavailable market data shows gracefully with "—".
+**Verification:** Open positions show current market data; closed positions don't; unavailable market data shows gracefully with "—". ✅ All tests pass; go vet clean.
 
 ---
 

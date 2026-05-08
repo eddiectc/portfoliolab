@@ -254,13 +254,18 @@ func TestPosHandleListOpen_Success(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 
-	var items []position.Position
+	// Returns PositionWithMarket (enriched with market data fields).
+	var items []position.PositionWithMarket
 	json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 position, got %d", len(items))
 	}
 	if len(items) > 0 && items[0].Symbol != "AAPL" {
 		t.Errorf("expected symbol 'AAPL', got %q", items[0].Symbol)
+	}
+	// Without market fetcher configured, market data should be unavailable.
+	if len(items) > 0 && items[0].MarketDataAvailable {
+		t.Error("expected MarketDataAvailable=false without fetcher configured")
 	}
 }
 
@@ -276,7 +281,7 @@ func TestPosHandleListOpen_Empty(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 
-	var items []position.Position
+	var items []position.PositionWithMarket
 	json.NewDecoder(w.Body).Decode(&items)
 	if items == nil {
 		t.Error("expected empty array, got nil")
@@ -295,7 +300,7 @@ func TestPosHandleListOpen_WithAccountFilter(t *testing.T) {
 
 	handler.HandleListOpen(w, req)
 
-	var items []position.Position
+	var items []position.PositionWithMarket
 	json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 position for account_id=1, got %d", len(items))
@@ -319,7 +324,7 @@ func TestPosHandleListOpen_Pagination(t *testing.T) {
 
 	handler.HandleListOpen(w, req)
 
-	var items []position.Position
+	var items []position.PositionWithMarket
 	json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 items with limit=2, got %d", len(items))
@@ -608,7 +613,7 @@ func TestPosRouterIntegration(t *testing.T) {
 		{ID: 1, LotID: "LOT-TEST", AccountID: 1, Symbol: "AAPL", LotType: "buy", Quantity: decimal.MustNew(1000, 2)},
 	}
 
-	// GET /api/positions
+	// GET /api/positions (returns PositionWithMarket)
 	req := httptest.NewRequest(http.MethodGet, "/api/positions", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -617,7 +622,7 @@ func TestPosRouterIntegration(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var items []position.Position
+	var items []position.PositionWithMarket
 	json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 positions, got %d", len(items))

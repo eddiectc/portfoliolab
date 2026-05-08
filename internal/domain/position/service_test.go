@@ -11,6 +11,7 @@ import (
 	"github.com/govalues/decimal"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
 )
 
 // ctx is a test context.
@@ -742,5 +743,251 @@ func TestGetLotInfo(t *testing.T) {
 	}
 	if info.LotType != "buy" {
 		t.Errorf("expected lot type buy, got %s", info.LotType)
+	}
+}
+
+// --- Mocks for market data ---
+
+type mockMarketDataFetcher struct {
+	quotes map[string]*market.MarketData
+	err    error
+}
+
+func (m *mockMarketDataFetcher) FetchQuote(_ context.Context, symbol string) (*market.MarketData, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if q, ok := m.quotes[symbol]; ok {
+		return q, nil
+	}
+	return nil, fmt.Errorf("no quote for %s", symbol)
+}
+
+func (m *mockMarketDataFetcher) FetchFxRate(_ context.Context, _ string) (*market.MarketData, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+type mockMarketDataRepo struct {
+	upserted []*market.MarketData
+	upsertErr error
+}
+
+func (m *mockMarketDataRepo) GetLatest(_ context.Context, _ string) (*market.MarketData, error) {
+	return nil, nil
+}
+
+func (m *mockMarketDataRepo) GetBySourceAndDate(_ context.Context, _, _, _ string) (*market.MarketData, error) {
+	return nil, nil
+}
+
+func (m *mockMarketDataRepo) Upsert(_ context.Context, md *market.MarketData) error {
+	if m.upsertErr != nil {
+		return m.upsertErr
+	}
+	m.upserted = append(m.upserted, md)
+	return nil
+}
+
+func (m *mockMarketDataRepo) GetCurrentFxRate(_ context.Context, _ string) (*market.MarketData, error) {
+	return nil, nil
+}
+
+// --- EnrichWithMarketData tests ---
+
+func TestEnrichWithMarketData_NoFetcher(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
+	}
+
+	result := svc.EnrichWithMarketData(ctx, positions)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if result[0].MarketDataAvailable {
+		t.Error("expected MarketDataAvailable=false without fetcher")
+	}
+	if result[0].MarketPrice != nil {
+		t.Error("expected nil MarketPrice without fetcher")
+	}
+}
+
+func TestEnrichWithMarketData_CashPosition(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
+	repo := &mockMarketDataRepo{}
+	svc.WithMarketDataFetcher(fetcher, repo, nil)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "$CASH-USD", Quantity: decimal.MustNew(50000, 2), CostBasis: decimal.MustNew(0, 2)},
+	}
+
+	result := svc.EnrichWithMarketData(ctx, positions)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if !result[0].MarketDataAvailable {
+		t.Error("expected MarketDataAvailable=true for cash position")
+	}
+	// MarketValue should equal the balance (quantity).
+	if !result[0].MarketValue.Equal(decimal.MustNew(50000, 2)) {
+		t.Errorf("expected MarketValue 500.00, got %s", result[0].MarketValue.String())
+	}
+	// No market price fetched for cash.
+	if result[0].MarketPrice != nil {
+		t.Error("expected nil MarketPrice for cash position")
+	}
+	// No unrealized P&L for cash.
+	if !result[0].UnrealizedPnL.IsZero() {
+		t.Errorf("expected zero UnrealizedPnL for cash, got %s", result[0].UnrealizedPnL.String())
+	}
+}
+
+func TestEnrichWithMarketData_Success(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	// AAPL quote at 170.00
+	price := decimal.MustNew(17000, 2)
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD", DataType: "stock", Source: "yahoo"},
+		},
+	}
+	repo := &mockMarketDataRepo{}
+	svc.WithMarketDataFetcher(fetcher, repo, nil)
+
+	// Quantity 10.00, CostBasis -15000.00 (total cost of 15000.00)
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
+	}
+
+	result := svc.EnrichWithMarketData(ctx, positions)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+
+	r := result[0]
+	if !r.MarketDataAvailable {
+		t.Error("expected MarketDataAvailable=true")
+	}
+	if r.MarketPrice == nil || !r.MarketPrice.Equal(price) {
+		t.Errorf("expected MarketPrice 170.00, got %v", r.MarketPrice)
+	}
+	// MarketValue = 10.00 × 170.00 = 1700.00 (scale 4)
+	wantMV := decimal.MustNew(17000000, 4)
+	if !r.MarketValue.Equal(wantMV) {
+		t.Errorf("expected MarketValue %s, got %s", wantMV.String(), r.MarketValue.String())
+	}
+	// UnrealizedPnL = 1700.00 + (-15000.00) = -13300.00 (scale 4)
+	wantUP := decimal.MustNew(-133000000, 4)
+	if !r.UnrealizedPnL.Equal(wantUP) {
+		t.Errorf("expected UnrealizedPnL %s, got %s", wantUP.String(), r.UnrealizedPnL.String())
+	}
+	// P&L% = -13300 / 15000 * 100 = -88.67%
+	if r.UnrealizedPnlPct == nil {
+		t.Error("expected non-nil UnrealizedPnlPct")
+	}
+	// Verify the quote was cached.
+	if len(repo.upserted) != 1 {
+		t.Errorf("expected 1 cached quote, got %d", len(repo.upserted))
+	}
+}
+
+func TestEnrichWithMarketData_FetchError(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	fetcher := &mockMarketDataFetcher{err: fmt.Errorf("network error")}
+	repo := &mockMarketDataRepo{}
+	svc.WithMarketDataFetcher(fetcher, repo, nil)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
+	}
+
+	result := svc.EnrichWithMarketData(ctx, positions)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if result[0].MarketDataAvailable {
+		t.Error("expected MarketDataAvailable=false after fetch error")
+	}
+}
+
+func TestEnrichWithMarketData_MultiplePositions(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17000, 2), Currency: "USD", DataType: "stock"},
+			// MSFT will fail (not in map)
+		},
+	}
+	repo := &mockMarketDataRepo{}
+	svc.WithMarketDataFetcher(fetcher, repo, nil)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
+		{ID: 2, AccountID: 1, Symbol: "MSFT", Quantity: decimal.MustNew(500, 2), CostBasis: decimal.MustNew(-3000000, 2)},
+		{ID: 3, AccountID: 1, Symbol: "$CASH-USD", Quantity: decimal.MustNew(50000, 2), CostBasis: decimal.MustNew(0, 2)},
+	}
+
+	result := svc.EnrichWithMarketData(ctx, positions)
+
+	if len(result) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(result))
+	}
+
+	// AAPL: available
+	if !result[0].MarketDataAvailable {
+		t.Error("expected AAPL market data available")
+	}
+	// MSFT: unavailable (fetch error)
+	if result[1].MarketDataAvailable {
+		t.Error("expected MSFT market data unavailable")
+	}
+	// Cash: available
+	if !result[2].MarketDataAvailable {
+		t.Error("expected cash market data available")
 	}
 }
