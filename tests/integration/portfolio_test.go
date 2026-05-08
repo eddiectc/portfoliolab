@@ -162,7 +162,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			currency    TEXT    NOT NULL,
 			data_type   TEXT    NOT NULL DEFAULT 'stock',
 			source      TEXT    NOT NULL DEFAULT 'yahoo',
-			date        TEXT,
+			date        TEXT    NOT NULL DEFAULT '',
 			fetched_at  TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
 			UNIQUE(symbol, source, date)

@@ -51,15 +51,15 @@ type LotConsumption struct {
 }
 
 type MarketDatum struct {
-	ID        int64          `db:"id"`
-	Symbol    string         `db:"symbol"`
-	Price     string         `db:"price"`
-	Currency  string         `db:"currency"`
-	DataType  string         `db:"data_type"`
-	Source    string         `db:"source"`
-	Date      sql.NullString `db:"date"`
-	FetchedAt string         `db:"fetched_at"`
-	CreatedAt string         `db:"created_at"`
+	ID        int64  `db:"id"`
+	Symbol    string `db:"symbol"`
+	Price     string `db:"price"`
+	Currency  string `db:"currency"`
+	DataType  string `db:"data_type"`
+	Source    string `db:"source"`
+	Date      string `db:"date"`
+	FetchedAt string `db:"fetched_at"`
+	CreatedAt string `db:"created_at"`
 }
 
 type Portfolio struct {

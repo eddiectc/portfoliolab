@@ -159,13 +159,22 @@ func TestMigration_MarketDataUniqueConstraint(t *testing.T) {
 		t.Fatalf("insert with different date should succeed: %v", err)
 	}
 
-	// Same symbol/source but NULL date (latest) should succeed (SQLite: NULL ≠ NULL in UNIQUE)
+	// Insert "latest" row (date = '')
 	_, err = db.Exec(
 		"INSERT INTO market_data (symbol, price, currency, data_type, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
 		"AAPL", "153.00", "USD", "stock", "yahoo", "2025-01-03T00:00:00Z",
 	)
 	if err != nil {
-		t.Fatalf("insert with NULL date should succeed: %v", err)
+		t.Fatalf("insert with empty date should succeed: %v", err)
+	}
+
+	// Duplicate "latest" row (same symbol, source, empty date) should fail
+	_, err = db.Exec(
+		"INSERT INTO market_data (symbol, price, currency, data_type, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"AAPL", "154.00", "USD", "stock", "yahoo", "2025-01-04T00:00:00Z",
+	)
+	if err == nil {
+		t.Fatal("expected UNIQUE constraint violation on empty date, got nil")
 	}
 }
 

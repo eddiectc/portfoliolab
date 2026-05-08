@@ -7,12 +7,11 @@ package queries
 
 import (
 	"context"
-	"database/sql"
 )
 
 const deleteStaleMarketData = `-- name: DeleteStaleMarketData :execrows
 DELETE FROM market_data
-WHERE date IS NULL
+WHERE date = ''
   AND symbol = ?
   AND fetched_at < ?
 `
@@ -32,7 +31,7 @@ func (q *Queries) DeleteStaleMarketData(ctx context.Context, db DBTX, arg Delete
 
 const getCurrentFxRate = `-- name: GetCurrentFxRate :one
 SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at FROM market_data
-WHERE symbol = ? AND data_type = 'fx' AND date IS NULL
+WHERE symbol = ? AND data_type = 'fx' AND date = ''
 ORDER BY fetched_at DESC
 LIMIT 1
 `
@@ -56,7 +55,7 @@ func (q *Queries) GetCurrentFxRate(ctx context.Context, db DBTX, symbol string) 
 
 const getLatestMarketData = `-- name: GetLatestMarketData :one
 SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at FROM market_data
-WHERE symbol = ? AND date IS NULL
+WHERE symbol = ? AND date = ''
 ORDER BY fetched_at DESC
 LIMIT 1
 `
@@ -85,8 +84,8 @@ ORDER BY fetched_at DESC
 `
 
 type GetMarketDataBySymbolAndDateParams struct {
-	Symbol string         `db:"symbol"`
-	Date   sql.NullString `db:"date"`
+	Symbol string `db:"symbol"`
+	Date   string `db:"date"`
 }
 
 func (q *Queries) GetMarketDataBySymbolAndDate(ctx context.Context, db DBTX, arg GetMarketDataBySymbolAndDateParams) ([]MarketDatum, error) {
@@ -130,9 +129,9 @@ LIMIT 1
 `
 
 type GetMarketDataBySymbolAndSourceAndDateParams struct {
-	Symbol string         `db:"symbol"`
-	Source string         `db:"source"`
-	Date   sql.NullString `db:"date"`
+	Symbol string `db:"symbol"`
+	Source string `db:"source"`
+	Date   string `db:"date"`
 }
 
 func (q *Queries) GetMarketDataBySymbolAndSourceAndDate(ctx context.Context, db DBTX, arg GetMarketDataBySymbolAndSourceAndDateParams) (MarketDatum, error) {
@@ -164,13 +163,13 @@ RETURNING id, symbol, price, currency, data_type, source, date, fetched_at, crea
 `
 
 type InsertMarketDataParams struct {
-	Symbol    string         `db:"symbol"`
-	Price     string         `db:"price"`
-	Currency  string         `db:"currency"`
-	DataType  string         `db:"data_type"`
-	Source    string         `db:"source"`
-	Date      sql.NullString `db:"date"`
-	FetchedAt string         `db:"fetched_at"`
+	Symbol    string `db:"symbol"`
+	Price     string `db:"price"`
+	Currency  string `db:"currency"`
+	DataType  string `db:"data_type"`
+	Source    string `db:"source"`
+	Date      string `db:"date"`
+	FetchedAt string `db:"fetched_at"`
 }
 
 func (q *Queries) InsertMarketData(ctx context.Context, db DBTX, arg InsertMarketDataParams) (MarketDatum, error) {
