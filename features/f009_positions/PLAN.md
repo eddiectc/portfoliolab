@@ -180,7 +180,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Compute open and closed positions from the FIFO-matched lots, tracking quantity over time to detect open-to-close transitions.
 
-- [ ] Implement `ComputePositions(buyLots []LotGroup, sellLots []LotGroup, consumptions []LotConsumption) ([]Position, []Position)` in `position_computation.go`:
+- [x] Implement `ComputePositions(buyLots []LotGroup, sellLots []LotGroup, consumptions []LotConsumption) ([]Position, []Position)` in `position_computation.go`:
   - Walk through all lots chronologically (buys and sells interleaved)
   - Track running quantity per symbol
   - When quantity transitions from non-zero to zero → create closed position entry
@@ -190,7 +190,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - For closed positions: avg_open_price = sum of buy net_cash / total buy quantity (negative), avg_close_price = sum of sell net_cash / total sell quantity (positive)
   - Handle multiple open-to-close cycles (buy 100, sell 100, buy 50, sell 50 → two closed positions)
   - Handle short positions (negative quantity)
-- [ ] Write unit tests in `position_computation_test.go` (table-driven):
+- [x] Write unit tests in `position_computation_test.go` (table-driven):
   - Simple buy → one open position
   - Buy + partial sell → one open position with reduced quantity
   - Buy + full sell → one closed position
@@ -199,7 +199,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - Short position → open position with negative quantity
   - Mixed symbols → separate positions per symbol
 
-**Verification:** All position computation tests pass; correct open/closed state; multiple cycles handled.
+**Verification:** All position computation tests pass; correct open/closed state; multiple cycles handled. ✅ 10/10 tests pass.
 
 ---
 
