@@ -717,4 +717,33 @@ func TestPosition_FxRatePersisted(t *testing.T) {
 	if fxRateFallback {
 		t.Error("expected fx_rate_fallback = false for same-currency position, got true")
 	}
+
+	// Fetch closed positions via API to verify full read path (toPosition)
+	req := httptest.NewRequest(http.MethodGet, "/api/positions/closed", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var closedPositions []position.Position
+	if err := json.NewDecoder(w.Body).Decode(&closedPositions); err != nil {
+		t.Fatalf("decode closed positions: %v", err)
+	}
+
+	// Find the AAPL closed position and verify FxRateUsed and RealizedPnlPct are populated
+	for _, p := range closedPositions {
+		if p.Symbol == "AAPL" && p.IsClosed {
+			if p.FxRateUsed == nil {
+				t.Error("FxRateUsed is nil after reading from DB via API")
+			} else if p.FxRateUsed.String() != "1" {
+				t.Errorf("expected FxRateUsed = 1, got %q", p.FxRateUsed.String())
+			}
+			if p.RealizedPnlPct == nil {
+				t.Error("RealizedPnlPct is nil after reading from DB via API")
+			}
+			return
+		}
+	}
+	t.Error("expected AAPL closed position")
 }
