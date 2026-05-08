@@ -168,6 +168,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			date        TEXT    NOT NULL DEFAULT '',
 			fetched_at  TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
 			UNIQUE(symbol, source, date)
 		);
 
