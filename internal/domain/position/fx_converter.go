@@ -207,3 +207,74 @@ func BuildFxPair(positionCurrency, baseCurrency string) string {
 	}
 	return fmt.Sprintf("%s/%s", positionCurrency, baseCurrency)
 }
+
+// FxRateDisplay holds the convention-rate pair label and value for display.
+type FxRateDisplay struct {
+	Pair string          // e.g. "GBP/USD"
+	Rate decimal.Decimal // convention rate (e.g. 1.3 for GBP/USD)
+}
+
+// ConventionFxRate returns the FX rate displayed in standard market convention.
+//
+// Market convention: for pairs involving USD and a "major" currency
+// (GBP, EUR, AUD, NZD, CAD), USD is the quote currency.
+// E.g. position=USD, base=GBP → shows "GBP/USD 1.3000" (not "USD/GBP 0.7692").
+//
+// If the stored rate was fetched for the "inverted" pair (position/base),
+// the rate is inverted (1/rate) to show the convention rate.
+// If the stored rate is already in convention order, it is returned as-is.
+func ConventionFxRate(positionCurrency, baseCurrency string, storedRate *decimal.Decimal) *FxRateDisplay {
+	if positionCurrency == baseCurrency || storedRate == nil || storedRate.Equal(decimal.Zero) {
+		return nil
+	}
+
+	conventionPair, inverted := conventionPairOrder(positionCurrency, baseCurrency)
+
+	var rate decimal.Decimal
+	if inverted {
+		// storedRate is position/base, convention is base/position → invert
+		rate, _ = decimal.One.Quo(*storedRate)
+	} else {
+		// storedRate is already in convention order
+		rate = *storedRate
+	}
+
+	return &FxRateDisplay{
+		Pair: conventionPair,
+		Rate: rate,
+	}
+}
+
+// conventionPairOrder returns the standard market-convention pair string and
+// whether the position/base order is inverted relative to convention.
+//
+// Convention rules:
+//   - USD vs GBP/EUR/AUD/NZD/CAD → USD is quote (e.g. GBP/USD, EUR/USD)
+//   - EUR vs GBP → EUR is base (e.g. EUR/GBP)
+//   - otherwise → first currency is base (position/base)
+func conventionPairOrder(currencyA, currencyB string) (string, bool) {
+	// Currencies where USD is conventionally the quote currency.
+	usdMajors := map[string]bool{
+		"GBP": true, "EUR": true, "AUD": true, "NZD": true, "CAD": true,
+	}
+
+	if currencyA == "USD" && usdMajors[currencyB] {
+		// Convention: GBP/USD (USD is quote). Position/base was USD/GBP → inverted.
+		return fmt.Sprintf("%s/%s", currencyB, currencyA), true
+	}
+	if currencyB == "USD" && usdMajors[currencyA] {
+		// Convention: GBP/USD (USD is quote). Position/base was GBP/USD → not inverted.
+		return fmt.Sprintf("%s/%s", currencyA, currencyB), false
+	}
+
+	// EUR/GBP convention: EUR is base.
+	if currencyA == "EUR" && currencyB == "GBP" {
+		return "EUR/GBP", false
+	}
+	if currencyA == "GBP" && currencyB == "EUR" {
+		return "EUR/GBP", true
+	}
+
+	// Default: position/base order.
+	return fmt.Sprintf("%s/%s", currencyA, currencyB), false
+}
