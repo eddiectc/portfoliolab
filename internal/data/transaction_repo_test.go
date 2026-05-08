@@ -51,6 +51,7 @@ func setupTransactionDB(t *testing.T) *sql.DB {
 			net_cash            TEXT,
 			external_system     TEXT,
 			external_reference  TEXT,
+			lot_id              TEXT,
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
@@ -60,6 +61,7 @@ func setupTransactionDB(t *testing.T) *sql.DB {
 		CREATE INDEX idx_transactions_date ON transactions(date);
 		CREATE INDEX idx_transactions_symbol ON transactions(symbol);
 		CREATE INDEX idx_transactions_type ON transactions(type);
+		CREATE INDEX idx_transactions_lot_id ON transactions(lot_id);
 		CREATE UNIQUE INDEX idx_transactions_external_ref
 		    ON transactions(external_system, external_reference)
 		    WHERE external_system IS NOT NULL AND external_reference IS NOT NULL;

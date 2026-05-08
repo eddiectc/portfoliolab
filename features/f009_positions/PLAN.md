@@ -42,21 +42,21 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Add four new tables and one column alteration to support position tracking and market data storage.
 
-- [ ] Write migration `009_create_positions.sql` with:
+- [x] Write migration `009_create_positions.sql` with:
   - `positions` table (id, account_id, symbol, currency, quantity TEXT, cost_basis TEXT, avg_open_price TEXT, avg_close_price TEXT, realized_pnl TEXT, realized_pnl_base TEXT, open_date TEXT, close_date TEXT, is_closed INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT)
   - `lots` table (id, lot_id TEXT UNIQUE, account_id, symbol, lot_type TEXT ('buy'/'sell'), quantity TEXT, cost_basis TEXT, sell_price TEXT, realized_pnl TEXT, open_date TEXT, close_date TEXT, created_at TEXT, updated_at TEXT)
   - `lot_consumptions` table (id, sell_lot_id, buy_lot_id, quantity_consumed TEXT, cost_basis_consumed TEXT, realized_pnl TEXT, created_at TEXT)
   - `ALTER TABLE transactions ADD COLUMN lot_id TEXT` (nullable)
   - Indexes: `idx_positions_account_symbol`, `idx_lots_account_symbol`, `idx_lots_lot_id`, `idx_transactions_lot_id`, `idx_lot_consumptions_sell_lot`, `idx_lot_consumptions_buy_lot`
   - Foreign keys with `ON DELETE CASCADE`
-- [ ] Write migration `010_create_market_data.sql` with:
+- [x] Write migration `010_create_market_data.sql` with:
   - `market_data` table: id, symbol TEXT, price TEXT, currency TEXT, data_type TEXT ('stock'/'fx'), source TEXT (provider identifier, e.g. 'yahoo'), date TEXT (NULL = latest/current, YYYY-MM-DD = historical snapshot), fetched_at TEXT, created_at TEXT
   - `UNIQUE(symbol, source, date)` constraint (one entry per symbol per source per date)
   - Indexes: `idx_market_data_symbol`, `idx_market_data_symbol_date`
   - Supports both stock quotes and FX rates in one table; `source` column enables multiple providers; historical data for future analytics features
-- [ ] Write `sqlc` queries in `position.sql` and `market_data.sql`
-- [ ] Run `sqlc generate`
-- [ ] Verify migrations run cleanly in `tests/integration/migration_smoke_test.go`
+- [x] Write `sqlc` queries in `position.sql` and `market_data.sql`
+- [x] Run `sqlc generate`
+- [x] Verify migrations run cleanly in `tests/integration/migration_smoke_test.go`
 
 **Verification:** Both migrations run cleanly on empty DB; `sqlc generate` produces Go code for all new tables; smoke test passes.
 

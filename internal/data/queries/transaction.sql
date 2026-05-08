@@ -1,6 +1,6 @@
 -- name: CreateTransaction :one
-INSERT INTO transactions (account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO transactions (account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, lot_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetTransaction :one
@@ -8,7 +8,7 @@ SELECT * FROM transactions WHERE id = ?;
 
 -- name: UpdateTransaction :one
 UPDATE transactions
-SET date = ?, type = ?, symbol = ?, quantity = ?, price = ?, currency = ?, net_cash = ?, external_system = ?, external_reference = ?, updated_at = ?
+SET date = ?, type = ?, symbol = ?, quantity = ?, price = ?, currency = ?, net_cash = ?, external_system = ?, external_reference = ?, lot_id = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
 

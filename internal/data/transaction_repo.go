@@ -55,7 +55,7 @@ func toTransaction(t queries.Transaction) (*transaction.Transaction, error) {
 		return nil, fmt.Errorf("parse price: %w", err)
 	}
 
-	netCash, err := decimal.Parse(t.NetCash.String)
+	netCash, err := decimal.Parse(t.NetCash)
 	if err != nil {
 		return nil, fmt.Errorf("parse net_cash: %w", err)
 	}
@@ -102,12 +102,6 @@ func toDomainSlice(items []queries.Transaction) ([]transaction.Transaction, erro
 	return result, nil
 }
 
-// toNullDecimal converts a decimal.Decimal to sql.NullString.
-// NetCash is now required (non-nullable) so Valid is always true.
-func toNullDecimal(d decimal.Decimal) sql.NullString {
-	return sql.NullString{String: d.String(), Valid: true}
-}
-
 // toNullString converts a *string to sql.NullString.
 func toNullString(s *string) sql.NullString {
 	if s == nil {
@@ -126,9 +120,10 @@ func (r *TransactionRepository) Create(ctx context.Context, t *transaction.Trans
 		Quantity:          t.Quantity.String(),
 		Price:             t.Price.String(),
 		Currency:          t.Currency,
-		NetCash:           toNullDecimal(t.NetCash),
+		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
 		ExternalReference: toNullString(t.ExternalReference),
+		LotID:             sql.NullString{},
 		CreatedAt:         t.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
 	})
@@ -159,9 +154,10 @@ func (r *TransactionRepository) BatchCreate(ctx context.Context, txns []*transac
 			Quantity:          t.Quantity.String(),
 			Price:             t.Price.String(),
 			Currency:          t.Currency,
-			NetCash:           toNullDecimal(t.NetCash),
+			NetCash:           t.NetCash.String(),
 			ExternalSystem:    toNullString(t.ExternalSystem),
 			ExternalReference: toNullString(t.ExternalReference),
+			LotID:             sql.NullString{},
 			CreatedAt:         t.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
 		})
@@ -340,9 +336,10 @@ func (r *TransactionRepository) Update(ctx context.Context, t *transaction.Trans
 		Quantity:          t.Quantity.String(),
 		Price:             t.Price.String(),
 		Currency:          t.Currency,
-		NetCash:           toNullDecimal(t.NetCash),
+		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
 		ExternalReference: toNullString(t.ExternalReference),
+		LotID:             sql.NullString{},
 		UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
 		ID:                t.ID,
 	})

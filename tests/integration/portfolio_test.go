@@ -81,18 +81,95 @@ func setupTestDB(t *testing.T) *sql.DB {
 			net_cash            TEXT,
 			external_system     TEXT,
 			external_reference  TEXT,
+			lot_id              TEXT,
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
 		);
 
+		CREATE INDEX IF NOT EXISTS idx_transactions_lot_id ON transactions(lot_id);
+
 		CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id);
 		CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date DESC);
 		CREATE INDEX IF NOT EXISTS idx_transactions_symbol ON transactions(symbol);
 		CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+		CREATE INDEX IF NOT EXISTS idx_transactions_lot_id ON transactions(lot_id);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_external_ref
 			ON transactions(external_system, external_reference)
 			WHERE external_system IS NOT NULL AND external_reference IS NOT NULL;
+
+		CREATE TABLE IF NOT EXISTS positions (
+			id                INTEGER PRIMARY KEY AUTOINCREMENT,
+			account_id        INTEGER NOT NULL,
+			symbol            TEXT    NOT NULL,
+			currency          TEXT    NOT NULL,
+			quantity          TEXT    NOT NULL DEFAULT '0',
+			cost_basis        TEXT    NOT NULL DEFAULT '0',
+			avg_open_price    TEXT,
+			avg_close_price   TEXT,
+			realized_pnl      TEXT    NOT NULL DEFAULT '0',
+			realized_pnl_base TEXT,
+			open_date         TEXT    NOT NULL,
+			close_date        TEXT,
+			is_closed         INTEGER NOT NULL DEFAULT 0,
+			created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_positions_account_symbol ON positions(account_id, symbol);
+		CREATE INDEX IF NOT EXISTS idx_positions_is_closed ON positions(is_closed);
+
+		CREATE TABLE IF NOT EXISTS lots (
+			id              INTEGER PRIMARY KEY AUTOINCREMENT,
+			lot_id          TEXT    NOT NULL UNIQUE,
+			account_id      INTEGER NOT NULL,
+			symbol          TEXT    NOT NULL,
+			lot_type        TEXT    NOT NULL,
+			quantity        TEXT    NOT NULL,
+			cost_basis      TEXT    NOT NULL DEFAULT '0',
+			sell_price      TEXT,
+			realized_pnl    TEXT    NOT NULL DEFAULT '0',
+			open_date       TEXT    NOT NULL,
+			close_date      TEXT,
+			created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_lots_account_symbol ON lots(account_id, symbol);
+		CREATE INDEX IF NOT EXISTS idx_lots_lot_id ON lots(lot_id);
+
+		CREATE TABLE IF NOT EXISTS lot_consumptions (
+			id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+			sell_lot_id         TEXT    NOT NULL,
+			buy_lot_id          TEXT    NOT NULL,
+			quantity_consumed   TEXT    NOT NULL,
+			cost_basis_consumed TEXT    NOT NULL DEFAULT '0',
+			realized_pnl        TEXT    NOT NULL DEFAULT '0',
+			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (sell_lot_id) REFERENCES lots(lot_id) ON DELETE CASCADE,
+			FOREIGN KEY (buy_lot_id) REFERENCES lots(lot_id) ON DELETE CASCADE
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_lot_consumptions_sell_lot ON lot_consumptions(sell_lot_id);
+		CREATE INDEX IF NOT EXISTS idx_lot_consumptions_buy_lot ON lot_consumptions(buy_lot_id);
+
+		CREATE TABLE IF NOT EXISTS market_data (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			symbol      TEXT    NOT NULL,
+			price       TEXT    NOT NULL,
+			currency    TEXT    NOT NULL,
+			data_type   TEXT    NOT NULL DEFAULT 'stock',
+			source      TEXT    NOT NULL DEFAULT 'yahoo',
+			date        TEXT,
+			fetched_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+			created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+			UNIQUE(symbol, source, date)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_market_data_symbol ON market_data(symbol);
+		CREATE INDEX IF NOT EXISTS idx_market_data_symbol_date ON market_data(symbol, date);
 
 		CREATE TABLE IF NOT EXISTS goose_db_version (
 			id INTEGER PRIMARY KEY,
@@ -100,7 +177,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			is_applied INTEGER NOT NULL DEFAULT 1,
 			tstamp TIMESTAMP DEFAULT (datetime('now'))
 		);
-		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (6, 1);
+		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (10, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)
