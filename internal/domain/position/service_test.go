@@ -10,8 +10,8 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
 // ctx is a test context.

@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 )
 
 // SymbolService defines the symbol operations needed by the HTTP handler.

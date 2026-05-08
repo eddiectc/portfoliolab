@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/api"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/ibkrimport"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/api"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // loadIBKRSampleXML reads the IBKR sample XML fixture from the testdata directory.

@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/ibkrimport"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 )
 
 // ---- Mocks ----

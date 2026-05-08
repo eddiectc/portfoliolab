@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 )
 
 // PositionHandler handles HTTP requests for position queries and recalculation.

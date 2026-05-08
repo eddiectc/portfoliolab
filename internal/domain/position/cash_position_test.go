@@ -6,7 +6,7 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // tx is a shorthand for creating a Transaction for cash position tests.

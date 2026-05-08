@@ -6,7 +6,7 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // decPtr returns a pointer to a decimal.Decimal.

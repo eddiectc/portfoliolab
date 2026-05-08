@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 )
 
 // testAccountRepo is a minimal in-memory mock repo for account handler tests.

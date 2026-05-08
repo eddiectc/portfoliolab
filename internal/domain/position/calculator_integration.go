@@ -5,7 +5,7 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // CalculatePositions runs the full position calculation pipeline:

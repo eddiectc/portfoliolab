@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
-	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
 

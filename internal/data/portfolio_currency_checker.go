@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/data/queries"
+	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
 )
 
 // PortfolioCurrencyCheckerImpl returns the base currency of a portfolio.
