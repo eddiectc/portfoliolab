@@ -209,22 +209,25 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Compute cash positions from deposit, withdrawal, dividend, interest, fee, tax, and trade net_cash transactions.
 
-- [ ] Implement `ComputeCashPositions(transactions []Transaction) ([]Position)` in `cash_position.go`:
+- [x] Implement `ComputeCashPositions(transactions []Transaction) ([]Position)` in `cash_position.go`:
   - Filter transactions affecting cash: deposit, withdrawal, dividend, interest, fee, tax, buy, sell
   - Group by currency (via symbol `$CASH-{currency}` or transaction currency)
   - Compute running net_cash sum per currency
   - Create cash position with quantity = balance, cost_basis = 0, realized_pnl = 0
   - Cash positions are always open (never closed)
   - No P&L on cash positions
-- [ ] Write unit tests in `cash_position_test.go` (table-driven):
+- [x] Write unit tests in `cash_position_test.go` (table-driven):
   - Single deposit → positive cash balance
   - Deposit + withdrawal → reduced balance
   - Multiple currencies → separate cash positions
   - Dividend adds to cash without affecting share position
   - Negative balance (overdraft) → valid cash position
   - Empty transactions → no cash positions
+  - Buy and sell affect cash (net_cash flows)
+  - Fee and tax reduce cash
+  - Open date is earliest transaction date
 
-**Verification:** All cash position tests pass; correct balance computation; multi-currency handled.
+**Verification:** All cash position tests pass; correct balance computation; multi-currency handled. ✅ 10/10 tests pass.
 
 ---
 

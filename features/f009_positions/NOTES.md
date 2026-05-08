@@ -20,6 +20,14 @@
 ## Known Issues
 - None
 
+## Task 4d Implementation Notes (2026-05-08)
+- `cash_position.go` has one public function: `ComputeCashPositions` and one unexported helper: `cashSymbol`.
+- Cash-affecting transaction types are defined as a `map[string]bool` constant: deposit, withdrawal, dividend, interest, fee, tax, buy, sell.
+- Transactions with `net_cash == 0` are skipped (no effect on cash balance).
+- The `net_cash` field already carries the correct sign per transaction type, so no manual sign flipping is needed — just sum directly.
+- Open date is the earliest transaction date across all cash-affecting transactions in that currency.
+- Output is sorted by symbol (`$CASH-GBP` before `$CASH-USD`) for deterministic output.
+
 ## Task 4c Implementation Notes (2026-05-08)
 - `position_computation.go` has 3 functions: `ComputePositions` (public entry, groups by symbol), `computePositionsForLots` (walks lots, detects cycles), `buildPosition` (aggregates cycle data into Position struct).
 - `cycleState` struct tracks lots, quantity direction, and final quantity at cycle end.
