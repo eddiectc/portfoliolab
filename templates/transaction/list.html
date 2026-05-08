@@ -71,6 +71,7 @@
             <th>Net Cash</th>
             <th>Currency</th>
             <th>Account</th>
+            <th>Lot</th>
             <th>Ref</th>
             <th>Actions</th>
         </tr>
@@ -86,6 +87,7 @@
             <td>{{.NetCash}}</td>
             <td>{{.Currency}}</td>
             <td>{{.AccountName}}</td>
+            <td class="lot">{{if .LotID}}{{.LotID}}{{end}}</td>
             <td class="ref">{{if .ExternalReference}}{{.ExternalReference}}{{end}}</td>
             <td class="actions">
                 <a href="/transactions/{{.ID}}/edit" class="btn btn-sm">Edit</a>

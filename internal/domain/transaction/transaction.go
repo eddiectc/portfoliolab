@@ -20,6 +20,7 @@ type Transaction struct {
 	Price             decimal.Decimal  `json:"price"`
 	Currency          string           `json:"currency"`
 	NetCash           decimal.Decimal  `json:"net_cash"`
+	LotID             *string          `json:"lot_id,omitempty"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
 	CreatedAt         time.Time        `json:"created_at"`
@@ -37,6 +38,7 @@ type CreateRequest struct {
 	Price             decimal.Decimal  `json:"price"`
 	Currency          string           `json:"currency"`
 	NetCash           decimal.Decimal  `json:"net_cash"`
+	LotID             *string          `json:"lot_id,omitempty"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
 }
@@ -95,6 +97,7 @@ type UpdateRequest struct {
 	Price             *decimal.Decimal `json:"price,omitempty"`
 	Currency          *string          `json:"currency,omitempty"`
 	NetCash           OptionalDecimal  `json:"net_cash"`
+	LotID             *string          `json:"lot_id,omitempty"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
 }
@@ -140,4 +143,12 @@ func (f *ListFilters) QueryParams() string {
 type TransactionWithAccount struct {
 	Transaction
 	AccountName string `json:"account_name"`
+}
+
+// LotInfo holds the minimal lot metadata needed for validation during
+// transaction create/update (account, symbol, type).
+type LotInfo struct {
+	AccountID int64  `json:"account_id"`
+	Symbol    string `json:"symbol"`
+	LotType   string `json:"lot_type"` // "buy" or "sell"
 }

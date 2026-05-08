@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Repository defines the data access interface for transactions.
@@ -36,6 +38,12 @@ type SymbolCreator interface {
 // an external system reference already exists (used for duplicate detection).
 type ExternalReferenceChecker interface {
 	ExternalReferenceExists(ctx context.Context, externalSystem, externalReference string) bool
+}
+
+// LotChecker defines the interface for checking lot existence and metadata
+// during transaction create/update validation.
+type LotChecker interface {
+	GetLotInfo(ctx context.Context, lotID string) (*LotInfo, error)
 }
 
 const (
@@ -79,23 +87,40 @@ var (
 	// ErrInvalidExternalField indicates an external field exceeds the 100-char limit.
 	ErrInvalidExternalField = fmt.Errorf("invalid external field")
 
+	// ErrLotNotFound indicates the referenced lot does not exist.
+	ErrLotNotFound = fmt.Errorf("lot not found")
+
+	// ErrLotSymbolMismatch indicates the lot belongs to a different symbol.
+	ErrLotSymbolMismatch = fmt.Errorf("lot symbol mismatch")
+
+	// ErrLotAccountMismatch indicates the lot belongs to a different account.
+	ErrLotAccountMismatch = fmt.Errorf("lot account mismatch")
+
+	// ErrLotTypeMismatch indicates the lot type is incompatible with the transaction type.
+	ErrLotTypeMismatch = fmt.Errorf("lot type mismatch")
+
+	// ErrInvalidLotID indicates the lot ID format is invalid.
+	ErrInvalidLotID = fmt.Errorf("invalid lot ID")
+
 )
 
 // Service handles transaction business logic.
 type Service struct {
-	repo     Repository
-	accounts AccountChecker
-	symbols  SymbolChecker
-	symCreate SymbolCreator
+	repo       Repository
+	accounts   AccountChecker
+	symbols    SymbolChecker
+	symCreate  SymbolCreator
+	lotChecker LotChecker
 }
 
 // NewService creates a new transaction service.
-func NewService(repo Repository, accounts AccountChecker, symbols SymbolChecker, symCreate SymbolCreator) *Service {
+func NewService(repo Repository, accounts AccountChecker, symbols SymbolChecker, symCreate SymbolCreator, lotChecker LotChecker) *Service {
 	return &Service{
-		repo:      repo,
-		accounts:  accounts,
-		symbols:   symbols,
-		symCreate: symCreate,
+		repo:       repo,
+		accounts:   accounts,
+		symbols:    symbols,
+		symCreate:  symCreate,
+		lotChecker: lotChecker,
 	}
 }
 
@@ -129,6 +154,12 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Transaction, 
 		return nil, ErrInvalidDate
 	}
 
+	// Validate and resolve lot_id.
+	lotID, err := s.resolveLotID(ctx, req.LotID, req.AccountID, symbol, req.Type)
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
 	t := &Transaction{
 		AccountID:         req.AccountID,
@@ -139,6 +170,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Transaction, 
 		Price:             req.Price,
 		Currency:          req.Currency,
 		NetCash:           req.NetCash,
+		LotID:             lotID,
 		ExternalSystem:    req.ExternalSystem,
 		ExternalReference: req.ExternalReference,
 		CreatedAt:         now,
@@ -296,6 +328,41 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Tra
 		changed = true
 	}
 
+	// lot_id is immutable once set — reject changes.
+	if req.LotID != nil {
+		// Empty string treated as "no change" (same as nil in form submissions).
+		if *req.LotID != "" {
+			if t.LotID != nil {
+				// Already has a lot_id — reject any change.
+				if *t.LotID != *req.LotID {
+					return nil, ErrInvalidLotID
+				}
+			} else {
+				// No lot_id yet — allow setting it if valid.
+				if s.lotChecker != nil {
+					lotInfo, err := s.lotChecker.GetLotInfo(ctx, *req.LotID)
+					if err != nil {
+						// Lot not found — this is OK for new lots.
+						// The lot will be created during position recalculation.
+					} else {
+						// Lot exists — validate cross-references.
+						if lotInfo.AccountID != t.AccountID {
+							return nil, ErrLotAccountMismatch
+						}
+						if lotInfo.Symbol != t.Symbol {
+							return nil, ErrLotSymbolMismatch
+						}
+						if lotInfo.LotType != t.Type {
+							return nil, ErrLotTypeMismatch
+						}
+					}
+				}
+				t.LotID = req.LotID
+				changed = true
+			}
+		}
+	}
+
 	if changed {
 		t.UpdatedAt = time.Now()
 		if err := s.repo.Update(ctx, t); err != nil {
@@ -317,6 +384,55 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 // parseDate parses a YYYY-MM-DD date string into a time.Time at midnight UTC.
 func parseDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
+}
+
+// resolveLotID validates a provided lot_id or auto-generates one.
+// Only buy/sell transactions get lot_ids; other types return nil.
+// If lot_id is nil or empty, a new one is auto-generated.
+// If lot_id is provided, it is validated against existing lots via LotChecker.
+func (s *Service) resolveLotID(ctx context.Context, lotID *string, accountID int64, symbol, txType string) (*string, error) {
+	// Only buy/sell transactions get lots.
+	if txType != "buy" && txType != "sell" {
+		return nil, nil
+	}
+
+	// No lot_id provided — auto-generate.
+	if lotID == nil || *lotID == "" {
+		generated := generateLotID()
+		return &generated, nil
+	}
+
+	// Validate provided lot_id.
+	if len(*lotID) > 100 {
+		return nil, ErrInvalidLotID
+	}
+
+	// Check that the lot exists and belongs to this account/symbol/type.
+	if s.lotChecker != nil {
+		lotInfo, err := s.lotChecker.GetLotInfo(ctx, *lotID)
+		if err != nil {
+			// Lot not found — this is OK for new lots (first transaction with this lot_id).
+			// The lot will be created during position recalculation.
+			// We only validate if the lot already exists.
+			return lotID, nil
+		}
+		if lotInfo.AccountID != accountID {
+			return nil, ErrLotAccountMismatch
+		}
+		if lotInfo.Symbol != symbol {
+			return nil, ErrLotSymbolMismatch
+		}
+		if lotInfo.LotType != txType {
+			return nil, ErrLotTypeMismatch
+		}
+	}
+
+	return lotID, nil
+}
+
+// generateLotID creates a new unique lot ID in the format LOT-<first 8 chars of UUID>.
+func generateLotID() string {
+	return "LOT-" + strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
 }
 
 // mapValidationError maps a validator error to the appropriate service error.
@@ -343,6 +459,8 @@ func mapValidationError(err error) error {
 		return ErrInvalidNetCash
 	case strings.Contains(msg, "external"):
 		return ErrInvalidExternalField
+	case strings.Contains(msg, "lot_id"):
+		return ErrInvalidLotID
 	default:
 		return err
 	}

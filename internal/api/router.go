@@ -68,7 +68,7 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	accountChecker := data.NewAccountChecker(accountRepo)
 	symbolChecker := data.NewSymbolChecker(symbolMappingRepo)
 	symbolCreator := data.NewSymbolCreator(symbolMappingSvc)
-	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator)
+	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator, nil)
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)
 	transactionHandler.RegisterRoutes(r)
 

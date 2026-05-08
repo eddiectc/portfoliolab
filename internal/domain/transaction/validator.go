@@ -62,6 +62,9 @@ func ValidateCreateRequest(req CreateRequest) error {
 	if err := validateExternalFields(req.ExternalSystem, req.ExternalReference); err != nil {
 		return fmt.Errorf("invalid external fields")
 	}
+	if err := validateLotID(req.LotID); err != nil {
+		return fmt.Errorf("invalid lot_id")
+	}
 	return nil
 }
 
@@ -204,6 +207,15 @@ func validateExternalFields(externalSystem, externalReference *string) error {
 	}
 	if externalReference != nil && len(*externalReference) > 100 {
 		return fmt.Errorf("external_reference must be at most 100 characters")
+	}
+	return nil
+}
+
+// validateLotID checks that lot_id is at most 100 characters.
+// nil or empty string is allowed (means auto-generate).
+func validateLotID(lotID *string) error {
+	if lotID != nil && len(*lotID) > 100 {
+		return fmt.Errorf("lot_id must be at most 100 characters")
 	}
 	return nil
 }

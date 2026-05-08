@@ -35,6 +35,11 @@
     <dt>Net Cash</dt>
     <dd>{{.Transaction.NetCash}}</dd>
 
+    {{if .Transaction.LotID}}
+    <dt>Lot ID</dt>
+    <dd>{{.Transaction.LotID}}</dd>
+    {{end}}
+
     {{if .Transaction.ExternalSystem}}
     <dt>External System</dt>
     <dd>{{.Transaction.ExternalSystem}}</dd>
