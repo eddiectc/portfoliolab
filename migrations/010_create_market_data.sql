@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS market_data (
     currency    TEXT    NOT NULL,
     data_type   TEXT    NOT NULL DEFAULT 'stock',  -- 'stock' or 'fx'
     source      TEXT    NOT NULL DEFAULT 'yahoo',
-    date        TEXT,  -- NULL = latest/current, YYYY-MM-DD = historical snapshot
+    date        TEXT    NOT NULL DEFAULT '',  -- '' = latest/current, YYYY-MM-DD = historical snapshot
     fetched_at  TEXT    NOT NULL DEFAULT (datetime('now')),
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
     UNIQUE(symbol, source, date)

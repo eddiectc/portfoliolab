@@ -1,7 +1,7 @@
 # Notes: Positions
 
 ## Decisions
-- 2026-05-08: `market_data` UNIQUE constraint on `(symbol, source, date)` — in SQLite, NULL values are distinct in UNIQUE constraints, so multiple "latest" entries (date=NULL) for the same symbol/source are allowed. This is acceptable since the app layer will handle deduplication via ON CONFLICT DO UPDATE.
+- 2026-05-08: `market_data.date` uses `''` (empty string) as sentinel for "latest/current" instead of `NULL`. This ensures `UNIQUE(symbol, source, date)` enforces one row per symbol per source, even for current prices. `NOT NULL DEFAULT ''` on the column. Historical snapshots use `YYYY-MM-DD` format.
 
 ## Deviations from Plan
 - Task 1 required updating existing code beyond just migrations:
@@ -10,9 +10,6 @@
   - `transaction.sql`: Updated CreateTransaction and UpdateTransaction queries to include `lot_id` column.
   - Integration test setup (`portfolio_test.go`): Added `lot_id TEXT` column and new tables (positions, lots, lot_consumptions, market_data) to the manual schema setup.
   - Unit test setup (`transaction_repo_test.go`): Added `lot_id TEXT` column to the manual schema setup.
-
-## Future Improvements
-- Consider using a partial unique index or trigger for `market_data` to enforce uniqueness on `(symbol, source)` when `date IS NULL`.
 
 ## Known Issues
 - None

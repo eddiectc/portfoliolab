@@ -1,6 +1,6 @@
 -- name: GetLatestMarketData :one
 SELECT * FROM market_data
-WHERE symbol = ? AND date IS NULL
+WHERE symbol = ? AND date = ''
 ORDER BY fetched_at DESC
 LIMIT 1;
 
@@ -17,7 +17,7 @@ LIMIT 1;
 
 -- name: GetCurrentFxRate :one
 SELECT * FROM market_data
-WHERE symbol = ? AND data_type = 'fx' AND date IS NULL
+WHERE symbol = ? AND data_type = 'fx' AND date = ''
 ORDER BY fetched_at DESC
 LIMIT 1;
 
@@ -33,6 +33,6 @@ RETURNING *;
 
 -- name: DeleteStaleMarketData :execrows
 DELETE FROM market_data
-WHERE date IS NULL
+WHERE date = ''
   AND symbol = ?
   AND fetched_at < ?;
