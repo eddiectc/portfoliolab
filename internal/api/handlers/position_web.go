@@ -54,19 +54,25 @@ func (f PositionFilter) PaginationQuery(page int) string {
 	return "?" + values.Encode()
 }
 
-// positionListPageData is the data struct for the position list templates.
+// positionListPageData is the data struct for the closed positions template.
 type positionListPageData struct {
 	web.PageData
 	Positions    []position.Position
 	Accounts     []account.Account
 	Filter       PositionFilter
 	BaseCurrency string
+	Summary      closedPositionSummary
 	Page         int
 	HasPrev      bool
 	HasNext      bool
 }
 
-// positionSummary holds aggregated totals for the position summary panel.
+// closedPositionSummary holds aggregated totals for the closed positions summary panel.
+type closedPositionSummary struct {
+	TotalRealizedPnLB string // total realized P&L in base currency
+}
+
+// positionSummary holds aggregated totals for the open positions summary panel.
 type positionSummary struct {
 	TotalCostBasisBase  string
 	TotalMktValueBase   string
@@ -224,6 +230,9 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 	// Determine base currency from filter or first portfolio.
 	baseCurrency := h.resolveBaseCurrency(r.Context(), domainFilters)
 
+	// Compute summary.
+	summary := computeClosedSummary(items, baseCurrency)
+
 	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
 
@@ -236,6 +245,7 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 		Accounts:     accounts,
 		Filter:       filter,
 		BaseCurrency: baseCurrency,
+		Summary:      summary,
 		Page:         page,
 		HasPrev:      page > 1,
 		HasNext:      len(items) == limit,
@@ -391,5 +401,20 @@ func computePositionSummary(positions []position.PositionWithMarket) positionSum
 		TotalMktValueBase:   totalMktValueBase.String(),
 		TotalUnrealizedPnLB: totalUnrealizedPnLB.String(),
 		TotalUnrealizedPnLP: pnlPct,
+	}
+}
+
+// computeClosedSummary aggregates realized P&L in base currency for closed positions.
+func computeClosedSummary(positions []position.Position, baseCurrency string) closedPositionSummary {
+	var totalRealizedPnLB decimal.Decimal
+
+	for _, p := range positions {
+		if p.RealizedPnlBase != nil {
+			totalRealizedPnLB, _ = totalRealizedPnLB.Add(*p.RealizedPnlBase)
+		}
+	}
+
+	return closedPositionSummary{
+		TotalRealizedPnLB: totalRealizedPnLB.String(),
 	}
 }

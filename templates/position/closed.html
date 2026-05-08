@@ -28,6 +28,16 @@
 {{if eq (len .Positions) 0}}
 <p class="empty-state">No closed positions yet.</p>
 {{else}}
+{{/* Summary panel — realized P&L in base currency */}}
+{{if .BaseCurrency}}
+<div class="position-summary">
+    <div class="summary-card">
+        <span class="summary-label">Realized P&L ({{.BaseCurrency}})</span>
+        <span class="summary-value pnl {{sign .Summary.TotalRealizedPnLB}}">{{formatMoney .Summary.TotalRealizedPnLB}}</span>
+    </div>
+</div>
+{{end}}
+
 <table class="table table-compact">
     <thead>
         <tr>
