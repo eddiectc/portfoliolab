@@ -167,6 +167,13 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 	// Enrich with market data (current price, market value, unrealized P&L).
 	enriched := h.positionSvc.EnrichWithMarketData(r.Context(), items, baseCurrency)
 
+	// Compute summary from ALL positions (not just current page).
+	summary, err := h.positionSvc.GetOpenPositionsSummary(r.Context(), domainFilters, baseCurrency)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
 
@@ -179,7 +186,7 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 		Accounts:     accounts,
 		Filter:       filter,
 		BaseCurrency: baseCurrency,
-		Summary:      computePositionSummary(enriched),
+		Summary:      toPositionSummary(summary),
 		Page:         page,
 		HasPrev:      page > 1,
 		HasNext:      len(enriched) == limit,
@@ -230,8 +237,12 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 	// Determine base currency from filter or first portfolio.
 	baseCurrency := h.resolveBaseCurrency(r.Context(), domainFilters)
 
-	// Compute summary.
-	summary := computeClosedSummary(items, baseCurrency)
+	// Compute summary from ALL closed positions (not just current page).
+	summary, err := h.positionSvc.GetClosedPositionsSummary(r.Context(), domainFilters, baseCurrency)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
@@ -245,7 +256,7 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 		Accounts:     accounts,
 		Filter:       filter,
 		BaseCurrency: baseCurrency,
-		Summary:      summary,
+		Summary:      toClosedPositionSummary(summary),
 		Page:         page,
 		HasPrev:      page > 1,
 		HasNext:      len(items) == limit,
@@ -416,5 +427,32 @@ func computeClosedSummary(positions []position.Position, baseCurrency string) cl
 
 	return closedPositionSummary{
 		TotalRealizedPnLB: totalRealizedPnLB.String(),
+	}
+}
+
+// toPositionSummary converts a service-level OpenPositionSummary to the
+// positionSummary struct used by the template.
+func toPositionSummary(s position.OpenPositionSummary) positionSummary {
+	// Compute total unrealized P&L % = total_unrealized_pnl_base / total_cost_basis_base × 100.
+	var pnlPct string
+	if !s.TotalCostBasisBase.Equal(decimal.Zero) {
+		pct, _ := s.TotalUnrealizedPnLB.Quo(s.TotalCostBasisBase)
+		pct, _ = pct.Mul(decimal.MustNew(10000, 2))
+		pnlPct = pct.String()
+	}
+
+	return positionSummary{
+		TotalCostBasisBase:  s.TotalCostBasisBase.String(),
+		TotalMktValueBase:   s.TotalMktValueBase.String(),
+		TotalUnrealizedPnLB: s.TotalUnrealizedPnLB.String(),
+		TotalUnrealizedPnLP: pnlPct,
+	}
+}
+
+// toClosedPositionSummary converts a service-level ClosedPositionSummary to the
+// closedPositionSummary struct used by the template.
+func toClosedPositionSummary(s position.ClosedPositionSummary) closedPositionSummary {
+	return closedPositionSummary{
+		TotalRealizedPnLB: s.TotalRealizedPnLB.String(),
 	}
 }
