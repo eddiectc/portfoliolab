@@ -97,25 +97,25 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Add `lot_id` field to transaction create/update, with validation and auto-generation.
 
-- [ ] Add `LotID *string` to `transaction.CreateRequest` and `transaction.UpdateRequest` in `transaction.go`
-- [ ] Update sqlc queries in `transaction.sql` to include `lot_id` in Create/Update/List
-- [ ] Add `LotID sql.NullString` to `queries.Transaction` model; run `sqlc generate`
-- [ ] Add `LotID` field to `toTransaction()` converter in `transaction_repo.go`
-- [ ] Add lot_id validation in `transaction/validator.go`:
+- [x] Add `LotID *string` to `transaction.CreateRequest` and `transaction.UpdateRequest` in `transaction.go`
+- [x] Update sqlc queries in `transaction.sql` to include `lot_id` in Create/Update/List (done in Task 1)
+- [x] Add `LotID sql.NullString` to `queries.Transaction` model; run `sqlc generate` (done in Task 1)
+- [x] Add `LotID` field to `toTransaction()` converter in `transaction_repo.go`
+- [x] Add lot_id validation in `transaction/validator.go`:
   - Empty string treated as nil (auto-generate)
   - Must be at most 100 chars
   - Case-sensitive
-- [ ] Add `LotChecker` interface to transaction domain:
+- [x] Add `LotChecker` interface to transaction domain:
   - `GetLotInfo(ctx, lotID string) (*LotInfo, error)` — returns (account_id, symbol, lot_type) or not found
-- [ ] In `transaction/service.go`, add lot_id handling during Create:
+- [x] In `transaction/service.go`, add lot_id handling during Create:
   - If lot_id provided: verify via LotChecker that it belongs to same account, same symbol, same type
   - If lot_id not provided or empty: auto-generate UUID-based lot_id (format: `LOT-<uuid-short>`)
   - Only for buy/sell transactions (deposit/withdrawal/dividend/interest/fee/tax don't get lots)
-- [ ] In `transaction/service.go`, add lot_id handling during Update:
+- [x] In `transaction/service.go`, add lot_id handling during Update:
   - lot_id is immutable once set (reject changes)
-- [ ] Write unit tests for lot_id validation in `service_test.go`
-- [ ] Update `transaction_web.go` to include lot_id field in create/edit forms
-- [ ] Update transaction form template (`templates/transaction/form.html`) to show lot_id field
+- [x] Write unit tests for lot_id validation in `service_test.go`
+- [x] Update `transaction_web.go` to include lot_id field in create/edit forms
+- [x] Update transaction form template (`templates/transaction/form.html`) to show lot_id field
 
 **Verification:** Creating transactions with/without lot_id works; validation rejects mismatched lot_ids; auto-generation produces unique lot_ids; lot_id immutable on update.
 

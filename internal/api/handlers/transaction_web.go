@@ -41,6 +41,7 @@ type transactionFormPageData struct {
 	Price          string
 	Currency       string
 	NetCash        string
+	LotID          string
 	ExternalSystem string
 	ExternalRef    string
 	// Action
@@ -279,6 +280,7 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 	if err != nil {
 		netCash = decimal.Zero
 	}
+	lotID := strings.TrimSpace(r.FormValue("lot_id"))
 
 	var extSystem, extRef *string
 	if externalSystem != "" {
@@ -286,6 +288,10 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 	}
 	if externalRef != "" {
 		extRef = &externalRef
+	}
+	var lotIDPtr *string
+	if lotID != "" {
+		lotIDPtr = &lotID
 	}
 
 	req := transaction.CreateRequest{
@@ -297,6 +303,7 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 		Price:             price,
 		Currency:          currency,
 		NetCash:           netCash,
+		LotID:             lotIDPtr,
 		ExternalSystem:    extSystem,
 		ExternalReference: extRef,
 	}
@@ -323,6 +330,7 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 		data.Price = priceStr
 		data.Currency = currency
 		data.NetCash = netCashStr
+		data.LotID = r.FormValue("lot_id")
 		data.ExternalSystem = externalSystem
 		data.ExternalRef = externalRef
 
@@ -354,6 +362,7 @@ func (h *TransactionWebHandler) renderCreateFormError(w http.ResponseWriter, r *
 	data.Price = r.FormValue("price")
 	data.Currency = r.FormValue("currency")
 	data.NetCash = r.FormValue("net_cash")
+	data.LotID = r.FormValue("lot_id")
 	data.ExternalSystem = r.FormValue("external_system")
 	data.ExternalRef = r.FormValue("external_reference")
 	data.FieldErrors = fieldErrors
@@ -438,6 +447,9 @@ func (h *TransactionWebHandler) HandleEditPage(w http.ResponseWriter, r *http.Re
 	data.Price = t.Price.String()
 	data.Currency = t.Currency
 	data.NetCash = t.NetCash.String()
+	if t.LotID != nil {
+		data.LotID = *t.LotID
+	}
 	if t.ExternalSystem != nil {
 		data.ExternalSystem = *t.ExternalSystem
 	}
@@ -491,6 +503,7 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		netCash = decimal.Zero
 	}
+	lotID := strings.TrimSpace(r.FormValue("lot_id"))
 
 	req := transaction.UpdateRequest{}
 
@@ -515,6 +528,9 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 	}
 	if !netCash.Equal(current.NetCash) {
 		req.NetCash = transaction.OptionalDecimal{Dec: netCash, IsSet: true}
+	}
+	if lotID != "" && (current.LotID == nil || *current.LotID != lotID) {
+		req.LotID = &lotID
 	}
 	var extSystem, extRef *string
 	if externalSystem != "" {
@@ -551,6 +567,7 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 		data.Price = priceStr
 		data.Currency = currency
 		data.NetCash = netCashStr
+		data.LotID = r.FormValue("lot_id")
 		data.ExternalSystem = externalSystem
 		data.ExternalRef = externalRef
 
@@ -563,6 +580,7 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 			Price:    price,
 			Currency: currency,
 			NetCash:  netCash,
+			LotID:    strPtr(lotID),
 		})
 
 		if renderErr := h.renderer.Render(w, "transaction/form", data); renderErr != nil {
@@ -641,6 +659,21 @@ func transactionUserFriendlyError(err error) string {
 	if errors.Is(err, transaction.ErrInvalidExternalField) {
 		return "External system/reference must be at most 100 characters"
 	}
+	if errors.Is(err, transaction.ErrLotNotFound) {
+		return "Referenced lot not found"
+	}
+	if errors.Is(err, transaction.ErrLotSymbolMismatch) {
+		return "Lot belongs to a different symbol"
+	}
+	if errors.Is(err, transaction.ErrLotAccountMismatch) {
+		return "Lot belongs to a different account"
+	}
+	if errors.Is(err, transaction.ErrLotTypeMismatch) {
+		return "Lot type does not match transaction type"
+	}
+	if errors.Is(err, transaction.ErrInvalidLotID) {
+		return "Invalid lot ID (must be at most 100 characters, and immutable once set)"
+	}
 	if errors.Is(err, transaction.ErrNotFound) {
 		return "Transaction not found"
 	}
@@ -674,6 +707,21 @@ func mapFieldErrors(err error, req transaction.CreateRequest) map[string]string 
 		fieldErrors["account_id"] = "Selected account not found"
 	case errors.Is(err, transaction.ErrInvalidExternalField):
 		fieldErrors["external_system"] = "External system/reference must be at most 100 characters"
+	case errors.Is(err, transaction.ErrLotNotFound):
+		fieldErrors["lot_id"] = "Referenced lot not found"
+	case errors.Is(err, transaction.ErrLotSymbolMismatch):
+		fieldErrors["lot_id"] = "Lot belongs to a different symbol"
+	case errors.Is(err, transaction.ErrLotAccountMismatch):
+		fieldErrors["lot_id"] = "Lot belongs to a different account"
+	case errors.Is(err, transaction.ErrLotTypeMismatch):
+		fieldErrors["lot_id"] = "Lot type does not match transaction type"
+	case errors.Is(err, transaction.ErrInvalidLotID):
+		fieldErrors["lot_id"] = "Invalid lot ID"
 	}
 	return fieldErrors
+}
+
+// strPtr returns a pointer to a string.
+func strPtr(s string) *string {
+	return &s
 }

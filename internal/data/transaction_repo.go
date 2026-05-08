@@ -72,6 +72,12 @@ func toTransaction(t queries.Transaction) (*transaction.Transaction, error) {
 		externalReference = &v
 	}
 
+	var lotID *string
+	if t.LotID.Valid {
+		v := t.LotID.String
+		lotID = &v
+	}
+
 	return &transaction.Transaction{
 		ID:                t.ID,
 		AccountID:         t.AccountID,
@@ -82,6 +88,7 @@ func toTransaction(t queries.Transaction) (*transaction.Transaction, error) {
 		Price:             price,
 		Currency:          t.Currency,
 		NetCash:           netCash,
+		LotID:             lotID,
 		ExternalSystem:    externalSystem,
 		ExternalReference: externalReference,
 		CreatedAt:         createdAt,
@@ -123,7 +130,7 @@ func (r *TransactionRepository) Create(ctx context.Context, t *transaction.Trans
 		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
 		ExternalReference: toNullString(t.ExternalReference),
-		LotID:             sql.NullString{},
+		LotID:             toNullString(t.LotID),
 		CreatedAt:         t.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
 	})
@@ -157,7 +164,7 @@ func (r *TransactionRepository) BatchCreate(ctx context.Context, txns []*transac
 			NetCash:           t.NetCash.String(),
 			ExternalSystem:    toNullString(t.ExternalSystem),
 			ExternalReference: toNullString(t.ExternalReference),
-			LotID:             sql.NullString{},
+			LotID:             toNullString(t.LotID),
 			CreatedAt:         t.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
 		})
@@ -339,7 +346,7 @@ func (r *TransactionRepository) Update(ctx context.Context, t *transaction.Trans
 		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
 		ExternalReference: toNullString(t.ExternalReference),
-		LotID:             sql.NullString{},
+		LotID:             toNullString(t.LotID),
 		UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
 		ID:                t.ID,
 	})

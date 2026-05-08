@@ -234,6 +234,23 @@ func (m *mockSymbolCreator) CreateSymbol(_ context.Context, internalSymbol, _ st
 	return nil
 }
 
+// mockLotChecker is an in-memory lot checker for testing.
+type mockLotChecker struct {
+	lots map[string]LotInfo
+}
+
+func newMockLotChecker() *mockLotChecker {
+	return &mockLotChecker{lots: make(map[string]LotInfo)}
+}
+
+func (m *mockLotChecker) GetLotInfo(_ context.Context, lotID string) (*LotInfo, error) {
+	info, ok := m.lots[lotID]
+	if !ok {
+		return nil, ErrLotNotFound
+	}
+	return &info, nil
+}
+
 // helper to create a transaction for tests.
 func mustParseDate(s string) time.Time {
 	t, err := time.Parse("2006-01-02", s)
@@ -256,6 +273,7 @@ func tx(accountID int64, date, typ, symbol, currency string, qty, price, netCash
 		Price:     price,
 		Currency:  currency,
 		NetCash:   netCash,
+		LotID:     nil,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

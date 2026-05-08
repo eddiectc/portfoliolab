@@ -354,7 +354,7 @@ func setupTransactionWebHandler(t *testing.T) (*TransactionWebHandler, *transact
 	accountChecker := &mockTxAccountChecker{}
 	symbolChecker := &mockTxSymbolChecker{}
 	symbolCreator := &mockTxSymbolCreator{}
-	txSvc := transaction.NewService(txRepo, accountChecker, symbolChecker, symbolCreator)
+	txSvc := transaction.NewService(txRepo, accountChecker, symbolChecker, symbolCreator, nil)
 
 	accountRepo := newMockAccountRepoForTx()
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
@@ -1091,7 +1091,7 @@ func TestTxHandleCreatePage_NonExistentSymbol(t *testing.T) {
 	// Use a strict symbol checker that only knows specific symbols
 	symbolChecker := &mockTxSymbolCheckerStrict{symbols: map[string]bool{"AAPL": true}}
 	symbolCreator := &mockTxSymbolCreator{}
-	txSvc2 := transaction.NewService(newMockTxRepoForWeb(), &mockTxAccountChecker{}, symbolChecker, symbolCreator)
+	txSvc2 := transaction.NewService(newMockTxRepoForWeb(), &mockTxAccountChecker{}, symbolChecker, symbolCreator, nil)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})

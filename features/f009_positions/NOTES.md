@@ -16,3 +16,13 @@
 
 ## Known Issues
 - None
+
+## Task 3 Implementation Notes (2026-05-08)
+- `LotChecker` is passed as `nil` to `NewService` in `router.go` for now — it will be implemented in Task 5 (position service). The service handles `nil` lotChecker gracefully: when nil, it skips cross-checking and allows any lot_id (new lots pass through; existing lots are validated only if lotChecker is non-nil).
+- `generateLotID()` uses `uuid.New()` from `github.com/google/uuid` and produces IDs in format `LOT-<first 8 chars of UUID without dashes>`.
+- `LotID` field added to `Transaction`, `CreateRequest`, and `UpdateRequest` domain models.
+- `LotInfo` struct and `LotChecker` interface added to `transaction.go`.
+- New errors: `ErrLotNotFound`, `ErrLotSymbolMismatch`, `ErrLotAccountMismatch`, `ErrLotTypeMismatch`, `ErrInvalidLotID`.
+- Web layer: lot_id field added to form template, list table (new column), and detail view.
+- All existing test files updated to pass `nil` for the new `lotChecker` parameter.
+- `strPtr` helper was already defined in `validator_test.go` — removed duplicate from `mock_repository.go`.
