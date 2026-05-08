@@ -108,6 +108,18 @@ func toPosition(p queries.Position) (*position.Position, error) {
 		avgOpen = *avgOpenPrice
 	}
 
+	// Compute P&L% = RealizedPnL / |CostBasis| × 100
+	var realizedPnlPct *decimal.Decimal
+	if !costBasis.IsZero() {
+		mul, err := realizedPnL.Mul(decimal.MustNew(10000, 2))
+		if err == nil {
+			pct, err2 := mul.Quo(costBasis.Abs())
+			if err2 == nil {
+				realizedPnlPct = &pct
+			}
+		}
+	}
+
 	return &position.Position{
 		ID:              p.ID,
 		AccountID:       p.AccountID,
@@ -120,12 +132,13 @@ func toPosition(p queries.Position) (*position.Position, error) {
 		RealizedPnL:     realizedPnL,
 		RealizedPnlBase: realizedPnlBase,
 		FxRateUsed:      fxRateUsed,
-		FxRateFallback:  p.FxRateFallback,
+		FxRateFallback:  p.FxRateFallback.Bool,
 		OpenDate:        openDate,
 		CloseDate:       closeDate,
 		IsClosed:        p.IsClosed == 1,
 		CreatedAt:       createdAt,
 		UpdatedAt:       updatedAt,
+		RealizedPnlPct:  realizedPnlPct,
 	}, nil
 }
 
@@ -265,7 +278,7 @@ func (r *PositionRepository) CreatePosition(ctx context.Context, p *position.Pos
 		RealizedPnl:     p.RealizedPnL.String(),
 		RealizedPnlBase: toNullStringPtr(p.RealizedPnlBase),
 		FxRateUsed:      toNullStringPtr(p.FxRateUsed),
-		FxRateFallback:  p.FxRateFallback,
+		FxRateFallback:  sql.NullBool{Valid: true, Bool: p.FxRateFallback},
 		OpenDate:        p.OpenDate.Format(time.RFC3339),
 		CloseDate:       toNullStringTime(p.CloseDate),
 		IsClosed:        boolToInt(p.IsClosed),

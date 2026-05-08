@@ -104,7 +104,7 @@ func (q *Queries) CreateLotConsumption(ctx context.Context, db DBTX, arg CreateL
 
 const createPosition = `-- name: CreatePosition :one
 INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at
 `
 
@@ -119,7 +119,7 @@ type CreatePositionParams struct {
 	RealizedPnl     string         `db:"realized_pnl"`
 	RealizedPnlBase sql.NullString `db:"realized_pnl_base"`
 	FxRateUsed      sql.NullString `db:"fx_rate_used"`
-	FxRateFallback  bool           `db:"fx_rate_fallback"`
+	FxRateFallback  sql.NullBool   `db:"fx_rate_fallback"`
 	OpenDate        string         `db:"open_date"`
 	CloseDate       sql.NullString `db:"close_date"`
 	IsClosed        int64          `db:"is_closed"`
@@ -210,7 +210,7 @@ func (q *Queries) DeleteAllPositionsForAccount(ctx context.Context, db DBTX, acc
 }
 
 const getClosedPositionsByAccount = `-- name: GetClosedPositionsByAccount :many
-SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, open_date, close_date, is_closed, created_at, updated_at FROM positions
+SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions
 WHERE account_id = ? AND is_closed = 1
 ORDER BY symbol ASC, open_date ASC
 LIMIT ? OFFSET ?
@@ -242,6 +242,8 @@ func (q *Queries) GetClosedPositionsByAccount(ctx context.Context, db DBTX, arg 
 			&i.AvgClosePrice,
 			&i.RealizedPnl,
 			&i.RealizedPnlBase,
+			&i.FxRateUsed,
+			&i.FxRateFallback,
 			&i.OpenDate,
 			&i.CloseDate,
 			&i.IsClosed,
@@ -405,7 +407,7 @@ func (q *Queries) GetLotsByAccountAndSymbol(ctx context.Context, db DBTX, arg Ge
 }
 
 const getOpenPositionsByAccount = `-- name: GetOpenPositionsByAccount :many
-SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, open_date, close_date, is_closed, created_at, updated_at FROM positions
+SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions
 WHERE account_id = ? AND is_closed = 0
 ORDER BY symbol ASC, open_date ASC
 LIMIT ? OFFSET ?
@@ -437,6 +439,8 @@ func (q *Queries) GetOpenPositionsByAccount(ctx context.Context, db DBTX, arg Ge
 			&i.AvgClosePrice,
 			&i.RealizedPnl,
 			&i.RealizedPnlBase,
+			&i.FxRateUsed,
+			&i.FxRateFallback,
 			&i.OpenDate,
 			&i.CloseDate,
 			&i.IsClosed,
@@ -457,7 +461,7 @@ func (q *Queries) GetOpenPositionsByAccount(ctx context.Context, db DBTX, arg Ge
 }
 
 const getPositionByID = `-- name: GetPositionByID :one
-SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, open_date, close_date, is_closed, created_at, updated_at FROM positions WHERE id = ?
+SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions WHERE id = ?
 `
 
 func (q *Queries) GetPositionByID(ctx context.Context, db DBTX, id int64) (Position, error) {
@@ -474,6 +478,8 @@ func (q *Queries) GetPositionByID(ctx context.Context, db DBTX, id int64) (Posit
 		&i.AvgClosePrice,
 		&i.RealizedPnl,
 		&i.RealizedPnlBase,
+		&i.FxRateUsed,
+		&i.FxRateFallback,
 		&i.OpenDate,
 		&i.CloseDate,
 		&i.IsClosed,

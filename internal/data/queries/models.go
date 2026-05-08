@@ -60,6 +60,7 @@ type MarketDatum struct {
 	Date      string `db:"date"`
 	FetchedAt string `db:"fetched_at"`
 	CreatedAt string `db:"created_at"`
+	UpdatedAt string `db:"updated_at"`
 }
 
 type Portfolio struct {
@@ -82,7 +83,7 @@ type Position struct {
 	RealizedPnl     string         `db:"realized_pnl"`
 	RealizedPnlBase sql.NullString `db:"realized_pnl_base"`
 	FxRateUsed      sql.NullString `db:"fx_rate_used"`
-	FxRateFallback  bool           `db:"fx_rate_fallback"`
+	FxRateFallback  sql.NullBool   `db:"fx_rate_fallback"`
 	OpenDate        string         `db:"open_date"`
 	CloseDate       sql.NullString `db:"close_date"`
 	IsClosed        int64          `db:"is_closed"`
@@ -110,8 +111,8 @@ type Transaction struct {
 	NetCash           string         `db:"net_cash"`
 	ExternalSystem    sql.NullString `db:"external_system"`
 	ExternalReference sql.NullString `db:"external_reference"`
-	CreatedAt         string         `db:"created_at"`
-	UpdatedAt         string         `db:"updated_at"`
 	LotID             sql.NullString `db:"lot_id"`
 	Description       sql.NullString `db:"description"`
+	CreatedAt         string         `db:"created_at"`
+	UpdatedAt         string         `db:"updated_at"`
 }

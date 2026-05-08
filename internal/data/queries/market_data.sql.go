@@ -30,7 +30,7 @@ func (q *Queries) DeleteStaleMarketData(ctx context.Context, db DBTX, arg Delete
 }
 
 const getCurrentFxRate = `-- name: GetCurrentFxRate :one
-SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at FROM market_data
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at FROM market_data
 WHERE symbol = ? AND data_type = 'fx' AND date = ''
 ORDER BY fetched_at DESC
 LIMIT 1
@@ -49,12 +49,13 @@ func (q *Queries) GetCurrentFxRate(ctx context.Context, db DBTX, symbol string) 
 		&i.Date,
 		&i.FetchedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getLatestMarketData = `-- name: GetLatestMarketData :one
-SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at FROM market_data
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at FROM market_data
 WHERE symbol = ? AND date = ''
 ORDER BY fetched_at DESC
 LIMIT 1
@@ -73,12 +74,13 @@ func (q *Queries) GetLatestMarketData(ctx context.Context, db DBTX, symbol strin
 		&i.Date,
 		&i.FetchedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getMarketDataBySymbolAndDate = `-- name: GetMarketDataBySymbolAndDate :many
-SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at FROM market_data
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at FROM market_data
 WHERE symbol = ? AND date = ?
 ORDER BY fetched_at DESC
 `
@@ -107,6 +109,7 @@ func (q *Queries) GetMarketDataBySymbolAndDate(ctx context.Context, db DBTX, arg
 			&i.Date,
 			&i.FetchedAt,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -122,7 +125,7 @@ func (q *Queries) GetMarketDataBySymbolAndDate(ctx context.Context, db DBTX, arg
 }
 
 const getMarketDataBySymbolAndSourceAndDate = `-- name: GetMarketDataBySymbolAndSourceAndDate :one
-SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at FROM market_data
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at FROM market_data
 WHERE symbol = ? AND source = ? AND date = ?
 ORDER BY fetched_at DESC
 LIMIT 1
@@ -147,6 +150,7 @@ func (q *Queries) GetMarketDataBySymbolAndSourceAndDate(ctx context.Context, db 
 		&i.Date,
 		&i.FetchedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -159,7 +163,7 @@ ON CONFLICT(symbol, source, date) DO UPDATE SET
     currency = excluded.currency,
     data_type = excluded.data_type,
     fetched_at = excluded.fetched_at
-RETURNING id, symbol, price, currency, data_type, source, date, fetched_at, created_at
+RETURNING id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
 `
 
 type InsertMarketDataParams struct {
@@ -193,6 +197,7 @@ func (q *Queries) InsertMarketData(ctx context.Context, db DBTX, arg InsertMarke
 		&i.Date,
 		&i.FetchedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
