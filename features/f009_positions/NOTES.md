@@ -17,6 +17,12 @@
 ## Known Issues
 - None
 
+## Task 4a Implementation Notes (2026-05-08)
+- `decimal.Add()` (and other arithmetic ops) return `(Decimal, error)` — not a single value. Calculator code handles the error with `panic(fmt.Sprintf(...))` following the `Must*` convention, since overflow on validated inputs would be a programming bug.
+- `SortLotsByDate` helper added as a public function for consumers that need custom ordering (e.g., if lots are re-sliced downstream).
+- `buildLots` is an unexported helper that constructs LotGroups from a lot_id→transactions map, shared by both buy and sell paths.
+- `toTransactionRef` converts `transaction.Transaction` → `TransactionRef` (lightweight, no timestamps/IDs beyond what's needed for drill-down).
+
 ## Task 3 Implementation Notes (2026-05-08)
 - `LotChecker` is passed as `nil` to `NewService` in `router.go` for now — it will be implemented in Task 5 (position service). The service handles `nil` lotChecker gracefully: when nil, it skips cross-checking and allows any lot_id (new lots pass through; existing lots are validated only if lotChecker is non-nil).
 - `generateLotID()` uses `ulid.Make()` from `github.com/oklog/ulid/v2` and produces IDs in format `LOT-<26 char ULID>` (30 chars total). ULID is lexicographically sortable by creation time. This is the project standard for string-based unique IDs.

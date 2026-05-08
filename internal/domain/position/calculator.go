@@ -3,7 +3,6 @@ package position
 import (
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/govalues/decimal"
 
@@ -121,8 +120,3 @@ func SortLotsByDate(lots []LotGroup) {
 		return lots[i].OpenDate.Before(lots[j].OpenDate)
 	})
 }
-
-// now returns the current time. Used for testability — tests can inject
-// a fixed time by setting this variable (not exported, so only within
-// the package).
-var now = time.Now
