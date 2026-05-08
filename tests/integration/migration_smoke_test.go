@@ -291,3 +291,19 @@ func TestMigration_AccountsIndexExists(t *testing.T) {
 		t.Errorf("expected 'idx_accounts_portfolio_id', got %q", indexName)
 	}
 }
+
+func TestMigration_MarketDataUpdatedAtColumnExists(t *testing.T) {
+	db := setupTestDB(t)
+
+	var columnName string
+	err := db.QueryRow(`
+		SELECT name FROM pragma_table_info('market_data')
+		WHERE name='updated_at'
+	`).Scan(&columnName)
+	if err != nil {
+		t.Fatalf("updated_at column not found in market_data: %v", err)
+	}
+	if columnName != "updated_at" {
+		t.Errorf("expected 'updated_at', got %q", columnName)
+	}
+}
