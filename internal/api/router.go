@@ -70,6 +70,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	symbolChecker := data.NewSymbolChecker(symbolMappingRepo)
 	symbolCreator := data.NewSymbolCreator(symbolMappingSvc)
 
+	// Market data repository (stock quotes + FX rates)
+	marketDataRepo := data.NewMarketDataRepository(db)
+	_ = marketDataRepo // used by Tasks 10-11
+
 	// Position service (used as LotChecker + PositionRecalculator for transactions)
 	positionRepo := data.NewPositionRepository(db)
 	accountLister := data.NewAccountLister(accountRepo)

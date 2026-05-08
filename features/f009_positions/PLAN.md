@@ -377,25 +377,25 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Add market data fetching and caching for both stock quotes and FX rates in the unified `market_data` table.
 
-- [ ] Create `internal/data/market_data_repo.go`:
+- [x] Create `internal/data/market_data_repo.go`:
   - `MarketDataRepository` with `GetLatest(ctx, symbol string)`, `GetBySourceAndDate(ctx, symbol, source, date string)`, `Upsert(ctx, *MarketData)`, `GetCurrentFxRate(ctx, pair string)`
   - sqlc queries in `market_data.sql` (queries parameterized by source; default source used when unspecified)
   - Run `sqlc generate`
-- [ ] Extend `internal/market/quote.go`:
+- [x] Extend `internal/market/quote.go`:
   - `YahooFinanceFetcher.FetchQuote(ctx, symbol)` → returns `*MarketData` (stock)
   - Add `FetchFxRate(ctx, pair string)` → converts "GBP/USD" to "GBPUSD=X", fetches via go-yfinance, returns `*MarketData` with data_type='fx'
   - Add symbol conversion helper: `FxPairToYahooSymbol(base, quote string) string`
-- [ ] Create `internal/market/fx.go`:
+- [x] Create `internal/market/fx.go`:
   - `FxRate` struct (Pair, BaseCurrency, QuoteCurrency, Rate, FetchedAt)
   - `FxRateFetcher` interface with `FetchRate(ctx, pair string) (*FxRate, error)`
   - Wire `YahooFinanceFetcher` to implement `FxRateFetcher`
-- [ ] Create `internal/market/market_data_test.go` with unit tests:
+- [x] Create `internal/market/market_data_test.go` with unit tests:
   - FX pair to Yahoo symbol conversion
   - Market data struct serialization
-- [ ] Create `internal/data/market_data_repo_test.go` with basic repo tests
-- [ ] Update `router.go` to create market_data repo and pass to services
+- [x] Create `internal/data/market_data_repo_test.go` with basic repo tests
+- [x] Update `router.go` to create market_data repo and pass to services
 
-**Verification:** Stock quotes and FX rates can be fetched and stored; symbol conversion works; unit tests pass.
+**Verification:** Stock quotes and FX rates can be fetched and stored; symbol conversion works; unit tests pass. ✅ 9/9 repo tests pass, 8/8 market tests pass.
 
 ---
 
