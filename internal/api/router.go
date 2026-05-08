@@ -82,12 +82,14 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	// IBKR Flex XML Import (API)
 	symbolResolver := data.NewSymbolResolver(symbolMappingRepo)
 	brokerSymbolAdder := data.NewBrokerSymbolAdder(symbolMappingRepo, symbolMappingSvc)
-	importSvc := ibkrimport.NewService(symbolResolver, transactionRepo, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder)
+	importSvc := ibkrimport.NewService(symbolResolver, transactionRepo, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder,
+		ibkrimport.WithPositionRecalculator(positionSvc), ibkrimport.WithLogger(logger))
 	importHandler := handlers.NewImportHandler(importSvc, symbolMappingSvc)
 	importHandler.RegisterRoutes(r)
 
 	// Trading 212 CSV Import (API)
-	t212Svc := trading212import.NewService(symbolResolver, transactionRepo, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder)
+	t212Svc := trading212import.NewService(symbolResolver, transactionRepo, transactionRepo, accountChecker, symbolCreator, brokerSymbolAdder,
+		trading212import.WithPositionRecalculator(positionSvc), trading212import.WithLogger(logger))
 	t212Handler := handlers.NewTrading212ImportHandler(t212Svc, symbolMappingSvc)
 	t212Handler.RegisterRoutes(r)
 

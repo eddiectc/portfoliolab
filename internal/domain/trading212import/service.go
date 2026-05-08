@@ -3,10 +3,13 @@ package trading212import
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
 	"github.com/govalues/decimal"
+	"github.com/oklog/ulid/v2"
+
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
 )
 
 // ---- Service errors ----
@@ -30,6 +33,12 @@ const (
 	cashSymbolPrefix = "$CASH-"
 )
 
+// PositionRecalculator defines the interface for triggering position
+// recalculation after transaction mutations.
+type PositionRecalculator interface {
+	RecalculateAccount(ctx context.Context, accountID int64) error
+}
+
 // ---- Service ----
 
 // Service orchestrates Trading 212 CSV import: preview generation and
@@ -37,18 +46,33 @@ const (
 // resolution, duplicate detection, transaction creation, and account
 // verification.
 type Service struct {
-	resolver  SymbolResolver
-	dupCheck  DuplicateChecker
-	creator   TransactionCreator
-	accounts  AccountChecker
-	symCreate SymbolCreator
-	brokerAdd BrokerSymbolAdder
+	resolver       SymbolResolver
+	dupCheck       DuplicateChecker
+	creator        TransactionCreator
+	accounts       AccountChecker
+	symCreate      SymbolCreator
+	brokerAdd      BrokerSymbolAdder
+	positionRecalc PositionRecalculator
+	logger         *slog.Logger
+}
+
+// ServiceOption configures the import service.
+type ServiceOption func(*Service)
+
+// WithPositionRecalculator sets the position recalculator dependency.
+func WithPositionRecalculator(recalc PositionRecalculator) ServiceOption {
+	return func(s *Service) { s.positionRecalc = recalc }
+}
+
+// WithLogger sets the logger.
+func WithLogger(logger *slog.Logger) ServiceOption {
+	return func(s *Service) { s.logger = logger }
 }
 
 // NewService creates a new import service.
 func NewService(resolver SymbolResolver, dupCheck DuplicateChecker, creator TransactionCreator,
-	accounts AccountChecker, symCreate SymbolCreator, brokerAdd BrokerSymbolAdder) *Service {
-	return &Service{
+	accounts AccountChecker, symCreate SymbolCreator, brokerAdd BrokerSymbolAdder, opts ...ServiceOption) *Service {
+	s := &Service{
 		resolver:  resolver,
 		dupCheck:  dupCheck,
 		creator:   creator,
@@ -56,6 +80,10 @@ func NewService(resolver SymbolResolver, dupCheck DuplicateChecker, creator Tran
 		symCreate: symCreate,
 		brokerAdd: brokerAdd,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Preview parses the CSV and returns a categorized preview of transactions
@@ -169,6 +197,15 @@ func (s *Service) ConfirmImport(ctx context.Context, csvData []byte, accountID i
 
 	if err := s.creator.BatchCreate(ctx, txns); err != nil {
 		return nil, fmt.Errorf("batch create transactions: %w", err)
+	}
+
+	// Trigger position recalculation for the affected account.
+	if s.positionRecalc != nil {
+		if err := s.positionRecalc.RecalculateAccount(ctx, accountID); err != nil {
+			if s.logger != nil {
+				s.logger.Warn("position recalculation after import failed", "account_id", accountID, "error", err)
+			}
+		}
 	}
 
 	return &ImportResult{
@@ -313,6 +350,8 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 
 	if isTradeAction(row.Action) {
 		netCash := computeNetCash(total, row.Action)
+		// Auto-generate lot_id for each trade (no order ID in T212 data).
+		lotID := generateLotID()
 		return &transaction.Transaction{
 			AccountID:         accountID,
 			Date:              date,
@@ -322,6 +361,7 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 			Price:             price,
 			Currency:          row.Currency,
 			NetCash:           netCash,
+			LotID:             &lotID,
 			ExternalSystem:    strPtr(externalSystem),
 			ExternalReference: &ref,
 			CreatedAt:         now,
@@ -436,4 +476,9 @@ func parseDate(s string) time.Time {
 // strPtr returns a pointer to the given string.
 func strPtr(s string) *string {
 	return &s
+}
+
+// generateLotID creates a new unique lot ID in the format LOT-<ulid>.
+func generateLotID() string {
+	return "LOT-" + ulid.Make().String()
 }

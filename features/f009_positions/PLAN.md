@@ -301,20 +301,20 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Ensure imported transactions get lot_ids and trigger position recalculation.
 
-- [ ] Update `internal/domain/ibkrimport/service.go`:
+- [x] Update `internal/domain/ibkrimport/service.go`:
   - During `ConfirmImport`, populate `lot_id` from broker `IbOrderID` for each buy/sell transaction before `BatchCreate` (groups partial fills of the same order into one lot)
   - Add `PositionRecalculator` dependency
   - After batch-creating transactions, collect affected account IDs
   - Call `RecalculateAccount` for each affected account
-- [ ] Update `internal/domain/trading212import/service.go`:
-  - During `ConfirmImport`, auto-generate `lot_id` (`LOT-<uuid-short>`) for each buy/sell transaction (no order ID in broker data)
+- [x] Update `internal/domain/trading212import/service.go`:
+  - During `ConfirmImport`, auto-generate `lot_id` (`LOT-<ulid>`) for each buy/sell transaction (no order ID in broker data)
   - Add `PositionRecalculator` dependency
   - After batch-creating transactions, collect affected account IDs
   - Call `RecalculateAccount` for each affected account
-- [ ] Update `router.go` to pass position recalculator to import services
-- [ ] Update import service tests to include mock recalculator
+- [x] Update `router.go` to pass position recalculator to import services
+- [x] Update import service tests to include mock recalculator
 
-**Verification:** Importing transactions triggers position recalc; existing import tests still pass.
+**Verification:** Importing transactions triggers position recalc; existing import tests still pass. ✅ All tests pass.
 
 ---
 
