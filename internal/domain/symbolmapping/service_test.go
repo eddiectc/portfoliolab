@@ -797,7 +797,7 @@ func TestService_AddBrokerSymbol_SameMappingIsNoOp(t *testing.T) {
 func TestService_PreviewSymbol_NoFetcher(t *testing.T) {
 	_, repo := newTestService(t)
 	_ = repo
-	// Service created without WithQuoteFetcher
+	// Service created without WithMarketDataFetcher
 	svc := NewService(newMockRepo())
 
 	_, err := svc.PreviewSymbol(context.Background(), "AAPL")
@@ -813,7 +813,7 @@ func TestService_PreviewSymbol_Success(t *testing.T) {
 			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
-	svc := NewService(repo, WithQuoteFetcher(fetcher))
+	svc := NewService(repo, WithMarketDataFetcher(fetcher))
 
 	data, err := svc.PreviewSymbol(context.Background(), "AAPL")
 	if err != nil {
@@ -835,7 +835,7 @@ func TestService_PreviewSymbol_FetchError(t *testing.T) {
 	fetcher := &mockQuoteFetcher{
 		err: fmt.Errorf("network timeout"),
 	}
-	svc := NewService(repo, WithQuoteFetcher(fetcher))
+	svc := NewService(repo, WithMarketDataFetcher(fetcher))
 
 	_, err := svc.PreviewSymbol(context.Background(), "AAPL")
 	if !errors.Is(err, ErrPreviewFailed) {
@@ -848,7 +848,7 @@ func TestService_PreviewSymbol_SymbolNotFound(t *testing.T) {
 	fetcher := &mockQuoteFetcher{
 		data: map[string]*market.MarketData{},
 	}
-	svc := NewService(repo, WithQuoteFetcher(fetcher))
+	svc := NewService(repo, WithMarketDataFetcher(fetcher))
 
 	_, err := svc.PreviewSymbol(context.Background(), "INVALID")
 	if !errors.Is(err, ErrPreviewFailed) {

@@ -54,8 +54,8 @@ type Service struct {
 // ServiceOption configures the Service.
 type ServiceOption func(*Service)
 
-// WithQuoteFetcher sets an optional quote fetcher for market data preview.
-func WithQuoteFetcher(fetcher market.MarketDataFetcher) ServiceOption {
+// WithMarketDataFetcher sets an optional market data fetcher for symbol preview.
+func WithMarketDataFetcher(fetcher market.MarketDataFetcher) ServiceOption {
 	return func(s *Service) {
 		s.fetcher = fetcher
 	}

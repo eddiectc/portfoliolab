@@ -799,7 +799,7 @@ func TestHandlePreview_SymbolsMatch(t *testing.T) {
 			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
-	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
 	handler := NewSymbolMappingHandler(svc)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
@@ -830,7 +830,7 @@ func TestHandlePreview_AutoCorrectedSymbol(t *testing.T) {
 			"AAP": {Symbol: "AAPL", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
-	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
 	handler := NewSymbolMappingHandler(svc)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
@@ -862,7 +862,7 @@ func TestHandlePreview_CaseInsensitiveMatch(t *testing.T) {
 			"AAPL": {Symbol: "aapl", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
-	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
 	handler := NewSymbolMappingHandler(svc)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
@@ -888,7 +888,7 @@ func TestHandlePreview_FetchError(t *testing.T) {
 	fetcher := &testQuoteFetcher{
 		err: fmt.Errorf("network timeout"),
 	}
-	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
+	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
 	handler := NewSymbolMappingHandler(svc)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
