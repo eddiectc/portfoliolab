@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/govalues/decimal"
 )
 
 // Renderer parses and executes HTML templates.
@@ -125,7 +128,7 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return "positive"
 		},
-		"queryPreserve": func(filter interface{}) template.HTMLAttr {
+		"queryPreserve": func(filter interface{}) template.HTMLAttr { 
 			// Returns filter query params preserved for pagination links.
 			// Returns template.HTML to prevent double-escaping of & in hrefs.
 			// Expects the filter to implement FilterEncoder.
@@ -136,7 +139,28 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return ""
 		},
-	}
+		"fxRateDisplay": func(posCurrency, baseCurrency string, rate interface{}) string {
+			// Returns "PAIR RATE" in market convention (e.g. "GBP/USD 1.3000").
+			// If rate is nil or zero, returns "—".
+			var d *decimal.Decimal
+			switch v := rate.(type) {
+			case *decimal.Decimal:
+				d = v
+			case decimal.Decimal:
+				d = &v
+			default:
+				return "—"
+			}
+			if d == nil || d.Equal(decimal.Zero) {
+				return "—"
+			}
+			display := position.ConventionFxRate(posCurrency, baseCurrency, d)
+			if display == nil {
+				return "—"
+			}
+			return fmt.Sprintf("%s %s", display.Pair, formatDecimal(display.Rate.String(), 4))
+		},
+	} 
 
 	// Collect layout files (base + partials) and page files separately
 	var layoutFiles []string
@@ -219,7 +243,7 @@ func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) 
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Execute by the base filename — e.g., "list.html"
+	// Execute by the base filename - e.g., "list.html"
 	baseName := filepath.Base(name) + ".html"
 	return t.ExecuteTemplate(w, baseName, data)
 }

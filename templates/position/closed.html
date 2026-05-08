@@ -70,9 +70,12 @@
             </td>
             {{if $.BaseCurrency}}
             <td class="num pnl {{if and .RealizedPnlBase .RealizedPnlBase.IsPos}}positive{{else if and .RealizedPnlBase .RealizedPnlBase.IsNeg}}negative{{end}}">
-                {{if .RealizedPnlBase}}{{formatMoney .RealizedPnlBase}}{{if .FxRateFallback}} ⚠{{end}}{{else}}—{{end}}
+                {{if .RealizedPnlBase}}
+                {{formatMoney .RealizedPnlBase}}
+                {{if .FxRateFallback}}<span class="fx-warning" title="FX rate was estimated (current spot used instead of historical rate)">⚠</span>{{end}}
+                {{else}}—{{end}}
             </td>
-            <td class="num">{{if .FxRateUsed}}{{formatFX .FxRateUsed}}{{else}}—{{end}}</td>
+            <td class="num">{{fxRateDisplay .Currency .BaseCurrency .FxRateUsed}}</td>
             {{end}}
             <td>{{.Currency}}</td>
             <td>{{.AccountName}}</td>
