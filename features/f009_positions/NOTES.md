@@ -1,5 +1,21 @@
 # Notes: Positions
 
+## Task 11 Implementation Notes (2026-05-08)
+- `EnrichWithMarketData` is a method on `position.Service` (not in the API handler) so both the API and web handlers share the same enrichment logic.
+- `WithMarketDataFetcher` is a separate method (not a constructor parameter) to keep the existing `NewService` signature backward compatible — all existing callers (transaction service, import services) continue to work without changes.
+- `EnrichWithMarketData` is nil-safe: if `marketFetcher` or `marketDataRepo` is nil, returns positions with `MarketDataAvailable=false` and zero market values.
+- Market data fetch errors are logged at DEBUG level (not WARN) to avoid noise when Yahoo Finance is temporarily unavailable.
+- Upsert cache errors are also logged at DEBUG level — the position is still returned with market data even if caching fails.
+- Cash positions (`$CASH-*`) skip the market fetch entirely: `MarketValue = quantity` (balance), `UnrealizedPnL = 0`, `MarketDataAvailable = true`.
+- `UnrealizedPnL = MarketValue + CostBasis` (since CostBasis is negative, adding it is equivalent to subtracting the absolute total cost).
+- `UnrealizedPnlPct = UnrealizedPnL / Abs(CostBasis) × 100`, stored at scale 2 (e.g. 123.45 = 123.45%).
+- API handler `HandleListOpen` returns `[]PositionWithMarket` (breaking change from `[]Position`, but feature is still in-progress).
+- API handler `HandleListClosed` unchanged — returns `[]Position` without market data enrichment.
+- Web handler `HandleOpenPositions` uses new `openPositionListPageData` struct with `[]PositionWithMarket`.
+- Template `open.html` adds 4 new columns: Market Price, Market Value, Unrealized P&L, P&L %.
+- Template uses `—` for unavailable market data; P&L columns styled with `positive`/`negative` CSS classes.
+- `router.go` wires `yahooFetcher` and `marketDataRepo` into position service via `WithMarketDataFetcher`.
+
 ## Task 10 Implementation Notes (2026-05-08)
 - FX conversion happens in the **service layer** (not inside the calculator), keeping `CalculatePositions` pure and testable without I/O dependencies.
 - `FxConverter` implements `FxRateProvider` interface with three-tier fallback: DB historical → on-demand fetch + cache → current spot rate.
