@@ -1,6 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
-ALTER TABLE market_data ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'));
+-- SQLite ALTER TABLE ADD COLUMN only accepts literal defaults, not expressions.
+-- Use an empty string as default; application layer sets it on upsert.
+ALTER TABLE market_data ADD COLUMN updated_at TEXT NOT NULL DEFAULT '';
 -- +goose StatementEnd
 
 -- +goose Down

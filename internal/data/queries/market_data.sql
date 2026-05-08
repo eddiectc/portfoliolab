@@ -28,7 +28,8 @@ ON CONFLICT(symbol, source, date) DO UPDATE SET
     price = excluded.price,
     currency = excluded.currency,
     data_type = excluded.data_type,
-    fetched_at = excluded.fetched_at
+    fetched_at = excluded.fetched_at,
+    updated_at = datetime('now')
 RETURNING *;
 
 -- name: DeleteStaleMarketData :execrows
