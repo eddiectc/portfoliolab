@@ -22,10 +22,30 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
-)
+) 
+
+// RouterOption configures the router.
+type RouterOption func(*routerConfig)
+
+type routerConfig struct {
+	templatesDir string
+}
+
+// WithTemplatesDir sets the templates directory for the router.
+func WithTemplatesDir(dir string) RouterOption {
+	return func(c *routerConfig) {
+		c.templatesDir = dir
+	}
+}
 
 // Router builds and returns the application HTTP router.
-func Router(db *sql.DB, logger *slog.Logger) http.Handler {
+func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler {
+	cfg := &routerConfig{
+		templatesDir: "templates",
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
 	r := chi.NewRouter()
 
 	// Standard middleware
@@ -109,12 +129,12 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	t212Handler.RegisterRoutes(r)
 
 	// Portfolio web pages
-	renderer, err := web.NewRenderer("templates")
+	renderer, err := web.NewRenderer(cfg.templatesDir)
 	if err != nil {
 		logger.Warn("failed to load templates, web pages unavailable", "error", err)
 		// Fall back: check if templates dir exists relative to cwd
-		if _, statErr := os.Stat("templates"); statErr != nil {
-			logger.Warn("templates directory not found", "path", "templates")
+		if _, statErr := os.Stat(cfg.templatesDir); statErr != nil {
+			logger.Warn("templates directory not found", "path", cfg.templatesDir)
 		}
 	} else {
 		portfolioWebHandler := handlers.NewPortfolioWebHandler(portfolioSvc, accountSvc, renderer)

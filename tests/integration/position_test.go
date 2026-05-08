@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/api"
@@ -20,7 +21,7 @@ import (
 func setupPos(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64, accountID int64) {
 	t.Helper()
 	db = setupTestDB(t)
-	router = api.Router(db, testLogger())
+	router = api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Test Portfolio", "currency": "USD"}`)
@@ -688,6 +689,89 @@ func TestPosition_DividendWithNoOpenPosition(t *testing.T) {
 		}
 	}
 	t.Error("expected $CASH-USD position")
+}
+
+// TestWeb_OpenPositionsPage_Renders200 verifies the open positions web page
+// renders without template errors (catches missing fields, nil pointers, etc).
+func TestWeb_OpenPositionsPage_Renders200(t *testing.T) {
+	skipIfTemplatesUnavailable(t)
+	_, router, _, accountID := setupPos(t)
+
+	// Create a position so the page has data
+	createTransaction(t, router, accountID, "2025-01-15", "buy", "AAPL", 10, 15000, -150000)
+
+	// Hit the web page (not the API)
+	req := httptest.NewRequest(http.MethodGet, "/positions", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	// Verify it's HTML, not JSON
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "text/html; charset=utf-8" {
+		t.Errorf("expected text/html, got %q", contentType)
+	}
+}
+
+// TestWeb_ClosedPositionsPage_Renders200 verifies the closed positions web page
+// renders without template errors.
+func TestWeb_ClosedPositionsPage_Renders200(t *testing.T) {
+	skipIfTemplatesUnavailable(t)
+	_, router, _, accountID := setupPos(t)
+
+	// Create a closed position: buy then sell all
+	createTransaction(t, router, accountID, "2025-01-01", "buy", "AAPL", 100, 15000, -1500000)
+	createTransaction(t, router, accountID, "2025-02-01", "sell", "AAPL", -100, 17000, 1700000)
+
+	// Hit the web page (not the API)
+	req := httptest.NewRequest(http.MethodGet, "/positions/closed", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "text/html; charset=utf-8" {
+		t.Errorf("expected text/html, got %q", contentType)
+	}
+}
+
+// TestWeb_ClosedPositionsPage_Empty_Renders200 verifies the closed positions page
+// renders correctly even with no data.
+func TestWeb_ClosedPositionsPage_Empty_Renders200(t *testing.T) {
+	skipIfTemplatesUnavailable(t)
+	_, router, _, _ := setupPos(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/positions/closed", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestWeb_OpenPositionsPage_Empty_Renders200 verifies the open positions page
+// renders correctly even with no data.
+func TestWeb_OpenPositionsPage_Empty_Renders200(t *testing.T) {
+	skipIfTemplatesUnavailable(t)
+	_, router, _, _ := setupPos(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/positions", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// skipIfTemplatesUnavailable skips the test if the templates directory
+// is not accessible (e.g., when running from a non-project-root cwd).
+func skipIfTemplatesUnavailable(t *testing.T) {
+	t.Helper()
+	if _, err := os.Stat("../../templates"); err != nil {
+		t.Skip("templates directory not available, skipping web rendering test")
+	}
 }
 
 // TestPosition_FxRatePersisted verifies that FxRateUsed and FxRateFallback
