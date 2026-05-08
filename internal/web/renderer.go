@@ -115,6 +115,16 @@ func (r *Renderer) parseTemplates() error {
 		"contains": func(substr, s string) bool {
 			return strings.Contains(s, substr)
 		},
+		"sign": func(s string) string {
+			// Returns "positive", "negative", or "" for a decimal string.
+			if s == "" || s == "0" || s == "0.00" {
+				return ""
+			}
+			if len(s) > 0 && s[0] == '-' {
+				return "negative"
+			}
+			return "positive"
+		},
 		"queryPreserve": func(filter interface{}) template.HTMLAttr {
 			// Returns filter query params preserved for pagination links.
 			// Returns template.HTML to prevent double-escaping of & in hrefs.

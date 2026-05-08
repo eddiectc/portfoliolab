@@ -30,8 +30,8 @@ var cashAffectingTypes = map[string]bool{
 //
 // Each currency in the account gets one cash position with symbol
 // `$CASH-{currency}`. The quantity field holds the running net_cash sum
-// (positive = surplus, negative = overdraft). Cost basis and realized P&L
-// are always zero — cash positions have no P&L.
+// (positive = surplus, negative = overdraft). Cost basis equals quantity
+// so that P&L% is computed naturally as zero. Realized P&L is always zero.
 //
 // Cash positions are always open (never closed).
 func ComputeCashPositions(transactions []transaction.Transaction) []Position {
@@ -88,12 +88,14 @@ func ComputeCashPositions(transactions []transaction.Transaction) []Position {
 	positions := make([]Position, 0, len(balances))
 	for _, sym := range symbols {
 		date, _ := time.Parse("2006-01-02", earliestDate[sym])
+		qty := balances[sym]
 		positions = append(positions, Position{
-			Symbol:   sym,
-			Currency: strings.TrimPrefix(sym, "$CASH-"),
-			Quantity: balances[sym],
-			OpenDate: date,
-			IsClosed: false,
+			Symbol:     sym,
+			Currency:   strings.TrimPrefix(sym, "$CASH-"),
+			Quantity:   qty,
+			CostBasis:  qty, // cost basis = balance, so P&L = 0
+			OpenDate:   date,
+			IsClosed:   false,
 		})
 	}
 

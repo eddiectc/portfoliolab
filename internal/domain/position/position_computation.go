@@ -198,6 +198,17 @@ func buildPosition(c cycleState) Position {
 
 	isClosed := c.finalQty.Equal(decimal.Zero)
 
+	// Compute P&L percentage relative to total cost basis.
+	var realizedPnlPct *decimal.Decimal
+	absCostBasis := totalCostBasis.Abs()
+	if !absCostBasis.Equal(decimal.Zero) {
+		pct, err := realizedPnL.Quo(absCostBasis)
+		if err == nil {
+			pct, _ = pct.Mul(decimal.MustNew(10000, 2)) // × 100 for percentage
+			realizedPnlPct = &pct
+		}
+	}
+
 	pos := Position{
 		AccountID:     c.lots[0].AccountID,
 		Symbol:        c.lots[0].Symbol,
@@ -206,6 +217,7 @@ func buildPosition(c cycleState) Position {
 		AvgOpenPrice:  avgOpenPrice.Abs(),
 		AvgClosePrice: avgClosePrice,
 		RealizedPnL:   realizedPnL,
+		RealizedPnlPct: realizedPnlPct,
 		OpenDate:      c.lots[0].OpenDate,
 		IsClosed:      isClosed,
 	}

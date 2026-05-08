@@ -31,6 +31,28 @@
 {{if eq (len .Positions) 0}}
 <p class="empty-state">No open positions. Create transactions to build positions, then use Recalculate to compute them.</p>
 {{else}}
+{{/* Summary panel — base currency totals */}}
+{{if .BaseCurrency}}
+<div class="position-summary">
+    <div class="summary-card">
+        <span class="summary-label">Cost Basis ({{.BaseCurrency}})</span>
+        <span class="summary-value">{{formatMoney .Summary.TotalCostBasisBase}}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Mkt Value ({{.BaseCurrency}})</span>
+        <span class="summary-value">{{formatMoney .Summary.TotalMktValueBase}}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Unrealized P&L ({{.BaseCurrency}})</span>
+        <span class="summary-value pnl {{sign .Summary.TotalUnrealizedPnLB}}">{{formatMoney .Summary.TotalUnrealizedPnLB}}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Unrealized P&L %</span>
+        <span class="summary-value pnl {{sign .Summary.TotalUnrealizedPnLP}}">{{if .Summary.TotalUnrealizedPnLP}}{{formatPct .Summary.TotalUnrealizedPnLP}}%{{else}}—{{end}}</span>
+    </div>
+</div>
+{{end}}
+
 <table class="table table-compact">
     <thead>
         <tr>
@@ -38,9 +60,12 @@
             <th class="num">Qty</th>
             <th class="num">Avg Cost</th>
             <th class="num">Cost Basis</th>
+            {{if .BaseCurrency}}<th class="num">Cost Basis ({{.BaseCurrency}})</th>{{end}}
             <th class="num">Mkt Price</th>
             <th class="num">Mkt Value</th>
+            {{if .BaseCurrency}}<th class="num">Mkt Value ({{.BaseCurrency}})</th>{{end}}
             <th class="num">Unrealized P&L</th>
+            {{if .BaseCurrency}}<th class="num">Unreal. P&L ({{.BaseCurrency}})</th>{{end}}
             <th class="num">P&L %</th>
             <th>Currency</th>
             <th>Account</th>
@@ -60,11 +85,22 @@
             <td class="num">{{formatMoney .Quantity}}</td>
             <td class="num">{{formatMoney .AvgOpenPrice}}</td>
             <td class="num">{{formatMoney .CostBasis}}</td>
+            {{if $.BaseCurrency}}
+            <td class="num">{{if .CostBasisBase}}{{formatMoney .CostBasisBase}}{{else}}—{{end}}</td>
+            {{end}}
             <td class="num">{{if .MarketDataAvailable}}{{if .MarketPrice}}{{formatMoney .MarketPrice}}{{else}}—{{end}}{{else}}—{{end}}</td>
             <td class="num">{{if .MarketDataAvailable}}{{formatMoney .MarketValue}}{{else}}—{{end}}</td>
+            {{if $.BaseCurrency}}
+            <td class="num">{{if .MarketValueBase}}{{formatMoney .MarketValueBase}}{{else}}—{{end}}</td>
+            {{end}}
             <td class="num pnl {{if and .MarketDataAvailable .UnrealizedPnL.IsPos}}positive{{else if and .MarketDataAvailable .UnrealizedPnL.IsNeg}}negative{{end}}">
                 {{if .MarketDataAvailable}}{{formatMoney .UnrealizedPnL}}{{else}}—{{end}}
             </td>
+            {{if $.BaseCurrency}}
+            <td class="num pnl {{if and .UnrealizedPnLBase .UnrealizedPnLBase.IsPos}}positive{{else if and .UnrealizedPnLBase .UnrealizedPnLBase.IsNeg}}negative{{end}}">
+                {{if .UnrealizedPnLBase}}{{formatMoney .UnrealizedPnLBase}}{{else}}—{{end}}
+            </td>
+            {{end}}
             <td class="num">{{if .UnrealizedPnlPct}}{{formatPct .UnrealizedPnlPct}}%{{else}}—{{end}}</td>
             <td>{{.Currency}}</td>
             <td>{{.AccountName}}</td>

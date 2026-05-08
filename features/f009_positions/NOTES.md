@@ -1,5 +1,20 @@
 # Notes: Positions
 
+## Task 13 Implementation Notes (2026-05-08)
+- `RealizedPnlPct` computed during `buildPosition` in `position_computation.go` as `RealizedPnL / Abs(CostBasis) × 100`. Uses `decimal.MustNew(10000, 2)` for the × 100 multiplier.
+- `EnrichWithMarketData` now accepts a `baseCurrency` parameter. The web handler resolves it from the filtered portfolio (or first portfolio if no filter). The API handler passes empty string.
+- `convertValuesToBase` is a standalone function (not a method) for easy testing. Uses `FxRateProvider.GetCurrentRate` to fetch current spot FX rate. Returns nil pointers if conversion not possible.
+- Cash positions: `CostBasis = Quantity` (the balance is the cost), so P&L% is computed naturally as `0 / |Qty| × 100 = 0` with no special-casing. `CostBasisBase = MarketValueBase` (same FX rate).
+- `CostBasisBase` added to `PositionWithMarket` — cost basis converted to base currency using same FX rate as market value. For same-currency positions, `CostBasisBase = Abs(CostBasis)`.
+- `positionSummary` struct in web handler aggregates totals across all positions in the current page (not across all pages — pagination means only visible positions are summed).
+- Summary panel shows only base-currency values: Cost Basis (Base), Mkt Value (Base), Unrealized P&L (Base), Unrealized P&L %. Native currency columns not needed in summary.
+- Open positions table includes "Cost Basis (Base)" column alongside native cost basis.
+- `sign` template function returns "positive", "negative", or "" for decimal strings. Handles "0", "0.00", and empty string as neutral.
+- Closed positions template uses dynamic header `P&L ({BaseCurrency})` via Go template interpolation.
+- FX Rate column on closed positions shows the rate used during recalculation (`FxRateUsed` field), not the current spot rate.
+- Summary panel CSS uses CSS Grid with `auto-fit` for responsive layout. Cards have white background with subtle shadow.
+- `sign` function added to template funcMap for use in summary panel P&L coloring.
+
 ## Task 12 Implementation Notes (2026-05-08)
 - **Bug fix: `toPosition()` and `toLot()` in `position_repo.go` crashed on empty-string nullable fields.** The `avg_close_price`, `realized_pnl_base`, `close_date`, and `sell_price` fields are stored as empty strings `""` (not NULL) for open positions/lots. When `sql.NullString` has `Valid=true` but `String=""`, `decimal.Parse("")` fails with "invalid decimal: no coefficient". Fixed by adding `&& p.Field.String != ""` guards before parsing. Also fixed nil-pointer dereference for `avg_open_price` (non-pointer field in domain model) by defaulting to `decimal.Zero` when nil.
 - Integration tests cover: full recalc flow, FIFO with real SQL, cash tracking, position transitions, multiple cycles, recalculate endpoint, idempotency, account filtering, closed positions, lot detail, cascade delete, and dividend with no open position.

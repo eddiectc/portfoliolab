@@ -27,6 +27,7 @@ type Position struct {
 	AvgOpenPrice    decimal.Decimal  `json:"avg_open_price"`
 	AvgClosePrice   *decimal.Decimal `json:"avg_close_price,omitempty"`
 	RealizedPnL     decimal.Decimal  `json:"realized_pnl"`
+	RealizedPnlPct  *decimal.Decimal `json:"realized_pnl_pct,omitempty"`  // P&L as % of cost basis
 	RealizedPnlBase *decimal.Decimal `json:"realized_pnl_base,omitempty"`
 	FxRateUsed      *decimal.Decimal `json:"fx_rate_used,omitempty"`
 	FxRateFallback  bool             `json:"fx_rate_fallback"`
@@ -40,11 +41,15 @@ type Position struct {
 // PositionWithMarket extends Position with live market data for open positions.
 type PositionWithMarket struct {
 	Position
-	MarketPrice       *decimal.Decimal `json:"market_price,omitempty"`
-	MarketValue       decimal.Decimal  `json:"market_value"`
-	UnrealizedPnL     decimal.Decimal  `json:"unrealized_pnl"`
-	UnrealizedPnlPct  *decimal.Decimal `json:"unrealized_pnl_pct,omitempty"`
-	MarketDataAvailable bool           `json:"market_data_available"`
+	MarketPrice         *decimal.Decimal `json:"market_price,omitempty"`
+	MarketValue         decimal.Decimal  `json:"market_value"`
+	UnrealizedPnL       decimal.Decimal  `json:"unrealized_pnl"`
+	UnrealizedPnlPct    *decimal.Decimal `json:"unrealized_pnl_pct,omitempty"`
+	CostBasisBase       *decimal.Decimal `json:"cost_basis_base,omitempty"`
+	MarketValueBase     *decimal.Decimal `json:"market_value_base,omitempty"`
+	UnrealizedPnLBase   *decimal.Decimal `json:"unrealized_pnl_base,omitempty"`
+	BaseCurrency        string           `json:"base_currency,omitempty"`
+	MarketDataAvailable   bool           `json:"market_data_available"`
 }
 
 // Lot represents a buy or sell lot, grouping one or more transactions

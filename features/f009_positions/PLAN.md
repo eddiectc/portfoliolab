@@ -30,6 +30,8 @@ Task 9 (market_data table + fetcher) → Task 10 (multi-currency P&L)
 Task 11 (market data integration for open positions)
                                                     ↓
 Task 12 (polish + integration tests)
+                                                    ↓
+Task 13 (position page enhancements)
 ```
 
 Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calculator). Tasks 4a-4e are the calculator (sequential, each independently testable). Tasks 5-6 wire recalc into the system. Tasks 7-8 are the user-facing layers. Tasks 9-11 add market data and FX. Task 12 is final polish.
@@ -488,6 +490,35 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Verification:** All edge cases handled; integration tests pass; full test suite passes; no vet issues.
 
+---
+
+### Task 13: Position page enhancements — base currency, P&L%, summary panel [PRIORITY: MEDIUM]
+
+**Corresponds to:** "View P&L in transaction currency and base currency (open position)", "View P&L in transaction currency and base currency (closed position)"
+
+**Description:** Enhance position pages with base-currency columns, P&L percentage, FX rate display, and a summary panel.
+
+- [x] Add `RealizedPnlPct *decimal.Decimal` to `Position` domain model
+- [x] Compute `RealizedPnlPct` in `buildPosition` during recalculation (P&L / |CostBasis| × 100)
+- [x] Update `EnrichWithMarketData` to accept `baseCurrency` parameter for open position base-currency conversion
+- [x] Add `convertValuesToBase` helper to convert market value and unrealized P&L to base currency using current spot FX rate
+- [x] Add `MarketValueBase` and `UnrealizedPnLBase` to `PositionWithMarket` struct
+- [x] Add `BaseCurrency` field to web page data structs
+- [x] Add `resolveBaseCurrency()` helper in web handler to determine portfolio currency from filter or first portfolio
+- [x] Add `CostBasisBase *decimal.Decimal` to `PositionWithMarket` struct
+- [x] Compute `CostBasisBase` in `EnrichWithMarketData` using same FX rate as market value
+- [x] Add `positionSummary` struct for aggregated base-currency totals
+- [x] Add `computePositionSummary()` to aggregate cost basis (base), market value (base), unrealized P&L (base), and P&L% across positions
+- [x] Summary panel shows only base-currency values: Cost Basis (Base), Mkt Value (Base), Unrealized P&L (Base), Unrealized P&L %
+- [x] Update `closed.html` template: dynamic "P&L ({BaseCurrency})" header, FX Rate column, P&L% column
+- [x] Update `open.html` template: summary panel with 5 cards, base currency columns in table
+- [x] Add CSS for `.position-summary`, `.summary-card`, `.summary-label`, `.summary-value`
+- [x] Add `sign` template function for positive/negative/zero classification of decimal strings
+- [x] Update API handler to pass empty baseCurrency (no portfolio context)
+- [x] Update unit tests to pass baseCurrency parameter
+
+**Verification:** Position pages show base-currency values with dynamic headers; P&L% computed correctly; summary panel aggregates totals; all tests pass.
+
 ## Technical Decisions
 
 | Decision | Choice | Reason |
@@ -503,6 +534,10 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 | Cash positions | Tracked as positions with `$CASH-{currency}` symbol | Consistent with existing convention; always open, no P&L |
 | sqlc for queries | Yes, follows existing pattern | Type-safe queries; consistent with rest of codebase |
 | Calculator split | 4 sub-tasks + integration | Each sub-task is independently testable; follows single-responsibility principle |
+| P&L% computation | During recalculation in `buildPosition` | Pure computation, no I/O; stored with position for efficient display |
+| Base currency for open positions | Current spot FX rate via `EnrichWithMarketData` | Consistent with unrealized P&L; computed at read time |
+| Summary panel scope | Current page only (not across all pages) | Pagination means only visible positions are summed; keeps computation simple |
+| `sign` template function | Returns "positive"/"negative"/"" for decimal strings | Avoids complex conditional logic in templates; handles zero edge cases |
 
 ## Risks
 

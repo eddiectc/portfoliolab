@@ -808,7 +808,7 @@ func TestEnrichWithMarketData_NoFetcher(t *testing.T) {
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
 	}
 
-	result := svc.EnrichWithMarketData(ctx, positions)
+	result := svc.EnrichWithMarketData(ctx, positions, "")
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(result))
@@ -839,7 +839,7 @@ func TestEnrichWithMarketData_CashPosition(t *testing.T) {
 		{ID: 1, AccountID: 1, Symbol: "$CASH-USD", Quantity: decimal.MustNew(50000, 2), CostBasis: decimal.MustNew(0, 2)},
 	}
 
-	result := svc.EnrichWithMarketData(ctx, positions)
+	result := svc.EnrichWithMarketData(ctx, positions, "")
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(result))
@@ -886,7 +886,7 @@ func TestEnrichWithMarketData_Success(t *testing.T) {
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
 	}
 
-	result := svc.EnrichWithMarketData(ctx, positions)
+	result := svc.EnrichWithMarketData(ctx, positions, "")
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(result))
@@ -937,7 +937,7 @@ func TestEnrichWithMarketData_FetchError(t *testing.T) {
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
 	}
 
-	result := svc.EnrichWithMarketData(ctx, positions)
+	result := svc.EnrichWithMarketData(ctx, positions, "")
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(result))
@@ -972,7 +972,7 @@ func TestEnrichWithMarketData_MultiplePositions(t *testing.T) {
 		{ID: 3, AccountID: 1, Symbol: "$CASH-USD", Quantity: decimal.MustNew(50000, 2), CostBasis: decimal.MustNew(0, 2)},
 	}
 
-	result := svc.EnrichWithMarketData(ctx, positions)
+	result := svc.EnrichWithMarketData(ctx, positions, "")
 
 	if len(result) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(result))
@@ -1019,7 +1019,7 @@ func TestEnrichWithMarketData_GbpConversion(t *testing.T) {
 			Quantity: decimal.MustNew(10000, 2), CostBasis: decimal.MustNew(-35000, 2)},
 	}
 
-	result := svc.EnrichWithMarketData(ctx, positions)
+	result := svc.EnrichWithMarketData(ctx, positions, "")
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(result))
@@ -1071,7 +1071,7 @@ func TestEnrichWithMarketData_GbpNotConvertedForNonGbpPosition(t *testing.T) {
 			Quantity: decimal.MustNew(10000, 2), CostBasis: decimal.MustNew(-3500000, 2)},
 	}
 
-	result := svc.EnrichWithMarketData(ctx, positions)
+	result := svc.EnrichWithMarketData(ctx, positions, "")
 
 	r := result[0]
 	// Price should remain as-is (350.00) since position currency is USD, not GBP.

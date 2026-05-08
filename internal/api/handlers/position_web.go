@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
@@ -55,24 +57,35 @@ func (f PositionFilter) PaginationQuery(page int) string {
 // positionListPageData is the data struct for the position list templates.
 type positionListPageData struct {
 	web.PageData
-	Positions []position.Position
-	Accounts  []account.Account
-	Filter    PositionFilter
-	Page      int
-	HasPrev   bool
-	HasNext   bool
+	Positions    []position.Position
+	Accounts     []account.Account
+	Filter       PositionFilter
+	BaseCurrency string
+	Page         int
+	HasPrev      bool
+	HasNext      bool
+}
+
+// positionSummary holds aggregated totals for the position summary panel.
+type positionSummary struct {
+	TotalCostBasisBase  string
+	TotalMktValueBase   string
+	TotalUnrealizedPnLB string
+	TotalUnrealizedPnLP string // total unrealized P&L %
 }
 
 // openPositionListPageData is the data struct for the open positions template,
 // with positions enriched with market data.
 type openPositionListPageData struct {
 	web.PageData
-	Positions []position.PositionWithMarket
-	Accounts  []account.Account
-	Filter    PositionFilter
-	Page      int
-	HasPrev   bool
-	HasNext   bool
+	Positions    []position.PositionWithMarket
+	Accounts     []account.Account
+	Filter       PositionFilter
+	BaseCurrency string
+	Summary      positionSummary
+	Page         int
+	HasPrev      bool
+	HasNext      bool
 }
 
 // lotDetailPageData is the data struct for the lot detail template.
@@ -142,8 +155,11 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Determine base currency from filter or first portfolio.
+	baseCurrency := h.resolveBaseCurrency(r.Context(), domainFilters)
+
 	// Enrich with market data (current price, market value, unrealized P&L).
-	enriched := h.positionSvc.EnrichWithMarketData(r.Context(), items)
+	enriched := h.positionSvc.EnrichWithMarketData(r.Context(), items, baseCurrency)
 
 	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
@@ -153,12 +169,14 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 			Title: "Open Positions",
 			Flash: getFlash(w, r),
 		},
-		Positions: enriched,
-		Accounts:  accounts,
-		Filter:    filter,
-		Page:      page,
-		HasPrev:   page > 1,
-		HasNext:   len(enriched) == limit,
+		Positions:    enriched,
+		Accounts:     accounts,
+		Filter:       filter,
+		BaseCurrency: baseCurrency,
+		Summary:      computePositionSummary(enriched),
+		Page:         page,
+		HasPrev:      page > 1,
+		HasNext:      len(enriched) == limit,
 	}
 
 	if data.Positions == nil {
@@ -203,6 +221,9 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Determine base currency from filter or first portfolio.
+	baseCurrency := h.resolveBaseCurrency(r.Context(), domainFilters)
+
 	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
 
@@ -211,12 +232,13 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 			Title: "Closed Positions",
 			Flash: getFlash(w, r),
 		},
-		Positions: items,
-		Accounts:  accounts,
-		Filter:    filter,
-		Page:      page,
-		HasPrev:   page > 1,
-		HasNext:   len(items) == limit,
+		Positions:    items,
+		Accounts:     accounts,
+		Filter:       filter,
+		BaseCurrency: baseCurrency,
+		Page:         page,
+		HasPrev:      page > 1,
+		HasNext:      len(items) == limit,
 	}
 
 	if data.Positions == nil {
@@ -313,5 +335,61 @@ func parsePositionFilter(query url.Values) PositionFilter {
 	return PositionFilter{
 		AccountID:   query.Get("account_id"),
 		PortfolioID: query.Get("portfolio_id"),
+	}
+}
+
+// resolveBaseCurrency determines the portfolio base currency for display.
+// If a specific portfolio is filtered, uses its currency. Otherwise uses the
+// first portfolio's currency as default.
+func (h *PositionWebHandler) resolveBaseCurrency(ctx context.Context, filters position.ListFilters) string {
+	if filters.PortfolioID != nil {
+		if p, err := h.portfolioSvc.Get(ctx, *filters.PortfolioID); err == nil {
+			return p.Currency
+		}
+	}
+	// No portfolio filter — get all portfolios and use the first one.
+	portfolios, err := h.portfolioSvc.List(ctx, 0, 0)
+	if err != nil || len(portfolios) == 0 {
+		return ""
+	}
+	return portfolios[0].Currency
+}
+
+// computePositionSummary aggregates position totals for the summary panel.
+func computePositionSummary(positions []position.PositionWithMarket) positionSummary {
+	var (
+		totalCostBasisBase  decimal.Decimal
+		totalMktValueBase   decimal.Decimal
+		totalUnrealizedPnLB decimal.Decimal
+	)
+
+	for _, p := range positions {
+		if !p.MarketDataAvailable {
+			continue
+		}
+		if p.CostBasisBase != nil {
+			totalCostBasisBase, _ = totalCostBasisBase.Add(*p.CostBasisBase)
+		}
+		if p.MarketValueBase != nil {
+			totalMktValueBase, _ = totalMktValueBase.Add(*p.MarketValueBase)
+		}
+		if p.UnrealizedPnLBase != nil {
+			totalUnrealizedPnLB, _ = totalUnrealizedPnLB.Add(*p.UnrealizedPnLBase)
+		}
+	}
+
+	// Compute total unrealized P&L % = total_unrealized_pnl_base / total_cost_basis_base × 100.
+	var pnlPct string
+	if !totalCostBasisBase.Equal(decimal.Zero) {
+		pct, _ := totalUnrealizedPnLB.Quo(totalCostBasisBase)
+		pct, _ = pct.Mul(decimal.MustNew(10000, 2))
+		pnlPct = pct.String()
+	}
+
+	return positionSummary{
+		TotalCostBasisBase:  totalCostBasisBase.String(),
+		TotalMktValueBase:   totalMktValueBase.String(),
+		TotalUnrealizedPnLB: totalUnrealizedPnLB.String(),
+		TotalUnrealizedPnLP: pnlPct,
 	}
 }

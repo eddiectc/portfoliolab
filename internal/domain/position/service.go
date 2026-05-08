@@ -410,7 +410,9 @@ func (s *Service) GetLotInfo(ctx context.Context, lotID string) (*transaction.Lo
 // computes MarketValue, UnrealizedPnL, and UnrealizedPnlPct. Cash positions
 // get MarketValue = balance with no P&L. If the market fetcher is not configured,
 // returns positions with MarketDataAvailable=false and zero market values.
-func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position) []PositionWithMarket {
+// baseCurrency, if non-empty, is used to convert MarketValue and UnrealizedPnL
+// to the portfolio base currency.
+func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position, baseCurrency string) []PositionWithMarket {
 	if s.marketFetcher == nil || s.marketDataRepo == nil {
 		// No market data fetcher configured — return positions with no market data.
 		result := make([]PositionWithMarket, len(positions))
@@ -418,6 +420,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			result[i] = PositionWithMarket{
 				Position:            p,
 				MarketDataAvailable: false,
+				BaseCurrency:        baseCurrency,
 			}
 		}
 		return result
@@ -427,11 +430,32 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 	for i, p := range positions {
 		if isCashPosition(p.Symbol) {
 			// Cash positions: MarketValue = balance (quantity), no P&L, no market fetch.
-			result[i] = PositionWithMarket{
+			entry := PositionWithMarket{
 				Position:            p,
 				MarketValue:         p.Quantity,
 				MarketDataAvailable: true,
+				BaseCurrency:        baseCurrency,
 			}
+			// Convert cash position to base currency if needed.
+			if baseCurrency != "" && p.Currency != baseCurrency {
+				entry.MarketValueBase, entry.UnrealizedPnLBase = convertValuesToBase(ctx, s.fxProvider, p.Currency, baseCurrency, p.Quantity, decimal.Zero)
+				// CostBasis = Quantity for cash, so CostBasisBase = MarketValueBase.
+				entry.CostBasisBase = entry.MarketValueBase
+			} else if baseCurrency != "" && p.Currency == baseCurrency {
+				mv := p.Quantity
+				entry.MarketValueBase = &mv
+				entry.UnrealizedPnLBase = &decimal.Zero
+				entry.CostBasisBase = &mv
+			}
+			// Compute P&L% using standard formula (same as non-cash positions).
+			entry.UnrealizedPnL = decimal.Zero
+			totalCost := p.CostBasis.Abs()
+			if !totalCost.IsZero() {
+				pct, _ := entry.UnrealizedPnL.Quo(totalCost)
+				pct, _ = pct.Mul(decimal.MustNew(10000, 2))
+				entry.UnrealizedPnlPct = &pct
+			}
+			result[i] = entry
 			continue
 		}
 
@@ -444,6 +468,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			result[i] = PositionWithMarket{
 				Position:            p,
 				MarketDataAvailable: false,
+				BaseCurrency:        baseCurrency,
 			}
 			continue
 		}
@@ -478,6 +503,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			MarketValue:         marketValue,
 			UnrealizedPnL:       unrealizedPnL,
 			MarketDataAvailable: true,
+			BaseCurrency:        baseCurrency,
 		}
 
 		// Compute P&L percentage relative to total cost.
@@ -488,10 +514,45 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			entry.UnrealizedPnlPct = &pct
 		}
 
+		// Convert to base currency if needed.
+		if baseCurrency != "" && p.Currency != baseCurrency {
+			entry.MarketValueBase, entry.UnrealizedPnLBase = convertValuesToBase(ctx, s.fxProvider, p.Currency, baseCurrency, marketValue, unrealizedPnL)
+			// Cost basis in base currency: CostBasis.Abs() × FX rate.
+			if entry.MarketValueBase != nil {
+				// Derive rate from MarketValueBase / MarketValue, then apply to cost basis.
+				rate, _ := entry.MarketValueBase.Quo(marketValue)
+				cbBase, _ := p.CostBasis.Abs().Mul(rate)
+				entry.CostBasisBase = &cbBase
+			}
+		} else if baseCurrency != "" {
+			entry.MarketValueBase = &marketValue
+			entry.UnrealizedPnLBase = &unrealizedPnL
+			cbBase := p.CostBasis.Abs()
+			entry.CostBasisBase = &cbBase
+		}
+
 		result[i] = entry
 	}
 
 	return result
+}
+
+// convertValuesToBase converts market value and unrealized P&L from one currency to another
+// using the current FX rate. Returns nil pointers if conversion is not possible.
+func convertValuesToBase(ctx context.Context, fxProvider FxRateProvider, fromCurrency, toCurrency string, marketValue, unrealizedPnL decimal.Decimal) (*decimal.Decimal, *decimal.Decimal) {
+	if fromCurrency == toCurrency {
+		return nil, nil
+	}
+
+	pair := BuildFxPair(fromCurrency, toCurrency)
+	rate, found := fxProvider.GetCurrentRate(ctx, pair)
+	if !found || rate == nil {
+		return nil, nil
+	}
+
+	mvBase, _ := marketValue.Mul(rate.Rate)
+	pnlBase, _ := unrealizedPnL.Mul(rate.Rate)
+	return &mvBase, &pnlBase
 }
 
 // isCashPosition returns true if the symbol represents a cash position.
