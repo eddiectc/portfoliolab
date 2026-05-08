@@ -49,7 +49,7 @@
     </thead>
     <tbody>
         {{range .Positions}}
-        <tr class="{{if contains "$CASH-" .Symbol}}cash-row{{end}} {{rowClass .CostBasis.String .RealizedPnL.String .MarketValue.String}}">
+        <tr class="{{if contains "$CASH-" .Symbol}}cash-row{{end}}">
             <td>
                 {{if contains "$CASH-" .Symbol}}
                 <span class="cash-symbol">{{.Symbol}}</span>

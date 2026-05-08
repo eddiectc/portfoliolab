@@ -232,15 +232,6 @@ footer {
     font-variant-numeric: tabular-nums;
 }
 
-/* P&L color accents on row (left border) */
-.table tbody tr.row-profit {
-    border-left: 3px solid #28a745;
-}
-
-.table tbody tr.row-loss {
-    border-left: 3px solid #dc3545;
-}
-
 /* P&L text color */
 .table td.pnl.positive,
 .pnl.positive {
