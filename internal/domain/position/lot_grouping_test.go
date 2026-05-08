@@ -283,3 +283,29 @@ func TestGroupTransactionsIntoLots_LotGroupHasCorrectAccountAndSymbol(t *testing
 		t.Errorf("expected Symbol MSFT, got %q", lot.Symbol)
 	}
 }
+
+func TestGroupTransactionsIntoLots_LotIDCaseSensitive(t *testing.T) {
+	// LOT-ABC and lot-abc are different lot IDs (case-sensitive).
+	txn1 := makeTxn("LOT-ABC", "buy", "AAPL", "USD", "2025-01-15",
+		dec(10, 0), dec(15000, 2), dec(-150000, 2))
+	txn2 := makeTxn("lot-abc", "buy", "AAPL", "USD", "2025-02-15",
+		dec(5, 0), dec(16000, 2), dec(-80000, 2))
+
+	buyLots, _ := GroupTransactionsIntoLots([]transaction.Transaction{txn1, txn2})
+
+	if len(buyLots) != 2 {
+		t.Fatalf("expected 2 buy lots (case-sensitive), got %d", len(buyLots))
+	}
+
+	// Verify both lot IDs are preserved as-is.
+	lotIDs := make(map[string]bool)
+	for _, lot := range buyLots {
+		lotIDs[lot.LotID] = true
+	}
+	if !lotIDs["LOT-ABC"] {
+		t.Error("expected LOT-ABC lot")
+	}
+	if !lotIDs["lot-abc"] {
+		t.Error("expected lot-abc lot")
+	}
+}

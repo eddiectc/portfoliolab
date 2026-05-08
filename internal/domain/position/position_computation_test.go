@@ -1,9 +1,12 @@
 package position
 
 import (
+	"context"
 	"testing"
 
 	"github.com/govalues/decimal"
+
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
 )
 
 // decPtr returns a pointer to a decimal.Decimal.
@@ -512,5 +515,56 @@ func TestComputePositions_SellThenBuySameCycle(t *testing.T) {
 	// SellProceeds = 525.00, P&L = 0 + 525.00 = 525.00
 	if !op.RealizedPnL.Equal(dec(52500, 2)) {
 		t.Errorf("expected open RealizedPnL 525.00, got %q", op.RealizedPnL.String())
+	}
+}
+
+func TestCalculatePositions_IdempotentRecalc(t *testing.T) {
+	// Running CalculatePositions twice on the same transactions produces identical results.
+	txns := []transaction.Transaction{
+		makeTxn("LOT-1", "buy", "AAPL", "USD", "2025-01-15",
+			dec(100, 0), dec(15000, 2), dec(-1500000, 2)),
+		makeTxn("LOT-2", "buy", "AAPL", "USD", "2025-02-20",
+			dec(50, 0), dec(16000, 2), dec(-800000, 2)),
+		makeTxn("LOT-3", "sell", "AAPL", "USD", "2025-03-20",
+			dec(-120, 0), dec(17000, 2), dec(2040000, 2)),
+	}
+
+	result1, err := CalculatePositions(context.Background(), 1, txns)
+	if err != nil {
+		t.Fatalf("first calc: %v", err)
+	}
+
+	result2, err := CalculatePositions(context.Background(), 1, txns)
+	if err != nil {
+		t.Fatalf("second calc: %v", err)
+	}
+
+	// Compare open positions.
+	if len(result1.OpenPositions) != len(result2.OpenPositions) {
+		t.Fatalf("open position count: %d vs %d", len(result1.OpenPositions), len(result2.OpenPositions))
+	}
+	for i := range result1.OpenPositions {
+		if result1.OpenPositions[i].Symbol != result2.OpenPositions[i].Symbol {
+			t.Errorf("open[%d] symbol: %q vs %q", i, result1.OpenPositions[i].Symbol, result2.OpenPositions[i].Symbol)
+		}
+		if !result1.OpenPositions[i].Quantity.Equal(result2.OpenPositions[i].Quantity) {
+			t.Errorf("open[%d] quantity: %q vs %q", i, result1.OpenPositions[i].Quantity.String(), result2.OpenPositions[i].Quantity.String())
+		}
+		if !result1.OpenPositions[i].CostBasis.Equal(result2.OpenPositions[i].CostBasis) {
+			t.Errorf("open[%d] cost_basis: %q vs %q", i, result1.OpenPositions[i].CostBasis.String(), result2.OpenPositions[i].CostBasis.String())
+		}
+	}
+
+	// Compare closed positions.
+	if len(result1.ClosedPositions) != len(result2.ClosedPositions) {
+		t.Fatalf("closed position count: %d vs %d", len(result1.ClosedPositions), len(result2.ClosedPositions))
+	}
+	for i := range result1.ClosedPositions {
+		if !result1.ClosedPositions[i].Quantity.Equal(result2.ClosedPositions[i].Quantity) {
+			t.Errorf("closed[%d] quantity: %q vs %q", i, result1.ClosedPositions[i].Quantity.String(), result2.ClosedPositions[i].Quantity.String())
+		}
+		if !result1.ClosedPositions[i].RealizedPnL.Equal(result2.ClosedPositions[i].RealizedPnL) {
+			t.Errorf("closed[%d] realized_pnl: %q vs %q", i, result1.ClosedPositions[i].RealizedPnL.String(), result2.ClosedPositions[i].RealizedPnL.String())
+		}
 	}
 }
