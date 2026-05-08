@@ -153,14 +153,14 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Match sell lots against buy lots using FIFO (first-in, first-out) ordering.
 
-- [ ] Implement `MatchSellLotsAgainstBuys(buyLots []LotGroup, sellLots []LotGroup) ([]LotConsumption, map[string]decimal.Decimal)` in `fifo_matching.go`:
+- [x] Implement `MatchSellLotsAgainstBuys(buyLots []LotGroup, sellLots []LotGroup) ([]LotConsumption, map[string]decimal.Decimal)` in `fifo_matching.go`:
   - Process sell lots in chronological order
   - For each sell lot, consume from oldest buy lot first
   - Track partial consumption (sell lot may span multiple buy lots)
   - Compute realized P&L per consumption: sell net_cash portion (positive) + buy net_cash portion (negative) for the consumed shares — net_cash is signed, so P&L = sell_inflow + buy_outflow; result is positive for gain, negative for loss
   - Return consumptions and remaining quantity per buy lot
   - Handle short positions (sell without matching buy → negative remaining)
-- [ ] Write unit tests in `fifo_matching_test.go` (table-driven):
+- [x] Write unit tests in `fifo_matching_test.go` (table-driven):
   - Simple FIFO: one buy lot, one sell lot (partial consume)
   - Full consume: sell equals buy quantity
   - Multi-buy consume: one sell lot consumes from two buy lots
