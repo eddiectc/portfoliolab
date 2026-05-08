@@ -19,7 +19,7 @@
 
 ## Task 3 Implementation Notes (2026-05-08)
 - `LotChecker` is passed as `nil` to `NewService` in `router.go` for now — it will be implemented in Task 5 (position service). The service handles `nil` lotChecker gracefully: when nil, it skips cross-checking and allows any lot_id (new lots pass through; existing lots are validated only if lotChecker is non-nil).
-- `generateLotID()` uses `uuid.New()` from `github.com/google/uuid` and produces IDs in format `LOT-<first 8 chars of UUID without dashes>`.
+- `generateLotID()` uses `ulid.Make()` from `github.com/oklog/ulid/v2` and produces IDs in format `LOT-<26 char ULID>` (30 chars total). ULID is lexicographically sortable by creation time. This is the project standard for string-based unique IDs.
 - `LotID` field added to `Transaction`, `CreateRequest`, and `UpdateRequest` domain models.
 - `LotInfo` struct and `LotChecker` interface added to `transaction.go`.
 - New errors: `ErrLotNotFound`, `ErrLotSymbolMismatch`, `ErrLotAccountMismatch`, `ErrLotTypeMismatch`, `ErrInvalidLotID`.
