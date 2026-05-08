@@ -26,6 +26,11 @@ WHERE account_id = ?
 ORDER BY date DESC, symbol ASC, type ASC, id ASC
 LIMIT ? OFFSET ?;
 
+-- name: ListAllTransactionsByAccount :many
+SELECT * FROM transactions
+WHERE account_id = ?
+ORDER BY date ASC, id ASC;
+
 -- name: ListTransactionsBySymbol :many
 SELECT * FROM transactions
 WHERE symbol = ?

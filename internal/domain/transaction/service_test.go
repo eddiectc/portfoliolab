@@ -19,7 +19,7 @@ func setupService(accountIDs []int64, symbols []string) (*Service, *mockReposito
 	symCheck := newMockSymbolChecker(symbols...)
 	symCreate := newMockSymbolCreator(symCheck)
 	lotCheck := newMockLotChecker()
-	svc := NewService(repo, accounts, symCheck, symCreate, lotCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, lotCheck, nil)
 	return svc, repo, symCheck
 }
 

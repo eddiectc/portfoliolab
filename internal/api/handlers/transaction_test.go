@@ -151,7 +151,7 @@ func setupTransactionHandler(t *testing.T, accountIDs []int64, symbols []string)
 	accounts := newTestTxAccountChecker(accountIDs...)
 	symCheck := newTestTxSymbolChecker(symbols...)
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 	return NewTransactionHandler(svc), repo, symCheck
 }
 
@@ -407,7 +407,7 @@ func TestTxHandleGet_Success(t *testing.T) {
 	accounts := newTestTxAccountChecker(3)
 	symCheck := newTestTxSymbolChecker("AAPL")
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	repo.items[1] = &transaction.Transaction{
 		ID: 1, AccountID: 3, Date: time.Now(), Type: "buy", Symbol: "AAPL",
@@ -439,7 +439,7 @@ func TestTxHandleGet_NotFound(t *testing.T) {
 	accounts := newTestTxAccountChecker()
 	symCheck := newTestTxSymbolChecker()
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	r := chi.NewRouter()
 	NewTransactionHandler(svc).RegisterRoutes(r)
@@ -459,7 +459,7 @@ func TestTxHandleGet_InvalidID(t *testing.T) {
 	accounts := newTestTxAccountChecker()
 	symCheck := newTestTxSymbolChecker()
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	r := chi.NewRouter()
 	NewTransactionHandler(svc).RegisterRoutes(r)
@@ -481,7 +481,7 @@ func TestTxHandleUpdate_Success(t *testing.T) {
 	accounts := newTestTxAccountChecker(3)
 	symCheck := newTestTxSymbolChecker("AAPL")
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	repo.items[1] = &transaction.Transaction{
 		ID: 1, AccountID: 3, Date: time.Now(), Type: "buy", Symbol: "AAPL",
@@ -515,7 +515,7 @@ func TestTxHandleUpdate_NotFound(t *testing.T) {
 	accounts := newTestTxAccountChecker()
 	symCheck := newTestTxSymbolChecker()
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	r := chi.NewRouter()
 	NewTransactionHandler(svc).RegisterRoutes(r)
@@ -537,7 +537,7 @@ func TestTxHandleUpdate_InvalidType(t *testing.T) {
 	accounts := newTestTxAccountChecker(3)
 	symCheck := newTestTxSymbolChecker("AAPL")
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	repo.items[1] = &transaction.Transaction{
 		ID: 1, AccountID: 3, Date: time.Now(), Type: "buy", Symbol: "AAPL",
@@ -565,7 +565,7 @@ func TestTxHandleUpdate_NoChanges(t *testing.T) {
 	accounts := newTestTxAccountChecker(3)
 	symCheck := newTestTxSymbolChecker("AAPL")
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	original := time.Now()
 	repo.items[1] = &transaction.Transaction{
@@ -596,7 +596,7 @@ func TestTxHandleDelete_Success(t *testing.T) {
 	accounts := newTestTxAccountChecker(3)
 	symCheck := newTestTxSymbolChecker("AAPL")
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	repo.items[1] = &transaction.Transaction{
 		ID: 1, AccountID: 3, Date: time.Now(), Type: "buy", Symbol: "AAPL",
@@ -622,7 +622,7 @@ func TestTxHandleDelete_NotFound(t *testing.T) {
 	accounts := newTestTxAccountChecker()
 	symCheck := newTestTxSymbolChecker()
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	r := chi.NewRouter()
 	NewTransactionHandler(svc).RegisterRoutes(r)
@@ -644,7 +644,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	accounts := newTestTxAccountChecker(3)
 	symCheck := newTestTxSymbolChecker("AAPL")
 	symCreate := newTestTxSymbolCreator(symCheck)
-	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil)
+	svc := transaction.NewService(repo, accounts, symCheck, symCreate, nil, nil)
 
 	r := chi.NewRouter()
 	NewTransactionHandler(svc).RegisterRoutes(r)

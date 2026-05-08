@@ -16,6 +16,7 @@ import (
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/account"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/ibkrimport"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/position"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/trading212import"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/symbolmapping"
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
@@ -68,7 +69,13 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	accountChecker := data.NewAccountChecker(accountRepo)
 	symbolChecker := data.NewSymbolChecker(symbolMappingRepo)
 	symbolCreator := data.NewSymbolCreator(symbolMappingSvc)
-	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator, nil)
+
+	// Position service (used as LotChecker + PositionRecalculator for transactions)
+	positionRepo := data.NewPositionRepository(db)
+	accountLister := data.NewAccountLister(accountRepo)
+	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister)
+
+	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator, positionSvc, positionSvc)
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)
 	transactionHandler.RegisterRoutes(r)
 
