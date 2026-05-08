@@ -100,6 +100,21 @@ func TestMigration_TransactionsDescriptionColumnExists(t *testing.T) {
 	}
 }
 
+func TestMigration_PositionsFxRateColumnsExist(t *testing.T) {
+	db := setupTestDB(t)
+
+	for _, col := range []string{"fx_rate_used", "fx_rate_fallback"} {
+		var name string
+		err := db.QueryRow(`
+			SELECT name FROM pragma_table_info('positions')
+			WHERE name = ?
+		`, col).Scan(&name)
+		if err != nil {
+			t.Errorf("column %s not found in positions: %v", col, err)
+		}
+	}
+}
+
 func TestMigration_PositionsIndexesExist(t *testing.T) {
 	db := setupTestDB(t)
 

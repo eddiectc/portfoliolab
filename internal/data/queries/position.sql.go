@@ -103,9 +103,9 @@ func (q *Queries) CreateLotConsumption(ctx context.Context, db DBTX, arg CreateL
 }
 
 const createPosition = `-- name: CreatePosition :one
-INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, open_date, close_date, is_closed, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, open_date, close_date, is_closed, created_at, updated_at
+INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at
 `
 
 type CreatePositionParams struct {
@@ -118,6 +118,8 @@ type CreatePositionParams struct {
 	AvgClosePrice   sql.NullString `db:"avg_close_price"`
 	RealizedPnl     string         `db:"realized_pnl"`
 	RealizedPnlBase sql.NullString `db:"realized_pnl_base"`
+	FxRateUsed      sql.NullString `db:"fx_rate_used"`
+	FxRateFallback  bool           `db:"fx_rate_fallback"`
 	OpenDate        string         `db:"open_date"`
 	CloseDate       sql.NullString `db:"close_date"`
 	IsClosed        int64          `db:"is_closed"`
@@ -136,6 +138,8 @@ func (q *Queries) CreatePosition(ctx context.Context, db DBTX, arg CreatePositio
 		arg.AvgClosePrice,
 		arg.RealizedPnl,
 		arg.RealizedPnlBase,
+		arg.FxRateUsed,
+		arg.FxRateFallback,
 		arg.OpenDate,
 		arg.CloseDate,
 		arg.IsClosed,
@@ -154,6 +158,8 @@ func (q *Queries) CreatePosition(ctx context.Context, db DBTX, arg CreatePositio
 		&i.AvgClosePrice,
 		&i.RealizedPnl,
 		&i.RealizedPnlBase,
+		&i.FxRateUsed,
+		&i.FxRateFallback,
 		&i.OpenDate,
 		&i.CloseDate,
 		&i.IsClosed,

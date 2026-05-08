@@ -85,6 +85,15 @@ func toPosition(p queries.Position) (*position.Position, error) {
 		realizedPnlBase = &v
 	}
 
+	var fxRateUsed *decimal.Decimal
+	if p.FxRateUsed.Valid && p.FxRateUsed.String != "" {
+		v, err := decimal.Parse(p.FxRateUsed.String)
+		if err != nil {
+			return nil, fmt.Errorf("parse fx_rate_used: %w", err)
+		}
+		fxRateUsed = &v
+	}
+
 	var closeDate *time.Time
 	if p.CloseDate.Valid && p.CloseDate.String != "" {
 		t, err := parseTime(p.CloseDate.String)
@@ -110,6 +119,8 @@ func toPosition(p queries.Position) (*position.Position, error) {
 		AvgClosePrice:   avgClosePrice,
 		RealizedPnL:     realizedPnL,
 		RealizedPnlBase: realizedPnlBase,
+		FxRateUsed:      fxRateUsed,
+		FxRateFallback:  p.FxRateFallback,
 		OpenDate:        openDate,
 		CloseDate:       closeDate,
 		IsClosed:        p.IsClosed == 1,
@@ -244,20 +255,22 @@ func toLotConsumptionSlice(items []queries.LotConsumption) ([]position.LotConsum
 // CreatePosition inserts a new position and returns it with the generated ID.
 func (r *PositionRepository) CreatePosition(ctx context.Context, p *position.Position) error {
 	result, err := r.q.CreatePosition(ctx, r.db, queries.CreatePositionParams{
-		AccountID:    p.AccountID,
-		Symbol:       p.Symbol,
-		Currency:     p.Currency,
-		Quantity:     p.Quantity.String(),
-		CostBasis:    p.CostBasis.String(),
-		AvgOpenPrice: toNullStringPtr(&p.AvgOpenPrice),
-		AvgClosePrice: toNullStringPtr(p.AvgClosePrice),
-		RealizedPnl:  p.RealizedPnL.String(),
+		AccountID:       p.AccountID,
+		Symbol:          p.Symbol,
+		Currency:        p.Currency,
+		Quantity:        p.Quantity.String(),
+		CostBasis:       p.CostBasis.String(),
+		AvgOpenPrice:    toNullStringPtr(&p.AvgOpenPrice),
+		AvgClosePrice:   toNullStringPtr(p.AvgClosePrice),
+		RealizedPnl:     p.RealizedPnL.String(),
 		RealizedPnlBase: toNullStringPtr(p.RealizedPnlBase),
-		OpenDate:     p.OpenDate.Format(time.RFC3339),
-		CloseDate:    toNullStringTime(p.CloseDate),
-		IsClosed:     boolToInt(p.IsClosed),
-		CreatedAt:    p.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:    p.UpdatedAt.Format(time.RFC3339),
+		FxRateUsed:      toNullStringPtr(p.FxRateUsed),
+		FxRateFallback:  p.FxRateFallback,
+		OpenDate:        p.OpenDate.Format(time.RFC3339),
+		CloseDate:       toNullStringTime(p.CloseDate),
+		IsClosed:        boolToInt(p.IsClosed),
+		CreatedAt:       p.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       p.UpdatedAt.Format(time.RFC3339),
 	})
 	if err != nil {
 		return fmt.Errorf("insert position: %w", err)
@@ -458,6 +471,14 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 		if p.RealizedPnlBase != nil {
 			realizedPnlBase = p.RealizedPnlBase.String()
 		}
+		fxRateUsed := ""
+		if p.FxRateUsed != nil {
+			fxRateUsed = p.FxRateUsed.String()
+		}
+		fxRateFallback := int64(0)
+		if p.FxRateFallback {
+			fxRateFallback = 1
+		}
 		closeDate := ""
 		if p.CloseDate != nil {
 			closeDate = p.CloseDate.Format(time.RFC3339)
@@ -467,11 +488,11 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 			isClosed = 1
 		}
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, open_date, close_date, is_closed, created_at, updated_at)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			p.AccountID, p.Symbol, p.Currency, p.Quantity.String(),
 			p.CostBasis.String(), avgOpenPrice, avgClosePrice,
-			p.RealizedPnL.String(), realizedPnlBase,
+			p.RealizedPnL.String(), realizedPnlBase, fxRateUsed, fxRateFallback,
 			p.OpenDate.Format(time.RFC3339), closeDate, isClosed,
 			p.CreatedAt.Format(time.RFC3339), p.UpdatedAt.Format(time.RFC3339),
 		)
