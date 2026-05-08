@@ -405,25 +405,29 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Integrate FX rates into position calculation for P&L in base currency.
 
-- [ ] Add to position domain model:
+- [x] Add to position domain model:
   - `RealizedPnlBase` field (P&L converted to portfolio base currency)
   - `FxRateUsed` field (the rate used for conversion, nullable)
   - `FxRateFallback` boolean (true if current spot rate was used as fallback)
-- [ ] Create `internal/domain/position/fx_converter.go`:
-  - `FxRateProvider` interface: `GetRateOnDate(ctx, pair string, date time.Time) (*FxRate, bool)`, `GetCurrentRate(ctx, pair string) (*FxRate, bool)`
-  - `FxConverter` struct wraps FxRateProvider + MarketDataRepository + FxRateFetcher
+- [x] Create `internal/domain/position/fx_converter.go`:
+  - `FxRateProvider` interface: `GetRateForDate(ctx, pair string, date time.Time) (*FxRate, bool)`, `GetCurrentRate(ctx, pair string) (*FxRate, bool)`
+  - `FxConverter` struct wraps MarketDataRepository + FxRateFetcher + logger
   - `GetRateForDate()` — checks DB for historical rate, falls back to fetching + caching, falls back to current spot
   - Fetches missing rates on-demand during recalculation
   - Stores fetched rates in `market_data` table
-- [ ] Update `calculator.go` `CalculatePositions` to accept `FxRateProvider` and portfolio base currency:
-  - For each sell lot, convert realized P&L to base currency using FX rate on sell date
-  - If historical rate unavailable, use current spot rate with fallback indicator
-- [ ] Update position service to pass FX converter to calculator
-- [ ] Update position API responses to include `realized_pnl_base`, `fx_rate_used`, `fx_rate_fallback`
-- [ ] Update position web templates to show P&L in both currencies with fallback indicator (e.g., small ⚠ icon)
-- [ ] Write unit tests for FX conversion logic in `fx_converter_test.go`
+  - `ConvertPnlToBase()` — converts P&L from position currency to base currency
+  - `BuildFxPair()` — constructs FX pair string from position/base currencies
+- [x] Update position service to use FX converter during recalculation:
+  - Added `PortfolioCurrencyChecker` interface for looking up portfolio base currency
+  - Added `PortfolioCurrencyCheckerImpl` in data layer
+  - Updated `AccountRef` to include `PortfolioCurrency`
+  - Added new sqlc queries: `ListAllAccountsWithPortfolioCurrency`, `GetAccountsByPortfolioWithCurrency`
+  - `RecalculateAccount` now converts P&L after calculation (not inside calculator — keeps it pure)
+- [x] Update position API responses to include `realized_pnl_base`, `fx_rate_used`, `fx_rate_fallback`
+- [x] Update position web templates to show P&L in both currencies with fallback indicator (⚠ icon)
+- [x] Write unit tests for FX conversion logic in `fx_converter_test.go`
 
-**Verification:** P&L shown in both transaction currency and base currency; fallback indicator shown when historical rate unavailable; unit tests cover happy path and fallback.
+**Verification:** P&L shown in both transaction currency and base currency; fallback indicator shown when historical rate unavailable; unit tests cover happy path and fallback. ✅ All tests pass; go vet clean.
 
 ---
 

@@ -26,6 +26,19 @@ SELECT * FROM accounts
 WHERE portfolio_id = ?
 ORDER BY id ASC;
 
+-- name: ListAllAccountsWithPortfolioCurrency :many
+SELECT a.id, a.name, a.portfolio_id, p.currency AS portfolio_currency
+FROM accounts a
+JOIN portfolios p ON a.portfolio_id = p.id
+ORDER BY a.id ASC;
+
+-- name: GetAccountsByPortfolioWithCurrency :many
+SELECT a.id, a.name, a.portfolio_id, p.currency AS portfolio_currency
+FROM accounts a
+JOIN portfolios p ON a.portfolio_id = p.id
+WHERE a.portfolio_id = ?
+ORDER BY a.id ASC;
+
 -- name: GetAccountByName :one
 SELECT * FROM accounts WHERE name = ?;
 
