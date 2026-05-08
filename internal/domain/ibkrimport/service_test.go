@@ -2,6 +2,7 @@ package ibkrimport
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -144,8 +145,30 @@ func (m *mockBrokerSymbolAdder) AddBrokerSymbolMapping(_ context.Context, broker
 	return nil
 }
 
+type mockPositionRecalculator struct {
+	recalculated []int64 // account IDs that were recalculated
+	fail         bool
+}
+
+func newMockPositionRecalculator() *mockPositionRecalculator {
+	return &mockPositionRecalculator{}
+}
+
+func (m *mockPositionRecalculator) WithFailure() *mockPositionRecalculator {
+	m.fail = true
+	return m
+}
+
+func (m *mockPositionRecalculator) RecalculateAccount(_ context.Context, accountID int64) error {
+	m.recalculated = append(m.recalculated, accountID)
+	if m.fail {
+		return fmt.Errorf("recalculation failed")
+	}
+	return nil
+}
+
 // setupService creates a Service with configured mocks.
-func setupService(t *testing.T, accountIDs []int64, symbols []string, dupRefs []string) (*Service, *mockSymbolResolver, *mockDuplicateChecker, *mockTransactionCreator, *mockAccountChecker, *mockSymbolCreator, *mockBrokerSymbolAdder) {
+func setupService(t *testing.T, accountIDs []int64, symbols []string, dupRefs []string) (*Service, *mockSymbolResolver, *mockDuplicateChecker, *mockTransactionCreator, *mockAccountChecker, *mockSymbolCreator, *mockBrokerSymbolAdder, *mockPositionRecalculator) {
 	t.Helper()
 	resolver := newMockSymbolResolver(symbols...)
 	dupCheck := newMockDuplicateChecker(dupRefs...)
@@ -153,14 +176,15 @@ func setupService(t *testing.T, accountIDs []int64, symbols []string, dupRefs []
 	accounts := newMockAccountChecker(accountIDs...)
 	symCreate := newMockSymbolCreator()
 	brokerAdd := newMockBrokerSymbolAdder()
-	svc := NewService(resolver, dupCheck, creator, accounts, symCreate, brokerAdd)
-	return svc, resolver, dupCheck, creator, accounts, symCreate, brokerAdd
+	recalc := newMockPositionRecalculator()
+	svc := NewService(resolver, dupCheck, creator, accounts, symCreate, brokerAdd, WithPositionRecalculator(recalc))
+	return svc, resolver, dupCheck, creator, accounts, symCreate, brokerAdd, recalc
 }
 
 // ==================== PREVIEW ====================
 
 func TestService_Preview_SampleXML(t *testing.T) {
-	svc, resolver, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP", "$CASH-XYZ"}, nil)
+	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP", "$CASH-XYZ"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
 
@@ -203,7 +227,7 @@ func TestService_Preview_SampleXML(t *testing.T) {
 }
 
 func TestService_Preview_AllDuplicates(t *testing.T) {
-	svc, resolver, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP", "$CASH-XYZ"},
+	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP", "$CASH-XYZ"},
 		[]string{"30000000001", "30000000002", "30000000003", "30000000004", "30000000005",
 			"30000000006_fx_withdrawal", "30000000006_fx_deposit", "30000000010", "30000000011", "30000000012", "30000000013",
 			"30000000014", "30000000015", "30000000016", "30000000020", "30000000021"})
@@ -233,7 +257,7 @@ func TestService_Preview_AllDuplicates(t *testing.T) {
 
 func TestService_Preview_UnmappedSymbols(t *testing.T) {
 	// Only resolve AAPL, not STHY
-	svc, resolver, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "$CASH-USD", "$CASH-GBP"}, nil)
+	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "$CASH-USD", "$CASH-GBP"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 
 	data := loadSampleXML(t)
@@ -257,7 +281,7 @@ func TestService_Preview_UnmappedSymbols(t *testing.T) {
 }
 
 func TestService_Preview_FXTrades(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP", "$CASH-USD"}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP", "$CASH-USD"}, nil)
 
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
@@ -319,7 +343,7 @@ func TestService_Preview_FXTrades(t *testing.T) {
 }
 
 func TestService_Preview_Transfers(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP"}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP"}, nil)
 
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
@@ -372,7 +396,7 @@ func TestService_Preview_Transfers(t *testing.T) {
 }
 
 func TestService_Preview_CashTransactions(t *testing.T) {
-	svc, resolver, _, _, _, _, _ := setupService(t, []int64{1}, []string{"STHY", "$CASH-USD", "$CASH-GBP"}, nil)
+	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"STHY", "$CASH-USD", "$CASH-GBP"}, nil)
 	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
 
 	xmlData := []byte(`
@@ -433,7 +457,7 @@ func TestService_Preview_CashTransactions(t *testing.T) {
 }
 
 func TestService_Preview_NonExistentAccount(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	_, err := svc.Preview(ctx, []byte("dummy"), 999)
 	if err == nil {
@@ -445,7 +469,7 @@ func TestService_Preview_NonExistentAccount(t *testing.T) {
 }
 
 func TestService_Preview_InvalidXML(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	_, err := svc.Preview(ctx, []byte("not xml"), 1)
 	if err == nil {
@@ -457,7 +481,7 @@ func TestService_Preview_InvalidXML(t *testing.T) {
 }
 
 func TestService_Preview_EmptySections(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
@@ -493,7 +517,7 @@ func TestService_Preview_EmptySections(t *testing.T) {
 // ==================== CONFIRM IMPORT ====================
 
 func TestService_ConfirmImport_Basic(t *testing.T) {
-	svc, resolver, _, creator, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP"}, nil)
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
 
@@ -535,7 +559,7 @@ func TestService_ConfirmImport_Basic(t *testing.T) {
 }
 
 func TestService_ConfirmImport_RollbackOnFailure(t *testing.T) {
-	svc, resolver, _, creator, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "$CASH-USD"}, nil)
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "$CASH-USD"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 	creator.WithFailure()
 
@@ -600,7 +624,7 @@ func TestService_ConfirmImport_DetectsNewDuplicates(t *testing.T) {
 }
 
 func TestService_ConfirmImport_NonExistentAccount(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	_, err := svc.ConfirmImport(ctx, []byte("dummy"), 999)
 	if err == nil {
@@ -609,7 +633,7 @@ func TestService_ConfirmImport_NonExistentAccount(t *testing.T) {
 }
 
 func TestService_ConfirmImport_InvalidXML(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	_, err := svc.ConfirmImport(ctx, []byte("not xml"), 1)
 	if err == nil {
@@ -618,7 +642,7 @@ func TestService_ConfirmImport_InvalidXML(t *testing.T) {
 }
 
 func TestService_ConfirmImport_FXTrades(t *testing.T) {
-	svc, _, _, creator, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP", "$CASH-USD"}, nil)
+	svc, _, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP", "$CASH-USD"}, nil)
 
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
@@ -676,7 +700,7 @@ func TestService_ConfirmImport_FXTrades(t *testing.T) {
 }
 
 func TestService_ConfirmImport_MixedRecords(t *testing.T) {
-	svc, resolver, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP"}, nil)
+	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
 
@@ -716,7 +740,7 @@ func TestService_ConfirmImport_MixedRecords(t *testing.T) {
 }
 
 func TestService_ConfirmImport_TradeFieldValues(t *testing.T) {
-	svc, resolver, _, creator, _, _, _ := setupService(t, []int64{1}, []string{"AAPL"}, nil)
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 
 	xmlData := []byte(`
@@ -778,7 +802,7 @@ func TestService_ConfirmImport_TradeFieldValues(t *testing.T) {
 }
 
 func TestService_ConfirmImport_CashTransactionFieldValues(t *testing.T) {
-	svc, resolver, _, creator, _, _, _ := setupService(t, []int64{1}, []string{"STHY", "$CASH-USD"}, nil)
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"STHY", "$CASH-USD"}, nil)
 	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
 
 	xmlData := []byte(`
@@ -825,7 +849,7 @@ func TestService_ConfirmImport_CashTransactionFieldValues(t *testing.T) {
 }
 
 func TestService_ConfirmImport_EmptyReport(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	xmlData := []byte(`
 		<FlexQueryResponse queryName="test" type="AF">
@@ -846,6 +870,123 @@ func TestService_ConfirmImport_EmptyReport(t *testing.T) {
 
 	if got.CreatedCount != 0 {
 		t.Errorf("expected 0 created, got %d", got.CreatedCount)
+	}
+}
+
+func TestService_ConfirmImport_LotIDFromIbOrderID(t *testing.T) {
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL"}, nil)
+	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
+
+	// Two buys with same ibOrderID (partial fills) should get same lot_id.
+	// A sell with different ibOrderID should get a different lot_id.
+	xmlData := []byte(`
+		<FlexQueryResponse queryName="test" type="AF">
+			<FlexStatements count="1">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
+					<Trades>
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="50" tradePrice="190" tradeMoney="9500" proceeds="-9500" netCash="-9501.90" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="50" tradePrice="191" tradeMoney="9550" proceeds="-9550" netCash="-9551.90" buySell="BUY" tradeDate="20250415" transactionID="30000000002" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="-100" tradePrice="220" tradeMoney="-22000" proceeds="22000" netCash="21996.20" buySell="SELL" tradeDate="20250720" transactionID="30000000003" ibOrderID="5000000002" />
+					</Trades>
+					<CashTransactions></CashTransactions>
+					<Transfers></Transfers>
+				</FlexStatement>
+			</FlexStatements>
+		</FlexQueryResponse>
+	`)
+
+	_, err := svc.ConfirmImport(ctx, xmlData, 1)
+	if err != nil {
+		t.Fatalf("ConfirmImport: %v", err)
+	}
+
+	txns := creator.Created()
+	if len(txns) != 3 {
+		t.Fatalf("expected 3 transactions, got %d", len(txns))
+	}
+
+	// First two buys share the same ibOrderID → same lot_id
+	wantLotID1 := "LOT-IBKR-5000000001"
+	if txns[0].LotID == nil || *txns[0].LotID != wantLotID1 {
+		t.Errorf("txn 0: expected LotID %q, got %v", wantLotID1, txns[0].LotID)
+	}
+	if txns[1].LotID == nil || *txns[1].LotID != wantLotID1 {
+		t.Errorf("txn 1: expected LotID %q, got %v", wantLotID1, txns[1].LotID)
+	}
+
+	// Sell has different ibOrderID → different lot_id
+	wantLotID2 := "LOT-IBKR-5000000002"
+	if txns[2].LotID == nil || *txns[2].LotID != wantLotID2 {
+		t.Errorf("txn 2: expected LotID %q, got %v", wantLotID2, txns[2].LotID)
+	}
+}
+
+func TestService_ConfirmImport_PositionRecalculation(t *testing.T) {
+	svc, resolver, _, _, _, _, _, recalc := setupService(t, []int64{1}, []string{"AAPL", "$CASH-USD"}, nil)
+	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
+
+	xmlData := []byte(`
+		<FlexQueryResponse queryName="test" type="AF">
+			<FlexStatements count="1">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
+					<Trades>
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19003.80" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
+					</Trades>
+					<CashTransactions></CashTransactions>
+					<Transfers></Transfers>
+				</FlexStatement>
+			</FlexStatements>
+		</FlexQueryResponse>
+	`)
+
+	_, err := svc.ConfirmImport(ctx, xmlData, 1)
+	if err != nil {
+		t.Fatalf("ConfirmImport: %v", err)
+	}
+
+	if len(recalc.recalculated) != 1 {
+		t.Errorf("expected 1 recalculation, got %d", len(recalc.recalculated))
+	}
+	if len(recalc.recalculated) > 0 && recalc.recalculated[0] != 1 {
+		t.Errorf("expected recalc for account 1, got %d", recalc.recalculated[0])
+	}
+}
+
+func TestService_ConfirmImport_NoLotIDForNonTrades(t *testing.T) {
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"STHY", "$CASH-USD"}, nil)
+	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
+
+	xmlData := []byte(`
+		<FlexQueryResponse queryName="test" type="AF">
+			<FlexStatements count="1">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
+					<Trades></Trades>
+					<CashTransactions>
+						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIV" amount="250.00" type="Dividends" transactionID="30000000010" reportDate="20250531" />
+					</CashTransactions>
+					<Transfers>
+						<Transfer accountId="U111" currency="USD" description="TRANSFER IN" date="20250710" type="INTERNAL" direction="IN" cashTransfer="250.00" transactionID="30000000020" />
+					</Transfers>
+				</FlexStatement>
+			</FlexStatements>
+		</FlexQueryResponse>
+	`)
+
+	_, err := svc.ConfirmImport(ctx, xmlData, 1)
+	if err != nil {
+		t.Fatalf("ConfirmImport: %v", err)
+	}
+
+	txns := creator.Created()
+	if len(txns) != 2 {
+		t.Fatalf("expected 2 transactions, got %d", len(txns))
+	}
+
+	// Dividend and transfer should NOT have lot_id
+	for i, txn := range txns {
+		if txn.LotID != nil {
+			t.Errorf("txn %d (%s): expected nil LotID, got %q", i, txn.Type, *txn.LotID)
+		}
 	}
 }
 
@@ -1022,7 +1163,7 @@ func TestParseDate(t *testing.T) {
 // ==================== CREATE SYMBOL / ADD BROKER SYMBOL ====================
 
 func TestService_CreateSymbol(t *testing.T) {
-	svc, _, _, _, _, symCreate, _ := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, symCreate, _, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	err := svc.CreateSymbol(ctx, "NEWSYM", "NEWSYM")
 	if err != nil {
@@ -1037,7 +1178,7 @@ func TestService_CreateSymbol(t *testing.T) {
 }
 
 func TestService_AddBrokerSymbolMapping(t *testing.T) {
-	svc, _, _, _, _, _, brokerAdd := setupService(t, []int64{1}, []string{}, nil)
+	svc, _, _, _, _, _, brokerAdd, _ := setupService(t, []int64{1}, []string{}, nil)
 
 	err := svc.AddBrokerSymbolMapping(ctx, "IBKR", "AAPL", "AAPL")
 	if err != nil {
@@ -1060,7 +1201,7 @@ func TestService_AddBrokerSymbolMapping(t *testing.T) {
 // ==================== SAMPLE XML INTEGRATION ====================
 
 func TestService_ConfirmImport_SampleXML(t *testing.T) {
-	svc, resolver, _, creator, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP", "$CASH-XYZ"}, nil)
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP", "$CASH-XYZ"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
 

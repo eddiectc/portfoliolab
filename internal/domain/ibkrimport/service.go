@@ -3,6 +3,7 @@ package ibkrimport
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -42,6 +43,12 @@ const (
 	cashSymbolPrefix = "$CASH-"
 )
 
+// PositionRecalculator defines the interface for triggering position
+// recalculation after transaction mutations.
+type PositionRecalculator interface {
+	RecalculateAccount(ctx context.Context, accountID int64) error
+}
+
 // ---- Service ----
 
 // Service orchestrates IBKR Flex XML import: preview generation and
@@ -49,18 +56,33 @@ const (
 // resolution, duplicate detection, transaction creation, and account
 // verification.
 type Service struct {
-	resolver  SymbolResolver
-	dupCheck  DuplicateChecker
-	creator   TransactionCreator
-	accounts  AccountChecker
-	symCreate SymbolCreator
-	brokerAdd BrokerSymbolAdder
+	resolver       SymbolResolver
+	dupCheck       DuplicateChecker
+	creator        TransactionCreator
+	accounts       AccountChecker
+	symCreate      SymbolCreator
+	brokerAdd      BrokerSymbolAdder
+	positionRecalc PositionRecalculator
+	logger         *slog.Logger
+}
+
+// ServiceOption configures the import service.
+type ServiceOption func(*Service)
+
+// WithPositionRecalculator sets the position recalculator dependency.
+func WithPositionRecalculator(recalc PositionRecalculator) ServiceOption {
+	return func(s *Service) { s.positionRecalc = recalc }
+}
+
+// WithLogger sets the logger.
+func WithLogger(logger *slog.Logger) ServiceOption {
+	return func(s *Service) { s.logger = logger }
 }
 
 // NewService creates a new import service.
 func NewService(resolver SymbolResolver, dupCheck DuplicateChecker, creator TransactionCreator,
-	accounts AccountChecker, symCreate SymbolCreator, brokerAdd BrokerSymbolAdder) *Service {
-	return &Service{
+	accounts AccountChecker, symCreate SymbolCreator, brokerAdd BrokerSymbolAdder, opts ...ServiceOption) *Service {
+	s := &Service{
 		resolver:  resolver,
 		dupCheck:  dupCheck,
 		creator:   creator,
@@ -68,6 +90,10 @@ func NewService(resolver SymbolResolver, dupCheck DuplicateChecker, creator Tran
 		symCreate: symCreate,
 		brokerAdd: brokerAdd,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Preview parses the XML and returns a categorized preview of transactions
@@ -292,6 +318,15 @@ func (s *Service) ConfirmImport(ctx context.Context, xmlData []byte, accountID i
 		return nil, fmt.Errorf("batch create transactions: %w", err)
 	}
 
+	// Trigger position recalculation for the affected account.
+	if s.positionRecalc != nil {
+		if err := s.positionRecalc.RecalculateAccount(ctx, accountID); err != nil {
+			if s.logger != nil {
+				s.logger.Warn("position recalculation after import failed", "account_id", accountID, "error", err)
+			}
+		}
+	}
+
 	return &ImportResult{
 		CreatedCount: len(txns),
 		SkippedCount: skippedCount,
@@ -406,6 +441,10 @@ func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int
 	netCash, _ := decimal.Parse(trade.NetCash)
 	date := parseDate(trade.TradeDate)
 
+	// Generate lot_id from IBKR order ID so partial fills of the same
+	// order share one lot. Format: LOT-IBKR-<ibOrderID>.
+	lotID := "LOT-IBKR-" + trade.IbOrderID
+
 	return typ, tradeResult{
 		singleTxn: &transaction.Transaction{
 			AccountID:         accountID,
@@ -416,6 +455,7 @@ func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int
 			Price:             price,
 			Currency:          trade.Currency,
 			NetCash:           netCash,
+			LotID:             &lotID,
 			ExternalSystem:    extSys,
 			ExternalReference: &trade.TransactionID,
 			CreatedAt:         now,

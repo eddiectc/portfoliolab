@@ -1,5 +1,12 @@
 # Notes: Positions
 
+## Task 6 Implementation Notes (2026-05-08)
+- Both import services use functional options pattern (`ServiceOption`) for optional dependencies (`WithPositionRecalculator`, `WithLogger`), keeping the `NewService` signature backward compatible.
+- IBKR: lot_id format is `LOT-IBKR-<ibOrderID>` so partial fills of the same order share one lot. Only buy/sell trades get lot_ids; cash transactions (dividends, interest, fees) and transfers do not.
+- Trading 212: lot_id format is `LOT-<ulid>` (auto-generated per trade) since no order ID exists in broker data. Only buy/sell trades get lot_ids; deposits, withdrawals, and interest do not.
+- Recalculation is fire-and-forget: errors are logged but don't fail the import (same semantics as transaction CRUD recalc).
+- Both services accept `*slog.Logger` via `WithLogger` for conditional warning logs on recalc failures.
+
 ## Decisions
 - 2026-05-08: `market_data.date` uses `''` (empty string) as sentinel for "latest/current" instead of `NULL`. This ensures `UNIQUE(symbol, source, date)` enforces one row per symbol per source, even for current prices. `NOT NULL DEFAULT ''` on the column. Historical snapshots use `YYYY-MM-DD` format.
 - 2026-05-08: `MarketDataFetcher` replaces `QuoteFetcher` as the primary interface. `Quote` struct and `QuoteFetcher` interface removed (no longer used anywhere). `YahooFinanceFetcher.FetchQuote` returns `*MarketData`. `WithQuoteFetcher` renamed to `WithMarketDataFetcher`.
