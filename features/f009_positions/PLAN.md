@@ -127,7 +127,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Group transactions by lot_id into buy lots and sell lots.
 
-- [ ] Implement `GroupTransactionsIntoLots(transactions []Transaction) ([]LotGroup, []LotGroup)` in `calculator.go`:
+- [x] Implement `GroupTransactionsIntoLots(transactions []Transaction) ([]LotGroup, []LotGroup)` in `calculator.go`:
   - Separate buy transactions from sell transactions
   - Group by lot_id (transactions with same lot_id → same lot)
   - Compute lot open_date (earliest transaction date in the lot)
@@ -135,7 +135,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - For buy lots: compute cost_basis (sum of net_cash, which is negative for buys — includes commission/fee) and avg_open_price (cost_basis / total quantity, will be negative reflecting cash outflow)
   - For sell lots: compute sell_proceeds (sum of net_cash, which is positive for sells — includes commission/fee) and avg_close_price (sell_proceeds / total quantity, will be positive reflecting cash inflow)
   - Sort lots chronologically by open_date
-- [ ] Write unit tests in `lot_grouping_test.go` (table-driven):
+- [x] Write unit tests in `lot_grouping_test.go` (table-driven):
   - Single buy transaction → one buy lot
   - Multiple buys with same lot_id → one buy lot with summed quantity
   - Multiple buys with different lot_ids → separate buy lots
@@ -143,7 +143,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - Empty transactions → empty lots
   - Chronological sorting of lots
 
-**Verification:** All lot grouping tests pass; correctly groups by lot_id and computes lot aggregates.
+**Verification:** All lot grouping tests pass; correctly groups by lot_id and computes lot aggregates. ✅ 10/10 tests pass.
 
 ---
 
