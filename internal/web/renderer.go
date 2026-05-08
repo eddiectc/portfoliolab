@@ -1,6 +1,7 @@
 package web
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -18,6 +19,7 @@ type Renderer struct {
 	mu        sync.Mutex
 	templates map[string]*template.Template
 	baseDir   string
+	cssHash   string // short hash of style.css for cache busting
 }
 
 // NewRenderer creates a new Renderer and parses all templates from the given directory.
@@ -31,7 +33,22 @@ func NewRenderer(baseDir string) (*Renderer, error) {
 		return nil, err
 	}
 
+	// Compute a short hash of the CSS file for cache busting.
+	if hash, err := computeCSSHash(filepath.Join(baseDir, "static", "css", "style.css")); err == nil {
+		r.cssHash = hash
+	}
+
 	return r, nil
+}
+
+// computeCSSHash reads the CSS file and returns a short hex hash (first 8 chars).
+func computeCSSHash(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256(data)
+	return fmt.Sprintf("%x", hash)[:8], nil
 }
 
 // parseTemplates walks the templates directory and parses each page template
@@ -73,6 +90,9 @@ func (r *Renderer) parseTemplates() error {
 			default:
 				return fmt.Sprintf("%.2f", val)
 			}
+		},
+		"cssHash": func() string {
+			return r.cssHash
 		},
 		"rowClass": func(costBasis, realizedPnL, marketValue string) string {
 			// Returns a CSS class for row-level P&L color accent.
@@ -238,9 +258,10 @@ type FilterEncoder interface {
 
 // PageData holds common data passed to all page templates.
 type PageData struct {
-	Title    string
-	Flash    string // One-time message (e.g., "Portfolio created")
-	Error    string // Form validation error
+	Title   string
+	Flash   string // One-time message (e.g., "Portfolio created")
+	Error   string // Form validation error
+	CSSHash string // short hash of style.css for cache busting
 }
 
 // StaticHandler returns an HTTP handler that serves static files from the given directory.
