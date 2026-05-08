@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 )
 
 // Repository defines the data access interface for transactions.
@@ -430,9 +430,10 @@ func (s *Service) resolveLotID(ctx context.Context, lotID *string, accountID int
 	return lotID, nil
 }
 
-// generateLotID creates a new unique lot ID in the format LOT-<first 8 chars of UUID>.
+// generateLotID creates a new unique lot ID in the format LOT-<ulid>.
+// ULID is lexicographically sortable by creation time.
 func generateLotID() string {
-	return "LOT-" + strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+	return "LOT-" + ulid.Make().String()
 }
 
 // mapValidationError maps a validator error to the appropriate service error.
