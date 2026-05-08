@@ -115,6 +115,28 @@ func (f *YahooFinanceFetcher) FetchFxRate(_ context.Context, pair string) (*Mark
 	}, nil
 }
 
+// FetchRate fetches the current FX rate for a currency pair and returns
+// an FxRate. This satisfies the FxRateFetcher interface.
+func (f *YahooFinanceFetcher) FetchRate(ctx context.Context, pair string) (*FxRate, error) {
+	md, err := f.FetchFxRate(ctx, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	base, quote, err := ParseFxPair(pair)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FxRate{
+		Pair:          pair,
+		BaseCurrency:  base,
+		QuoteCurrency: quote,
+		Rate:          md.Price,
+		FetchedAt:     md.FetchedAt,
+	}, nil
+}
+
 // FxPairToYahooSymbol converts a currency pair like "GBP/USD" to Yahoo's
 // ticker format "GBPUSD=X".
 func FxPairToYahooSymbol(pair string) string {
