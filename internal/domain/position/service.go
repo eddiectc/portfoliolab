@@ -160,54 +160,61 @@ func (s *Service) getBaseCurrencyForAccount(accounts []AccountRef, accountID int
 // convertPnlToBase converts realized P&L for all positions in the result
 // from their transaction currency to the portfolio base currency.
 func (s *Service) convertPnlToBase(ctx context.Context, result *CalculateResult, baseCurrency string) {
-	allPositions := append(append(result.OpenPositions, result.ClosedPositions...), result.CashPositions...)
-	for i := range allPositions {
-		p := &allPositions[i]
-		// Skip cash positions — they are already in the cash currency.
-		if isCashPosition(p.Symbol) {
-			continue
-		}
-
-		pair := BuildFxPair(p.Currency, baseCurrency)
-		if pair == "" {
-			// Same currency as base — no conversion needed, rate is 1.
-			p.RealizedPnlBase = &p.RealizedPnL
-			rate := decimal.One
-			p.FxRateUsed = &rate
-			p.FxRateFallback = false
-			continue
-		}
-
-		// Determine the date to use for the FX rate.
-		var date time.Time
-		if p.CloseDate != nil {
-			date = *p.CloseDate
-		} else {
-			date = p.OpenDate
-		}
-
-		// Get the FX rate.
-		var rate *market.FxRate
-		var isFallback bool
-		if p.IsClosed {
-			rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
-		} else {
-			// For open positions, use current spot rate.
-			var found bool
-			rate, found = s.fxProvider.GetCurrentRate(ctx, pair)
-			if !found {
-				// Try GetRateForDate as a last resort.
-				rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
-			}
-		}
-
-		converted, rateUsed, fallback := ConvertPnlToBase(
-			p.RealizedPnL, p.Currency, baseCurrency, rate, isFallback,
-		)
-		p.RealizedPnlBase = &converted
-		p.FxRateUsed = rateUsed
-		p.FxRateFallback = fallback
+	// Process each slice separately to avoid append copy issues.
+	for i := range result.OpenPositions {
+		s.convertPositionPnl(&result.OpenPositions[i], baseCurrency, ctx, false)
 	}
+	for i := range result.ClosedPositions {
+		s.convertPositionPnl(&result.ClosedPositions[i], baseCurrency, ctx, true)
+	}
+	// Cash positions are skipped — already in cash currency.
+}
+
+// convertPositionPnl converts a single position's realized P&L to base currency
+// and sets FxRateUsed / FxRateFallback.
+func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx context.Context, isClosed bool) {
+	// Skip cash positions.
+	if isCashPosition(p.Symbol) {
+		return
+	}
+
+	pair := BuildFxPair(p.Currency, baseCurrency)
+	if pair == "" {
+		// Same currency as base — no conversion needed, rate is 1.
+		p.RealizedPnlBase = &p.RealizedPnL
+		rate := decimal.One
+		p.FxRateUsed = &rate
+		p.FxRateFallback = false
+		return
+	}
+
+	// Determine the date to use for the FX rate.
+	var date time.Time
+	if p.CloseDate != nil {
+		date = *p.CloseDate
+	} else {
+		date = p.OpenDate
+	}
+
+	// Get the FX rate.
+	var rate *market.FxRate
+	var isFallback bool
+	if isClosed {
+		rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
+	} else {
+		var found bool
+		rate, found = s.fxProvider.GetCurrentRate(ctx, pair)
+		if !found {
+			rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
+		}
+	}
+
+	converted, rateUsed, fallback := ConvertPnlToBase(
+		p.RealizedPnL, p.Currency, baseCurrency, rate, isFallback,
+	)
+	p.RealizedPnlBase = &converted
+	p.FxRateUsed = rateUsed
+	p.FxRateFallback = fallback
 }
 
 // RecalculatePortfolio recalculates positions for all accounts in a portfolio.

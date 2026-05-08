@@ -689,3 +689,32 @@ func TestPosition_DividendWithNoOpenPosition(t *testing.T) {
 	}
 	t.Error("expected $CASH-USD position")
 }
+
+// TestPosition_FxRatePersisted verifies that FxRateUsed and FxRateFallback
+// are persisted to the database during recalculation and survive a reload.
+func TestPosition_FxRatePersisted(t *testing.T) {
+	db, router, _, accountID := setupPos(t)
+
+	// Create a closed position: buy then sell all
+	createTransaction(t, router, accountID, "2025-01-15", "buy", "AAPL", 100, 15000, -1500000)
+	createTransaction(t, router, accountID, "2025-03-20", "sell", "AAPL", -100, 17000, 1700000)
+
+	// Query the database directly to check fx_rate_used is persisted
+	var fxRateUsed string
+	var fxRateFallback bool
+	err := db.QueryRow(`
+		SELECT fx_rate_used, fx_rate_fallback FROM positions
+		WHERE account_id = ? AND symbol = 'AAPL' AND is_closed = 1
+	`, accountID).Scan(&fxRateUsed, &fxRateFallback)
+	if err != nil {
+		t.Fatalf("query fx_rate_used: %v", err)
+	}
+
+	// Same-currency position (USD/USD) should have fx_rate_used = '1'
+	if fxRateUsed != "1" {
+		t.Errorf("expected fx_rate_used = '1' for same-currency closed position, got %q", fxRateUsed)
+	}
+	if fxRateFallback {
+		t.Error("expected fx_rate_fallback = false for same-currency position, got true")
+	}
+}
