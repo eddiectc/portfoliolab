@@ -351,23 +351,23 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Build server-rendered web pages for browsing positions with drill-down.
 
-- [ ] Create `internal/api/handlers/position_web.go`:
+- [x] Create `internal/api/handlers/position_web.go`:
   - `PositionWebHandler` with position service, account service, portfolio service, renderer
   - `HandleOpenPositions` — GET /positions (open positions list with filters and pagination)
   - `HandleClosedPositions` — GET /positions/closed (closed positions list with filters and pagination)
   - `HandleLotDetail` — GET /lots/{lot_id} (lot detail with consumptions and transactions)
   - `HandleRecalculate` — POST /positions/recalculate (manual recalc trigger with flash message)
   - `RegisterRoutes(r *chi.Mux)` — specific routes before catch-all
-- [ ] Create templates:
+- [x] Create templates:
   - `templates/position/open.html` — table of open positions (symbol, quantity, avg open price, avg close price, cost basis, realized P&L, account name); links to lot detail; filter bar with account/portfolio dropdowns
   - `templates/position/closed.html` — table of closed positions (symbol, quantity, avg open price, avg close price, cost basis, realized P&L, open/close dates); links to lot detail; same filter bar
   - `templates/position/lot_detail.html` — lot details (type, quantity, cost basis or sell price, date); consumptions table (which buy lots consumed, quantities, P&L); transactions table (source transactions with links)
-- [ ] Add `PositionFilter` struct with `QueryParams()` and `PaginationQuery()` methods (following `TransactionFilter` pattern)
-- [ ] Update `templates/partials/nav.html` — change "Positions" link from `#` to `/positions`, remove `disabled` class
-- [ ] Create `internal/api/handlers/position_web_test.go` with basic handler tests
-- [ ] Update `router.go` to register position web handler
+- [x] Add `PositionFilter` struct with `QueryParams()` and `PaginationQuery()` methods (following `TransactionFilter` pattern)
+- [x] Update `templates/partials/nav.html` — change "Positions" link from `#` to `/positions`, remove `disabled` class
+- [x] Create `internal/api/handlers/position_web_test.go` with basic handler tests
+- [x] Update `router.go` to register position web handler
 
-**Verification:** Web pages render correctly; navigation works; filters preserve across pagination; drill-down links work.
+**Verification:** Web pages render correctly; navigation works; filters preserve across pagination; drill-down links work. ✅ All tests pass; go vet clean.
 
 ---
 

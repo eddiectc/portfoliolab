@@ -1,0 +1,82 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Closed Positions</h1>
+    <div class="header-actions">
+        <a href="/positions" class="btn btn-sm">Open Positions</a>
+    </div>
+</div>
+
+<form class="filter-bar" method="GET" action="/positions/closed">
+    <div class="filter-row">
+        <div class="filter-group">
+            <label for="filter_account_id">Account</label>
+            <select id="filter_account_id" name="account_id">
+                <option value="">All</option>
+                {{range .Accounts}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.Filter.AccountID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="filter-group filter-actions">
+            <button type="submit" class="btn btn-sm">Filter</button>
+            <a href="/positions/closed" class="btn btn-sm">Clear</a>
+        </div>
+    </div>
+</form>
+
+{{if eq (len .Positions) 0}}
+<p class="empty-state">No closed positions yet.</p>
+{{else}}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Symbol</th>
+            <th>Quantity</th>
+            <th>Avg Open Price</th>
+            <th>Avg Close Price</th>
+            <th>Cost Basis</th>
+            <th>Realized P&L</th>
+            <th>Currency</th>
+            <th>Account</th>
+            <th>Open Date</th>
+            <th>Close Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Positions}}
+        <tr>
+            <td>{{.Symbol}}</td>
+            <td>{{.Quantity}}</td>
+            <td>{{.AvgOpenPrice}}</td>
+            <td>{{if .AvgClosePrice}}{{.AvgClosePrice}}{{else}}—{{end}}</td>
+            <td>{{.CostBasis}}</td>
+            <td class="pnl {{if .RealizedPnL.IsPos}}positive{{else if .RealizedPnL.IsNeg}}negative{{end}}">{{.RealizedPnL}}</td>
+            <td>{{.Currency}}</td>
+            <td>{{.AccountName}}</td>
+            <td>{{.OpenDate.Format "2006-01-02"}}</td>
+            <td>{{if .CloseDate}}{{.CloseDate.Format "2006-01-02"}}{{else}}—{{end}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+
+{{if or .HasPrev .HasNext}}
+<div class="pagination">
+    {{if .HasPrev}}
+    <a href="{{.Filter.PaginationQuery (add .Page -1)}}" class="btn btn-sm">&larr; Previous</a>
+    {{else}}
+    <span class="btn btn-sm" style="opacity:0.4;pointer-events:none;">&larr; Previous</span>
+    {{end}}
+    <span class="page-indicator">Page {{.Page}}</span>
+    {{if .HasNext}}
+    <a href="{{.Filter.PaginationQuery (add .Page 1)}}" class="btn btn-sm">Next &rarr;</a>
+    {{else}}
+    <span class="btn btn-sm" style="opacity:0.4;pointer-events:none;">Next &rarr;</span>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+{{end}}
+
+{{template "base" .}}
