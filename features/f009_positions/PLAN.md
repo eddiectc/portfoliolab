@@ -68,7 +68,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Define domain models and DTOs in `internal/domain/position/` and extend `internal/market/`.
 
-- [ ] Create `internal/domain/position/position.go` with:
+- [x] Create `internal/domain/position/position.go` with:
   - `Position` struct (ID, AccountID, AccountName, Symbol, Currency, Quantity, CostBasis, AvgOpenPrice, AvgClosePrice, RealizedPnL, RealizedPnlBase, OpenDate, CloseDate, IsClosed)
     - CostBasis, AvgOpenPrice, AvgClosePrice all derived from `net_cash` (includes commission/fee), not quantity × price
   - `PositionWithMarket` struct (Position + MarketPrice, MarketValue, UnrealizedPnL, UnrealizedPnlPct, MarketDataAvailable)
@@ -76,18 +76,18 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - `LotConsumption` struct (ID, SellLotID, BuyLotID, QuantityConsumed, CostBasisConsumed, RealizedPnL)
   - `LotWithDetails` struct (Lot + Consumptions []LotConsumption, Transactions []Transaction)
   - `ListFilters` struct (AccountID, PortfolioID, AccountIDs) with `QueryParams()` method implementing `web.FilterEncoder`
-- [ ] Define position service errors: `ErrPositionNotFound`, `ErrLotNotFound`, `ErrLotSymbolMismatch`, `ErrLotAccountMismatch`, `ErrLotTypeMismatch`, `ErrInvalidLotID`
-- [ ] Define calculator interfaces in `internal/domain/position/calculator.go` (stub — logic in Tasks 3a-3d):
+- [x] Define position service errors: `ErrPositionNotFound`, `ErrLotNotFound`, `ErrLotSymbolMismatch`, `ErrLotAccountMismatch`, `ErrLotTypeMismatch`, `ErrInvalidLotID`
+- [x] Define calculator interfaces in `internal/domain/position/calculator.go` (stub — logic in Tasks 3a-3d):
   - `LotGroup` struct (LotID, AccountID, Symbol, LotType, Transactions []Transaction, OpenDate)
   - `MatchResult` struct (SellLot, Consumptions []LotConsumption, RealizedPnL)
   - `CalculateResult` struct (OpenPositions []Position, ClosedPositions []Position, Lots []Lot, Consumptions []LotConsumption)
-- [ ] Extend `internal/market/quote.go`:
+- [x] Extend `internal/market/quote.go`:
   - Add `MarketData` struct (Symbol, Price, Currency, DataType, Source, Date, FetchedAt)
   - Add `MarketDataFetcher` interface with `FetchQuote(ctx, symbol string) (*MarketData, error)` and `FetchFxRate(ctx, pair string) (*MarketData, error)`
   - Rename existing `QuoteFetcher` → embed into `MarketDataFetcher`
   - Update `YahooFinanceFetcher` to implement `MarketDataFetcher`
 
-**Verification:** Models compile; no logic yet, just types, interfaces, and constants.
+**Verification:** Models compile; no logic yet, just types, interfaces, and constants. ✅ All tests pass.
 
 ---
 
