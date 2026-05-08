@@ -17,6 +17,11 @@
 ## Known Issues
 - None
 
+## Task 4b Implementation Notes (2026-05-08)
+- `govalues/decimal` API: comparison is `d.Less(e)` (not `LessThan`), division is `d.Quo(e)` (not `Div`), absolute value is `d.Abs()`. These methods will be used throughout Tasks 4c-4e.
+- Proportional P&L per consumption chunk uses `Quo` for ratio computation: `consumeQty.Quo(totalQty)` then `Mul` for the proportional amount. This pattern applies to all downstream calculator tasks that split amounts across lots.
+- Short positions (sell exceeds buy) produce no consumption entry for the unmatched portion — the remaining quantity is implicitly zero for all buy lots. The caller (position computation) detects shorts from the sell lot's unmatched quantity.
+
 ## Task 4a Implementation Notes (2026-05-08)
 - `decimal.Add()` (and other arithmetic ops) return `(Decimal, error)` — not a single value. Calculator code handles the error with `panic(fmt.Sprintf(...))` following the `Must*` convention, since overflow on validated inputs would be a programming bug.
 - `SortLotsByDate` helper added as a public function for consumers that need custom ordering (e.g., if lots are re-sliced downstream).
