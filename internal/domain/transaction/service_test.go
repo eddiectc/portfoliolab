@@ -1044,8 +1044,9 @@ func TestService_Create_BuyAutoGeneratesLotID(t *testing.T) {
 	if got.LotID == nil {
 		t.Fatal("expected auto-generated lot_id for buy transaction")
 	}
-	if len(*got.LotID) < 3 || !strings.HasPrefix(*got.LotID, "LOT-") {
-		t.Errorf("expected lot_id to start with 'LOT-', got %q", *got.LotID)
+	// Format: LOT-<26 char ULID> = 30 chars total
+	if len(*got.LotID) != 30 || !strings.HasPrefix(*got.LotID, "LOT-") {
+		t.Errorf("expected lot_id 'LOT-<ulid>' (30 chars), got %q", *got.LotID)
 	}
 }
 
