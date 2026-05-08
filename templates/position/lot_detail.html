@@ -10,13 +10,13 @@
     <table class="table table-sm">
         <tr><th>Type</th><td><span class="type-badge type-{{.Lot.LotType}}">{{.Lot.LotType}}</span></td></tr>
         <tr><th>Symbol</th><td>{{.Lot.Symbol}}</td></tr>
-        <tr><th>Quantity</th><td>{{.Lot.Quantity}}</td></tr>
+        <tr><th>Quantity</th><td>{{formatMoney .Lot.Quantity}}</td></tr>
         {{if eq .Lot.LotType "buy"}}
-        <tr><th>Cost Basis</th><td>{{.Lot.CostBasis}}</td></tr>
+        <tr><th>Cost Basis</th><td>{{formatMoney .Lot.CostBasis}}</td></tr>
         {{else}}
-        <tr><th>Sell Price</th><td>{{if .Lot.SellPrice}}{{.Lot.SellPrice}}{{else}}—{{end}}</td></tr>
+        <tr><th>Sell Price</th><td>{{if .Lot.SellPrice}}{{formatMoney .Lot.SellPrice}}{{else}}—{{end}}</td></tr>
         {{end}}
-        <tr><th>Realized P&L</th><td class="pnl {{if .Lot.RealizedPnL.IsPos}}positive{{else if .Lot.RealizedPnL.IsNeg}}negative{{end}}">{{.Lot.RealizedPnL}}</td></tr>
+        <tr><th>Realized P&L</th><td class="pnl {{if .Lot.RealizedPnL.IsPos}}positive{{else if .Lot.RealizedPnL.IsNeg}}negative{{end}}">{{formatMoney .Lot.RealizedPnL}}</td></tr>
         <tr><th>Open Date</th><td>{{.Lot.OpenDate.Format "2006-01-02"}}</td></tr>
         <tr><th>Close Date</th><td>{{if .Lot.CloseDate}}{{.Lot.CloseDate.Format "2006-01-02"}}{{else}}—{{end}}</td></tr>
     </table>
@@ -39,9 +39,9 @@
         <tr>
             <td><a href="/lots/{{.SellLotID}}">{{.SellLotID}}</a></td>
             <td><a href="/lots/{{.BuyLotID}}">{{.BuyLotID}}</a></td>
-            <td>{{.QuantityConsumed}}</td>
-            <td>{{.CostBasisConsumed}}</td>
-            <td class="pnl {{if .RealizedPnL.IsPos}}positive{{else if .RealizedPnL.IsNeg}}negative{{end}}">{{.RealizedPnL}}</td>
+            <td>{{formatMoney .QuantityConsumed}}</td>
+            <td>{{formatMoney .CostBasisConsumed}}</td>
+            <td class="pnl {{if .RealizedPnL.IsPos}}positive{{else if .RealizedPnL.IsNeg}}negative{{end}}">{{formatMoney .RealizedPnL}}</td>
         </tr>
         {{end}}
     </tbody>
@@ -68,9 +68,9 @@
             <td><a href="/transactions/{{.ID}}">{{.Date.Format "2006-01-02"}}</a></td>
             <td><span class="type-badge type-{{.Type}}">{{.Type}}</span></td>
             <td>{{.Symbol}}</td>
-            <td>{{.Quantity}}</td>
-            <td>{{.Price}}</td>
-            <td>{{.NetCash}}</td>
+            <td>{{formatMoney .Quantity}}</td>
+            <td>{{formatMoney .Price}}</td>
+            <td>{{formatMoney .NetCash}}</td>
             <td>{{.Currency}}</td>
         </tr>
         {{end}}

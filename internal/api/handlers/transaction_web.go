@@ -41,6 +41,7 @@ type transactionFormPageData struct {
 	Price          string
 	Currency       string
 	NetCash        string
+	Description    string
 	LotID          string
 	ExternalSystem string
 	ExternalRef    string
@@ -280,6 +281,7 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 	if err != nil {
 		netCash = decimal.Zero
 	}
+	description := strings.TrimSpace(r.FormValue("description"))
 	lotID := strings.TrimSpace(r.FormValue("lot_id"))
 
 	var extSystem, extRef *string
@@ -293,6 +295,10 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 	if lotID != "" {
 		lotIDPtr = &lotID
 	}
+	var descPtr *string
+	if description != "" {
+		descPtr = &description
+	}
 
 	req := transaction.CreateRequest{
 		AccountID:         accountID,
@@ -303,6 +309,7 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 		Price:             price,
 		Currency:          currency,
 		NetCash:           netCash,
+		Description:       descPtr,
 		LotID:             lotIDPtr,
 		ExternalSystem:    extSystem,
 		ExternalReference: extRef,
@@ -330,6 +337,7 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 		data.Price = priceStr
 		data.Currency = currency
 		data.NetCash = netCashStr
+		data.Description = r.FormValue("description")
 		data.LotID = r.FormValue("lot_id")
 		data.ExternalSystem = externalSystem
 		data.ExternalRef = externalRef
@@ -362,6 +370,7 @@ func (h *TransactionWebHandler) renderCreateFormError(w http.ResponseWriter, r *
 	data.Price = r.FormValue("price")
 	data.Currency = r.FormValue("currency")
 	data.NetCash = r.FormValue("net_cash")
+	data.Description = r.FormValue("description")
 	data.LotID = r.FormValue("lot_id")
 	data.ExternalSystem = r.FormValue("external_system")
 	data.ExternalRef = r.FormValue("external_reference")
@@ -447,6 +456,9 @@ func (h *TransactionWebHandler) HandleEditPage(w http.ResponseWriter, r *http.Re
 	data.Price = t.Price.String()
 	data.Currency = t.Currency
 	data.NetCash = t.NetCash.String()
+	if t.Description != nil {
+		data.Description = *t.Description
+	}
 	if t.LotID != nil {
 		data.LotID = *t.LotID
 	}
@@ -503,6 +515,7 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		netCash = decimal.Zero
 	}
+	description := strings.TrimSpace(r.FormValue("description"))
 	lotID := strings.TrimSpace(r.FormValue("lot_id"))
 
 	req := transaction.UpdateRequest{}
@@ -528,6 +541,11 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 	}
 	if !netCash.Equal(current.NetCash) {
 		req.NetCash = transaction.OptionalDecimal{Dec: netCash, IsSet: true}
+	}
+	if (description != "" && current.Description == nil) ||
+		(description == "" && current.Description != nil) ||
+		(description != "" && current.Description != nil && description != *current.Description) {
+		req.Description = &description
 	}
 	if lotID != "" && (current.LotID == nil || *current.LotID != lotID) {
 		req.LotID = &lotID
@@ -567,6 +585,7 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 		data.Price = priceStr
 		data.Currency = currency
 		data.NetCash = netCashStr
+		data.Description = r.FormValue("description")
 		data.LotID = r.FormValue("lot_id")
 		data.ExternalSystem = externalSystem
 		data.ExternalRef = externalRef

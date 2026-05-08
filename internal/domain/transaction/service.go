@@ -179,6 +179,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Transaction, 
 		Price:             req.Price,
 		Currency:          req.Currency,
 		NetCash:           req.NetCash,
+		Description:       req.Description,
 		LotID:             lotID,
 		ExternalSystem:    req.ExternalSystem,
 		ExternalReference: req.ExternalReference,
@@ -329,6 +330,11 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Tra
 
 	if req.NetCash.IsSet {
 		t.NetCash = req.NetCash.Dec
+		changed = true
+	}
+
+	if req.Description != nil {
+		t.Description = req.Description
 		changed = true
 	}
 

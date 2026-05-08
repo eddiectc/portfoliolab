@@ -111,4 +111,5 @@ type Transaction struct {
 	CreatedAt         string         `db:"created_at"`
 	UpdatedAt         string         `db:"updated_at"`
 	LotID             sql.NullString `db:"lot_id"`
+	Description       sql.NullString `db:"description"`
 }

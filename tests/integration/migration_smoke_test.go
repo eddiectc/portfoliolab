@@ -84,6 +84,22 @@ func TestMigration_TransactionsLotIDColumnExists(t *testing.T) {
 	}
 }
 
+func TestMigration_TransactionsDescriptionColumnExists(t *testing.T) {
+	db := setupTestDB(t)
+
+	var columnName string
+	err := db.QueryRow(`
+		SELECT name FROM pragma_table_info('transactions')
+		WHERE name = 'description'
+	`).Scan(&columnName)
+	if err != nil {
+		t.Fatalf("description column not found on transactions table: %v", err)
+	}
+	if columnName != "description" {
+		t.Errorf("expected 'description', got %q", columnName)
+	}
+}
+
 func TestMigration_PositionsIndexesExist(t *testing.T) {
 	db := setupTestDB(t)
 

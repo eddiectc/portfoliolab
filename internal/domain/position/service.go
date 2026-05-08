@@ -254,10 +254,22 @@ func (s *Service) GetClosedPositions(ctx context.Context, accountIDs []int64, li
 }
 
 // getPositions retrieves positions (open or closed) for the given account IDs.
-// Fetches from each account, merges, sorts, and applies pagination.
+// Fetches from each account, merges, sorts, applies pagination, and populates
+// AccountName from the account lister.
 func (s *Service) getPositions(ctx context.Context, accountIDs []int64, limit, offset int, closed bool) ([]Position, error) {
 	if len(accountIDs) == 0 {
 		return []Position{}, nil
+	}
+
+	// Build account name lookup.
+	nameMap := make(map[int64]string)
+	if s.accountLister != nil {
+		accounts, err := s.accountLister.GetAllAccounts(ctx)
+		if err == nil {
+			for _, a := range accounts {
+				nameMap[a.ID] = a.Name
+			}
+		}
 	}
 
 	// Fetch from each account (unbounded — pagination applied after merge).
@@ -275,6 +287,13 @@ func (s *Service) getPositions(ctx context.Context, accountIDs []int64, limit, o
 			return nil, fmt.Errorf("get positions for account %d: %w", id, err)
 		}
 		all = append(all, items...)
+	}
+
+	// Populate account names.
+	for i := range all {
+		if name, ok := nameMap[all[i].AccountID]; ok {
+			all[i].AccountName = name
+		}
 	}
 
 	// Sort: symbol ASC, open_date ASC.
@@ -439,14 +458,23 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 		// Compute market value and unrealized P&L.
 		// CostBasis is negative (cash outflow), so total cost = Abs(CostBasis).
 		// MarketValue = quantity * price (positive for long, negative for short).
-		marketValue, _ := p.Quantity.Mul(quote.Price)
+		//
+		// GBp handling: Yahoo Finance returns some UK stock prices in GBp (pence)
+		// instead of GBP. Detect this from the quote's Currency field — if the
+		// quote currency is "GBp" but the position currency is "GBP", divide by 100.
+		price := quote.Price
+		if quote.Currency == "GBp" && p.Currency == "GBP" {
+			price, _ = price.Quo(decimal.MustNew(100, 0))
+		}
+
+		marketValue, _ := p.Quantity.Mul(price)
 		// UnrealizedPnL = market_value - total_cost = market_value + cost_basis
 		// (since cost_basis is negative, adding it is equivalent to subtracting abs).
 		unrealizedPnL, _ := marketValue.Add(p.CostBasis)
 
 		entry := PositionWithMarket{
 			Position:            p,
-			MarketPrice:         &quote.Price,
+			MarketPrice:         &price,
 			MarketValue:         marketValue,
 			UnrealizedPnL:       unrealizedPnL,
 			MarketDataAvailable: true,

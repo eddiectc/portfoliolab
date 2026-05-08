@@ -201,9 +201,9 @@ func buildPosition(c cycleState) Position {
 	pos := Position{
 		AccountID:     c.lots[0].AccountID,
 		Symbol:        c.lots[0].Symbol,
-		Currency:      c.lots[0].Symbol, // will be overridden by service with actual currency
+		Currency:      getCurrencyFromLots(c.lots),
 		CostBasis:     totalCostBasis,
-		AvgOpenPrice:  avgOpenPrice,
+		AvgOpenPrice:  avgOpenPrice.Abs(),
 		AvgClosePrice: avgClosePrice,
 		RealizedPnL:   realizedPnL,
 		OpenDate:      c.lots[0].OpenDate,
@@ -230,4 +230,18 @@ type cycleState struct {
 // ptrTime returns a pointer to a time.Time.
 func ptrTime(t time.Time) *time.Time {
 	return &t
+}
+
+// getCurrencyFromLots extracts the currency from the first transaction in the
+// first lot that has a non-empty currency. This handles both trade and cash
+// lots uniformly.
+func getCurrencyFromLots(lots []LotGroup) string {
+	for _, lot := range lots {
+		for _, txn := range lot.Transactions {
+			if txn.Currency != "" {
+				return txn.Currency
+			}
+		}
+	}
+	return ""
 }

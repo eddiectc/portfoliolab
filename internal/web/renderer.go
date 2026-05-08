@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -8,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/govalues/decimal"
 )
 
 // Renderer parses and executes HTML templates.
@@ -35,6 +38,75 @@ func NewRenderer(baseDir string) (*Renderer, error) {
 // with the shared base and partials.
 func (r *Renderer) parseTemplates() error {
 	funcMap := template.FuncMap{
+		"formatMoney": func(v interface{}) string {
+			// Format a decimal value as money: thousands separator, 2dp, no currency symbol.
+			// e.g. 1234567.8912 → "1,234,567.89"
+			switch val := v.(type) {
+			case fmt.Stringer:
+				return formatDecimal(val.String(), 2)
+			case string:
+				return formatDecimal(val, 2)
+			default:
+				return fmt.Sprintf("%.2f", val)
+			}
+		},
+		"formatFX": func(v interface{}) string {
+			// Format a decimal value as FX rate: 4dp.
+			// e.g. 1.2345 → "1.2345"
+			switch val := v.(type) {
+			case fmt.Stringer:
+				return formatDecimal(val.String(), 4)
+			case string:
+				return formatDecimal(val, 4)
+			default:
+				return fmt.Sprintf("%.4f", val)
+			}
+		},
+		"formatPct": func(v interface{}) string {
+			// Format a decimal value as percentage: 2dp.
+			// e.g. 12.345 → "12.35"
+			switch val := v.(type) {
+			case fmt.Stringer:
+				return formatDecimal(val.String(), 2)
+			case string:
+				return formatDecimal(val, 2)
+			default:
+				return fmt.Sprintf("%.2f", val)
+			}
+		},
+		"rowClass": func(costBasis, realizedPnL, marketValue string) string {
+			// Returns a CSS class for row-level P&L color accent.
+			// Computes total P&L ratio = (realized_pnl + market_value) / |cost_basis|
+			// "row-profit" if ≥ 5%, "row-loss" if ≤ -5%, "" otherwise.
+			cb, err := decimal.Parse(costBasis)
+			if err != nil || cb.Equal(decimal.Zero) {
+				return ""
+			}
+			rp, err := decimal.Parse(realizedPnL)
+			if err != nil {
+				rp = decimal.Zero
+			}
+			var mv decimal.Decimal
+			if marketValue != "" {
+				mv, err = decimal.Parse(marketValue)
+				if err != nil {
+					mv = decimal.Zero
+				}
+			}
+			totalPnL, _ := rp.Add(mv)
+			absCost := cb.Abs()
+			pct, _ := totalPnL.Quo(absCost)
+			// pct is a ratio (e.g. 0.05 = 5%). Compare against ±0.05.
+			threshold, _ := decimal.Parse("0.05")
+			if !pct.Less(threshold) {
+				return "row-profit"
+			}
+			negThreshold := threshold.Neg()
+			if pct.Less(negThreshold) || pct.Equal(negThreshold) {
+				return "row-loss"
+			}
+			return ""
+		},
 		"eq": func(a, b interface{}) bool {
 			switch a := a.(type) {
 			case int:
@@ -175,4 +247,65 @@ type PageData struct {
 func StaticHandler(staticDir string) http.Handler {
 	fs := http.Dir(staticDir)
 	return http.StripPrefix("/static/", http.FileServer(fs))
+}
+
+// formatDecimal parses a decimal string and formats it with the given number of
+// decimal places and thousands separators. Negative values are prefixed with "-".
+// e.g. formatDecimal("-1234567.8912", 2) → "-1,234,567.89"
+//      formatDecimal("1.2345", 4) → "1.2345"
+func formatDecimal(s string, decimals int) string {
+	if s == "" {
+		return ""
+	}
+
+	// Parse the decimal string manually.
+	neg := false
+	idx := 0
+	if len(s) > 0 && s[0] == '-' {
+		neg = true
+		idx = 1
+	}
+
+	// Split into integer and fractional parts.
+	intPart := s[idx:]
+	fracPart := ""
+	if dotIdx := strings.Index(intPart, "."); dotIdx >= 0 {
+		fracPart = intPart[dotIdx+1:]
+		intPart = intPart[:dotIdx]
+	}
+
+	// Pad or truncate fractional part to desired decimals.
+	for len(fracPart) < decimals {
+		fracPart += "0"
+	}
+	fracPart = fracPart[:decimals]
+
+	// Add thousands separators to integer part.
+	formatted := addThousandsSeparator(intPart)
+
+	result := formatted
+	if decimals > 0 {
+		result += "." + fracPart
+	}
+	if neg {
+		result = "-" + result
+	}
+	return result
+}
+
+// addThousandsSeparator inserts commas every 3 digits from the right.
+// e.g. "1234567" → "1,234,567"
+func addThousandsSeparator(s string) string {
+	if len(s) <= 3 {
+		return s
+	}
+	var result strings.Builder
+	result.Grow(len(s) + (len(s)-1)/3)
+	for i, r := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result.WriteByte(',')
+		}
+		result.WriteRune(r)
+	}
+	return result.String()
 }

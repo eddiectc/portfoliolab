@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/govalues/decimal"
@@ -361,6 +362,7 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 			Price:             price,
 			Currency:          row.Currency,
 			NetCash:           netCash,
+			Description:       toStringPtr(row.Name),
 			LotID:             &lotID,
 			ExternalSystem:    strPtr(externalSystem),
 			ExternalReference: &ref,
@@ -384,6 +386,7 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 		Price:             decimal.One,
 		Currency:          row.TotalCurrency,
 		NetCash:           netCash,
+		Description:       toStringPtr(row.Name),
 		ExternalSystem:    strPtr(externalSystem),
 		ExternalReference: &ref,
 		CreatedAt:         now,
@@ -475,6 +478,15 @@ func parseDate(s string) time.Time {
 
 // strPtr returns a pointer to the given string.
 func strPtr(s string) *string {
+	return &s
+}
+
+// toStringPtr returns a pointer to s if non-empty, nil otherwise.
+func toStringPtr(s string) *string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
 	return &s
 }
 
