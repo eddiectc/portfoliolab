@@ -1,5 +1,16 @@
 # Notes: Positions
 
+## Task 8 Implementation Notes (2026-05-08)
+- `PositionWebHandler` takes `*position.Service`, `*account.Service`, `*portfolio.Service`, and `*web.Renderer` (following the TransactionWebHandler pattern).
+- `PositionFilter` struct with `AccountID` and `PortfolioID` string fields, `QueryParams()` and `PaginationQuery(page int)` methods (following TransactionFilter pattern).
+- Three templates: `open.html` (open positions with recalculate button and link to closed), `closed.html` (closed positions with link to open), `lot_detail.html` (lot summary, consumptions table, source transactions table).
+- Cash positions highlighted with `cash-row` CSS class and `cash-symbol` span using the `contains` template function.
+- P&L values styled with `positive`/`negative` CSS classes using `IsPos`/`IsNeg` decimal methods.
+- Recalculate handler redirects to `/positions` with flash message indicating scope (account, portfolio, or all).
+- Lot detail page shows consumptions (only populated for sell lots via `GetConsumptionsBySellLot`), and source transactions from `LotWithDetails.Transactions`.
+- Nav link updated from `#`/`disabled` to `/positions` (active link).
+- Tests cover PositionFilter serialization, parsing, and query encoding.
+
 ## Task 7 Implementation Notes (2026-05-08)
 - `PositionHandler` takes `*position.Service` (concrete type, following the existing pattern of TransactionHandler).
 - Filter resolution (`account_id` → single ID, `portfolio_id` → accounts in portfolio, `account_ids` → explicit list, none → all accounts) is handled by two new service methods: `GetOpenPositionsFiltered` and `GetClosedPositionsFiltered`, which internally call `resolveAccountIDs`. This keeps the handler thin.

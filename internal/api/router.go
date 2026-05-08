@@ -121,6 +121,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 		transactionWebHandler := handlers.NewTransactionWebHandler(transactionSvc, accountSvc, symbolMappingSvc, renderer)
 		transactionWebHandler.RegisterRoutes(r)
 
+		// Position web pages
+		positionWebHandler := handlers.NewPositionWebHandler(positionSvc, accountSvc, portfolioSvc, renderer)
+		positionWebHandler.RegisterRoutes(r)
+
 		// IBKR import web pages
 		importWebHandler := handlers.NewImportWebHandler(importSvc, accountSvc, symbolMappingSvc, renderer)
 		importWebHandler.RegisterRoutes(r)
