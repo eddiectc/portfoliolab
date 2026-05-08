@@ -237,19 +237,19 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Wire the calculator sub-components into a single `CalculatePositions` function.
 
-- [ ] Implement `CalculatePositions(ctx context.Context, accountID int64, transactions []Transaction) (*CalculateResult, error)`:
+- [x] Implement `CalculatePositions(ctx context.Context, accountID int64, transactions []Transaction) (*CalculateResult, error)`:
   - Call `GroupTransactionsIntoLots`
   - Call `MatchSellLotsAgainstBuys`
   - Call `ComputePositions`
   - Call `ComputeCashPositions`
   - Merge results into `CalculateResult`
-- [ ] Write integration-style unit tests in `calculator_test.go`:
+- [x] Write integration-style unit tests in `calculator_test.go`:
   - Full flow: deposits + buys + sells → open positions + cash position
   - Full flow: buy + sell all → closed position + cash position
   - Multiple symbols in same account → separate positions
   - End-to-end FIFO matching with P&L
 
-**Verification:** Calculator produces correct results for complete transaction histories.
+**Verification:** Calculator produces correct results for complete transaction histories. ✅ 12/12 tests pass.
 
 ---
 

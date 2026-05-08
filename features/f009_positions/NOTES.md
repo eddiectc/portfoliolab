@@ -20,6 +20,16 @@
 ## Known Issues
 - None
 
+## Task 4e Implementation Notes (2026-05-08)
+- `calculator_integration.go` has one public function: `CalculatePositions` and two unexported helpers: `lotsToDomain` and `ptrDecimal`.
+- `CalculatePositions` accepts `context.Context` and `accountID` but doesn't use the context (no I/O — pure computation). Context accepted for API consistency with downstream service layer.
+- `lotsToDomain` converts `LotGroup` (calculator intermediate) to `Lot` (domain model). DB fields (ID, CreatedAt, UpdatedAt) left at zero — populated by service layer on persist.
+- Sell lots in `LotGroup` have negative `Quantity`; `lotsToDomain` takes `Abs()` for the domain model `Lot.Quantity` (always positive).
+- Sell lot's `SellProceeds` mapped to domain model's `SellPrice` field.
+- Account ID injected into all positions after computation (calculator doesn't know the account).
+- Position-level `RealizedPnL` = total cost basis + total sell proceeds (net cash flow), NOT the FIFO consumption P&L. This is by design in `ComputePositions`.
+- Floating point tolerance needed in one test: `Quo(20, 120) = 1/6` (repeating decimal) introduces tiny precision error in proportional P&L. Used `Abs().Less(tolerance)` for comparison.
+
 ## Task 4d Implementation Notes (2026-05-08)
 - `cash_position.go` has one public function: `ComputeCashPositions` and one unexported helper: `cashSymbol`.
 - Cash-affecting transaction types are defined as a `map[string]bool` constant: deposit, withdrawal, dividend, interest, fee, tax, buy, sell.
