@@ -222,6 +222,11 @@ As an investor, I want to browse my open and closed positions through a web inte
 **And** the realized P&L in USD uses the sell-date FX rate (£2.50 × 1.28 = $3.20)
 **And** the unrealized P&L in GBP is shown
 **And** the unrealized P&L in USD uses the current FX rate
+**And** the market value in GBP is shown
+**And** the market value in USD uses the current FX rate
+**And** the cost basis in USD uses the current FX rate
+**And** the P&L percentage is shown for both realized and unrealized P&L
+**And** a summary panel shows aggregated base-currency totals: Cost Basis (USD), Mkt Value (USD), Unrealized P&L (USD), Unrealized P&L %
 
 ### Scenario: View P&L in transaction currency and base currency (closed position)
 **Given** portfolio ID 1 has base currency USD
@@ -231,6 +236,8 @@ As an investor, I want to browse my open and closed positions through a web inte
 **Then** the position shows quantity 100 (the closed quantity)
 **And** the realized P&L in GBP is shown (£2.50)
 **And** the realized P&L in USD uses the sell-date FX rate (£2.50 × 1.28 = $3.20)
+**And** the P&L percentage is shown (realized P&L as % of cost basis)
+**And** the FX rate used for conversion is shown
 **And** no unrealized P&L is shown (position is closed)
 
 ### Scenario: FX rate unavailable for historical conversion (open position)
@@ -375,6 +382,10 @@ As an investor, I want to browse my open and closed positions through a web inte
 - **Closed positions view:** positions that are fully closed (current quantity = 0, close date set, excluding cash); the displayed quantity is the total quantity held during that open-to-close cycle; each open-to-close cycle creates a separate closed position entry; sorted by symbol ascending, then open date ascending
 - **Cash position:** tracked using a cash symbol per currency (e.g., `$CASH-USD`); cash balance is the running net cash from all transactions in that currency for the account; market value equals balance; no P&L on cash positions (neither realized nor unrealized); cash position is always open (never appears in closed positions view)
 - **P&L in base currency:** realized P&L uses the FX rate on the transaction date; unrealized P&L uses the current spot FX rate; if historical rate unavailable, falls back to current spot with indicator
+- **P&L percentage:** shown for both open and closed positions; computed as P&L / |CostBasis| × 100; displayed with 2 decimal places
+- **Base currency on open positions:** market value and unrealized P&L are converted to portfolio base currency using current spot FX rate; shown alongside native currency values
+- **Summary panel:** open positions page includes a summary panel with aggregated base-currency totals: Cost Basis (Base), Mkt Value (Base), Unrealized P&L (Base), Unrealized P&L %. Native currency values not shown in summary.
+- **FX rate display:** closed positions show the FX rate used for base-currency conversion
 - **Market data:** market price, market value, and unrealized P&L are computed when viewing positions using current market data; they are not persisted; positions are shown even when market data is unavailable (market value/unrealized P&L marked as unavailable)
 - **Recalculation:** positions are updated immediately when transactions are created, updated, or deleted; also available as a manual trigger for a single account, a portfolio, or all accounts
 - **Stored vs. computed data:** positions store quantity, cost basis, realized P&L, and dates; market price, market value, and unrealized P&L are computed at read time using current market data and are not persisted

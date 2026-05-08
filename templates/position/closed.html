@@ -37,7 +37,9 @@
             <th class="num">Avg Close</th>
             <th class="num">Cost Basis</th>
             <th class="num">Realized P&L</th>
-            <th class="num">Realized P&L (Base)</th>
+            <th class="num">P&L %</th>
+            {{if .BaseCurrency}}<th class="num">P&L ({{.BaseCurrency}})</th>{{end}}
+            {{if .BaseCurrency}}<th class="num">FX Rate</th>{{end}}
             <th>Currency</th>
             <th>Account</th>
             <th>Opened</th>
@@ -53,9 +55,15 @@
             <td class="num">{{if .AvgClosePrice}}{{formatMoney .AvgClosePrice}}{{else}}—{{end}}</td>
             <td class="num">{{formatMoney .CostBasis}}</td>
             <td class="num pnl {{if .RealizedPnL.IsPos}}positive{{else if .RealizedPnL.IsNeg}}negative{{end}}">{{formatMoney .RealizedPnL}}</td>
+            <td class="num pnl {{if and .RealizedPnlPct .RealizedPnlPct.IsPos}}positive{{else if and .RealizedPnlPct .RealizedPnlPct.IsNeg}}negative{{end}}">
+                {{if .RealizedPnlPct}}{{formatPct .RealizedPnlPct}}%{{else}}—{{end}}
+            </td>
+            {{if $.BaseCurrency}}
             <td class="num pnl {{if and .RealizedPnlBase .RealizedPnlBase.IsPos}}positive{{else if and .RealizedPnlBase .RealizedPnlBase.IsNeg}}negative{{end}}">
                 {{if .RealizedPnlBase}}{{formatMoney .RealizedPnlBase}}{{if .FxRateFallback}} ⚠{{end}}{{else}}—{{end}}
             </td>
+            <td class="num">{{if .FxRateUsed}}{{formatFX .FxRateUsed}}{{else}}—{{end}}</td>
+            {{end}}
             <td>{{.Currency}}</td>
             <td>{{.AccountName}}</td>
             <td>{{.OpenDate.Format "2006-01-02"}}</td>

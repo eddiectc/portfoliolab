@@ -243,6 +243,37 @@ footer {
     color: #721c24 !important;
 }
 
+/* Position summary panel */
+.position-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.summary-card {
+    background: #fff;
+    padding: 1rem 1.25rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.summary-value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
 .table tbody tr:hover {
     background: #f8f9fa;
 }

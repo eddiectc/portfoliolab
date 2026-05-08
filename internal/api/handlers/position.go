@@ -42,7 +42,8 @@ func (h *PositionHandler) HandleListOpen(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Enrich with market data (current price, market value, unrealized P&L).
-	enriched := h.service.EnrichWithMarketData(r.Context(), items)
+	// API handler doesn't resolve base currency — web handler does.
+	enriched := h.service.EnrichWithMarketData(r.Context(), items, "")
 
 	if enriched == nil {
 		enriched = []position.PositionWithMarket{}

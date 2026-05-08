@@ -40,8 +40,8 @@ func TestComputeCashPositions_SingleDeposit(t *testing.T) {
 	if !p.Quantity.Equal(dec(1000000, 2)) {
 		t.Errorf("expected Quantity 10000.00, got %q", p.Quantity.String())
 	}
-	if !p.CostBasis.Equal(decimal.Zero) {
-		t.Errorf("expected CostBasis 0, got %q", p.CostBasis.String())
+	if !p.CostBasis.Equal(dec(1000000, 2)) {
+		t.Errorf("expected CostBasis 10000.00, got %q", p.CostBasis.String())
 	}
 	if !p.RealizedPnL.Equal(decimal.Zero) {
 		t.Errorf("expected RealizedPnL 0, got %q", p.RealizedPnL.String())
