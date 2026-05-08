@@ -199,21 +199,25 @@ func newTestService(t *testing.T) (*Service, *mockRepo) {
 	return NewService(repo), repo
 }
 
-// mockQuoteFetcher simulates a market.QuoteFetcher for tests.
+// mockQuoteFetcher simulates a market.MarketDataFetcher for tests.
 type mockQuoteFetcher struct {
-	quotes map[string]*market.Quote
-	err    error
+	data map[string]*market.MarketData
+	err  error
 }
 
-func (m *mockQuoteFetcher) FetchQuote(_ context.Context, symbol string) (*market.Quote, error) {
+func (m *mockQuoteFetcher) FetchQuote(_ context.Context, symbol string) (*market.MarketData, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	if q, ok := m.quotes[symbol]; ok {
-		cp := *q
+	if d, ok := m.data[symbol]; ok {
+		cp := *d
 		return &cp, nil
 	}
 	return nil, fmt.Errorf("symbol not found: %s", symbol)
+}
+
+func (m *mockQuoteFetcher) FetchFxRate(_ context.Context, pair string) (*market.MarketData, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 // --- Create Tests ---
@@ -805,24 +809,24 @@ func TestService_PreviewSymbol_NoFetcher(t *testing.T) {
 func TestService_PreviewSymbol_Success(t *testing.T) {
 	repo := newMockRepo()
 	fetcher := &mockQuoteFetcher{
-		quotes: map[string]*market.Quote{
-			"AAPL": {Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
+		data: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
 	svc := NewService(repo, WithQuoteFetcher(fetcher))
 
-	quote, err := svc.PreviewSymbol(context.Background(), "AAPL")
+	data, err := svc.PreviewSymbol(context.Background(), "AAPL")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if quote.Symbol != "AAPL" {
-		t.Errorf("expected symbol AAPL, got %s", quote.Symbol)
+	if data.Symbol != "AAPL" {
+		t.Errorf("expected symbol AAPL, got %s", data.Symbol)
 	}
-	if quote.Name != "Apple Inc." {
-		t.Errorf("expected name Apple Inc., got %s", quote.Name)
+	if !data.Price.Equal(decimal.MustNew(17850, 2)) {
+		t.Errorf("expected price 178.50, got %s", data.Price.String())
 	}
-	if !quote.LatestPrice.Equal(decimal.MustNew(17850, 2)) {
-		t.Errorf("expected price 178.50, got %s", quote.LatestPrice.String())
+	if data.Currency != "USD" {
+		t.Errorf("expected currency USD, got %s", data.Currency)
 	}
 }
 
@@ -842,7 +846,7 @@ func TestService_PreviewSymbol_FetchError(t *testing.T) {
 func TestService_PreviewSymbol_SymbolNotFound(t *testing.T) {
 	repo := newMockRepo()
 	fetcher := &mockQuoteFetcher{
-		quotes: map[string]*market.Quote{},
+		data: map[string]*market.MarketData{},
 	}
 	svc := NewService(repo, WithQuoteFetcher(fetcher))
 

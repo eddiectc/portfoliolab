@@ -48,14 +48,14 @@ var ErrPreviewFailed = fmt.Errorf("could not fetch market data preview")
 // Service handles symbol mapping business logic.
 type Service struct {
 	repo    Repository
-	fetcher market.QuoteFetcher
+	fetcher market.MarketDataFetcher
 }
 
 // ServiceOption configures the Service.
 type ServiceOption func(*Service)
 
 // WithQuoteFetcher sets an optional quote fetcher for market data preview.
-func WithQuoteFetcher(fetcher market.QuoteFetcher) ServiceOption {
+func WithQuoteFetcher(fetcher market.MarketDataFetcher) ServiceOption {
 	return func(s *Service) {
 		s.fetcher = fetcher
 	}
@@ -244,15 +244,15 @@ func (s *Service) addBrokerSymbol(ctx context.Context, symbolMappingID int64, br
 
 // PreviewSymbol fetches a market data quote for the given symbol.
 // Returns ErrPreviewFailed if no fetcher is configured or the fetch fails.
-func (s *Service) PreviewSymbol(ctx context.Context, symbol string) (*market.Quote, error) {
+func (s *Service) PreviewSymbol(ctx context.Context, symbol string) (*market.MarketData, error) {
 	if s.fetcher == nil {
 		return nil, ErrPreviewFailed
 	}
-	quote, err := s.fetcher.FetchQuote(ctx, symbol)
+	data, err := s.fetcher.FetchQuote(ctx, symbol)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrPreviewFailed, err.Error())
 	}
-	return quote, nil
+	return data, nil
 }
 
 func validateSymbol(symbol, field string) error {

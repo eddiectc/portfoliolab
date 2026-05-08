@@ -177,21 +177,21 @@ func (h *SymbolMappingHandler) HandlePreview(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// toPreviewResponse converts a market.Quote to a PreviewResponse, detecting
+// toPreviewResponse converts a market.MarketData to a PreviewResponse, detecting
 // auto-correction when the returned symbol differs from the requested symbol.
-func (h *SymbolMappingHandler) toPreviewResponse(quote *market.Quote, requestedSymbol string) PreviewResponse {
+func (h *SymbolMappingHandler) toPreviewResponse(data *market.MarketData, requestedSymbol string) PreviewResponse {
 	resp := PreviewResponse{
-		Symbol:      quote.Symbol,
-		Name:        quote.Name,
-		Exchange:    quote.Exchange,
-		Currency:    quote.Currency,
-		LatestPrice: quote.LatestPrice,
+		Symbol:      data.Symbol,
+		Name:        "",
+		Exchange:    "",
+		Currency:    data.Currency,
+		LatestPrice: data.Price,
 	}
 
 	// Detect auto-correction: if the market data provider returned a different
 	// symbol than requested (case-insensitive comparison)
-	if !strings.EqualFold(quote.Symbol, requestedSymbol) {
-		resp.CorrectedSymbol = quote.Symbol
+	if !strings.EqualFold(data.Symbol, requestedSymbol) {
+		resp.CorrectedSymbol = data.Symbol
 	}
 
 	return resp

@@ -769,30 +769,34 @@ func TestHandlePreview_NoFetcher(t *testing.T) {
 	}
 }
 
-// testQuoteFetcher is a mock QuoteFetcher for handler preview tests.
-// It maps requested symbols to quotes, allowing simulation of auto-correction.
+// testQuoteFetcher is a mock MarketDataFetcher for handler preview tests.
+// It maps requested symbols to market data, allowing simulation of auto-correction.
 type testQuoteFetcher struct {
-	quotes map[string]*market.Quote
-	err    error
+	data map[string]*market.MarketData
+	err  error
 }
 
-func (f *testQuoteFetcher) FetchQuote(_ context.Context, symbol string) (*market.Quote, error) {
+func (f *testQuoteFetcher) FetchQuote(_ context.Context, symbol string) (*market.MarketData, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
-	q, ok := f.quotes[symbol]
+	d, ok := f.data[symbol]
 	if !ok {
 		return nil, fmt.Errorf("symbol not found: %s", symbol)
 	}
-	cp := *q
+	cp := *d
 	return &cp, nil
+}
+
+func (f *testQuoteFetcher) FetchFxRate(_ context.Context, pair string) (*market.MarketData, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func TestHandlePreview_SymbolsMatch(t *testing.T) {
 	repo := newTestSMRepo()
 	fetcher := &testQuoteFetcher{
-		quotes: map[string]*market.Quote{
-			"AAPL": {Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
+		data: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
 	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
@@ -813,9 +817,6 @@ func TestHandlePreview_SymbolsMatch(t *testing.T) {
 	if resp.Symbol != "AAPL" {
 		t.Errorf("expected symbol AAPL, got %q", resp.Symbol)
 	}
-	if resp.Name != "Apple Inc." {
-		t.Errorf("expected name Apple Inc., got %q", resp.Name)
-	}
 	if resp.CorrectedSymbol != "" {
 		t.Errorf("expected empty corrected_symbol when symbols match, got %q", resp.CorrectedSymbol)
 	}
@@ -825,8 +826,8 @@ func TestHandlePreview_AutoCorrectedSymbol(t *testing.T) {
 	repo := newTestSMRepo()
 	// Simulate go-yfinance auto-correcting "AAP" → "AAPL"
 	fetcher := &testQuoteFetcher{
-		quotes: map[string]*market.Quote{
-			"AAP": {Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
+		data: map[string]*market.MarketData{
+			"AAP": {Symbol: "AAPL", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
 	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))
@@ -854,11 +855,11 @@ func TestHandlePreview_AutoCorrectedSymbol(t *testing.T) {
 
 func TestHandlePreview_CaseInsensitiveMatch(t *testing.T) {
 	repo := newTestSMRepo()
-	// Fetcher returns a quote with lowercase symbol for uppercase request —
+	// Fetcher returns data with lowercase symbol for uppercase request —
 	// this should NOT be flagged as auto-correction (same symbol, different case)
 	fetcher := &testQuoteFetcher{
-		quotes: map[string]*market.Quote{
-			"AAPL": {Symbol: "aapl", Name: "Apple Inc.", Exchange: "NASDAQ", Currency: "USD", LatestPrice: decimal.MustNew(17850, 2)},
+		data: map[string]*market.MarketData{
+			"AAPL": {Symbol: "aapl", Price: decimal.MustNew(17850, 2), Currency: "USD", DataType: "stock", Source: "yahoo", Date: ""},
 		},
 	}
 	svc := symbolmapping.NewService(repo, symbolmapping.WithQuoteFetcher(fetcher))

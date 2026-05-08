@@ -6,48 +6,72 @@ import (
 	"github.com/govalues/decimal"
 )
 
-func TestQuoteFetcherInterface(t *testing.T) {
-	// Verify YahooFinanceFetcher implements QuoteFetcher at compile time.
-	var _ QuoteFetcher = (*YahooFinanceFetcher)(nil)
+func TestMarketDataFetcherInterface(t *testing.T) {
+	// Verify YahooFinanceFetcher implements MarketDataFetcher at compile time.
+	var _ MarketDataFetcher = (*YahooFinanceFetcher)(nil)
 }
 
-func TestQuote_StructFields(t *testing.T) {
-	q := Quote{
-		Symbol:      "AAPL",
-		Name:        "Apple Inc.",
-		Exchange:    "NMS",
-		Currency:    "USD",
-		LatestPrice: decimal.MustNew(17550, 2),
+func TestMarketData_StructFields(t *testing.T) {
+	d := MarketData{
+		Symbol:   "AAPL",
+		Price:    decimal.MustNew(17550, 2),
+		Currency: "USD",
+		DataType: "stock",
+		Source:   "yahoo",
+		Date:     "",
 	}
 
-	if q.Symbol != "AAPL" {
-		t.Errorf("expected Symbol 'AAPL', got %q", q.Symbol)
+	if d.Symbol != "AAPL" {
+		t.Errorf("expected Symbol 'AAPL', got %q", d.Symbol)
 	}
-	if q.Name != "Apple Inc." {
-		t.Errorf("expected Name 'Apple Inc.', got %q", q.Name)
+	if !d.Price.Equal(decimal.MustNew(17550, 2)) {
+		t.Errorf("expected Price 175.50, got %s", d.Price.String())
 	}
-	if q.Exchange != "NMS" {
-		t.Errorf("expected Exchange 'NMS', got %q", q.Exchange)
+	if d.Currency != "USD" {
+		t.Errorf("expected Currency 'USD', got %q", d.Currency)
 	}
-	if q.Currency != "USD" {
-		t.Errorf("expected Currency 'USD', got %q", q.Currency)
+	if d.DataType != "stock" {
+		t.Errorf("expected DataType 'stock', got %q", d.DataType)
 	}
-	if !q.LatestPrice.Equal(decimal.MustNew(17550, 2)) {
-		t.Errorf("expected LatestPrice 175.50, got %s", q.LatestPrice.String())
+	if d.Source != "yahoo" {
+		t.Errorf("expected Source 'yahoo', got %q", d.Source)
+	}
+	if d.Date != "" {
+		t.Errorf("expected empty Date (latest), got %q", d.Date)
 	}
 }
 
-func TestQuote_JSONSerialization(t *testing.T) {
-	q := Quote{
-		Symbol:      "AAPL",
-		Name:        "Apple Inc.",
-		Exchange:    "NMS",
-		Currency:    "USD",
-		LatestPrice: decimal.MustNew(17550, 2),
+func TestFxPairToYahooSymbol(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"GBP/USD", "GBPUSD=X"},
+		{"EUR/USD", "EURUSD=X"},
+		{"USD/JPY", "USDJPY=X"},
+		{"GBP/EUR", "GBPEUR=X"},
 	}
 
-	// Verify latest_price serializes as a string (preserves precision)
-	if q.LatestPrice.String() != "175.50" {
-		t.Errorf("expected LatestPrice '175.50', got %s", q.LatestPrice.String())
+	for _, tc := range tests {
+		result := FxPairToYahooSymbol(tc.input)
+		if result != tc.expected {
+			t.Errorf("FxPairToYahooSymbol(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestMarketData_JSONSerialization(t *testing.T) {
+	d := MarketData{
+		Symbol:   "AAPL",
+		Price:    decimal.MustNew(17550, 2),
+		Currency: "USD",
+		DataType: "stock",
+		Source:   "yahoo",
+		Date:     "",
+	}
+
+	// Verify price serializes as a string (preserves precision)
+	if d.Price.String() != "175.50" {
+		t.Errorf("expected Price '175.50', got %s", d.Price.String())
 	}
 }
