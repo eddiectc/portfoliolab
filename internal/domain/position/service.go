@@ -170,7 +170,11 @@ func (s *Service) convertPnlToBase(ctx context.Context, result *CalculateResult,
 
 		pair := BuildFxPair(p.Currency, baseCurrency)
 		if pair == "" {
-			// Same currency as base — no conversion needed.
+			// Same currency as base — no conversion needed, rate is 1.
+			p.RealizedPnlBase = &p.RealizedPnL
+			rate := decimal.One
+			p.FxRateUsed = &rate
+			p.FxRateFallback = false
 			continue
 		}
 
