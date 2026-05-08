@@ -1,5 +1,15 @@
 # Notes: Positions
 
+## Task 7 Implementation Notes (2026-05-08)
+- `PositionHandler` takes `*position.Service` (concrete type, following the existing pattern of TransactionHandler).
+- Filter resolution (`account_id` → single ID, `portfolio_id` → accounts in portfolio, `account_ids` → explicit list, none → all accounts) is handled by two new service methods: `GetOpenPositionsFiltered` and `GetClosedPositionsFiltered`, which internally call `resolveAccountIDs`. This keeps the handler thin.
+- `resolveAccountIDs` is a private method on the service that resolves `ListFilters` to `[]int64` account IDs using the `AccountLister`.
+- Recalculate endpoint accepts `account_id`, `portfolio_id`, or neither (→ all) as query params.
+- Error responses use `PositionError` typed errors: `ErrLotNotFound` → 404 LOT_NOT_FOUND, `ErrAccountNotFound` → 404 ACCOUNT_NOT_FOUND, `ErrPortfolioNotFound` → 404 PORTFOLIO_NOT_FOUND.
+- Tests use real `position.Service` with mock repos (following the transaction handler test pattern), not a mock service interface.
+- Mock types prefixed with `mockPos` (e.g., `mockPosRepo`, `mockPosAccountChecker`) to avoid name collisions with other test files in the same package.
+- Lot tests use chi router for URL param extraction (`chi.URLParam` needs chi's routing context).
+
 ## Task 6 Implementation Notes (2026-05-08)
 - Both import services use functional options pattern (`ServiceOption`) for optional dependencies (`WithPositionRecalculator`, `WithLogger`), keeping the `NewService` signature backward compatible.
 - IBKR: lot_id format is `LOT-IBKR-<ibOrderID>` so partial fills of the same order share one lot. Only buy/sell trades get lot_ids; cash transactions (dividends, interest, fees) and transfers do not.

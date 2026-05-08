@@ -204,6 +204,57 @@ func sortPositions(positions []Position) {
 	}
 }
 
+// resolveAccountIDs resolves ListFilters to a list of account IDs.
+// account_id → single ID, portfolio_id → accounts in portfolio,
+// account_ids → explicit list, none → all accounts.
+func (s *Service) resolveAccountIDs(ctx context.Context, filters ListFilters) ([]int64, error) {
+	if filters.AccountID != nil {
+		return []int64{*filters.AccountID}, nil
+	}
+	if filters.AccountIDs != nil && len(*filters.AccountIDs) > 0 {
+		return *filters.AccountIDs, nil
+	}
+	if filters.PortfolioID != nil {
+		accounts, err := s.accountLister.GetAccountsByPortfolio(ctx, *filters.PortfolioID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve accounts for portfolio %d: %w", *filters.PortfolioID, err)
+		}
+		ids := make([]int64, len(accounts))
+		for i, a := range accounts {
+			ids[i] = a.ID
+		}
+		return ids, nil
+	}
+	// No filter → all accounts.
+	accounts, err := s.accountLister.GetAllAccounts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all accounts: %w", err)
+	}
+	ids := make([]int64, len(accounts))
+	for i, a := range accounts {
+		ids[i] = a.ID
+	}
+	return ids, nil
+}
+
+// GetOpenPositionsFiltered retrieves open positions with filter resolution.
+func (s *Service) GetOpenPositionsFiltered(ctx context.Context, filters ListFilters, limit, offset int) ([]Position, error) {
+	accountIDs, err := s.resolveAccountIDs(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetOpenPositions(ctx, accountIDs, limit, offset)
+}
+
+// GetClosedPositionsFiltered retrieves closed positions with filter resolution.
+func (s *Service) GetClosedPositionsFiltered(ctx context.Context, filters ListFilters, limit, offset int) ([]Position, error) {
+	accountIDs, err := s.resolveAccountIDs(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetClosedPositions(ctx, accountIDs, limit, offset)
+}
+
 // GetLotDetails retrieves a lot with its consumptions.
 func (s *Service) GetLotDetails(ctx context.Context, lotID string) (*LotWithDetails, error) {
 	lot, err := s.positions.GetLotByLotID(ctx, lotID)

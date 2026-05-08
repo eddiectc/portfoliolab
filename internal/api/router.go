@@ -79,6 +79,10 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)
 	transactionHandler.RegisterRoutes(r)
 
+	// Position API
+	positionHandler := handlers.NewPositionHandler(positionSvc)
+	positionHandler.RegisterRoutes(r)
+
 	// IBKR Flex XML Import (API)
 	symbolResolver := data.NewSymbolResolver(symbolMappingRepo)
 	brokerSymbolAdder := data.NewBrokerSymbolAdder(symbolMappingRepo, symbolMappingSvc)

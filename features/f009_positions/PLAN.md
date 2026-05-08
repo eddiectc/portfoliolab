@@ -324,14 +324,14 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Build REST API endpoints for positions, lots, and recalculation.
 
-- [ ] Create `internal/api/handlers/position.go`:
-  - `PositionHandler` struct with position service, account service, portfolio service
+- [x] Create `internal/api/handlers/position.go`:
+  - `PositionHandler` struct with position service
   - `HandleListOpen` — GET /api/positions (open positions, filtered by account_id/portfolio_id/account_ids)
   - `HandleListClosed` — GET /api/positions/closed (closed positions, same filters)
   - `HandleGetLot` — GET /api/lots/{lot_id} (lot details with consumptions and transactions)
   - `HandleRecalculate` — POST /api/positions/recalculate (account_id/portfolio_id/all)
   - `RegisterRoutes(r *chi.Mux)`
-- [ ] Create `internal/api/handlers/position_test.go` with unit tests:
+- [x] Create `internal/api/handlers/position_test.go` with unit tests:
   - List open positions returns correct JSON
   - List closed positions returns correct JSON
   - List with account_id filter
@@ -339,9 +339,9 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - Get lot returns lot with consumptions
   - Recalculate returns updated positions
   - Error cases: invalid ID, lot not found, account not found
-- [ ] Update `router.go` to register position handler
+- [x] Update `router.go` to register position handler
 
-**Verification:** All API endpoints return correct JSON; error responses follow `{"error": "...", "code": "..."}` format; handlers tested with mock services.
+**Verification:** All API endpoints return correct JSON; error responses follow `{"error": "...", "code": "..."}` format; handlers tested with mock services. ✅ 18/18 tests pass.
 
 ---
 
