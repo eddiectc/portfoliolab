@@ -11,11 +11,20 @@ SELECT * FROM accounts
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
 
+-- name: ListAllAccounts :many
+SELECT * FROM accounts
+ORDER BY id ASC;
+
 -- name: GetAccountsByPortfolio :many
 SELECT * FROM accounts
 WHERE portfolio_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
+
+-- name: GetAllAccountsByPortfolio :many
+SELECT * FROM accounts
+WHERE portfolio_id = ?
+ORDER BY id ASC;
 
 -- name: GetAccountByName :one
 SELECT * FROM accounts WHERE name = ?;

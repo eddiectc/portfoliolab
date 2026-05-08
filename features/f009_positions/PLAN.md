@@ -259,7 +259,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Description:** Build the position service layer that orchestrates calculation + persistence, and wire it into the transaction lifecycle.
 
-- [ ] Create `internal/data/position_repo.go`:
+- [x] Create `internal/data/position_repo.go`:
   - `PositionRepository` with CRUD for positions, lots, lot_consumptions
   - `DeleteAllForAccount(ctx, accountID)` — clears all position data for an account (within DB transaction)
   - `CreatePosition(ctx, p *Position)`, `CreateLot(ctx, l *Lot)`, `CreateConsumption(ctx, c *LotConsumption)`
@@ -267,8 +267,8 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - `GetClosedPositions(ctx, accountIDs []int64, limit, offset int)` — list closed positions
   - `GetLotByLotID(ctx, lotID string)` — get lot + consumptions
   - sqlc queries in `position.sql`
-- [ ] Run `sqlc generate`
-- [ ] Create `internal/domain/position/service.go`:
+- [x] Run `sqlc generate`
+- [x] Create `internal/domain/position/service.go`:
   - `Service` struct with position repo, transaction repo, calculator, account checker, portfolio checker, lot checker
   - `RecalculateAccount(ctx, accountID)` — fetch all txns for account, run calculator, delete old positions/lots/consumptions, insert new (all in one DB transaction)
   - `RecalculatePortfolio(ctx, portfolioID)` — get accounts for portfolio, recalc each
@@ -277,7 +277,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - `GetClosedPositions(ctx, filters, limit, offset)` — same pattern
   - `GetLotDetails(ctx, lotID)` — get lot + consumptions + source transactions
   - `GetLotInfo(ctx, lotID)` — for LotChecker interface
-- [ ] Create `internal/domain/position/service_test.go` with unit tests (hand-written mocks):
+- [x] Create `internal/domain/position/service_test.go` with unit tests (hand-written mocks):
   - RecalculateAccount with known transactions → expected positions/lots/consumptions
   - RecalculateAccount with empty transactions → empty positions
   - RecalculatePortfolio → recalc all accounts in portfolio
@@ -285,11 +285,11 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - GetOpenPositions filters by account IDs
   - GetClosedPositions filters by account IDs
   - GetLotDetails returns lot with consumptions and transactions
-- [ ] Wire recalculation into transaction service:
+- [x] Wire recalculation into transaction service:
   - Add `PositionRecalculator` interface to transaction domain: `RecalculateAccount(ctx, accountID) error`
   - After Create/Update/Delete in transaction service, call `RecalculateAccount(accountID)`
   - Make it an optional dependency (nil-safe — if not set, skip recalc)
-- [ ] Update `router.go` to wire position service into transaction service
+- [x] Update `router.go` to wire position service into transaction service
 
 **Verification:** Creating/updating/deleting a transaction triggers position recalc; manual recalc works; unit tests pass with hand-written mocks.
 

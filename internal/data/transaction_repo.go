@@ -334,6 +334,16 @@ func (r *TransactionRepository) List(ctx context.Context, filters transaction.Li
 	return toDomainSlice(items)
 }
 
+// ListAllTransactionsByAccount retrieves all transactions for an account
+// without pagination, ordered by date ASC for position calculation.
+func (r *TransactionRepository) ListAllTransactionsByAccount(ctx context.Context, accountID int64) ([]transaction.Transaction, error) {
+	items, err := r.q.ListAllTransactionsByAccount(ctx, r.db, accountID)
+	if err != nil {
+		return nil, fmt.Errorf("list all transactions for account %d: %w", accountID, err)
+	}
+	return toDomainSlice(items)
+}
+
 // Update modifies an existing transaction.
 func (r *TransactionRepository) Update(ctx context.Context, t *transaction.Transaction) error {
 	_, err := r.q.UpdateTransaction(ctx, r.db, queries.UpdateTransactionParams{

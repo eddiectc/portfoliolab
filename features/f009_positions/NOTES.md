@@ -58,8 +58,22 @@
 - `buildLots` is an unexported helper that constructs LotGroups from a lot_id→transactions map, shared by both buy and sell paths.
 - `toTransactionRef` converts `transaction.Transaction` → `TransactionRef` (lightweight, no timestamps/IDs beyond what's needed for drill-down).
 
+## Task 5 Implementation Notes (2026-05-08)
+- `PositionRepository` in `internal/data/position_repo.go` delegates to sqlc-generated queries and handles domain ↔ sqlc type mapping (timestamps as RFC3339 strings, decimal as text).
+- `Recalculate` method on `PositionRepository` handles the full delete-then-insert within a single DB transaction, called by the service layer. This keeps the service testable with mocks.
+- `PositionRepository` interface includes `Recalculate(ctx, accountID, result *CalculateResult) error` as a single method rather than exposing raw DB access.
+- `Service` in `internal/domain/position/service.go` depends on: `PositionRepository`, `TransactionRepository` (custom interface for `ListAllTransactionsByAccount`), `AccountChecker`, `PortfolioChecker`, `AccountLister`.
+- `AccountLister` interface (in position domain) returns `AccountRef` (minimal: ID, Name, PortfolioID). Implemented by `AccountListerImpl` in `internal/data/account_lister.go`.
+- `GetLotInfo` returns `*transaction.LotInfo` (not `*position.LotInfo`) to satisfy the `transaction.LotChecker` interface without circular imports.
+- `PositionRecalculator` interface added to transaction domain: `RecalculateAccount(ctx, accountID) error`. Wired into transaction service as optional dependency (nil-safe).
+- Transaction service calls `RecalculateAccount` after Create/Update/Delete. Errors from recalc are logged but don't fail the transaction mutation (fire-and-forget semantics).
+- New sqlc queries added: `ListAllTransactionsByAccount` (no pagination, date ASC), `ListAllAccounts`, `GetAllAccountsByPortfolio`.
+- New file: `internal/data/account_lister.go` — adapter for listing accounts as `position.AccountRef`.
+- Service tests use hand-written mocks for all dependencies. `mockPositionRepository.Recalculate` simulates real behavior: deletes old data, inserts new lots/consumptions/positions with generated IDs.
+- Test helpers `makeBuyTxn`/`makeSellTxn` generate sequential lot IDs via `nextLotID()` to satisfy the calculator's lot grouping requirement.
+
 ## Task 3 Implementation Notes (2026-05-08)
-- `LotChecker` is passed as `nil` to `NewService` in `router.go` for now — it will be implemented in Task 5 (position service). The service handles `nil` lotChecker gracefully: when nil, it skips cross-checking and allows any lot_id (new lots pass through; existing lots are validated only if lotChecker is non-nil).
+- `LotChecker` is wired to the position service in `router.go` (Task 5). The service handles `nil` lotChecker gracefully for backward compatibility: when nil, it skips cross-checking and allows any lot_id (new lots pass through; existing lots are validated only if lotChecker is non-nil).
 - `generateLotID()` uses `ulid.Make()` from `github.com/oklog/ulid/v2` and produces IDs in format `LOT-<26 char ULID>` (30 chars total). ULID is lexicographically sortable by creation time. This is the project standard for string-based unique IDs.
 - `LotID` field added to `Transaction`, `CreateRequest`, and `UpdateRequest` domain models.
 - `LotInfo` struct and `LotChecker` interface added to `transaction.go`.

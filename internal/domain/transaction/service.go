@@ -46,6 +46,12 @@ type LotChecker interface {
 	GetLotInfo(ctx context.Context, lotID string) (*LotInfo, error)
 }
 
+// PositionRecalculator defines the interface for triggering position
+// recalculation after transaction mutations.
+type PositionRecalculator interface {
+	RecalculateAccount(ctx context.Context, accountID int64) error
+}
+
 const (
 	// defaultLimit is the default pagination limit when not specified.
 	defaultLimit = 50
@@ -106,21 +112,24 @@ var (
 
 // Service handles transaction business logic.
 type Service struct {
-	repo       Repository
-	accounts   AccountChecker
-	symbols    SymbolChecker
-	symCreate  SymbolCreator
-	lotChecker LotChecker
+	repo             Repository
+	accounts         AccountChecker
+	symbols          SymbolChecker
+	symCreate        SymbolCreator
+	lotChecker       LotChecker
+	positionRecalc   PositionRecalculator
 }
 
 // NewService creates a new transaction service.
-func NewService(repo Repository, accounts AccountChecker, symbols SymbolChecker, symCreate SymbolCreator, lotChecker LotChecker) *Service {
+// The positionRecalc argument may be nil if position recalculation is not needed.
+func NewService(repo Repository, accounts AccountChecker, symbols SymbolChecker, symCreate SymbolCreator, lotChecker LotChecker, positionRecalc PositionRecalculator) *Service {
 	return &Service{
-		repo:       repo,
-		accounts:   accounts,
-		symbols:    symbols,
-		symCreate:  symCreate,
-		lotChecker: lotChecker,
+		repo:         repo,
+		accounts:     accounts,
+		symbols:      symbols,
+		symCreate:    symCreate,
+		lotChecker:   lotChecker,
+		positionRecalc: positionRecalc,
 	}
 }
 
@@ -179,6 +188,11 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Transaction, 
 
 	if err := s.repo.Create(ctx, t); err != nil {
 		return nil, fmt.Errorf("create transaction: %w", err)
+	}
+
+	// Trigger position recalculation for the affected account.
+	if s.positionRecalc != nil {
+		_ = s.positionRecalc.RecalculateAccount(ctx, t.AccountID)
 	}
 
 	return t, nil
@@ -370,14 +384,29 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Tra
 		}
 	}
 
+	// Trigger position recalculation for the affected account.
+	if s.positionRecalc != nil {
+		_ = s.positionRecalc.RecalculateAccount(ctx, t.AccountID)
+	}
+
 	return t, nil
 }
 
 // Delete removes a transaction by ID.
 func (s *Service) Delete(ctx context.Context, id int64) error {
+	t, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get transaction for delete: %w", err)
+	}
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete transaction: %w", err)
 	}
+
+	// Trigger position recalculation for the affected account.
+	if s.positionRecalc != nil {
+		_ = s.positionRecalc.RecalculateAccount(ctx, t.AccountID)
+	}
+
 	return nil
 }
 

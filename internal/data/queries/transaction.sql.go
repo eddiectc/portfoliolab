@@ -124,6 +124,50 @@ func (q *Queries) HasExternalReference(ctx context.Context, db DBTX, arg HasExte
 	return column_1, err
 }
 
+const listAllTransactionsByAccount = `-- name: ListAllTransactionsByAccount :many
+SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
+WHERE account_id = ?
+ORDER BY date ASC, id ASC
+`
+
+func (q *Queries) ListAllTransactionsByAccount(ctx context.Context, db DBTX, accountID int64) ([]Transaction, error) {
+	rows, err := db.QueryContext(ctx, listAllTransactionsByAccount, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Transaction{}
+	for rows.Next() {
+		var i Transaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Date,
+			&i.Type,
+			&i.Symbol,
+			&i.Quantity,
+			&i.Price,
+			&i.Currency,
+			&i.NetCash,
+			&i.ExternalSystem,
+			&i.ExternalReference,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LotID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTransactions = `-- name: ListTransactions :many
 SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, created_at, updated_at, lot_id FROM transactions
 ORDER BY date DESC, symbol ASC, type ASC, id ASC

@@ -128,6 +128,41 @@ func (q *Queries) GetAccountsByPortfolio(ctx context.Context, db DBTX, arg GetAc
 	return items, nil
 }
 
+const getAllAccountsByPortfolio = `-- name: GetAllAccountsByPortfolio :many
+SELECT id, name, portfolio_id, created_at, updated_at FROM accounts
+WHERE portfolio_id = ?
+ORDER BY id ASC
+`
+
+func (q *Queries) GetAllAccountsByPortfolio(ctx context.Context, db DBTX, portfolioID int64) ([]Account, error) {
+	rows, err := db.QueryContext(ctx, getAllAccountsByPortfolio, portfolioID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Account{}
+	for rows.Next() {
+		var i Account
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.PortfolioID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAccounts = `-- name: ListAccounts :many
 SELECT id, name, portfolio_id, created_at, updated_at FROM accounts
 ORDER BY created_at DESC
@@ -141,6 +176,40 @@ type ListAccountsParams struct {
 
 func (q *Queries) ListAccounts(ctx context.Context, db DBTX, arg ListAccountsParams) ([]Account, error) {
 	rows, err := db.QueryContext(ctx, listAccounts, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Account{}
+	for rows.Next() {
+		var i Account
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.PortfolioID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllAccounts = `-- name: ListAllAccounts :many
+SELECT id, name, portfolio_id, created_at, updated_at FROM accounts
+ORDER BY id ASC
+`
+
+func (q *Queries) ListAllAccounts(ctx context.Context, db DBTX) ([]Account, error) {
+	rows, err := db.QueryContext(ctx, listAllAccounts)
 	if err != nil {
 		return nil, err
 	}
