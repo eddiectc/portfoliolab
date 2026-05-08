@@ -11,15 +11,6 @@ import (
 	yf "github.com/wnjoon/go-yfinance/pkg/ticker"
 )
 
-// Quote represents a simplified market data quote for display purposes.
-type Quote struct {
-	Symbol      string          `json:"symbol"`
-	Name        string          `json:"name"`
-	Exchange    string          `json:"exchange"`
-	Currency    string          `json:"currency"`
-	LatestPrice decimal.Decimal `json:"latest_price"`
-}
-
 // MarketData represents a stored market data entry for either stock quotes
 // or FX rates. Date uses empty string ("") as sentinel for "latest/current"
 // and YYYY-MM-DD for historical snapshots.
@@ -31,12 +22,6 @@ type MarketData struct {
 	Source   string           `json:"source"`     // provider identifier, e.g. "yahoo"
 	Date     string           `json:"date"`       // "" = latest, "YYYY-MM-DD" = historical
 	FetchedAt time.Time       `json:"fetched_at"`
-}
-
-// QuoteFetcher fetches market data quotes for symbols.
-// Deprecated: Use MarketDataFetcher instead.
-type QuoteFetcher interface {
-	FetchQuote(ctx context.Context, symbol string) (*Quote, error)
 }
 
 // MarketDataFetcher fetches market data for both stock quotes and FX rates.
