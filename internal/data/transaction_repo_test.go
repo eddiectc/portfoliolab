@@ -52,6 +52,7 @@ func setupTransactionDB(t *testing.T) *sql.DB {
 			external_system     TEXT,
 			external_reference  TEXT,
 			lot_id              TEXT,
+			description         TEXT,
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE

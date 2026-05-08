@@ -20,6 +20,7 @@ type Transaction struct {
 	Price             decimal.Decimal  `json:"price"`
 	Currency          string           `json:"currency"`
 	NetCash           decimal.Decimal  `json:"net_cash"`
+	Description       *string          `json:"description,omitempty"`
 	LotID             *string          `json:"lot_id,omitempty"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
@@ -38,6 +39,7 @@ type CreateRequest struct {
 	Price             decimal.Decimal  `json:"price"`
 	Currency          string           `json:"currency"`
 	NetCash           decimal.Decimal  `json:"net_cash"`
+	Description       *string          `json:"description,omitempty"`
 	LotID             *string          `json:"lot_id,omitempty"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`
@@ -97,6 +99,7 @@ type UpdateRequest struct {
 	Price             *decimal.Decimal `json:"price,omitempty"`
 	Currency          *string          `json:"currency,omitempty"`
 	NetCash           OptionalDecimal  `json:"net_cash"`
+	Description       *string          `json:"description,omitempty"`
 	LotID             *string          `json:"lot_id,omitempty"`
 	ExternalSystem    *string          `json:"external_system,omitempty"`
 	ExternalReference *string          `json:"external_reference,omitempty"`

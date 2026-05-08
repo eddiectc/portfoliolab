@@ -342,6 +342,73 @@ func TestService_Preview_FXTrades(t *testing.T) {
 	}
 }
 
+// TestService_Preview_FXTrades_ReverseCurrency tests the case where the trade
+// currency is the SECOND part of the FX pair (e.g. currency="USD" in GBP.USD).
+// This is the bug reported by the user: buying GBP.USD with currency=USD means
+// you pay USD and receive GBP.
+func TestService_Preview_FXTrades_ReverseCurrency(t *testing.T) {
+	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP", "$CASH-USD"}, nil)
+
+	xmlData := []byte(`
+		<FlexQueryResponse queryName="test" type="AF">
+			<FlexStatements count="1">
+				<FlexStatement accountId="TC UK" acctAlias="TC UK" currency="GBP" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
+					<Trades>
+						<Trade accountId="TC UK" acctAlias="TC UK" currency="USD" fxRateToBase="0.73673" assetCategory="CASH" subCategory="" symbol="GBP.USD" description="GBP.USD" conid="12087797" isin="" tradeID="8181904263" multiplier="1" reportDate="20250911" dateTime="20250911;035844" tradeDate="20250911" settleDateTarget="20250915" transactionType="ExchTrade" exchange="IDEALFX" quantity="25000" tradePrice="1.35145" tradeMoney="33786.25" proceeds="-33786.25" taxes="0" ibCommission="-1.4782" ibCommissionCurrency="GBP" netCash="0" closePrice="0" buySell="BUY" ibOrderID="4380522051" transactionID="34897388211" ibExecID="" />
+					</Trades>
+					<CashTransactions></CashTransactions>
+					<Transfers></Transfers>
+				</FlexStatement>
+			</FlexStatements>
+		</FlexQueryResponse>
+	`)
+
+	got, err := svc.Preview(ctx, xmlData, 1)
+	if err != nil {
+		t.Fatalf("Preview: %v", err)
+	}
+
+	if got.ImportableCount != 2 {
+		t.Fatalf("expected 2 importable (FX generates 2), got %d", got.ImportableCount)
+	}
+
+	// Withdrawal: USD outflow (trade currency)
+	withdrawal := got.Importable[0]
+	if withdrawal.Type != "withdrawal" {
+		t.Errorf("expected withdrawal type, got %q", withdrawal.Type)
+	}
+	if withdrawal.Symbol != "$CASH-USD" {
+		t.Errorf("expected symbol $CASH-USD, got %q", withdrawal.Symbol)
+	}
+	if withdrawal.Currency != "USD" {
+		t.Errorf("expected currency USD, got %q", withdrawal.Currency)
+	}
+	if withdrawal.Quantity != "-33786.25" {
+		t.Errorf("expected withdrawal quantity -33786.25, got %q", withdrawal.Quantity)
+	}
+	if withdrawal.NetCash != "-33786.25" {
+		t.Errorf("expected withdrawal net cash -33786.25, got %q", withdrawal.NetCash)
+	}
+
+	// Deposit: GBP inflow (the OTHER currency in the pair)
+	deposit := got.Importable[1]
+	if deposit.Type != "deposit" {
+		t.Errorf("expected deposit type, got %q", deposit.Type)
+	}
+	if deposit.Symbol != "$CASH-GBP" {
+		t.Errorf("expected symbol $CASH-GBP, got %q", deposit.Symbol)
+	}
+	if deposit.Currency != "GBP" {
+		t.Errorf("expected currency GBP, got %q", deposit.Currency)
+	}
+	if deposit.Quantity != "25000" {
+		t.Errorf("expected deposit quantity 25000, got %q", deposit.Quantity)
+	}
+	if deposit.NetCash != "25000" {
+		t.Errorf("expected deposit net cash 25000, got %q", deposit.NetCash)
+	}
+}
+
 func TestService_Preview_Transfers(t *testing.T) {
 	svc, _, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP"}, nil)
 
@@ -699,6 +766,74 @@ func TestService_ConfirmImport_FXTrades(t *testing.T) {
 	}
 }
 
+// TestService_ConfirmImport_FXTrades_ReverseCurrency tests the case where the trade
+// currency is the SECOND part of the FX pair (e.g. currency="USD" in GBP.USD).
+func TestService_ConfirmImport_FXTrades_ReverseCurrency(t *testing.T) {
+	svc, _, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"$CASH-GBP", "$CASH-USD"}, nil)
+
+	xmlData := []byte(`
+		<FlexQueryResponse queryName="test" type="AF">
+			<FlexStatements count="1">
+				<FlexStatement accountId="TC UK" acctAlias="TC UK" currency="GBP" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
+					<Trades>
+						<Trade accountId="TC UK" currency="USD" assetCategory="CASH" subCategory="" symbol="GBP.USD" description="GBP.USD" quantity="25000" tradePrice="1.35145" tradeMoney="33786.25" proceeds="-33786.25" netCash="0" buySell="BUY" tradeDate="20250911" transactionID="34897388211" ibOrderID="4380522051" />
+					</Trades>
+					<CashTransactions></CashTransactions>
+					<Transfers></Transfers>
+				</FlexStatement>
+			</FlexStatements>
+		</FlexQueryResponse>
+	`)
+
+	got, err := svc.ConfirmImport(ctx, xmlData, 1)
+	if err != nil {
+		t.Fatalf("ConfirmImport: %v", err)
+	}
+
+	if got.CreatedCount != 2 {
+		t.Errorf("expected 2 created (FX generates 2), got %d", got.CreatedCount)
+	}
+	if creator.CreatedCount() != 2 {
+		t.Errorf("expected 2 created in creator, got %d", creator.CreatedCount())
+	}
+
+	txns := creator.Created()
+
+	// Withdrawal: USD (trade currency)
+	if txns[0].Type != "withdrawal" {
+		t.Errorf("expected first FX txn to be withdrawal, got %q", txns[0].Type)
+	}
+	if txns[0].Symbol != "$CASH-USD" {
+		t.Errorf("expected first FX txn symbol $CASH-USD, got %q", txns[0].Symbol)
+	}
+	if txns[0].Currency != "USD" {
+		t.Errorf("expected first FX txn currency USD, got %q", txns[0].Currency)
+	}
+	if !txns[0].Quantity.IsNeg() {
+		t.Errorf("expected first FX txn Quantity to be negative, got %v", txns[0].Quantity)
+	}
+	if !txns[0].NetCash.IsNeg() {
+		t.Errorf("expected first FX txn NetCash to be negative, got %v", txns[0].NetCash)
+	}
+
+	// Deposit: GBP (the OTHER currency in the pair)
+	if txns[1].Type != "deposit" {
+		t.Errorf("expected second FX txn to be deposit, got %q", txns[1].Type)
+	}
+	if txns[1].Symbol != "$CASH-GBP" {
+		t.Errorf("expected second FX txn symbol $CASH-GBP, got %q", txns[1].Symbol)
+	}
+	if txns[1].Currency != "GBP" {
+		t.Errorf("expected second FX txn currency GBP, got %q", txns[1].Currency)
+	}
+	if !txns[1].Quantity.IsPos() {
+		t.Errorf("expected second FX txn Quantity to be positive, got %v", txns[1].Quantity)
+	}
+	if !txns[1].NetCash.IsPos() {
+		t.Errorf("expected second FX txn NetCash to be positive, got %v", txns[1].NetCash)
+	}
+}
+
 func TestService_ConfirmImport_MixedRecords(t *testing.T) {
 	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP"}, nil)
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
@@ -987,6 +1122,71 @@ func TestService_ConfirmImport_NoLotIDForNonTrades(t *testing.T) {
 		if txn.LotID != nil {
 			t.Errorf("txn %d (%s): expected nil LotID, got %q", i, txn.Type, *txn.LotID)
 		}
+	}
+}
+
+// TestService_ConfirmImport_Descriptions verifies that the Description field
+// is populated from the XML data for all transaction types.
+func TestService_ConfirmImport_Descriptions(t *testing.T) {
+	svc, resolver, _, creator, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP"}, nil)
+	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
+	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
+
+	xmlData := []byte(`
+		<FlexQueryResponse queryName="test" type="AF">
+			<FlexStatements count="1">
+				<FlexStatement accountId="U111" acctAlias="TEST" currency="USD" fromDate="20250101" toDate="20251231" period="test" whenGenerated="20251231;120000">
+					<Trades>
+						<Trade accountId="U111" currency="USD" assetCategory="STK" subCategory="COMMON" symbol="AAPL" description="APPLE INC" quantity="100" tradePrice="190" tradeMoney="19000" proceeds="-19000" netCash="-19000" buySell="BUY" tradeDate="20250415" transactionID="30000000001" ibOrderID="5000000001" />
+						<Trade accountId="U111" currency="GBP" assetCategory="CASH" subCategory="" symbol="GBP.USD" description="GBP.USD" quantity="10000" tradePrice="1.27" tradeMoney="12700" proceeds="-12700" netCash="0" buySell="BUY" tradeDate="20250601" transactionID="30000000006" ibOrderID="5000000005" />
+					</Trades>
+					<CashTransactions>
+						<CashTransaction accountId="U111" currency="USD" symbol="STHY" description="DIVIDEND PAYMENT" amount="250.00" type="Dividends" transactionID="10" reportDate="20250531" />
+						<CashTransaction accountId="U111" currency="GBP" description="INTEREST" amount="12.50" type="Broker Interest Received" transactionID="11" reportDate="20250604" />
+					</CashTransactions>
+					<Transfers>
+						<Transfer accountId="U111" currency="GBP" fxRateToBase="1" assetCategory="CASH" symbol="--" description="TRANSFER IN" reportDate="20250710" date="20250710" dateTime="20250710;080000" settleDate="20250711" type="INTERNAL" direction="IN" cashTransfer="250.00" transactionID="30000000020" />
+					</Transfers>
+				</FlexStatement>
+			</FlexStatements>
+		</FlexQueryResponse>
+	`)
+
+	_, err := svc.ConfirmImport(ctx, xmlData, 1)
+	if err != nil {
+		t.Fatalf("ConfirmImport: %v", err)
+	}
+
+	txns := creator.Created()
+	// Expected: 1 stock buy + 2 FX txns + 2 cash txns + 1 transfer = 6
+	if len(txns) != 6 {
+		t.Fatalf("expected 6 transactions, got %d", len(txns))
+	}
+
+	// Check stock trade description
+	if txns[0].Description == nil || *txns[0].Description != "APPLE INC" {
+		t.Errorf("stock trade: expected description 'APPLE INC', got %v", txns[0].Description)
+	}
+
+	// Check FX trade descriptions (both legs should have "GBP.USD 1.27")
+	for i, txn := range txns[1:3] {
+		expected := "GBP.USD 1.27"
+		if txn.Description == nil || *txn.Description != expected {
+			t.Errorf("FX txn %d: expected description %q, got %v", i, expected, txn.Description)
+		}
+	}
+
+	// Check cash transaction descriptions
+	if txns[3].Description == nil || *txns[3].Description != "DIVIDEND PAYMENT" {
+		t.Errorf("dividend: expected description 'DIVIDEND PAYMENT', got %v", txns[3].Description)
+	}
+	if txns[4].Description == nil || *txns[4].Description != "INTEREST" {
+		t.Errorf("interest: expected description 'INTEREST', got %v", txns[4].Description)
+	}
+
+	// Check transfer description
+	if txns[5].Description == nil || *txns[5].Description != "TRANSFER IN" {
+		t.Errorf("transfer: expected description 'TRANSFER IN', got %v", txns[5].Description)
 	}
 }
 

@@ -28,33 +28,33 @@
 {{if eq (len .Positions) 0}}
 <p class="empty-state">No closed positions yet.</p>
 {{else}}
-<table class="table">
+<table class="table table-compact">
     <thead>
         <tr>
             <th>Symbol</th>
-            <th>Quantity</th>
-            <th>Avg Open Price</th>
-            <th>Avg Close Price</th>
-            <th>Cost Basis</th>
-            <th>Realized P&L</th>
-            <th>Realized P&L (Base)</th>
+            <th class="num">Qty</th>
+            <th class="num">Avg Cost</th>
+            <th class="num">Avg Close</th>
+            <th class="num">Cost Basis</th>
+            <th class="num">Realized P&L</th>
+            <th class="num">Realized P&L (Base)</th>
             <th>Currency</th>
             <th>Account</th>
-            <th>Open Date</th>
-            <th>Close Date</th>
+            <th>Opened</th>
+            <th>Closed</th>
         </tr>
     </thead>
     <tbody>
         {{range .Positions}}
-        <tr>
+        <tr class="{{rowClass .CostBasis.String .RealizedPnL.String ""}}">
             <td>{{.Symbol}}</td>
-            <td>{{.Quantity}}</td>
-            <td>{{.AvgOpenPrice}}</td>
-            <td>{{if .AvgClosePrice}}{{.AvgClosePrice}}{{else}}—{{end}}</td>
-            <td>{{.CostBasis}}</td>
-            <td class="pnl {{if .RealizedPnL.IsPos}}positive{{else if .RealizedPnL.IsNeg}}negative{{end}}">{{.RealizedPnL}}</td>
-            <td class="pnl {{if and .RealizedPnlBase .RealizedPnlBase.IsPos}}positive{{else if and .RealizedPnlBase .RealizedPnlBase.IsNeg}}negative{{end}}">
-                {{if .RealizedPnlBase}}{{.RealizedPnlBase}}{{if .FxRateFallback}} ⚠{{end}}{{else}}—{{end}}
+            <td class="num">{{formatMoney .Quantity}}</td>
+            <td class="num">{{formatMoney .AvgOpenPrice}}</td>
+            <td class="num">{{if .AvgClosePrice}}{{formatMoney .AvgClosePrice}}{{else}}—{{end}}</td>
+            <td class="num">{{formatMoney .CostBasis}}</td>
+            <td class="num pnl {{if .RealizedPnL.IsPos}}positive{{else if .RealizedPnL.IsNeg}}negative{{end}}">{{formatMoney .RealizedPnL}}</td>
+            <td class="num pnl {{if and .RealizedPnlBase .RealizedPnlBase.IsPos}}positive{{else if and .RealizedPnlBase .RealizedPnlBase.IsNeg}}negative{{end}}">
+                {{if .RealizedPnlBase}}{{formatMoney .RealizedPnlBase}}{{if .FxRateFallback}} ⚠{{end}}{{else}}—{{end}}
             </td>
             <td>{{.Currency}}</td>
             <td>{{.AccountName}}</td>

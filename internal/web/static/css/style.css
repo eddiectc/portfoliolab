@@ -17,9 +17,9 @@ body {
 
 /* Layout */
 .container {
-    max-width: 960px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 0 1.5rem;
     width: 100%;
 }
 
@@ -213,6 +213,49 @@ footer {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #666;
+}
+
+/* Compact table: smaller font, tighter padding for data-dense tables */
+.table-compact th,
+.table-compact td {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8125rem;
+}
+
+.table-compact th {
+    font-size: 0.6875rem;
+    padding: 0.5rem 0.6rem;
+}
+
+/* Right-align numeric columns */
+.table th.num,
+.table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* P&L color accents on row (left border) */
+.table tbody tr.row-profit {
+    border-left: 3px solid #28a745;
+}
+
+.table tbody tr.row-loss {
+    border-left: 3px solid #dc3545;
+}
+
+/* P&L text color */
+.table td.pnl.positive,
+.pnl.positive {
+    color: #155724 !important;
+}
+
+.table td.pnl.negative,
+.pnl.negative {
+    color: #721c24 !important;
+}
+
+.table tbody tr:hover {
+    background: #f8f9fa;
 }
 
 .table td a {

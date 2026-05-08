@@ -42,8 +42,8 @@ func TestComputePositions_SimpleBuy(t *testing.T) {
 	if !p.CostBasis.Equal(dec(-150000, 2)) {
 		t.Errorf("expected CostBasis -1500.00, got %q", p.CostBasis.String())
 	}
-	if !p.AvgOpenPrice.Equal(dec(-15000, 2)) {
-		t.Errorf("expected AvgOpenPrice -150.00, got %q", p.AvgOpenPrice.String())
+	if !p.AvgOpenPrice.Equal(dec(15000, 2)) {
+		t.Errorf("expected AvgOpenPrice 150.00, got %q", p.AvgOpenPrice.String())
 	}
 	if p.AvgClosePrice != nil {
 		t.Errorf("expected AvgClosePrice nil, got %q", p.AvgClosePrice.String())
@@ -89,8 +89,8 @@ func TestComputePositions_BuyPartialSell(t *testing.T) {
 	if !p.CostBasis.Equal(dec(-150000, 2)) {
 		t.Errorf("expected CostBasis -1500.00, got %q", p.CostBasis.String())
 	}
-	if !p.AvgOpenPrice.Equal(dec(-15000, 2)) {
-		t.Errorf("expected AvgOpenPrice -150.00, got %q", p.AvgOpenPrice.String())
+	if !p.AvgOpenPrice.Equal(dec(15000, 2)) {
+		t.Errorf("expected AvgOpenPrice 150.00, got %q", p.AvgOpenPrice.String())
 	}
 	if p.AvgClosePrice == nil || !p.AvgClosePrice.Equal(dec(17500, 2)) {
 		t.Errorf("expected AvgClosePrice 175.00, got %v", p.AvgClosePrice)
@@ -131,8 +131,8 @@ func TestComputePositions_BuyFullSell(t *testing.T) {
 	if !p.CostBasis.Equal(dec(-150000, 2)) {
 		t.Errorf("expected CostBasis -1500.00, got %q", p.CostBasis.String())
 	}
-	if !p.AvgOpenPrice.Equal(dec(-15000, 2)) {
-		t.Errorf("expected AvgOpenPrice -150.00, got %q", p.AvgOpenPrice.String())
+	if !p.AvgOpenPrice.Equal(dec(15000, 2)) {
+		t.Errorf("expected AvgOpenPrice 150.00, got %q", p.AvgOpenPrice.String())
 	}
 	if p.AvgClosePrice == nil || !p.AvgClosePrice.Equal(dec(17500, 2)) {
 		t.Errorf("expected AvgClosePrice 175.00, got %v", p.AvgClosePrice)
@@ -182,8 +182,8 @@ func TestComputePositions_OneClosedOneOpen(t *testing.T) {
 	if !cp.CostBasis.Equal(dec(-150000, 2)) {
 		t.Errorf("expected closed CostBasis -1500.00, got %q", cp.CostBasis.String())
 	}
-	if !cp.AvgOpenPrice.Equal(dec(-15000, 2)) {
-		t.Errorf("expected closed AvgOpenPrice -150.00, got %q", cp.AvgOpenPrice.String())
+	if !cp.AvgOpenPrice.Equal(dec(15000, 2)) {
+		t.Errorf("expected closed AvgOpenPrice 150.00, got %q", cp.AvgOpenPrice.String())
 	}
 	if cp.AvgClosePrice == nil || !cp.AvgClosePrice.Equal(dec(17500, 2)) {
 		t.Errorf("expected closed AvgClosePrice 175.00, got %v", cp.AvgClosePrice)
@@ -206,8 +206,8 @@ func TestComputePositions_OneClosedOneOpen(t *testing.T) {
 	if !op.CostBasis.Equal(dec(-80000, 2)) {
 		t.Errorf("expected open CostBasis -800.00, got %q", op.CostBasis.String())
 	}
-	if !op.AvgOpenPrice.Equal(dec(-16000, 2)) {
-		t.Errorf("expected open AvgOpenPrice -160.00, got %q", op.AvgOpenPrice.String())
+	if !op.AvgOpenPrice.Equal(dec(16000, 2)) {
+		t.Errorf("expected open AvgOpenPrice 160.00, got %q", op.AvgOpenPrice.String())
 	}
 	if op.AvgClosePrice != nil {
 		t.Errorf("expected open AvgClosePrice nil, got %q", op.AvgClosePrice.String())
@@ -310,9 +310,9 @@ func TestComputePositions_ShortPosition(t *testing.T) {
 	if !p.CostBasis.Equal(dec(-90000, 2)) {
 		t.Errorf("expected CostBasis -900.00, got %q", p.CostBasis.String())
 	}
-	// AvgOpenPrice = -900.00 / 5 = -180.00
-	if !p.AvgOpenPrice.Equal(dec(-18000, 2)) {
-		t.Errorf("expected AvgOpenPrice -180.00, got %q", p.AvgOpenPrice.String())
+	// AvgOpenPrice = Abs(-900.00) / 5 = 180.00
+	if !p.AvgOpenPrice.Equal(dec(18000, 2)) {
+		t.Errorf("expected AvgOpenPrice 180.00, got %q", p.AvgOpenPrice.String())
 	}
 	// AvgClosePrice = 1750.00 / 10 = 175.00
 	if p.AvgClosePrice == nil || !p.AvgClosePrice.Equal(dec(17500, 2)) {
@@ -445,9 +445,9 @@ func TestComputePositions_MultipleBuysOneSell(t *testing.T) {
 	if !p.CostBasis.Equal(dec(-155000, 2)) {
 		t.Errorf("expected CostBasis -1550.00, got %q", p.CostBasis.String())
 	}
-	// AvgOpenPrice = -1550.00 / 10 = -155.00
-	if !p.AvgOpenPrice.Equal(dec(-15500, 2)) {
-		t.Errorf("expected AvgOpenPrice -155.00, got %q", p.AvgOpenPrice.String())
+	// AvgOpenPrice = Abs(-1550.00) / 10 = 155.00
+	if !p.AvgOpenPrice.Equal(dec(15500, 2)) {
+		t.Errorf("expected AvgOpenPrice 155.00, got %q", p.AvgOpenPrice.String())
 	}
 	// AvgClosePrice = 1400.00 / 8 = 175.00
 	if p.AvgClosePrice == nil || !p.AvgClosePrice.Equal(dec(17500, 2)) {
@@ -566,5 +566,89 @@ func TestCalculatePositions_IdempotentRecalc(t *testing.T) {
 		if !result1.ClosedPositions[i].RealizedPnL.Equal(result2.ClosedPositions[i].RealizedPnL) {
 			t.Errorf("closed[%d] realized_pnl: %q vs %q", i, result1.ClosedPositions[i].RealizedPnL.String(), result2.ClosedPositions[i].RealizedPnL.String())
 		}
+	}
+}
+
+func TestGetCurrencyFromLots(t *testing.T) {
+	tests := []struct {
+		name     string
+		lots     []LotGroup
+		wantCur  string
+	}{
+		{
+			name: "single_buy_lot_with_currency",
+			lots: []LotGroup{
+				makeLotGroup("LOT-1", "buy", "AAPL", "2025-01-15",
+					dec(10, 0), dec(-150000, 2), decimal.Zero),
+			},
+			wantCur: "",
+		},
+		{
+			name: "lot_with_transaction_currency",
+			lots: []LotGroup{
+				{
+					LotID: "LOT-1", LotType: "buy", Symbol: "AAPL", OpenDate: mustTime("2025-01-15"),
+					Quantity: dec(10, 0), CostBasis: dec(-150000, 2),
+					Transactions: []TransactionRef{
+						{ID: 1, Date: mustTime("2025-01-15"), Symbol: "AAPL", Currency: "USD"},
+					},
+				},
+			},
+			wantCur: "USD",
+		},
+		{
+			name: "multiple_lots_first_has_currency",
+			lots: []LotGroup{
+				{
+					LotID: "LOT-1", LotType: "buy", Symbol: "AAPL", OpenDate: mustTime("2025-01-15"),
+					Quantity: dec(10, 0), CostBasis: dec(-150000, 2),
+					Transactions: []TransactionRef{
+						{ID: 1, Date: mustTime("2025-01-15"), Symbol: "AAPL", Currency: "GBP"},
+					},
+				},
+				{
+					LotID: "LOT-2", LotType: "sell", Symbol: "AAPL", OpenDate: mustTime("2025-02-01"),
+					Quantity: dec(-5, 0), CostBasis: dec(0, 2), SellProceeds: dec(87500, 2),
+					Transactions: []TransactionRef{
+						{ID: 2, Date: mustTime("2025-02-01"), Symbol: "AAPL", Currency: "EUR"},
+					},
+				},
+			},
+			wantCur: "GBP",
+		},
+		{
+			name: "first_lot_empty_currency_second_has_currency",
+			lots: []LotGroup{
+				{
+					LotID: "LOT-1", LotType: "buy", Symbol: "AAPL", OpenDate: mustTime("2025-01-15"),
+					Quantity: dec(10, 0), CostBasis: dec(-150000, 2),
+					Transactions: []TransactionRef{
+						{ID: 1, Date: mustTime("2025-01-15"), Symbol: "AAPL", Currency: ""},
+					},
+				},
+				{
+					LotID: "LOT-2", LotType: "sell", Symbol: "AAPL", OpenDate: mustTime("2025-02-01"),
+					Quantity: dec(-5, 0), CostBasis: dec(0, 2), SellProceeds: dec(87500, 2),
+					Transactions: []TransactionRef{
+						{ID: 2, Date: mustTime("2025-02-01"), Symbol: "AAPL", Currency: "EUR"},
+					},
+				},
+			},
+			wantCur: "EUR",
+		},
+		{
+			name:    "empty_lots",
+			lots:    []LotGroup{},
+			wantCur: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getCurrencyFromLots(tt.lots)
+			if got != tt.wantCur {
+				t.Errorf("getCurrencyFromLots() = %q, want %q", got, tt.wantCur)
+			}
+		})
 	}
 }

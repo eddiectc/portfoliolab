@@ -31,28 +31,25 @@
 {{if eq (len .Positions) 0}}
 <p class="empty-state">No open positions. Create transactions to build positions, then use Recalculate to compute them.</p>
 {{else}}
-<table class="table">
+<table class="table table-compact">
     <thead>
         <tr>
             <th>Symbol</th>
-            <th>Quantity</th>
-            <th>Avg Open Price</th>
-            <th>Avg Close Price</th>
-            <th>Cost Basis</th>
-            <th>Realized P&L</th>
-            <th>Realized P&L (Base)</th>
-            <th>Market Price</th>
-            <th>Market Value</th>
-            <th>Unrealized P&L</th>
-            <th>P&L %</th>
+            <th class="num">Qty</th>
+            <th class="num">Avg Cost</th>
+            <th class="num">Cost Basis</th>
+            <th class="num">Mkt Price</th>
+            <th class="num">Mkt Value</th>
+            <th class="num">Unrealized P&L</th>
+            <th class="num">P&L %</th>
             <th>Currency</th>
             <th>Account</th>
-            <th>Open Date</th>
+            <th>Opened</th>
         </tr>
     </thead>
     <tbody>
         {{range .Positions}}
-        <tr class="{{if contains "$CASH-" .Symbol}}cash-row{{end}}">
+        <tr class="{{if contains "$CASH-" .Symbol}}cash-row{{end}} {{rowClass .CostBasis.String .RealizedPnL.String .MarketValue.String}}">
             <td>
                 {{if contains "$CASH-" .Symbol}}
                 <span class="cash-symbol">{{.Symbol}}</span>
@@ -60,20 +57,15 @@
                 {{.Symbol}}
                 {{end}}
             </td>
-            <td>{{.Quantity}}</td>
-            <td>{{.AvgOpenPrice}}</td>
-            <td>{{if .AvgClosePrice}}{{.AvgClosePrice}}{{else}}—{{end}}</td>
-            <td>{{.CostBasis}}</td>
-            <td class="pnl {{if .RealizedPnL.IsPos}}positive{{else if .RealizedPnL.IsNeg}}negative{{end}}">{{.RealizedPnL}}</td>
-            <td class="pnl {{if and .RealizedPnlBase .RealizedPnlBase.IsPos}}positive{{else if and .RealizedPnlBase .RealizedPnlBase.IsNeg}}negative{{end}}">
-                {{if .RealizedPnlBase}}{{.RealizedPnlBase}}{{if .FxRateFallback}} ⚠{{end}}{{else}}—{{end}}
+            <td class="num">{{formatMoney .Quantity}}</td>
+            <td class="num">{{formatMoney .AvgOpenPrice}}</td>
+            <td class="num">{{formatMoney .CostBasis}}</td>
+            <td class="num">{{if .MarketDataAvailable}}{{if .MarketPrice}}{{formatMoney .MarketPrice}}{{else}}—{{end}}{{else}}—{{end}}</td>
+            <td class="num">{{if .MarketDataAvailable}}{{formatMoney .MarketValue}}{{else}}—{{end}}</td>
+            <td class="num pnl {{if and .MarketDataAvailable .UnrealizedPnL.IsPos}}positive{{else if and .MarketDataAvailable .UnrealizedPnL.IsNeg}}negative{{end}}">
+                {{if .MarketDataAvailable}}{{formatMoney .UnrealizedPnL}}{{else}}—{{end}}
             </td>
-            <td>{{if .MarketDataAvailable}}{{if .MarketPrice}}{{.MarketPrice}}{{else}}—{{end}}{{else}}—{{end}}</td>
-            <td>{{if .MarketDataAvailable}}{{.MarketValue}}{{else}}—{{end}}</td>
-            <td class="pnl {{if and .MarketDataAvailable .UnrealizedPnL.IsPos}}positive{{else if and .MarketDataAvailable .UnrealizedPnL.IsNeg}}negative{{end}}">
-                {{if .MarketDataAvailable}}{{.UnrealizedPnL}}{{else}}—{{end}}
-            </td>
-            <td>{{if .UnrealizedPnlPct}}{{.UnrealizedPnlPct}}%{{else}}—{{end}}</td>
+            <td class="num">{{if .UnrealizedPnlPct}}{{formatPct .UnrealizedPnlPct}}%{{else}}—{{end}}</td>
             <td>{{.Currency}}</td>
             <td>{{.AccountName}}</td>
             <td>{{.OpenDate.Format "2006-01-02"}}</td>

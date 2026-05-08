@@ -455,6 +455,7 @@ func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int
 			Price:             price,
 			Currency:          trade.Currency,
 			NetCash:           netCash,
+			Description:       toStringPtr(trade.Description),
 			LotID:             &lotID,
 			ExternalSystem:    extSys,
 			ExternalReference: &trade.TransactionID,
@@ -465,12 +466,17 @@ func (s *Service) buildTradeTxns(ctx context.Context, trade Trade, accountID int
 }
 
 func (s *Service) buildFXPreview(trade Trade, _ string) tradeResult {
-	// FX symbol format: {sourceCurrency}.{targetCurrency} (e.g. GBP.USD)
-	// Extract target currency by splitting on '.'
+	// FX symbol format: {currencyA}.{currencyB} (e.g. GBP.USD)
+	// The target currency is whichever currency in the pair is NOT the trade currency.
+	// The trade currency (trade.Currency) is the one you pay/receive in proceeds.
 	parts := strings.SplitN(trade.Symbol, ".", 2)
 	targetCurrency := trade.Currency // fallback
 	if len(parts) == 2 {
-		targetCurrency = parts[1]
+		if parts[0] != trade.Currency {
+			targetCurrency = parts[0]
+		} else {
+			targetCurrency = parts[1]
+		}
 	}
 	// Use raw Proceeds (already negative for FX withdrawal leg)
 	// so preview matches the stored transaction values.
@@ -504,11 +510,16 @@ func (s *Service) buildFXPreview(trade Trade, _ string) tradeResult {
 }
 
 func (s *Service) buildFXTxns(trade Trade, accountID int64, now time.Time, extSys *string) []*transaction.Transaction {
-	// FX symbol format: {sourceCurrency}.{targetCurrency} (e.g. GBP.USD)
+	// FX symbol format: {currencyA}.{currencyB} (e.g. GBP.USD)
+	// The target currency is whichever currency in the pair is NOT the trade currency.
 	parts := strings.SplitN(trade.Symbol, ".", 2)
 	targetCurrency := trade.Currency // fallback
 	if len(parts) == 2 {
-		targetCurrency = parts[1]
+		if parts[0] != trade.Currency {
+			targetCurrency = parts[0]
+		} else {
+			targetCurrency = parts[1]
+		}
 	}
 	proceeds, _ := decimal.Parse(absStr(trade.Proceeds))
 	qty, _ := decimal.Parse(trade.Quantity)
@@ -516,6 +527,7 @@ func (s *Service) buildFXTxns(trade Trade, accountID int64, now time.Time, extSy
 
 	withdrawalRef := trade.TransactionID + "_fx_withdrawal"
 	depositRef := trade.TransactionID + "_fx_deposit"
+	fxDesc := trade.Description + " " + trade.TradePrice
 
 	return []*transaction.Transaction{
 		{
@@ -527,6 +539,7 @@ func (s *Service) buildFXTxns(trade Trade, accountID int64, now time.Time, extSy
 			Price:             decimal.One,
 			Currency:          trade.Currency,
 			NetCash:           proceeds.Neg(),
+			Description:       toStringPtr(fxDesc),
 			ExternalSystem:    extSys,
 			ExternalReference: &withdrawalRef,
 			CreatedAt:         now,
@@ -541,6 +554,7 @@ func (s *Service) buildFXTxns(trade Trade, accountID int64, now time.Time, extSy
 			Price:             decimal.One,
 			Currency:          targetCurrency,
 			NetCash:           qty,
+			Description:       toStringPtr(fxDesc),
 			ExternalSystem:    extSys,
 			ExternalReference: &depositRef,
 			CreatedAt:         now,
@@ -623,6 +637,7 @@ func (s *Service) buildCashTxn(ctx context.Context, ct CashTransaction, accountI
 		Price:             decimal.One,
 		Currency:          ct.Currency,
 		NetCash:           amount,
+		Description:       toStringPtr(ct.Description),
 		ExternalSystem:    extSys,
 		ExternalReference: &ct.TransactionID,
 		CreatedAt:         now,
@@ -673,6 +688,7 @@ func (s *Service) buildTransferTxn(ctx context.Context, tr Transfer, accountID i
 		Price:             decimal.One,
 		Currency:          tr.Currency,
 		NetCash:           netCash,
+		Description:       toStringPtr(tr.Description),
 		ExternalSystem:    extSys,
 		ExternalReference: &tr.TransactionID,
 		CreatedAt:         now,
@@ -777,4 +793,13 @@ func parseDate(s string) time.Time {
 		return t
 	}
 	return time.Time{}
+}
+
+// toStringPtr returns a pointer to s if non-empty, nil otherwise.
+func toStringPtr(s string) *string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	return &s
 }

@@ -78,6 +78,12 @@ func toTransaction(t queries.Transaction) (*transaction.Transaction, error) {
 		lotID = &v
 	}
 
+	var description *string
+	if t.Description.Valid {
+		v := t.Description.String
+		description = &v
+	}
+
 	return &transaction.Transaction{
 		ID:                t.ID,
 		AccountID:         t.AccountID,
@@ -88,6 +94,7 @@ func toTransaction(t queries.Transaction) (*transaction.Transaction, error) {
 		Price:             price,
 		Currency:          t.Currency,
 		NetCash:           netCash,
+		Description:       description,
 		LotID:             lotID,
 		ExternalSystem:    externalSystem,
 		ExternalReference: externalReference,
@@ -129,6 +136,7 @@ func (r *TransactionRepository) Create(ctx context.Context, t *transaction.Trans
 		Currency:          t.Currency,
 		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
+		Description:           toNullString(t.Description),
 		ExternalReference: toNullString(t.ExternalReference),
 		LotID:             toNullString(t.LotID),
 		CreatedAt:         t.CreatedAt.Format(time.RFC3339),
@@ -163,7 +171,8 @@ func (r *TransactionRepository) BatchCreate(ctx context.Context, txns []*transac
 			Currency:          t.Currency,
 			NetCash:           t.NetCash.String(),
 			ExternalSystem:    toNullString(t.ExternalSystem),
-			ExternalReference: toNullString(t.ExternalReference),
+			Description:           toNullString(t.Description),
+		ExternalReference: toNullString(t.ExternalReference),
 			LotID:             toNullString(t.LotID),
 			CreatedAt:         t.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
@@ -355,6 +364,7 @@ func (r *TransactionRepository) Update(ctx context.Context, t *transaction.Trans
 		Currency:          t.Currency,
 		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
+		Description:           toNullString(t.Description),
 		ExternalReference: toNullString(t.ExternalReference),
 		LotID:             toNullString(t.LotID),
 		UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
@@ -607,6 +617,8 @@ func toDomainWithAccount(rows []queries.ListTransactionsWithAccountRow) ([]trans
 			NetCash:           r.NetCash,
 			ExternalSystem:    r.ExternalSystem,
 			ExternalReference: r.ExternalReference,
+			LotID:             r.LotID,
+			Description:       r.Description,
 			CreatedAt:         r.CreatedAt,
 			UpdatedAt:         r.UpdatedAt,
 		})
@@ -686,63 +698,63 @@ func toBaseFrom(rows any) []queries.ListTransactionsWithAccountRow {
 	switch v := rows.(type) {
 	case []queries.ListTransactionsWithAccountByAccountRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountBySymbolRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByTypeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByDateRangeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByAccountAndSymbolRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByAccountAndTypeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByAccountAndDateRangeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountBySymbolAndTypeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountBySymbolAndDateRangeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByTypeAndDateRangeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByAccountSymbolTypeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByAccountSymbolDateRangeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByAccountTypeDateRangeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountBySymbolTypeDateRangeRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	case []queries.ListTransactionsWithAccountByAllFiltersRow:
 		for _, r := range v {
-			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, AccountName: r.AccountName})
+			result = append(result, queries.ListTransactionsWithAccountRow{ID: r.ID, AccountID: r.AccountID, Date: r.Date, Type: r.Type, Symbol: r.Symbol, Quantity: r.Quantity, Price: r.Price, Currency: r.Currency, NetCash: r.NetCash, ExternalSystem: r.ExternalSystem, ExternalReference: r.ExternalReference, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LotID: r.LotID, Description: r.Description, AccountName: r.AccountName})
 		}
 	}
 	return result

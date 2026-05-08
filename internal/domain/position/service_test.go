@@ -991,3 +991,91 @@ func TestEnrichWithMarketData_MultiplePositions(t *testing.T) {
 		t.Error("expected cash market data available")
 	}
 }
+
+func TestEnrichWithMarketData_GbpConversion(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	// UK stock quoted in GBp (pence) — Yahoo returns price in pence.
+	// ARCI.L at 350 GBp = 3.50 GBP.
+	gbpPrice := decimal.MustNew(35000, 2) // 350.00 GBp
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"ARCI.L": {Symbol: "ARCI.L", Price: gbpPrice, Currency: "GBp", DataType: "stock", Source: "yahoo"},
+		},
+	}
+	repo := &mockMarketDataRepo{}
+	svc.WithMarketDataFetcher(fetcher, repo, nil)
+
+	// Quantity 100, CostBasis -350.00 GBP (bought at 3.50 GBP/share).
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "ARCI.L", Currency: "GBP",
+			Quantity: decimal.MustNew(10000, 2), CostBasis: decimal.MustNew(-35000, 2)},
+	}
+
+	result := svc.EnrichWithMarketData(ctx, positions)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+
+	r := result[0]
+	if !r.MarketDataAvailable {
+		t.Error("expected MarketDataAvailable=true")
+	}
+	// GBp price (350.00) should be converted to GBP (3.50).
+	wantPrice := decimal.MustNew(350, 2)
+	if r.MarketPrice == nil || !r.MarketPrice.Equal(wantPrice) {
+		t.Errorf("expected MarketPrice 3.50 (GBP), got %v", r.MarketPrice)
+	}
+	// MarketValue = 100 × 3.50 = 350.00.
+	wantMV := decimal.MustNew(3500000, 4)
+	if !r.MarketValue.Equal(wantMV) {
+		t.Errorf("expected MarketValue %s, got %s", wantMV.String(), r.MarketValue.String())
+	}
+	// UnrealizedPnL = 350.00 + (-350.00) = 0.00.
+	if !r.UnrealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected UnrealizedPnL 0.00, got %s", r.UnrealizedPnL.String())
+	}
+}
+
+func TestEnrichWithMarketData_GbpNotConvertedForNonGbpPosition(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	// If the position currency is NOT GBP but the quote is GBp,
+	// the price should NOT be divided (no conversion applied).
+	gbpPrice := decimal.MustNew(35000, 2) // 350.00 GBp
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"ARCI.L": {Symbol: "ARCI.L", Price: gbpPrice, Currency: "GBp", DataType: "stock", Source: "yahoo"},
+		},
+	}
+	repo := &mockMarketDataRepo{}
+	svc.WithMarketDataFetcher(fetcher, repo, nil)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "ARCI.L", Currency: "USD",
+			Quantity: decimal.MustNew(10000, 2), CostBasis: decimal.MustNew(-3500000, 2)},
+	}
+
+	result := svc.EnrichWithMarketData(ctx, positions)
+
+	r := result[0]
+	// Price should remain as-is (350.00) since position currency is USD, not GBP.
+	if r.MarketPrice == nil || !r.MarketPrice.Equal(gbpPrice) {
+		t.Errorf("expected MarketPrice 350.00 (unchanged), got %v", r.MarketPrice)
+	}
+}
