@@ -28,6 +28,8 @@ type Position struct {
 	AvgClosePrice   *decimal.Decimal `json:"avg_close_price,omitempty"`
 	RealizedPnL     decimal.Decimal  `json:"realized_pnl"`
 	RealizedPnlBase *decimal.Decimal `json:"realized_pnl_base,omitempty"`
+	FxRateUsed      *decimal.Decimal `json:"fx_rate_used,omitempty"`
+	FxRateFallback  bool             `json:"fx_rate_fallback"`
 	OpenDate        time.Time        `json:"open_date"`
 	CloseDate       *time.Time       `json:"close_date,omitempty"`
 	IsClosed        bool             `json:"is_closed"`

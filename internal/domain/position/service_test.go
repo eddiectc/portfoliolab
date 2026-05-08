@@ -361,6 +361,8 @@ func TestRecalculateAccount_AccountNotFound(t *testing.T) {
 		newMockAccountChecker(), // no accounts
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAccount(ctx, 999)
@@ -378,6 +380,8 @@ func TestRecalculateAccount_EmptyTransactions(t *testing.T) {
 		newMockAccountChecker(1),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	// No transactions for account 1.
@@ -407,6 +411,8 @@ func TestRecalculateAccount_SimpleBuy(t *testing.T) {
 		newMockAccountChecker(1),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAccount(ctx, 1)
@@ -459,6 +465,8 @@ func TestRecalculateAccount_BuyThenSell(t *testing.T) {
 		newMockAccountChecker(1),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAccount(ctx, 1)
@@ -500,6 +508,8 @@ func TestGetOpenPositions_NoAccounts(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	result, err := svc.GetOpenPositions(ctx, []int64{}, 10, 0)
@@ -526,6 +536,8 @@ func TestGetOpenPositions_SingleAccount(t *testing.T) {
 		newMockAccountChecker(1),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	result, err := svc.GetOpenPositions(ctx, []int64{1}, 10, 0)
@@ -562,6 +574,8 @@ func TestGetOpenPositions_Pagination(t *testing.T) {
 		newMockAccountChecker(1),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	// Page 1: limit 2, offset 0.
@@ -610,6 +624,8 @@ func TestRecalculatePortfolio_PortfolioNotFound(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(), // no portfolios
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	err := svc.RecalculatePortfolio(ctx, 999)
@@ -627,6 +643,8 @@ func TestRecalculateAll_NoAccounts(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAll(ctx)
@@ -645,6 +663,8 @@ func TestGetLotDetails_NotFound(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	_, err := svc.GetLotDetails(ctx, "nonexistent")
@@ -676,6 +696,8 @@ func TestGetLotDetails_WithConsumptions(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	details, err := svc.GetLotDetails(ctx, "LOT-TEST")
@@ -704,6 +726,8 @@ func TestGetLotInfo(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
+		nil, // no portfolio currency checker
+		nil, // no FX provider
 	)
 
 	info, err := svc.GetLotInfo(ctx, "LOT-BUY1")

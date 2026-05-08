@@ -3,8 +3,11 @@ package position
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/arch-portfolio-lab/portfoliolab/internal/domain/transaction"
+	"github.com/arch-portfolio-lab/portfoliolab/internal/market"
 )
 
 // PositionRepository defines the data access interface for positions.
@@ -44,9 +47,15 @@ type AccountLister interface {
 
 // AccountRef holds minimal account info for position queries.
 type AccountRef struct {
-	ID          int64
-	Name        string
-	PortfolioID int64
+	ID               int64
+	Name             string
+	PortfolioID      int64
+	PortfolioCurrency string
+}
+
+// PortfolioCurrencyChecker returns the base currency of a portfolio.
+type PortfolioCurrencyChecker interface {
+	GetPortfolioCurrency(ctx context.Context, portfolioID int64) (string, error)
 }
 
 // --- Service errors ---
@@ -61,11 +70,13 @@ var (
 
 // Service handles position business logic: recalculation and queries.
 type Service struct {
-	positions     PositionRepository
-	transactions  TransactionRepository
-	accounts      AccountChecker
-	portfolios    PortfolioChecker
-	accountLister AccountLister
+	positions               PositionRepository
+	transactions            TransactionRepository
+	accounts                AccountChecker
+	portfolios              PortfolioChecker
+	accountLister           AccountLister
+	portfolioCurrencyChecker PortfolioCurrencyChecker
+	fxProvider              FxRateProvider
 }
 
 // NewService creates a new position service.
@@ -75,19 +86,23 @@ func NewService(
 	accounts AccountChecker,
 	portfolios PortfolioChecker,
 	accountLister AccountLister,
+	portfolioCurrencyChecker PortfolioCurrencyChecker,
+	fxProvider FxRateProvider,
 ) *Service {
 	return &Service{
-		positions:     positions,
-		transactions:  transactions,
-		accounts:      accounts,
-		portfolios:    portfolios,
-		accountLister: accountLister,
+		positions:                positions,
+		transactions:             transactions,
+		accounts:                 accounts,
+		portfolios:               portfolios,
+		accountLister:            accountLister,
+		portfolioCurrencyChecker: portfolioCurrencyChecker,
+		fxProvider:               fxProvider,
 	}
 }
 
 // RecalculateAccount fetches all transactions for the account, runs the
-// position calculator, and persists the results (delete old, insert new)
-// within a single database transaction.
+// position calculator, converts P&L to portfolio base currency, and persists
+// the results (delete old, insert new) within a single database transaction.
 func (s *Service) RecalculateAccount(ctx context.Context, accountID int64) error {
 	if !s.accounts.AccountExists(ctx, accountID) {
 		return ErrAccountNotFound
@@ -103,7 +118,78 @@ func (s *Service) RecalculateAccount(ctx context.Context, accountID int64) error
 		return fmt.Errorf("calculate positions for account %d: %w", accountID, err)
 	}
 
+	// Convert P&L to portfolio base currency.
+	if s.portfolioCurrencyChecker != nil && s.fxProvider != nil {
+		accounts, listErr := s.accountLister.GetAllAccounts(ctx)
+		if listErr != nil {
+			return fmt.Errorf("list accounts for FX conversion: %w", listErr)
+		}
+		baseCurrency := s.getBaseCurrencyForAccount(accounts, accountID)
+		if baseCurrency != "" {
+			s.convertPnlToBase(ctx, result, baseCurrency)
+		}
+	}
+
 	return s.positions.Recalculate(ctx, accountID, result)
+}
+
+// getBaseCurrencyForAccount looks up the portfolio base currency for an account.
+func (s *Service) getBaseCurrencyForAccount(accounts []AccountRef, accountID int64) string {
+	for _, a := range accounts {
+		if a.ID == accountID {
+			return a.PortfolioCurrency
+		}
+	}
+	return ""
+}
+
+// convertPnlToBase converts realized P&L for all positions in the result
+// from their transaction currency to the portfolio base currency.
+func (s *Service) convertPnlToBase(ctx context.Context, result *CalculateResult, baseCurrency string) {
+	allPositions := append(append(result.OpenPositions, result.ClosedPositions...), result.CashPositions...)
+	for i := range allPositions {
+		p := &allPositions[i]
+		// Skip cash positions — they are already in the cash currency.
+		if isCashPosition(p.Symbol) {
+			continue
+		}
+
+		pair := BuildFxPair(p.Currency, baseCurrency)
+		if pair == "" {
+			// Same currency as base — no conversion needed.
+			continue
+		}
+
+		// Determine the date to use for the FX rate.
+		var date time.Time
+		if p.CloseDate != nil {
+			date = *p.CloseDate
+		} else {
+			date = p.OpenDate
+		}
+
+		// Get the FX rate.
+		var rate *market.FxRate
+		var isFallback bool
+		if p.IsClosed {
+			rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
+		} else {
+			// For open positions, use current spot rate.
+			var found bool
+			rate, found = s.fxProvider.GetCurrentRate(ctx, pair)
+			if !found {
+				// Try GetRateForDate as a last resort.
+				rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
+			}
+		}
+
+		converted, rateUsed, fallback := ConvertPnlToBase(
+			p.RealizedPnL, p.Currency, baseCurrency, rate, isFallback,
+		)
+		p.RealizedPnlBase = &converted
+		p.FxRateUsed = rateUsed
+		p.FxRateFallback = fallback
+	}
 }
 
 // RecalculatePortfolio recalculates positions for all accounts in a portfolio.
@@ -285,4 +371,9 @@ func (s *Service) GetLotInfo(ctx context.Context, lotID string) (*transaction.Lo
 		Symbol:    lot.Symbol,
 		LotType:   lot.LotType,
 	}, nil
+}
+
+// isCashPosition returns true if the symbol represents a cash position.
+func isCashPosition(symbol string) bool {
+	return strings.HasPrefix(symbol, "$CASH-")
 }

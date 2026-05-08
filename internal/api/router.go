@@ -72,12 +72,17 @@ func Router(db *sql.DB, logger *slog.Logger) http.Handler {
 
 	// Market data repository (stock quotes + FX rates)
 	marketDataRepo := data.NewMarketDataRepository(db)
-	_ = marketDataRepo // used by Tasks 10-11
+
+	// Portfolio currency checker (for FX conversion)
+	portfolioCurrencyChecker := data.NewPortfolioCurrencyChecker(portfolioRepo)
+
+	// FX converter (historical rate lookup → on-demand fetch → current spot fallback)
+	fxConverter := position.NewFxConverter(marketDataRepo, yahooFetcher, logger)
 
 	// Position service (used as LotChecker + PositionRecalculator for transactions)
 	positionRepo := data.NewPositionRepository(db)
 	accountLister := data.NewAccountLister(accountRepo)
-	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister)
+	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister, portfolioCurrencyChecker, fxConverter)
 
 	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator, positionSvc, positionSvc)
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)

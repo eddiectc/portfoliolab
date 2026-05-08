@@ -128,6 +128,49 @@ func (q *Queries) GetAccountsByPortfolio(ctx context.Context, db DBTX, arg GetAc
 	return items, nil
 }
 
+const getAccountsByPortfolioWithCurrency = `-- name: GetAccountsByPortfolioWithCurrency :many
+SELECT a.id, a.name, a.portfolio_id, p.currency AS portfolio_currency
+FROM accounts a
+JOIN portfolios p ON a.portfolio_id = p.id
+WHERE a.portfolio_id = ?
+ORDER BY a.id ASC
+`
+
+type GetAccountsByPortfolioWithCurrencyRow struct {
+	ID                int64  `db:"id"`
+	Name              string `db:"name"`
+	PortfolioID       int64  `db:"portfolio_id"`
+	PortfolioCurrency string `db:"portfolio_currency"`
+}
+
+func (q *Queries) GetAccountsByPortfolioWithCurrency(ctx context.Context, db DBTX, portfolioID int64) ([]GetAccountsByPortfolioWithCurrencyRow, error) {
+	rows, err := db.QueryContext(ctx, getAccountsByPortfolioWithCurrency, portfolioID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAccountsByPortfolioWithCurrencyRow{}
+	for rows.Next() {
+		var i GetAccountsByPortfolioWithCurrencyRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.PortfolioID,
+			&i.PortfolioCurrency,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllAccountsByPortfolio = `-- name: GetAllAccountsByPortfolio :many
 SELECT id, name, portfolio_id, created_at, updated_at FROM accounts
 WHERE portfolio_id = ?
@@ -223,6 +266,48 @@ func (q *Queries) ListAllAccounts(ctx context.Context, db DBTX) ([]Account, erro
 			&i.PortfolioID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllAccountsWithPortfolioCurrency = `-- name: ListAllAccountsWithPortfolioCurrency :many
+SELECT a.id, a.name, a.portfolio_id, p.currency AS portfolio_currency
+FROM accounts a
+JOIN portfolios p ON a.portfolio_id = p.id
+ORDER BY a.id ASC
+`
+
+type ListAllAccountsWithPortfolioCurrencyRow struct {
+	ID                int64  `db:"id"`
+	Name              string `db:"name"`
+	PortfolioID       int64  `db:"portfolio_id"`
+	PortfolioCurrency string `db:"portfolio_currency"`
+}
+
+func (q *Queries) ListAllAccountsWithPortfolioCurrency(ctx context.Context, db DBTX) ([]ListAllAccountsWithPortfolioCurrencyRow, error) {
+	rows, err := db.QueryContext(ctx, listAllAccountsWithPortfolioCurrency)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllAccountsWithPortfolioCurrencyRow{}
+	for rows.Next() {
+		var i ListAllAccountsWithPortfolioCurrencyRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.PortfolioID,
+			&i.PortfolioCurrency,
 		); err != nil {
 			return nil, err
 		}

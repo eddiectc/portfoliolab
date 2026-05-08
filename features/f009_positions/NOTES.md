@@ -1,5 +1,20 @@
 # Notes: Positions
 
+## Task 10 Implementation Notes (2026-05-08)
+- FX conversion happens in the **service layer** (not inside the calculator), keeping `CalculatePositions` pure and testable without I/O dependencies.
+- `FxConverter` implements `FxRateProvider` interface with three-tier fallback: DB historical → on-demand fetch + cache → current spot rate.
+- `FxConverter` handles nil logger gracefully via `logWarn()` helper (nil-safe).
+- `ConvertPnlToBase` is a standalone function (not a method) for easy unit testing. It returns `(convertedPnL, rateUsed, isFallback)`.
+- `BuildFxPair` constructs "BASE/QUOTE" pair from position currency and base currency; returns empty string when currencies match.
+- `PortfolioCurrencyChecker` interface added to position domain; `PortfolioCurrencyCheckerImpl` in data layer uses existing `GetPortfolio` sqlc query.
+- `AccountRef` extended with `PortfolioCurrency` field; new sqlc queries `ListAllAccountsWithPortfolioCurrency` and `GetAccountsByPortfolioWithCurrency` join accounts with portfolios.
+- `AccountListerImpl` updated to use the new join queries, populating `PortfolioCurrency`.
+- Cash positions (`$CASH-*`) are skipped during FX conversion — they are already in their own currency.
+- For closed positions, FX rate date is the close date; for open positions, current spot rate is preferred.
+- `decimal.Mul` combines scales (pnl scale 2 × rate scale 4 = result scale 6), which is preserved in the stored `realized_pnl_base`.
+- Templates show `—` when no base-currency P&L is available (same-currency positions), and `⚠` when fallback rate was used.
+- Service constructor accepts `nil` for both `PortfolioCurrencyChecker` and `FxRateProvider` — FX conversion is silently skipped when either is nil (backward compatible).
+
 ## Task 9 Implementation Notes (2026-05-08)
 - `MarketDataRepository` in `internal/data/market_data_repo.go` delegates to sqlc-generated queries from `market_data.sql` (created in Task 1).
 - Repository methods return `nil` (not error) when no data found, following the "no data is not an error" pattern for optional lookups.
