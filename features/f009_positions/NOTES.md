@@ -1,5 +1,11 @@
 # Notes: Positions
 
+## Task 12 Implementation Notes (2026-05-08)
+- **Bug fix: `toPosition()` and `toLot()` in `position_repo.go` crashed on empty-string nullable fields.** The `avg_close_price`, `realized_pnl_base`, `close_date`, and `sell_price` fields are stored as empty strings `""` (not NULL) for open positions/lots. When `sql.NullString` has `Valid=true` but `String=""`, `decimal.Parse("")` fails with "invalid decimal: no coefficient". Fixed by adding `&& p.Field.String != ""` guards before parsing. Also fixed nil-pointer dereference for `avg_open_price` (non-pointer field in domain model) by defaulting to `decimal.Zero` when nil.
+- Integration tests cover: full recalc flow, FIFO with real SQL, cash tracking, position transitions, multiple cycles, recalculate endpoint, idempotency, account filtering, closed positions, lot detail, cascade delete, and dividend with no open position.
+- Unit tests added: `TestGroupTransactionsIntoLots_LotIDCaseSensitive` (lot IDs are case-sensitive) and `TestCalculatePositions_IdempotentRecalc` (recalc produces identical results on same input).
+- Cash position quantity is the raw `net_cash` sum (in cents), not converted to dollars. Tests updated accordingly.
+
 ## Task 11 Implementation Notes (2026-05-08)
 - `EnrichWithMarketData` is a method on `position.Service` (not in the API handler) so both the API and web handlers share the same enrichment logic.
 - `WithMarketDataFetcher` is a separate method (not a constructor parameter) to keep the existing `NewService` signature backward compatible — all existing callers (transaction service, import services) continue to work without changes.

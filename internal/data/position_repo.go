@@ -54,7 +54,7 @@ func toPosition(p queries.Position) (*position.Position, error) {
 	}
 
 	var avgOpenPrice *decimal.Decimal
-	if p.AvgOpenPrice.Valid {
+	if p.AvgOpenPrice.Valid && p.AvgOpenPrice.String != "" {
 		v, err := decimal.Parse(p.AvgOpenPrice.String)
 		if err != nil {
 			return nil, fmt.Errorf("parse avg_open_price: %w", err)
@@ -63,7 +63,7 @@ func toPosition(p queries.Position) (*position.Position, error) {
 	}
 
 	var avgClosePrice *decimal.Decimal
-	if p.AvgClosePrice.Valid {
+	if p.AvgClosePrice.Valid && p.AvgClosePrice.String != "" {
 		v, err := decimal.Parse(p.AvgClosePrice.String)
 		if err != nil {
 			return nil, fmt.Errorf("parse avg_close_price: %w", err)
@@ -77,7 +77,7 @@ func toPosition(p queries.Position) (*position.Position, error) {
 	}
 
 	var realizedPnlBase *decimal.Decimal
-	if p.RealizedPnlBase.Valid {
+	if p.RealizedPnlBase.Valid && p.RealizedPnlBase.String != "" {
 		v, err := decimal.Parse(p.RealizedPnlBase.String)
 		if err != nil {
 			return nil, fmt.Errorf("parse realized_pnl_base: %w", err)
@@ -86,12 +86,17 @@ func toPosition(p queries.Position) (*position.Position, error) {
 	}
 
 	var closeDate *time.Time
-	if p.CloseDate.Valid {
+	if p.CloseDate.Valid && p.CloseDate.String != "" {
 		t, err := parseTime(p.CloseDate.String)
 		if err != nil {
 			return nil, fmt.Errorf("parse close_date: %w", err)
 		}
 		closeDate = &t
+	}
+
+	avgOpen := decimal.Zero
+	if avgOpenPrice != nil {
+		avgOpen = *avgOpenPrice
 	}
 
 	return &position.Position{
@@ -101,7 +106,7 @@ func toPosition(p queries.Position) (*position.Position, error) {
 		Currency:        p.Currency,
 		Quantity:        quantity,
 		CostBasis:       costBasis,
-		AvgOpenPrice:    *avgOpenPrice,
+		AvgOpenPrice:    avgOpen,
 		AvgClosePrice:   avgClosePrice,
 		RealizedPnL:     realizedPnL,
 		RealizedPnlBase: realizedPnlBase,
@@ -151,7 +156,7 @@ func toLot(l queries.Lot) (*position.Lot, error) {
 	}
 
 	var sellPrice *decimal.Decimal
-	if l.SellPrice.Valid {
+	if l.SellPrice.Valid && l.SellPrice.String != "" {
 		v, err := decimal.Parse(l.SellPrice.String)
 		if err != nil {
 			return nil, fmt.Errorf("parse sell_price: %w", err)
@@ -165,7 +170,7 @@ func toLot(l queries.Lot) (*position.Lot, error) {
 	}
 
 	var closeDate *time.Time
-	if l.CloseDate.Valid {
+	if l.CloseDate.Valid && l.CloseDate.String != "" {
 		t, err := parseTime(l.CloseDate.String)
 		if err != nil {
 			return nil, fmt.Errorf("parse close_date: %w", err)
