@@ -16,7 +16,7 @@ var fxCtx = context.Background()
 
 type mockFxRepo struct {
 	bySymbolDate map[string]map[string]*market.MarketData // symbol → date → MarketData
-	currentFx    map[string]*market.MarketData             // pair → MarketData
+	currentFx    map[string]*market.MarketData             // pair string → MarketData
 	upsertCalls  []*market.MarketData
 }
 
@@ -61,7 +61,8 @@ func (m *mockFxRepo) Upsert(_ context.Context, md *market.MarketData) error {
 	return nil
 }
 
-func (m *mockFxRepo) GetCurrentFxRate(_ context.Context, pair string) (*market.MarketData, error) {
+func (m *mockFxRepo) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error) {
+	pair := market.FormatFxPair(baseCurrency, quoteCurrency)
 	if md, ok := m.currentFx[pair]; ok {
 		return md, nil
 	}
@@ -69,7 +70,7 @@ func (m *mockFxRepo) GetCurrentFxRate(_ context.Context, pair string) (*market.M
 }
 
 type mockFxFetcher struct {
-	rates map[string]*market.FxRate
+	rates map[string]*market.FxRate // keyed by "base,quote"
 	err   error
 }
 
@@ -79,25 +80,25 @@ func newMockFxFetcher() *mockFxFetcher {
 	}
 }
 
-func (m *mockFxFetcher) setRate(pair string, rate decimal.Decimal) {
-	base, quote, _ := market.ParseFxPair(pair)
-	m.rates[pair] = &market.FxRate{
-		Pair:          pair,
-		BaseCurrency:  base,
-		QuoteCurrency: quote,
+func (m *mockFxFetcher) setRate(baseCurrency, quoteCurrency string, rate decimal.Decimal) {
+	key := baseCurrency + "," + quoteCurrency
+	m.rates[key] = &market.FxRate{
+		BaseCurrency:  baseCurrency,
+		QuoteCurrency: quoteCurrency,
 		Rate:          rate,
 		FetchedAt:     time.Now(),
 	}
 }
 
-func (m *mockFxFetcher) FetchRate(_ context.Context, pair string) (*market.FxRate, error) {
+func (m *mockFxFetcher) FetchRate(_ context.Context, baseCurrency, quoteCurrency string) (*market.FxRate, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	if rate, ok := m.rates[pair]; ok {
+	key := baseCurrency + "," + quoteCurrency
+	if rate, ok := m.rates[key]; ok {
 		return rate, nil
 	}
-	return nil, fmt.Errorf("no rate for %s", pair)
+	return nil, fmt.Errorf("no rate for %s/%s", baseCurrency, quoteCurrency)
 }
 
 // --- ConvertPnlToBase tests ---
@@ -120,7 +121,7 @@ func TestConvertPnlToBase_SameCurrency(t *testing.T) {
 func TestConvertPnlToBase_ConvertsToBase(t *testing.T) {
 	pnl := decimal.MustNew(10000, 2) // +100.00 GBP
 	rate := &market.FxRate{
-		Pair: "GBP/USD", BaseCurrency: "GBP", QuoteCurrency: "USD",
+		BaseCurrency: "GBP", QuoteCurrency: "USD",
 		Rate: decimal.MustNew(12500, 4), // 1.2500
 	}
 	converted, rateUsed, isFallback := ConvertPnlToBase(pnl, "GBP", "USD", rate, false)
@@ -157,7 +158,7 @@ func TestConvertPnlToBase_NoRateReturnsFallback(t *testing.T) {
 func TestConvertPnlToBase_NegativePnL(t *testing.T) {
 	pnl := decimal.MustNew(-5000, 2) // -50.00 GBP
 	rate := &market.FxRate{
-		Pair: "GBP/USD", BaseCurrency: "GBP", QuoteCurrency: "USD",
+		BaseCurrency: "GBP", QuoteCurrency: "USD",
 		Rate: decimal.MustNew(12000, 4), // 1.2000
 	}
 	converted, _, _ := ConvertPnlToBase(pnl, "GBP", "USD", rate, false)
@@ -172,7 +173,7 @@ func TestConvertPnlToBase_NegativePnL(t *testing.T) {
 func TestConvertPnlToBase_ZeroPnL(t *testing.T) {
 	pnl := decimal.Zero
 	rate := &market.FxRate{
-		Pair: "GBP/USD", BaseCurrency: "GBP", QuoteCurrency: "USD",
+		BaseCurrency: "GBP", QuoteCurrency: "USD",
 		Rate: decimal.MustNew(12500, 4),
 	}
 	converted, _, _ := ConvertPnlToBase(pnl, "GBP", "USD", rate, false)
@@ -195,7 +196,7 @@ func TestFxConverter_GetRateForDate_HistoricalInDB(t *testing.T) {
 	fetcher := newMockFxFetcher()
 	converter := NewFxConverter(repo, fetcher, nil)
 
-	rate, found := converter.GetRateForDate(fxCtx, "GBP/USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
+	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
 
 	if !found {
 		t.Error("expected historical rate found")
@@ -215,11 +216,11 @@ func TestFxConverter_GetRateForDate_HistoricalInDB(t *testing.T) {
 func TestFxConverter_GetRateForDate_FetchesOnDemand(t *testing.T) {
 	repo := newMockFxRepo()
 	fetcher := newMockFxFetcher()
-	fetcher.setRate("GBP/USD", decimal.MustNew(12600, 4))
+	fetcher.setRate("GBP", "USD", decimal.MustNew(12600, 4))
 
 	converter := NewFxConverter(repo, fetcher, nil)
 
-	rate, found := converter.GetRateForDate(fxCtx, "GBP/USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
+	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
 
 	if found {
 		t.Error("expected not found (on-demand fetch is not historical)")
@@ -252,7 +253,7 @@ func TestFxConverter_GetRateForDate_FallsBackToSpot(t *testing.T) {
 
 	converter := NewFxConverter(repo, fetcher, nil)
 
-	rate, found := converter.GetRateForDate(fxCtx, "GBP/USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
+	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
 
 	if found {
 		t.Error("expected not found (spot rate is a fallback)")
@@ -272,7 +273,7 @@ func TestFxConverter_GetRateForDate_NoRateAvailable(t *testing.T) {
 
 	converter := NewFxConverter(repo, fetcher, nil)
 
-	rate, found := converter.GetRateForDate(fxCtx, "GBP/USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
+	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
 
 	if found {
 		t.Error("expected not found")
@@ -293,7 +294,7 @@ func TestFxConverter_GetCurrentRate_FromCache(t *testing.T) {
 
 	converter := NewFxConverter(repo, fetcher, nil)
 
-	rate, found := converter.GetCurrentRate(fxCtx, "EUR/USD")
+	rate, found := converter.GetCurrentRate(fxCtx, "EUR", "USD")
 
 	if !found {
 		t.Error("expected rate found")
@@ -309,11 +310,11 @@ func TestFxConverter_GetCurrentRate_FromCache(t *testing.T) {
 func TestFxConverter_GetCurrentRate_FetchesAndCaches(t *testing.T) {
 	repo := newMockFxRepo()
 	fetcher := newMockFxFetcher()
-	fetcher.setRate("EUR/USD", decimal.MustNew(10900, 4))
+	fetcher.setRate("EUR", "USD", decimal.MustNew(10900, 4))
 
 	converter := NewFxConverter(repo, fetcher, nil)
 
-	rate, found := converter.GetCurrentRate(fxCtx, "EUR/USD")
+	rate, found := converter.GetCurrentRate(fxCtx, "EUR", "USD")
 
 	if !found {
 		t.Error("expected rate found")
@@ -333,24 +334,17 @@ func TestFxConverter_GetCurrentRate_FetchesAndCaches(t *testing.T) {
 	}
 }
 
-// --- BuildFxPair tests ---
+// --- FormatFxPair tests (via market package) ---
 
-func TestBuildFxPair_SameCurrency(t *testing.T) {
-	pair := BuildFxPair("USD", "USD")
-	if pair != "" {
-		t.Errorf("expected empty pair, got %q", pair)
-	}
-}
-
-func TestBuildFxPair_DifferentCurrency(t *testing.T) {
-	pair := BuildFxPair("GBP", "USD")
+func TestFormatFxPair_DifferentCurrency(t *testing.T) {
+	pair := market.FormatFxPair("GBP", "USD")
 	if pair != "GBP/USD" {
 		t.Errorf("expected GBP/USD, got %q", pair)
 	}
 }
 
-func TestBuildFxPair_EurToGbp(t *testing.T) {
-	pair := BuildFxPair("EUR", "GBP")
+func TestFormatFxPair_EurToGbp(t *testing.T) {
+	pair := market.FormatFxPair("EUR", "GBP")
 	if pair != "EUR/GBP" {
 		t.Errorf("expected EUR/GBP, got %q", pair)
 	}

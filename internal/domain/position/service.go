@@ -178,9 +178,8 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 		return
 	}
 
-	pair := BuildFxPair(p.Currency, baseCurrency)
-	if pair == "" {
-		// Same currency as base — no conversion needed, rate is 1.
+	// Same currency as base — no conversion needed, rate is 1.
+	if p.Currency == baseCurrency {
 		p.RealizedPnlBase = &p.RealizedPnL
 		rate := decimal.One
 		p.FxRateUsed = &rate
@@ -200,12 +199,12 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 	var rate *market.FxRate
 	var isFallback bool
 	if isClosed {
-		rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
+		rate, isFallback = s.fxProvider.GetRateForDate(ctx, p.Currency, baseCurrency, date)
 	} else {
 		var found bool
-		rate, found = s.fxProvider.GetCurrentRate(ctx, pair)
+		rate, found = s.fxProvider.GetCurrentRate(ctx, p.Currency, baseCurrency)
 		if !found {
-			rate, isFallback = s.fxProvider.GetRateForDate(ctx, pair, date)
+			rate, isFallback = s.fxProvider.GetRateForDate(ctx, p.Currency, baseCurrency, date)
 		}
 	}
 
@@ -651,8 +650,7 @@ func convertValuesToBase(ctx context.Context, fxProvider FxRateProvider, fromCur
 		return nil, nil
 	}
 
-	pair := BuildFxPair(fromCurrency, toCurrency)
-	rate, found := fxProvider.GetCurrentRate(ctx, pair)
+	rate, found := fxProvider.GetCurrentRate(ctx, fromCurrency, toCurrency)
 	if !found || rate == nil {
 		return nil, nil
 	}

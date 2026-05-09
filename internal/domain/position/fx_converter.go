@@ -13,24 +13,24 @@ import (
 // FxRateProvider abstracts retrieval of FX rates, handling the
 // historical → on-demand fetch → current spot fallback chain.
 type FxRateProvider interface {
-	// GetRateForDate returns the FX rate for a currency pair on or near the
-	// given date. It checks the database for historical rates first, then
-	// falls back to fetching from the market data provider and caching,
-	// and finally falls back to the current spot rate.
+	// GetRateForDate returns the FX rate for converting baseCurrency to
+	// quoteCurrency on or near the given date. It checks the database for
+	// historical rates first, then falls back to fetching from the market
+	// data provider and caching, and finally falls back to the current spot rate.
 	// The second return value indicates whether a historical rate was found
 	// (false means a fallback was used).
-	GetRateForDate(ctx context.Context, pair string, date time.Time) (*market.FxRate, bool)
+	GetRateForDate(ctx context.Context, baseCurrency, quoteCurrency string, date time.Time) (*market.FxRate, bool)
 
-	// GetCurrentRate returns the current spot FX rate for a pair,
-	// checking the database cache first before fetching.
-	// Returns nil if no rate is available.
-	GetCurrentRate(ctx context.Context, pair string) (*market.FxRate, bool)
+	// GetCurrentRate returns the current spot FX rate for converting
+	// baseCurrency to quoteCurrency, checking the database cache first
+	// before fetching. Returns nil if no rate is available.
+	GetCurrentRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.FxRate, bool)
 }
 
 // FxConverter implements FxRateProvider by combining a market data repository
 // (DB cache), an FX rate fetcher (on-demand fetch), and a logger.
 type FxConverter struct {
-	repo   MarketDataRepository
+	repo    MarketDataRepository
 	fetcher market.FxRateFetcher
 	logger  *slog.Logger
 }
@@ -41,7 +41,7 @@ type MarketDataRepository interface {
 	GetLatest(ctx context.Context, symbol string) (*market.MarketData, error)
 	GetBySourceAndDate(ctx context.Context, symbol, source, date string) (*market.MarketData, error)
 	Upsert(ctx context.Context, m *market.MarketData) error
-	GetCurrentFxRate(ctx context.Context, pair string) (*market.MarketData, error)
+	GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error)
 }
 
 // NewFxConverter creates a new FxConverter.
@@ -57,84 +57,86 @@ func NewFxConverter(repo MarketDataRepository, fetcher market.FxRateFetcher, log
 // It checks the database for historical rates first, then falls back to fetching
 // from the market data provider, and finally falls back to the current spot rate.
 // The second return value is true if a historical (non-fallback) rate was found.
-func (c *FxConverter) GetRateForDate(ctx context.Context, pair string, date time.Time) (*market.FxRate, bool) {
+func (c *FxConverter) GetRateForDate(ctx context.Context, baseCurrency, quoteCurrency string, date time.Time) (*market.FxRate, bool) {
+	pair := market.FormatFxPair(baseCurrency, quoteCurrency)
 	dateStr := date.Format("2006-01-02")
 
 	// Step 1: Check DB for historical rate on that date.
 	md, err := c.repo.GetBySourceAndDate(ctx, pair, "yahoo", dateStr)
 	if err != nil {
-		c.logWarn("failed to get historical FX rate from DB", "pair", pair, "date", dateStr, "error", err)
+		c.logWarn("failed to get historical FX rate from DB", "base", baseCurrency, "quote", quoteCurrency, "date", dateStr, "error", err)
 	}
 	if md != nil {
-		return c.toFxRate(pair, md), true
+		return c.toFxRate(baseCurrency, quoteCurrency, md), true
 	}
 
 	// Step 2: Try to fetch current rate from provider and cache it as historical.
-	if rate, err := c.fetcher.FetchRate(ctx, pair); err == nil {
+	if rate, err := c.fetcher.FetchRate(ctx, baseCurrency, quoteCurrency); err == nil {
 		// Cache the fetched rate as a historical snapshot for this date.
 		cached := &market.MarketData{
 			Symbol:    pair,
 			Price:     rate.Rate,
-			Currency:  rate.QuoteCurrency,
+			Currency:  quoteCurrency,
 			DataType:  "fx",
 			Source:    "yahoo",
 			Date:      dateStr,
 			FetchedAt: rate.FetchedAt,
 		}
 		if err := c.repo.Upsert(ctx, cached); err != nil {
-			c.logWarn("failed to cache FX rate", "pair", pair, "date", dateStr, "error", err)
+			c.logWarn("failed to cache FX rate", "base", baseCurrency, "quote", quoteCurrency, "date", dateStr, "error", err)
 		}
 		return rate, false // fetched on-demand, not historical
 	} else {
-		c.logWarn("failed to fetch FX rate", "pair", pair, "error", err)
+		c.logWarn("failed to fetch FX rate", "base", baseCurrency, "quote", quoteCurrency, "error", err)
 	}
 
 	// Step 3: Fall back to current spot rate from DB.
-	spot, err := c.repo.GetCurrentFxRate(ctx, pair)
+	spot, err := c.repo.GetCurrentFxRate(ctx, baseCurrency, quoteCurrency)
 	if err != nil {
-		c.logWarn("failed to get current FX rate from DB", "pair", pair, "error", err)
+		c.logWarn("failed to get current FX rate from DB", "base", baseCurrency, "quote", quoteCurrency, "error", err)
 	}
 	if spot != nil {
-		return c.toFxRate(pair, spot), false
+		return c.toFxRate(baseCurrency, quoteCurrency, spot), false
 	}
 
 	// No rate available at all.
-	c.logWarn("no FX rate available", "pair", pair, "date", dateStr)
+	c.logWarn("no FX rate available", "base", baseCurrency, "quote", quoteCurrency, "date", dateStr)
 	return nil, false
 }
 
-// GetCurrentRate returns the current spot FX rate for a pair.
+// GetCurrentRate returns the current spot FX rate.
 // Checks the DB cache first, then fetches from provider.
 // The second return value is true if a rate was found.
-func (c *FxConverter) GetCurrentRate(ctx context.Context, pair string) (*market.FxRate, bool) {
+func (c *FxConverter) GetCurrentRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.FxRate, bool) {
 	// Check DB cache first.
-	spot, err := c.repo.GetCurrentFxRate(ctx, pair)
+	spot, err := c.repo.GetCurrentFxRate(ctx, baseCurrency, quoteCurrency)
 	if err != nil {
-		c.logWarn("failed to get current FX rate from DB", "pair", pair, "error", err)
+		c.logWarn("failed to get current FX rate from DB", "base", baseCurrency, "quote", quoteCurrency, "error", err)
 	}
 	if spot != nil {
-		return c.toFxRate(pair, spot), true
+		return c.toFxRate(baseCurrency, quoteCurrency, spot), true
 	}
 
 	// Fetch from provider.
-	if rate, err := c.fetcher.FetchRate(ctx, pair); err == nil {
+	if rate, err := c.fetcher.FetchRate(ctx, baseCurrency, quoteCurrency); err == nil {
 		// Cache the fetched rate.
+		pair := market.FormatFxPair(baseCurrency, quoteCurrency)
 		cached := &market.MarketData{
 			Symbol:    pair,
 			Price:     rate.Rate,
-			Currency:  rate.QuoteCurrency,
+			Currency:  quoteCurrency,
 			DataType:  "fx",
 			Source:    "yahoo",
 			Date:      "", // current
 			FetchedAt: rate.FetchedAt,
 		}
 		if err := c.repo.Upsert(ctx, cached); err != nil {
-			c.logWarn("failed to cache current FX rate", "pair", pair, "error", err)
+			c.logWarn("failed to cache current FX rate", "base", baseCurrency, "quote", quoteCurrency, "error", err)
 		}
 		return rate, true
 	}
 
-	c.logWarn("no current FX rate available", "pair", pair)
+	c.logWarn("no current FX rate available", "base", baseCurrency, "quote", quoteCurrency)
 	return nil, false
 }
 
@@ -146,22 +148,10 @@ func (c *FxConverter) logWarn(msg string, args ...any) {
 }
 
 // toFxRate converts a MarketData entry to an FxRate.
-func (c *FxConverter) toFxRate(pair string, md *market.MarketData) *market.FxRate {
-	base, quote, err := market.ParseFxPair(pair)
-	if err != nil {
-		// Fallback: use the symbol itself.
-		return &market.FxRate{
-			Pair:          pair,
-			BaseCurrency:  pair,
-			QuoteCurrency: md.Currency,
-			Rate:          md.Price,
-			FetchedAt:     md.FetchedAt,
-		}
-	}
+func (c *FxConverter) toFxRate(baseCurrency, quoteCurrency string, md *market.MarketData) *market.FxRate {
 	return &market.FxRate{
-		Pair:          pair,
-		BaseCurrency:  base,
-		QuoteCurrency: quote,
+		BaseCurrency:  baseCurrency,
+		QuoteCurrency: quoteCurrency,
 		Rate:          md.Price,
 		FetchedAt:     md.FetchedAt,
 	}
@@ -197,15 +187,6 @@ func ConvertPnlToBase(pnl decimal.Decimal, positionCurrency, baseCurrency string
 	}
 
 	return converted, &rate.Rate, isFallback
-}
-
-// BuildFxPair constructs the FX pair string from position currency and base
-// currency. E.g., positionCurrency="GBP", baseCurrency="USD" → "GBP/USD".
-func BuildFxPair(positionCurrency, baseCurrency string) string {
-	if positionCurrency == baseCurrency {
-		return ""
-	}
-	return fmt.Sprintf("%s/%s", positionCurrency, baseCurrency)
 }
 
 // FxRateDisplay holds the convention-rate pair label and value for display.

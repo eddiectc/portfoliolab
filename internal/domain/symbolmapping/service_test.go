@@ -216,7 +216,7 @@ func (m *mockQuoteFetcher) FetchQuote(_ context.Context, symbol string) (*market
 	return nil, fmt.Errorf("symbol not found: %s", symbol)
 }
 
-func (m *mockQuoteFetcher) FetchFxRate(_ context.Context, pair string) (*market.MarketData, error) {
+func (m *mockQuoteFetcher) FetchFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
