@@ -37,3 +37,41 @@ DELETE FROM market_data
 WHERE date = ''
   AND symbol = ?
   AND fetched_at < ?;
+
+-- name: GetHistoricalPricesBySymbolAndRange :many
+-- Historical prices for one symbol within [date_from, date_to], sorted by date ASC.
+-- Excludes current (date='') entries. Returns only 'stock' data_type.
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND date >= ?
+  AND date <= ?
+  AND date != ''
+  AND data_type = 'stock'
+ORDER BY date ASC;
+
+-- name: GetLatestQuote :one
+-- Latest (date='') entry for a single symbol.
+-- Returns the most recently fetched current quote.
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND date = ''
+  AND data_type = 'stock'
+ORDER BY fetched_at DESC
+LIMIT 1;
+
+-- name: GetLatestPriceDatePerSymbol :one
+-- MAX(date) for one symbol's stock data (to detect staleness).
+-- Excludes current (date='') entries.
+SELECT symbol, MAX(date) AS latest_date
+FROM market_data
+WHERE symbol = ?
+  AND date != ''
+  AND data_type = 'stock';
+
+-- name: GetDistinctCachedSymbols :many
+-- Distinct symbols with cached data (stock or fx), with the latest cached date.
+SELECT DISTINCT symbol, data_type, MAX(date) AS latest_date
+FROM market_data
+GROUP BY symbol, data_type;

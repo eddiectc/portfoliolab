@@ -34,13 +34,13 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
 
 **Description:** Add SQL queries to read cached historical data and check cache status.
 
-- [ ] Add to `internal/data/queries/market_data.sql`:
+- [x] Add to `internal/data/queries/market_data.sql`:
   - `GetHistoricalPricesBySymbolAndRange` — historical prices for one symbol within [date_from, date_to], sorted by date ASC
-  - `GetLatestQuotesBatch` — latest (date='') entry per symbol for a list of symbols
+  - `GetLatestQuote` — latest (date='') entry for a single symbol (batch version handled in repo layer, since sqlc doesn't support dynamic IN for SQLite)
   - `GetLatestPriceDatePerSymbol` — MAX(date) per symbol for stock data (to detect staleness)
   - `GetDistinctCachedSymbols` — distinct symbols with cached data (stock or fx)
-- [ ] Run `sqlc generate` to regenerate Go code
-- [ ] Verify generated code compiles
+- [x] Run `sqlc generate` to regenerate Go code
+- [x] Verify generated code compiles
 
 **Verification:** `sqlc generate` succeeds; new methods appear in `market_data.sql.go`; `go build ./...` passes.
 
