@@ -108,9 +108,11 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	// 10. Interpolate for non-transaction days.
 	points = interpolateDaily(points)
 
+	returnMetrics := ComputeReturnMetrics(points, baseCurrency)
+
 	return &PerformanceResult{
 		EquityCurve:   points,
-		ReturnMetrics: ReturnMetrics{HasInsufficientData: len(points) < 2},
+		ReturnMetrics: returnMetrics,
 		BaseCurrency:  baseCurrency,
 		Warnings:      warnings,
 	}, nil
