@@ -8,8 +8,17 @@ import (
 
 	"github.com/govalues/decimal"
 	"github.com/wnjoon/go-yfinance/pkg/multi"
+	"github.com/wnjoon/go-yfinance/pkg/models"
 	yf "github.com/wnjoon/go-yfinance/pkg/ticker"
 )
+
+// HistoricalPrice is a single daily historical price point fetched from
+// a market data provider. Close is the unadjusted closing price.
+type HistoricalPrice struct {
+	Date     time.Time       // trading day
+	Close    decimal.Decimal // unadjusted close price
+	Currency string          // e.g. "USD", "GBP"
+}
 
 // MarketData represents a stored market data entry for either stock quotes
 // or FX rates. Date uses empty string ("") as sentinel for "latest/current"
@@ -31,8 +40,12 @@ type MarketDataFetcher interface {
 	FetchFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*MarketData, error)
 	// FetchQuotesBatch fetches quotes for multiple symbols using a shared
 	// HTTP client (single auth session). Returns a map of symbol → MarketData
-	// for successfully fetched quotes. Symbols that fail are omitted.
+	 // for successfully fetched quotes. Symbols that fail are omitted.
 	FetchQuotesBatch(ctx context.Context, symbols []string) map[string]*MarketData
+	// FetchHistoricalPricesBatch fetches daily historical prices for multiple
+	// symbols over a date range using a shared HTTP client. Returns a map of
+	// symbol → prices (sorted by date ASC) and a slice of failed symbol names.
+	FetchHistoricalPricesBatch(ctx context.Context, symbols []string, start, end time.Time) (map[string][]HistoricalPrice, []string)
 }
 
 // YahooFinanceFetcher implements MarketDataFetcher using go-yfinance.
@@ -182,6 +195,78 @@ func (f *YahooFinanceFetcher) FetchQuotesBatch(_ context.Context, symbols []stri
 	}
 
 	return result
+}
+
+// FetchHistoricalPricesBatch fetches daily historical prices for multiple
+// symbols over [start, end] using go-yfinance's multi package with a shared
+// HTTP client (single auth session). Uses AutoAdjust: false (unadjusted prices)
+// for accurate portfolio valuation and Interval: "1d".
+// Returns a map of symbol → prices (sorted by date ASC) and a slice of failed
+// symbol names. Bars outside [start, end] are filtered out.
+func (f *YahooFinanceFetcher) FetchHistoricalPricesBatch(_ context.Context, symbols []string, start, end time.Time) (map[string][]HistoricalPrice, []string) {
+	result := make(map[string][]HistoricalPrice)
+	if len(symbols) == 0 {
+		return result, nil
+	}
+
+	// multi.NewTickers creates tickers sharing one HTTP client,
+	// so cookie/crumb auth is done once and reused for all symbols.
+	tickers, err := multi.NewTickers(symbols)
+	if err != nil {
+		f.logger.Warn("failed to create tickers for historical batch", "error", err)
+		return result, symbols
+	}
+	defer tickers.Close()
+
+	var failedSymbols []string
+	for _, sym := range tickers.Symbols() {
+		tkr := tickers.Get(sym)
+		if tkr == nil {
+			failedSymbols = append(failedSymbols, sym)
+			continue
+		}
+
+		bars, err := tkr.History(models.HistoryParams{
+			Start:      &start,
+			End:        &end,
+			Interval:   "1d",
+			AutoAdjust: false,
+		})
+		if err != nil {
+			f.logger.Debug("failed to fetch historical prices", "symbol", sym, "error", err)
+			failedSymbols = append(failedSymbols, sym)
+			continue
+		}
+
+		// Get currency from the cached chart metadata (set by History()).
+		meta := tkr.GetHistoryMetadata()
+		currency := ""
+		if meta != nil {
+			currency = meta.Currency
+		}
+
+		var prices []HistoricalPrice
+		for _, bar := range bars {
+			if bar.Date.Before(start) || bar.Date.After(end) {
+				continue
+			}
+			close, convErr := decimal.NewFromFloat64(bar.Close)
+			if convErr != nil {
+				f.logger.Debug("failed to convert close price", "symbol", sym, "close", bar.Close, "error", convErr)
+				continue
+			}
+			prices = append(prices, HistoricalPrice{
+				Date:     bar.Date,
+				Close:    close,
+				Currency: currency,
+			})
+		}
+		if len(prices) > 0 {
+			result[sym] = prices
+		}
+	}
+
+	return result, failedSymbols
 }
 
 // FxPairToYahooSymbol converts base/quote currencies to Yahoo's

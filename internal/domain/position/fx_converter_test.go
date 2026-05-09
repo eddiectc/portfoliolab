@@ -69,6 +69,10 @@ func (m *mockFxRepo) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurr
 	return nil, nil
 }
 
+func (m *mockFxRepo) UpsertHistoricalPrices(_ context.Context, _symbol string, _prices []market.HistoricalPrice) error {
+	return nil
+}
+
 type mockFxFetcher struct {
 	rates map[string]*market.FxRate // keyed by "base,quote"
 	err   error

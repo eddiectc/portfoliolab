@@ -234,6 +234,10 @@ func (m *mockQuoteFetcher) FetchQuotesBatch(_ context.Context, symbols []string)
 	return result
 }
 
+func (m *mockQuoteFetcher) FetchHistoricalPricesBatch(_ context.Context, _ []string, _, _ time.Time) (map[string][]market.HistoricalPrice, []string) {
+	return nil, nil
+}
+
 // --- Create Tests ---
 
 func TestService_Create(t *testing.T) {

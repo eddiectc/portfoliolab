@@ -319,3 +319,90 @@ func TestMarketDataRepository_DeleteStaleMarketData(t *testing.T) {
 		t.Errorf("Price = %v, want %v", got.Price, price2)
 	}
 }
+
+func TestMarketDataRepository_UpsertHistoricalPrices(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	prices := []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 6, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17000, 2), Currency: "USD"},
+		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
+		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
+	}
+
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+	if err != nil {
+		t.Fatalf("UpsertHistoricalPrices: %v", err)
+	}
+
+	// Verify each date was stored.
+	for i, wantPrice := range prices {
+		got, err := repo.GetBySourceAndDate(context.Background(), "AAPL", "yahoo", wantPrice.Date.Format("2006-01-02"))
+		if err != nil {
+			t.Fatalf("GetBySourceAndDate for date %d: %v", i, err)
+		}
+		if got == nil {
+			t.Fatalf("expected non-nil result for date %s", wantPrice.Date.Format("2006-01-02"))
+		}
+		if !got.Price.Equal(wantPrice.Close) {
+			t.Errorf("date %s: Price = %v, want %v", wantPrice.Date.Format("2006-01-02"), got.Price, wantPrice.Close)
+		}
+		if got.Currency != "USD" {
+			t.Errorf("date %s: Currency = %q, want %q", wantPrice.Date.Format("2006-01-02"), got.Currency, "USD")
+		}
+		if got.DataType != "stock" {
+			t.Errorf("date %s: DataType = %q, want %q", wantPrice.Date.Format("2006-01-02"), got.DataType, "stock")
+		}
+	}
+}
+
+func TestMarketDataRepository_UpsertHistoricalPrices_Empty(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", nil)
+	if err != nil {
+		t.Fatalf("UpsertHistoricalPrices with nil: %v", err)
+	}
+
+	err = repo.UpsertHistoricalPrices(context.Background(), "AAPL", []market.HistoricalPrice{})
+	if err != nil {
+		t.Fatalf("UpsertHistoricalPrices with empty slice: %v", err)
+	}
+}
+
+func TestMarketDataRepository_UpsertHistoricalPrices_OverwritesExisting(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	// Insert initial price for a date.
+	initialPrice, _ := decimal.NewFromFloat64(170.00)
+	md := &market.MarketData{
+		Symbol:    "AAPL",
+		Price:     initialPrice,
+		Currency:  "USD",
+		DataType:  "stock",
+		Source:    "yahoo",
+		Date:      "2026-05-08",
+		FetchedAt: time.Now(),
+	}
+	repo.Upsert(context.Background(), md)
+
+	// Upsert historical prices including the same date with a new price.
+	prices := []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
+	}
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+	if err != nil {
+		t.Fatalf("UpsertHistoricalPrices: %v", err)
+	}
+
+	got, err := repo.GetBySourceAndDate(context.Background(), "AAPL", "yahoo", "2026-05-08")
+	if err != nil {
+		t.Fatalf("GetBySourceAndDate: %v", err)
+	}
+	wantPrice, _ := decimal.NewFromFloat64(180.00)
+	if !got.Price.Equal(wantPrice) {
+		t.Errorf("Price = %v, want %v (expected upsert to overwrite)", got.Price, wantPrice)
+	}
+}

@@ -781,6 +781,10 @@ func (m *mockMarketDataFetcher) FetchQuotesBatch(_ context.Context, symbols []st
 	return result
 }
 
+func (m *mockMarketDataFetcher) FetchHistoricalPricesBatch(_ context.Context, _ []string, _, _ time.Time) (map[string][]market.HistoricalPrice, []string) {
+	return nil, nil
+}
+
 type mockMarketDataRepo struct {
 	upserted []*market.MarketData
 	upsertErr error
@@ -804,6 +808,10 @@ func (m *mockMarketDataRepo) Upsert(_ context.Context, md *market.MarketData) er
 
 func (m *mockMarketDataRepo) GetCurrentFxRate(_ context.Context, _, _ string) (*market.MarketData, error) {
 	return nil, nil
+}
+
+func (m *mockMarketDataRepo) UpsertHistoricalPrices(_ context.Context, _ string, _ []market.HistoricalPrice) error {
+	return nil
 }
 
 // --- EnrichWithMarketData tests ---

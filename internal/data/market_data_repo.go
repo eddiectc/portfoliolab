@@ -122,3 +122,26 @@ func (r *MarketDataRepository) DeleteStaleMarketData(ctx context.Context, symbol
 		FetchedAt: olderThan.Format(time.RFC3339),
 	})
 }
+
+// UpsertHistoricalPrices inserts or updates historical price entries for a
+// symbol. Each price is upserted individually using ON CONFLICT(symbol, source,
+// date). Errors on individual rows are logged but don't stop the batch.
+func (r *MarketDataRepository) UpsertHistoricalPrices(ctx context.Context, symbol string, prices []market.HistoricalPrice) error {
+	now := time.Now()
+	for _, p := range prices {
+		md := &market.MarketData{
+			Symbol:    symbol,
+			Price:     p.Close,
+			Currency:  p.Currency,
+			DataType:  "stock",
+			Source:    "yahoo",
+			Date:      p.Date.Format("2006-01-02"),
+			FetchedAt: now,
+		}
+		if err := r.Upsert(ctx, md); err != nil {
+			// Log but don't fail on individual errors.
+			return fmt.Errorf("upsert historical price for %s on %s: %w", symbol, p.Date.Format("2006-01-02"), err)
+		}
+	}
+	return nil
+}
