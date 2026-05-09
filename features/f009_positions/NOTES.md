@@ -1,5 +1,35 @@
 # Notes: Positions
 
+## Phase 5b Implementation Review Fixes (2026-05-09)
+
+### Code Conventions Fixes
+- **C1/D1: Raw SQL for deletes in `Recalculate`** — Replaced raw `DELETE` statements with sqlc-generated queries: `DeleteAllPositionsForAccount`, `DeleteAllLotsForAccount`, `DeleteAllLotConsumptionsForAccount`. Inserts remain as parameterized raw SQL (sqlc doesn't support bulk inserts; documented as safe).
+- **C2/D2: Computed-at-read `RealizedPnlPct`** — Added `realized_pnl_pct TEXT DEFAULT NULL` column to `positions` table via migration `014`. Value is now pre-computed in `buildPosition` and persisted to DB. `toPosition()` reads from DB instead of computing at read time.
+- **D7: Missing index** — Added `CREATE INDEX idx_positions_currency ON positions(currency)` in migration `014` for currency filtering queries.
+- **Transaction concurrency** — Removed incorrect `sql.LevelImmediate` attempt (doesn't exist in Go stdlib). Using standard `BeginTx` with SQLite WAL mode. Concurrent recalculations get "database is locked" errors which caller can retry. Documented in code comment.
+
+### Test Quality Additions
+- **D8: `unrealizedPnlPct` computation test** — Added 3 tests: `TestUnrealizedPnlPct_PositivePnl` (20% gain), `TestUnrealizedPnlPct_NegativePnl` (-20% loss), `TestUnrealizedPnlPct_ZeroPnl` (0% flat).
+- **T2: Recalculate error propagation** — Added `TestRecalculateAccount_RepositoryError` (DB error propagates) and `TestRecalculateAccount_TransactionListError` (transaction list error propagates).
+- **T1: Zero-quantity lots** — Already covered by existing test `TestComputePositions_EmptyLots` in `position_computation_test.go`.
+- **T3: Sell exceeds buy** — Already covered by existing tests in `fifo_matching_test.go` and `position_computation_test.go`.
+
+### Closed Items
+- **C4: `ptrDecimal` not exported** — By-design. `ptrDecimal` is an internal helper in `calculator_integration.go` used only by the calculator. Not needed outside the domain layer.
+- **D3: Missing DB constraint** — Already exists. `positions` table has `NOT NULL` on `account_id`, `symbol`, `quantity`, `cost_basis`.
+- **D5: Missing `ptrDecimal` in `calculator_integration.go`** — Already exists. `ptrDecimal` helper defined in `calculator_integration.go`.
+- **E1/E6: Short selling** — By-design per spec. Short positions are out of scope (Non-Goals).
+- **E4: Concurrent recalculation** — Documented with WAL mode explanation. SQLite handles single-writer concurrency; concurrent recalculations get "database is locked" errors.
+
+### Review Summary
+- **Spec Coverage: PASS** — All 8 user stories and 30+ scenarios implemented
+- **Plan Fidelity: PASS** — All 13 tasks completed; deviations documented
+- **Test Quality: PASS** — Table-driven unit tests + 15 integration tests; gaps (D8, T2) filled
+- **Code Conventions: PASS** (was FAIL) — C1, C2, D1, D2, D7 fixed
+- **Edge Cases: PASS** (was FAIL) — E1/E6 by-design, E4 documented
+- **Scope Creep: PASS** — All additions are natural spec dependencies
+- **TODOs/Debt: PASS** (was FAIL) — D1, D2, D7 fixed; remaining items closed or addressed
+
 ## FX API Refactoring (2026-05-09)
 
 Replaced the "pair string" (`"GBP/USD"`) parameter with explicit `baseCurrency, quoteCurrency` parameters throughout the FX chain. The pair string is now only constructed at the storage layer for the DB `symbol` column.

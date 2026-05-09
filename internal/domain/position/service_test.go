@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1303,5 +1304,170 @@ func TestGetOpenPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) {
 	wantCB := decimal.MustNew(2500000, 2) // 25 × 1000.00
 	if !summary.TotalCostBasisBase.Equal(wantCB) {
 		t.Errorf("expected TotalCostBasisBase %s (all 25), got %s", wantCB.String(), summary.TotalCostBasisBase.String())
+	}
+}
+
+// --- D8: UnrealizedPnlPct computation tests ---
+
+func TestUnrealizedPnlPct_PositivePnl(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	// Bought 10 shares at $100, now at $120 → 20% gain.
+	// CostBasis = -1000.00 (10 × $100, negative = cash outflow)
+	// MarketValue = 10 × $120 = 1200.00
+	// UnrealizedPnL = 1200.00 + (-1000.00) = 200.00
+	// PnlPct = 200 / 1000 × 100 = 20.00%
+	price := decimal.MustNew(12000, 2)
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
+		},
+	}
+	svc.WithMarketDataFetcher(fetcher, &mockMarketDataRepo{}, nil)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-100000, 2)},
+	}
+	result := svc.EnrichWithMarketData(ctx, positions, "")
+
+	if result[0].UnrealizedPnlPct == nil {
+		t.Fatal("expected non-nil UnrealizedPnlPct")
+	}
+	want := decimal.MustNew(200000, 4) // 20.00% (scale 4 from computation)
+	if !result[0].UnrealizedPnlPct.Equal(want) {
+		t.Errorf("expected PnlPct %s, got %s", want.String(), result[0].UnrealizedPnlPct.String())
+	}
+}
+
+func TestUnrealizedPnlPct_NegativePnl(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	// Bought 10 shares at $100, now at $80 → -20% loss.
+	// CostBasis = -1000.00
+	// MarketValue = 10 × $80 = 800.00
+	// UnrealizedPnL = 800.00 + (-1000.00) = -200.00
+	// PnlPct = -200 / 1000 × 100 = -20.00%
+	price := decimal.MustNew(8000, 2)
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
+		},
+	}
+	svc.WithMarketDataFetcher(fetcher, &mockMarketDataRepo{}, nil)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-100000, 2)},
+	}
+	result := svc.EnrichWithMarketData(ctx, positions, "")
+
+	if result[0].UnrealizedPnlPct == nil {
+		t.Fatal("expected non-nil UnrealizedPnlPct")
+	}
+	want := decimal.MustNew(-200000, 4) // -20.00%
+	if !result[0].UnrealizedPnlPct.Equal(want) {
+		t.Errorf("expected PnlPct %s, got %s", want.String(), result[0].UnrealizedPnlPct.String())
+	}
+}
+
+func TestUnrealizedPnlPct_ZeroPnl(t *testing.T) {
+	svc := NewService(
+		newMockPositionRepository(),
+		newMockTransactionRepository(),
+		newMockAccountChecker(),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	// Bought 10 shares at $100, now at $100 → 0% P&L.
+	// CostBasis = -1000.00
+	// MarketValue = 10 × $100 = 1000.00
+	// UnrealizedPnL = 1000.00 + (-1000.00) = 0.00
+	// PnlPct = 0 / 1000 × 100 = 0.00%
+	price := decimal.MustNew(10000, 2)
+	fetcher := &mockMarketDataFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
+		},
+	}
+	svc.WithMarketDataFetcher(fetcher, &mockMarketDataRepo{}, nil)
+
+	positions := []Position{
+		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-100000, 2)},
+	}
+	result := svc.EnrichWithMarketData(ctx, positions, "")
+
+	if result[0].UnrealizedPnlPct == nil {
+		t.Fatal("expected non-nil UnrealizedPnlPct")
+	}
+	if !result[0].UnrealizedPnlPct.IsZero() {
+		t.Errorf("expected PnlPct 0, got %s", result[0].UnrealizedPnlPct.String())
+	}
+}
+
+// --- T2: Recalculate error propagation test ---
+
+func TestRecalculateAccount_RepositoryError(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	posRepo.recalculateErr = fmt.Errorf("disk full")
+	txnRepo := newMockTransactionRepository()
+
+	// Add a transaction so recalculate is triggered.
+	txnRepo.SetTransactions(1, []transaction.Transaction{
+		makeBuyTxn(1, "AAPL", now(), 1000, 15000),
+	})
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err == nil {
+		t.Fatal("expected error from repository, got nil")
+	}
+	if !strings.Contains(err.Error(), "disk full") {
+		t.Errorf("expected error to contain 'disk full', got: %v", err)
+	}
+}
+
+func TestRecalculateAccount_TransactionListError(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	txnRepo := newMockTransactionRepository()
+	txnRepo.listErr = fmt.Errorf("connection reset")
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(),
+		newMockAccountLister(),
+		nil, nil,
+	)
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err == nil {
+		t.Fatal("expected error from transaction list, got nil")
+	}
+	if !strings.Contains(err.Error(), "connection reset") {
+		t.Errorf("expected error to contain 'connection reset', got: %v", err)
 	}
 }

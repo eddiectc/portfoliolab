@@ -103,9 +103,9 @@ func (q *Queries) CreateLotConsumption(ctx context.Context, db DBTX, arg CreateL
 }
 
 const createPosition = `-- name: CreatePosition :one
-INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at
+INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_pct, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_pct, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at
 `
 
 type CreatePositionParams struct {
@@ -117,6 +117,7 @@ type CreatePositionParams struct {
 	AvgOpenPrice    sql.NullString `db:"avg_open_price"`
 	AvgClosePrice   sql.NullString `db:"avg_close_price"`
 	RealizedPnl     string         `db:"realized_pnl"`
+	RealizedPnlPct  sql.NullString `db:"realized_pnl_pct"`
 	RealizedPnlBase sql.NullString `db:"realized_pnl_base"`
 	FxRateUsed      sql.NullString `db:"fx_rate_used"`
 	FxRateFallback  sql.NullBool   `db:"fx_rate_fallback"`
@@ -137,6 +138,7 @@ func (q *Queries) CreatePosition(ctx context.Context, db DBTX, arg CreatePositio
 		arg.AvgOpenPrice,
 		arg.AvgClosePrice,
 		arg.RealizedPnl,
+		arg.RealizedPnlPct,
 		arg.RealizedPnlBase,
 		arg.FxRateUsed,
 		arg.FxRateFallback,
@@ -157,6 +159,7 @@ func (q *Queries) CreatePosition(ctx context.Context, db DBTX, arg CreatePositio
 		&i.AvgOpenPrice,
 		&i.AvgClosePrice,
 		&i.RealizedPnl,
+		&i.RealizedPnlPct,
 		&i.RealizedPnlBase,
 		&i.FxRateUsed,
 		&i.FxRateFallback,
@@ -210,7 +213,7 @@ func (q *Queries) DeleteAllPositionsForAccount(ctx context.Context, db DBTX, acc
 }
 
 const getClosedPositionsByAccount = `-- name: GetClosedPositionsByAccount :many
-SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions
+SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_pct, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions
 WHERE account_id = ? AND is_closed = 1
 ORDER BY symbol ASC, open_date ASC
 LIMIT ? OFFSET ?
@@ -241,6 +244,7 @@ func (q *Queries) GetClosedPositionsByAccount(ctx context.Context, db DBTX, arg 
 			&i.AvgOpenPrice,
 			&i.AvgClosePrice,
 			&i.RealizedPnl,
+			&i.RealizedPnlPct,
 			&i.RealizedPnlBase,
 			&i.FxRateUsed,
 			&i.FxRateFallback,
@@ -407,7 +411,7 @@ func (q *Queries) GetLotsByAccountAndSymbol(ctx context.Context, db DBTX, arg Ge
 }
 
 const getOpenPositionsByAccount = `-- name: GetOpenPositionsByAccount :many
-SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions
+SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_pct, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions
 WHERE account_id = ? AND is_closed = 0
 ORDER BY symbol ASC, open_date ASC
 LIMIT ? OFFSET ?
@@ -438,6 +442,7 @@ func (q *Queries) GetOpenPositionsByAccount(ctx context.Context, db DBTX, arg Ge
 			&i.AvgOpenPrice,
 			&i.AvgClosePrice,
 			&i.RealizedPnl,
+			&i.RealizedPnlPct,
 			&i.RealizedPnlBase,
 			&i.FxRateUsed,
 			&i.FxRateFallback,
@@ -461,7 +466,7 @@ func (q *Queries) GetOpenPositionsByAccount(ctx context.Context, db DBTX, arg Ge
 }
 
 const getPositionByID = `-- name: GetPositionByID :one
-SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions WHERE id = ?
+SELECT id, account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_pct, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at FROM positions WHERE id = ?
 `
 
 func (q *Queries) GetPositionByID(ctx context.Context, db DBTX, id int64) (Position, error) {
@@ -477,6 +482,7 @@ func (q *Queries) GetPositionByID(ctx context.Context, db DBTX, id int64) (Posit
 		&i.AvgOpenPrice,
 		&i.AvgClosePrice,
 		&i.RealizedPnl,
+		&i.RealizedPnlPct,
 		&i.RealizedPnlBase,
 		&i.FxRateUsed,
 		&i.FxRateFallback,
