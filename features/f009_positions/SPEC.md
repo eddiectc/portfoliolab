@@ -391,6 +391,11 @@ As an investor, I want to browse my open and closed positions through a web inte
 - **Stored vs. computed data:** positions store quantity, cost basis, realized P&L, and dates; market price, market value, and unrealized P&L are computed at read time using current market data and are not persisted
 - **Sorting:** positions sorted by symbol ascending, then open date ascending
 - **Error responses:** `{"error": "message", "code": "ERROR_CODE"}`
+- **Open positions columns:** Symbol, Quantity, Avg Open Price, Cost Basis, Market Price, Market Value, Unrealized P&L, P&L %, Currency, Account, Open Date
+- **Closed positions columns:** Symbol, Quantity, Avg Open Price, Avg Close Price, Cost Basis, Realized P&L, Realized P&L (Base), Currency, Account, Open Date, Close Date
+- **Number formatting:** monetary values use thousands separator and 2 decimal places (e.g. "1,234,567.89"); FX rates use 4 decimal places; percentages use 2 decimal places; all numeric columns are right-aligned with tabular numerals
+- **Row-level P&L coloring:** green left-border accent for total P&L ≥ 5%, red left-border accent for ≤ -5%, no accent otherwise; cell-level P&L text coloring (green/red) preserved for individual P&L values
+- **Market data currency:** if the market data quote returns `Currency: "GBp"` (pence) and the position currency is `"GBP"`, the price is automatically divided by 100 to convert to GBP. Detection is from the quote response, not the symbol suffix (not all `.L` symbols are GBp).
 
 ## Non-Goals
 - Tax lot reporting (FIFO/LIFO/specific identification selection)

@@ -1,5 +1,26 @@
 # Notes: Positions
 
+## Post-Review Bug Fixes and UX Improvements (2026-05-09)
+
+### Bug Fixes
+- **Currency column showed stock symbol instead of currency.** `buildPosition` used `c.lots[0].Symbol` for the currency field. Fixed by adding `getCurrencyFromLots()` which extracts the currency from the first transaction in the first lot that has a non-empty currency. Handles both trade and cash lots uniformly.
+- **Account column was empty.** `getPositions` in the service layer did not populate `AccountName`. Fixed by building an account name lookup map via `s.accountLister.GetAllAccounts()` after fetching positions.
+- **Average open price displayed as negative.** `AvgOpenPrice` was computed as `costBasis / totalBuyQty` which yields a negative value (since cost basis is negative). Fixed by applying `.Abs()` to the result so it displays as a positive price. Updated 6 test assertions accordingly.
+- **Numbers lacked proper formatting.** Decimal values rendered as raw strings (e.g. "1234567.8912"). Added `formatMoney` (2dp, thousands separator), `formatFX` (4dp), and `formatPct` (2dp) template helpers using `formatDecimal()` and `addThousandsSeparator()` in `renderer.go`. Updated all position templates (open, closed, lot detail) to use these helpers.
+- **UK stock market data (GBp) not converted to GBP.** Yahoo Finance returns some UK stock prices in GBp (pence) instead of GBP (e.g. ARCI.L at 350 GBp = 3.50 GBP). Detection is from the market data response: if `quote.Currency == "GBp"` and `p.Currency == "GBP"`, the price is divided by 100. Not all `.L` symbols are GBp (e.g. XNAQ.L is GBP), so the currency field from the quote response is the authoritative signal.
+
+### UX Improvements
+- **Different columns for open vs closed positions.** Open positions show: Symbol, Qty, Avg Cost, Cost Basis, Mkt Price, Mkt Value, Unrealized P&L, P&L %, Currency, Account, Opened (11 columns). Removed Avg Close Price (rarely populated for open positions), Realized P&L, and Realized P&L (Base). Closed positions show: Symbol, Qty, Avg Cost, Avg Close, Cost Basis, Realized P&L, Realized P&L (Base), Currency, Account, Opened, Closed (11 columns).
+- **Right-aligned numbers.** Numeric columns use `.num` CSS class with `text-align: right` and `font-variant-numeric: tabular-nums` for aligned digit columns.
+- **Compact table styling.** `.table-compact` class: `0.8125rem` cell font, `0.6875rem` header font, tighter padding (`0.4rem 0.6rem` cells, `0.5rem 0.6rem` headers). Row hover highlight with `#f8f9fa` background.
+- **Row-level P&L color accent.** `rowClass` template helper computes total P&L ratio = `(realized_pnl + market_value) / |cost_basis|`. Green left border (`row-profit`) for ≥ 5%, red left border (`row-loss`) for ≤ -5%, no accent otherwise. Cell-level P&L coloring (positive/negative text) preserved alongside row accent.
+
+### Tests Added
+- `TestGetCurrencyFromLots` — 5 cases covering single lot, multiple lots, empty currency, empty lots
+- `TestEnrichWithMarketData_GbpConversion` — verifies GBp→GBP conversion for UK stocks
+- `TestEnrichWithMarketData_GbpNotConvertedForNonGbpPosition` — verifies no conversion when position currency is not GBP
+- `TestFormatDecimal_Positive`, `TestFormatDecimal_Negative`, `TestFormatDecimal_Empty`, `TestAddThousandsSeparator` — template helper coverage
+
 ## Task 13 Implementation Notes (2026-05-08)
 - `RealizedPnlPct` computed during `buildPosition` in `position_computation.go` as `RealizedPnL / Abs(CostBasis) × 100`. Uses `decimal.MustNew(10000, 2)` for the × 100 multiplier.
 - `EnrichWithMarketData` now accepts a `baseCurrency` parameter. The web handler resolves it from the filtered portfolio (or first portfolio if no filter). The API handler passes empty string.
