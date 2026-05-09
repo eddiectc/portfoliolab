@@ -66,6 +66,8 @@
 - Charts are rendered client-side with ECharts; pass data as JSON in `<script>` tags
 - Static assets are served from `internal/web/static/`
 - Go template rendering: parse layout + each page file separately to avoid template name conflicts
+- **URLs in templates**: Pre-build full URLs in the handler (e.g., `RefreshURL`, `PeriodURLs` map) instead of using template expressions inside `href`/`action` attributes. Go's `html/template` treats expressions in URLs as "ambiguous context" — it can't distinguish `&` as an HTML entity vs. a query parameter separator.
+- **Map access in templates**: Use `{{index .Map "key"}}` for map access with string keys containing digits or special characters. Dot notation like `{{.Map."1W"}}` causes a parse error (`bad character U+0022 '"'`).
 
 ## Market Data (go-yfinance)
 - Use `github.com/wnjoon/go-yfinance` for fetching prices (pure Go, no Python)

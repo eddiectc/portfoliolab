@@ -16,7 +16,9 @@
 - **Go shadowing bug in `ComputeEquityCurve`**: `pricesBySymbol, failedSymbols := fetcher.FetchHistoricalPricesBatch(...)` created a new local `pricesBySymbol` that shadowed the outer variable. The outer `pricesBySymbol` (initialized as empty map) was passed to `buildEquityCurvePoints`, resulting in zero position values. Fixed by declaring `var pricesBySymbol map[string][]market.HistoricalPrice` before the if-block and using `=` assignment inside.
 
 ## Future Improvements
-- N/A
+- Add a result caching layer for equity curve data (keyed by portfolio_id + period + last_updated) to avoid recomputing on every request
+- Evaluate ECharts data downsampling for periods > 1 year (~1,800 daily points) to reduce JSON payload size
+- Consider adding `staticcheck` or `govet` to CI to catch variable shadowing bugs earlier
 
 ## Known Issues
 - None.
