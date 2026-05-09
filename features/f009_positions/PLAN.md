@@ -85,7 +85,7 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - `CalculateResult` struct (OpenPositions []Position, ClosedPositions []Position, Lots []Lot, Consumptions []LotConsumption)
 - [x] Extend `internal/market/quote.go`:
   - Add `MarketData` struct (Symbol, Price, Currency, DataType, Source, Date, FetchedAt)
-  - Add `MarketDataFetcher` interface with `FetchQuote(ctx, symbol string) (*MarketData, error)` and `FetchFxRate(ctx, pair string) (*MarketData, error)`
+  - Add `MarketDataFetcher` interface with `FetchQuote(ctx, symbol string) (*MarketData, error)`, `FetchFxRate(ctx, baseCurrency, quoteCurrency string) (*MarketData, error)`, and `FetchQuotesBatch(ctx, symbols []string) map[string]*MarketData`
   - Rename existing `QuoteFetcher` → embed into `MarketDataFetcher`
   - Update `YahooFinanceFetcher` to implement `MarketDataFetcher`
 
@@ -380,19 +380,22 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 **Description:** Add market data fetching and caching for both stock quotes and FX rates in the unified `market_data` table.
 
 - [x] Create `internal/data/market_data_repo.go`:
-  - `MarketDataRepository` with `GetLatest(ctx, symbol string)`, `GetBySourceAndDate(ctx, symbol, source, date string)`, `Upsert(ctx, *MarketData)`, `GetCurrentFxRate(ctx, pair string)`
+  - `MarketDataRepository` with `GetLatest(ctx, symbol string)`, `GetBySourceAndDate(ctx, symbol, source, date string)`, `Upsert(ctx, *MarketData)`, `GetCurrentFxRate(ctx, baseCurrency, quoteCurrency string)`
   - sqlc queries in `market_data.sql` (queries parameterized by source; default source used when unspecified)
   - Run `sqlc generate`
 - [x] Extend `internal/market/quote.go`:
   - `YahooFinanceFetcher.FetchQuote(ctx, symbol)` → returns `*MarketData` (stock)
-  - Add `FetchFxRate(ctx, pair string)` → converts "GBP/USD" to "GBPUSD=X", fetches via go-yfinance, returns `*MarketData` with data_type='fx'
-  - Add symbol conversion helper: `FxPairToYahooSymbol(base, quote string) string`
+  - `FetchFxRate(ctx, baseCurrency, quoteCurrency string)` → converts to "GBPUSD=X", fetches via go-yfinance, returns `*MarketData` with data_type='fx'
+  - `FetchQuotesBatch(ctx, symbols []string)` → batch fetch via `go-yfinance` `multi` package (shared client)
+  - Symbol conversion helper: `FxPairToYahooSymbol(base, quote string) string`
 - [x] Create `internal/market/fx.go`:
-  - `FxRate` struct (Pair, BaseCurrency, QuoteCurrency, Rate, FetchedAt)
-  - `FxRateFetcher` interface with `FetchRate(ctx, pair string) (*FxRate, error)`
+  - `FxRate` struct (BaseCurrency, QuoteCurrency, Rate, FetchedAt)
+  - `FxRateFetcher` interface with `FetchRate(ctx, baseCurrency, quoteCurrency string) (*FxRate, error)`
+  - `FormatFxPair(base, quote string) string` for DB symbol construction
   - Wire `YahooFinanceFetcher` to implement `FxRateFetcher`
 - [x] Create `internal/market/market_data_test.go` with unit tests:
   - FX pair to Yahoo symbol conversion
+  - FormatFxPair
   - Market data struct serialization
 - [x] Create `internal/data/market_data_repo_test.go` with basic repo tests
 - [x] Update `router.go` to create market_data repo and pass to services
@@ -412,13 +415,13 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
   - `FxRateUsed` field (the rate used for conversion, nullable)
   - `FxRateFallback` boolean (true if current spot rate was used as fallback)
 - [x] Create `internal/domain/position/fx_converter.go`:
-  - `FxRateProvider` interface: `GetRateForDate(ctx, pair string, date time.Time) (*FxRate, bool)`, `GetCurrentRate(ctx, pair string) (*FxRate, bool)`
+  - `FxRateProvider` interface: `GetRateForDate(ctx, baseCurrency, quoteCurrency string, date time.Time) (*FxRate, bool)`, `GetCurrentRate(ctx, baseCurrency, quoteCurrency string) (*FxRate, bool)`
   - `FxConverter` struct wraps MarketDataRepository + FxRateFetcher + logger
   - `GetRateForDate()` — checks DB for historical rate, falls back to fetching + caching, falls back to current spot
   - Fetches missing rates on-demand during recalculation
   - Stores fetched rates in `market_data` table
   - `ConvertPnlToBase()` — converts P&L from position currency to base currency
-  - `BuildFxPair()` — constructs FX pair string from position/base currencies
+  - Pair string constructed only at storage layer via `market.FormatFxPair()`
 - [x] Update position service to use FX converter during recalculation:
   - Added `PortfolioCurrencyChecker` interface for looking up portfolio base currency
   - Added `PortfolioCurrencyCheckerImpl` in data layer
