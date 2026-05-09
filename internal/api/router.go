@@ -114,6 +114,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler 
 	positionHandler := handlers.NewPositionHandler(positionSvc)
 	positionHandler.RegisterRoutes(r)
 
+	// Performance API
+	performanceHandler := handlers.NewPerformanceHandler(positionSvc)
+	performanceHandler.RegisterRoutes(r)
+
 	// IBKR Flex XML Import (API)
 	symbolResolver := data.NewSymbolResolver(symbolMappingRepo)
 	brokerSymbolAdder := data.NewBrokerSymbolAdder(symbolMappingRepo, symbolMappingSvc)
@@ -163,6 +167,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler 
 		// Trading 212 import web pages
 		t212WebHandler := handlers.NewTrading212ImportWebHandler(t212Svc, accountSvc, symbolMappingSvc, renderer)
 		t212WebHandler.RegisterRoutes(r)
+
+		// Performance web pages
+		performanceWebHandler := handlers.NewPerformanceWebHandler(positionSvc, portfolioSvc, renderer)
+		performanceWebHandler.RegisterRoutes(r)
 
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
