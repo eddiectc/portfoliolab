@@ -20,5 +20,5 @@ Feature IDs are sequential: f001, f002, etc.
 | f006 | Auto-create Symbol | done | f003, f004, f005 |
 | f007 | Import IBKR Flex XML | done | f002, f003, f004 |
 | f008 | Import Trading 212 CSV | done | f002, f003, f004 |
-| f009 | Positions | in-progress | f002, f003, f004, f005, f007, f008 |
-| f010 | Portfolio Performance | planned | f009 |
+| f009 | Positions | done | f002, f003, f004, f005, f007, f008 |
+| f010 | Portfolio Performance | in-progress | f009 |
