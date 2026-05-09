@@ -121,17 +121,17 @@ Tasks 2 and 3 can be worked in parallel after Task 1. Tasks 4 and 5 are independ
 
 **Description:** Compute total return % and annualized return (CAGR) from the equity curve data.
 
-- [ ] Add `ComputeReturnMetrics(equityCurve []EquityCurvePoint, baseCurrency string) ReturnMetrics` function (pure function, no dependencies)
-- [ ] Total return = (current_value - net_deposit) / net_deposit × 100
+- [x] Add `ComputeReturnMetrics(equityCurve []EquityCurvePoint, baseCurrency string) ReturnMetrics` function (pure function, no dependencies)
+- [x] Total return = (current_value - net_deposit) / net_deposit × 100
   - Handle zero net deposit → N/A
   - Handle negative net deposit → N/A with meaningful message
-- [ ] CAGR = (end_value / begin_value)^(365 / days) - 1
+- [x] CAGR = (end_value / begin_value)^(365 / days) - 1
   - Use first and last equity curve points
   - Handle < 2 data points → insufficient data flag
   - Annualize over actual days (not just full years)
-- [ ] Use `decimal.Decimal` for all calculations; use `decimal.One.Add(pct).PowExponent(days/365)` or equivalent for CAGR
+- [x] Use `decimal.Decimal` for all calculations; use `decimal.One.Add(pct).PowExponent(days/365)` or equivalent for CAGR
   - Note: govalues/decimal doesn't have a built-in `Pow` — implement using `ln/exp` approximation or use a simple power function
-- [ ] Write table-driven unit tests:
+- [x] Write table-driven unit tests:
   - Standard case: positive return over 1+ years
   - Less than 1 year (still annualized)
   - Zero net deposit (N/A)
