@@ -54,6 +54,95 @@ func (q *Queries) GetCurrentFxRate(ctx context.Context, db DBTX, symbol string) 
 	return i, err
 }
 
+const getDistinctCachedSymbols = `-- name: GetDistinctCachedSymbols :many
+SELECT DISTINCT symbol, data_type, MAX(date) AS latest_date
+FROM market_data
+GROUP BY symbol, data_type
+`
+
+type GetDistinctCachedSymbolsRow struct {
+	Symbol     string      `db:"symbol"`
+	DataType   string      `db:"data_type"`
+	LatestDate interface{} `db:"latest_date"`
+}
+
+// Distinct symbols with cached data (stock or fx), with the latest cached date.
+func (q *Queries) GetDistinctCachedSymbols(ctx context.Context, db DBTX) ([]GetDistinctCachedSymbolsRow, error) {
+	rows, err := db.QueryContext(ctx, getDistinctCachedSymbols)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDistinctCachedSymbolsRow{}
+	for rows.Next() {
+		var i GetDistinctCachedSymbolsRow
+		if err := rows.Scan(&i.Symbol, &i.DataType, &i.LatestDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getHistoricalPricesBySymbolAndRange = `-- name: GetHistoricalPricesBySymbolAndRange :many
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND date >= ?
+  AND date <= ?
+  AND date != ''
+  AND data_type = 'stock'
+ORDER BY date ASC
+`
+
+type GetHistoricalPricesBySymbolAndRangeParams struct {
+	Symbol string `db:"symbol"`
+	Date   string `db:"date"`
+	Date_2 string `db:"date_2"`
+}
+
+// Historical prices for one symbol within [date_from, date_to], sorted by date ASC.
+// Excludes current (date=”) entries. Returns only 'stock' data_type.
+func (q *Queries) GetHistoricalPricesBySymbolAndRange(ctx context.Context, db DBTX, arg GetHistoricalPricesBySymbolAndRangeParams) ([]MarketDatum, error) {
+	rows, err := db.QueryContext(ctx, getHistoricalPricesBySymbolAndRange, arg.Symbol, arg.Date, arg.Date_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MarketDatum{}
+	for rows.Next() {
+		var i MarketDatum
+		if err := rows.Scan(
+			&i.ID,
+			&i.Symbol,
+			&i.Price,
+			&i.Currency,
+			&i.DataType,
+			&i.Source,
+			&i.Date,
+			&i.FetchedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLatestMarketData = `-- name: GetLatestMarketData :one
 SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at FROM market_data
 WHERE symbol = ? AND date = ''
@@ -63,6 +152,58 @@ LIMIT 1
 
 func (q *Queries) GetLatestMarketData(ctx context.Context, db DBTX, symbol string) (MarketDatum, error) {
 	row := db.QueryRowContext(ctx, getLatestMarketData, symbol)
+	var i MarketDatum
+	err := row.Scan(
+		&i.ID,
+		&i.Symbol,
+		&i.Price,
+		&i.Currency,
+		&i.DataType,
+		&i.Source,
+		&i.Date,
+		&i.FetchedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getLatestPriceDatePerSymbol = `-- name: GetLatestPriceDatePerSymbol :one
+SELECT symbol, MAX(date) AS latest_date
+FROM market_data
+WHERE symbol = ?
+  AND date != ''
+  AND data_type = 'stock'
+`
+
+type GetLatestPriceDatePerSymbolRow struct {
+	Symbol     string      `db:"symbol"`
+	LatestDate interface{} `db:"latest_date"`
+}
+
+// MAX(date) for one symbol's stock data (to detect staleness).
+// Excludes current (date=”) entries.
+func (q *Queries) GetLatestPriceDatePerSymbol(ctx context.Context, db DBTX, symbol string) (GetLatestPriceDatePerSymbolRow, error) {
+	row := db.QueryRowContext(ctx, getLatestPriceDatePerSymbol, symbol)
+	var i GetLatestPriceDatePerSymbolRow
+	err := row.Scan(&i.Symbol, &i.LatestDate)
+	return i, err
+}
+
+const getLatestQuote = `-- name: GetLatestQuote :one
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND date = ''
+  AND data_type = 'stock'
+ORDER BY fetched_at DESC
+LIMIT 1
+`
+
+// Latest (date=”) entry for a single symbol.
+// Returns the most recently fetched current quote.
+func (q *Queries) GetLatestQuote(ctx context.Context, db DBTX, symbol string) (MarketDatum, error) {
+	row := db.QueryRowContext(ctx, getLatestQuote, symbol)
 	var i MarketDatum
 	err := row.Scan(
 		&i.ID,
