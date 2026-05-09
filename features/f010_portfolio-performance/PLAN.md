@@ -28,13 +28,13 @@ Tasks 2 and 3 can be worked in parallel after Task 1. Tasks 4 and 5 are independ
 
 **Description:** Define the domain types used by the performance computation layer — equity curve data points, performance result envelope, and refresh result.
 
-- [ ] Create `internal/domain/position/performance.go` with domain types:
+- [x] Create `internal/domain/position/performance.go` with domain types:
   - `EquityCurvePoint` — Date, PortfolioValue, NetDeposit
   - `PerformanceResult` — EquityCurve ([]EquityCurvePoint), ReturnMetrics, BaseCurrency, Warnings
   - `ReturnMetrics` — TotalReturnPct, AnnualizedReturnPct (CAGR), HasInsufficientData
   - `RefreshResult` — SymbolsRefreshed, FxPairsRefreshed, FailedSymbols
-- [ ] Add `PerformanceFilters` struct (PortfolioID *int64, Period string, DateFrom/DateTo *time.Time)
-- [ ] Write unit tests for model serialization (JSON marshal/unmarshal of decimal fields)
+- [x] Add `PerformanceFilters` struct (PortfolioID *int64, Period string, DateFrom/DateTo *time.Time)
+- [x] Write unit tests for model serialization (JSON marshal/unmarshal of decimal fields)
 
 **Verification:** Types compile, JSON serialization round-trips correctly for all field combinations.
 
