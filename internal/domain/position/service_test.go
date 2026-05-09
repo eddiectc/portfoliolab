@@ -767,6 +767,19 @@ func (m *mockMarketDataFetcher) FetchFxRate(_ context.Context, _ string) (*marke
 	return nil, fmt.Errorf("not implemented")
 }
 
+func (m *mockMarketDataFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
+	result := make(map[string]*market.MarketData)
+	if m.err != nil {
+		return result
+	}
+	for _, sym := range symbols {
+		if q, ok := m.quotes[sym]; ok {
+			result[sym] = q
+		}
+	}
+	return result
+}
+
 type mockMarketDataRepo struct {
 	upserted []*market.MarketData
 	upsertErr error

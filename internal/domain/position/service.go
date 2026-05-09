@@ -496,6 +496,9 @@ func (s *Service) GetLotInfo(ctx context.Context, lotID string) (*transaction.Lo
 // returns positions with MarketDataAvailable=false and zero market values.
 // baseCurrency, if non-empty, is used to convert MarketValue and UnrealizedPnL
 // to the portfolio base currency.
+//
+// Market data is fetched in a single batch call (grouping unique symbols) rather
+// than one request per symbol.
 func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position, baseCurrency string) []PositionWithMarket {
 	if s.marketFetcher == nil || s.marketDataRepo == nil {
 		// No market data fetcher configured — return positions with no market data.
@@ -508,6 +511,33 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			}
 		}
 		return result
+	}
+
+	// Collect unique non-cash symbols for batch fetching.
+	symbolSet := make(map[string]struct{})
+	for _, p := range positions {
+		if !isCashPosition(p.Symbol) {
+			symbolSet[p.Symbol] = struct{}{}
+		}
+	}
+
+	symbols := make([]string, 0, len(symbolSet))
+	for sym := range symbolSet {
+		symbols = append(symbols, sym)
+	}
+
+	// Batch-fetch all unique symbols in one API call.
+	quotes := make(map[string]*market.MarketData)
+	if len(symbols) > 0 {
+		quotes = s.marketFetcher.FetchQuotesBatch(ctx, symbols)
+		// Cache all fetched quotes.
+		for _, q := range quotes {
+			if cacheErr := s.marketDataRepo.Upsert(ctx, q); cacheErr != nil {
+				if s.logger != nil {
+					s.logger.Debug("failed to cache market data", "symbol", q.Symbol, "error", cacheErr)
+				}
+			}
+		}
 	}
 
 	result := make([]PositionWithMarket, len(positions))
@@ -543,11 +573,11 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			continue
 		}
 
-		// Fetch current market price.
-		quote, err := s.marketFetcher.FetchQuote(ctx, p.Symbol)
-		if err != nil {
+		// Look up the batch-fetched quote.
+		quote, found := quotes[p.Symbol]
+		if !found {
 			if s.logger != nil {
-				s.logger.Debug("failed to fetch market quote", "symbol", p.Symbol, "error", err)
+				s.logger.Debug("no market quote found in batch", "symbol", p.Symbol)
 			}
 			result[i] = PositionWithMarket{
 				Position:            p,
@@ -555,13 +585,6 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 				BaseCurrency:        baseCurrency,
 			}
 			continue
-		}
-
-		// Cache the quote in the market_data table.
-		if cacheErr := s.marketDataRepo.Upsert(ctx, quote); cacheErr != nil {
-			if s.logger != nil {
-				s.logger.Debug("failed to cache market data", "symbol", p.Symbol, "error", cacheErr)
-			}
 		}
 
 		// Compute market value and unrealized P&L.

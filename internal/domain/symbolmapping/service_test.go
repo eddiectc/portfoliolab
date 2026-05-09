@@ -220,6 +220,20 @@ func (m *mockQuoteFetcher) FetchFxRate(_ context.Context, pair string) (*market.
 	return nil, fmt.Errorf("not implemented")
 }
 
+func (m *mockQuoteFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
+	result := make(map[string]*market.MarketData)
+	if m.err != nil {
+		return result
+	}
+	for _, sym := range symbols {
+		if d, ok := m.data[sym]; ok {
+			cp := *d
+			result[sym] = &cp
+		}
+	}
+	return result
+}
+
 // --- Create Tests ---
 
 func TestService_Create(t *testing.T) {
