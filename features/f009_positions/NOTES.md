@@ -1,5 +1,44 @@
 # Notes: Positions
 
+## FX API Refactoring (2026-05-09)
+
+Replaced the "pair string" (`"GBP/USD"`) parameter with explicit `baseCurrency, quoteCurrency` parameters throughout the FX chain. The pair string is now only constructed at the storage layer for the DB `symbol` column.
+
+### Interface Changes
+
+| Interface | Before | After |
+|---|---|---|
+| `FxRateFetcher.FetchRate` | `(ctx, pair string)` | `(ctx, baseCurrency, quoteCurrency string)` |
+| `MarketDataFetcher.FetchFxRate` | `(ctx, pair string)` | `(ctx, baseCurrency, quoteCurrency string)` |
+| `FxRateProvider.GetCurrentRate` | `(ctx, pair string)` | `(ctx, baseCurrency, quoteCurrency string)` |
+| `FxRateProvider.GetRateForDate` | `(ctx, pair string, date)` | `(ctx, baseCurrency, quoteCurrency string, date)` |
+| `MarketDataRepository.GetCurrentFxRate` | `(ctx, pair string)` | `(ctx, baseCurrency, quoteCurrency string)` |
+| `FxPairToYahooSymbol` | `(pair string)` | `(baseCurrency, quoteCurrency string)` |
+
+### Structural Changes
+
+- **Removed `FxRate.Pair` field** — redundant given `BaseCurrency` + `QuoteCurrency` are already present
+- **Removed `market.ParseFxPair`** — no caller needed to parse pair strings anymore
+- **Removed `BuildFxPair` from `fx_converter.go`** — replaced by `market.FormatFxPair(base, quote string)` in the `market` package
+- **`FxRate` struct** now has `BaseCurrency`, `QuoteCurrency`, `Rate`, `FetchedAt` (no `Pair`)
+- **`market.FormatFxPair`** constructs the `"BASE/QUOTE"` string only at the storage layer (DB lookups, upserts)
+- **`service.go` callers** pass `p.Currency, baseCurrency` directly instead of constructing a pair string first
+
+### Rationale
+
+Passing the pair string through the entire call chain was lossy — every caller had to construct it from two values, and every callee had to parse it back. The explicit parameters make the API self-documenting and eliminate the parse/format round-trip.
+
+## Batch Quote Fetching (2026-05-09)
+
+Optimized market data fetching on the open positions page by grouping symbol lookups.
+
+- **`FetchQuotesBatch`** added to `MarketDataFetcher` interface, implemented via `go-yfinance` `multi` package
+- `multi.NewTickers(symbols)` creates tickers sharing one HTTP client — auth (cookie/crumb) handled once
+- `EnrichWithMarketData` deduplicates symbols across all positions before fetching
+- Partial failures tolerated: failed symbols omitted from result map, others succeed
+
+## Regression Tests and Template Fixes (2026-05-09)
+
 ## Regression Tests and Template Fixes (2026-05-09)
 - **Closed positions template crash: `.BaseCurrency` undefined on `Position` struct.** The `closed.html` template referenced `.BaseCurrency` on each position item, but only `PositionWithMarket` (open positions) has that field — `Position` (closed positions) does not. Fixed by using `$.BaseCurrency` (page-level data struct field) instead of `.BaseCurrency` (item-level).
 - **`market_data.updated_at` migration failed with non-constant default.** SQLite's `ALTER TABLE ADD COLUMN` rejects expression defaults like `datetime('now')`. Migration `013` uses `DEFAULT ''` (literal empty string) instead, and `ON CONFLICT DO UPDATE SET updated_at = datetime('now')` in the `InsertMarketData` query sets the timestamp on every upsert.
@@ -126,6 +165,8 @@
 - Both services accept `*slog.Logger` via `WithLogger` for conditional warning logs on recalc failures.
 
 ## Decisions
+- 2026-05-09: FX APIs take explicit `baseCurrency, quoteCurrency` parameters instead of a "BASE/QUOTE" pair string. The pair string is only constructed at the storage layer via `market.FormatFxPair()`. This eliminates the parse/format round-trip through the call chain and makes the API self-documenting. `FxRate.Pair` field and `ParseFxPair` removed.
+- 2026-05-09: `FetchQuotesBatch` uses `go-yfinance` `multi` package for batch fetching. `multi.NewTickers()` creates tickers sharing one HTTP client so auth (cookie/crumb) is handled once for all symbols.
 - 2026-05-08: `market_data.date` uses `''` (empty string) as sentinel for "latest/current" instead of `NULL`. This ensures `UNIQUE(symbol, source, date)` enforces one row per symbol per source, even for current prices. `NOT NULL DEFAULT ''` on the column. Historical snapshots use `YYYY-MM-DD` format.
 - 2026-05-08: `MarketDataFetcher` replaces `QuoteFetcher` as the primary interface. `Quote` struct and `QuoteFetcher` interface removed (no longer used anywhere). `YahooFinanceFetcher.FetchQuote` returns `*MarketData`. `WithQuoteFetcher` renamed to `WithMarketDataFetcher`.
 - 2026-05-08: `FxPairToYahooSymbol` helper added to `market` package for converting "GBP/USD" → "GBPUSD=X".
