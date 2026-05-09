@@ -788,7 +788,7 @@ func (f *testQuoteFetcher) FetchQuote(_ context.Context, symbol string) (*market
 	return &cp, nil
 }
 
-func (f *testQuoteFetcher) FetchFxRate(_ context.Context, pair string) (*market.MarketData, error) {
+func (f *testQuoteFetcher) FetchFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

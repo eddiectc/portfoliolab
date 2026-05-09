@@ -198,7 +198,7 @@ func TestMarketDataRepository_GetCurrentFxRate(t *testing.T) {
 	}
 	repo.Upsert(context.Background(), md)
 
-	got, err := repo.GetCurrentFxRate(context.Background(), "GBP/USD")
+	got, err := repo.GetCurrentFxRate(context.Background(), "GBP", "USD")
 	if err != nil {
 		t.Fatalf("GetCurrentFxRate: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestMarketDataRepository_GetCurrentFxRate_NotFound(t *testing.T) {
 	db := setupMarketDataDB(t)
 	repo := NewMarketDataRepository(db)
 
-	got, err := repo.GetCurrentFxRate(context.Background(), "GBP/USD")
+	got, err := repo.GetCurrentFxRate(context.Background(), "GBP", "USD")
 	if err != nil {
 		t.Fatalf("GetCurrentFxRate: %v", err)
 	}

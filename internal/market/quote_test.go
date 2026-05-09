@@ -43,19 +43,20 @@ func TestMarketData_StructFields(t *testing.T) {
 
 func TestFxPairToYahooSymbol(t *testing.T) {
 	tests := []struct {
-		input    string
+		base     string
+		quote    string
 		expected string
 	}{
-		{"GBP/USD", "GBPUSD=X"},
-		{"EUR/USD", "EURUSD=X"},
-		{"USD/JPY", "USDJPY=X"},
-		{"GBP/EUR", "GBPEUR=X"},
+		{"GBP", "USD", "GBPUSD=X"},
+		{"EUR", "USD", "EURUSD=X"},
+		{"USD", "JPY", "USDJPY=X"},
+		{"GBP", "EUR", "GBPEUR=X"},
 	}
 
 	for _, tc := range tests {
-		result := FxPairToYahooSymbol(tc.input)
+		result := FxPairToYahooSymbol(tc.base, tc.quote)
 		if result != tc.expected {
-			t.Errorf("FxPairToYahooSymbol(%q) = %q, want %q", tc.input, result, tc.expected)
+			t.Errorf("FxPairToYahooSymbol(%q, %q) = %q, want %q", tc.base, tc.quote, result, tc.expected)
 		}
 	}
 }

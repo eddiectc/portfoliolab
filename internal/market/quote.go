@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/govalues/decimal"
@@ -28,7 +27,8 @@ type MarketData struct {
 // MarketDataFetcher fetches market data for both stock quotes and FX rates.
 type MarketDataFetcher interface {
 	FetchQuote(ctx context.Context, symbol string) (*MarketData, error)
-	FetchFxRate(ctx context.Context, pair string) (*MarketData, error)
+	// FetchFxRate fetches the FX rate for baseCurrency → quoteCurrency.
+	FetchFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*MarketData, error)
 	// FetchQuotesBatch fetches quotes for multiple symbols using a shared
 	// HTTP client (single auth session). Returns a map of symbol → MarketData
 	// for successfully fetched quotes. Symbols that fail are omitted.
@@ -79,64 +79,54 @@ func (f *YahooFinanceFetcher) FetchQuote(_ context.Context, symbol string) (*Mar
 	}, nil
 }
 
-// FetchFxRate fetches the current FX rate for a currency pair from Yahoo Finance.
-// The pair is specified as "BASE/QUOTE" (e.g. "GBP/USD").
+// FetchFxRate fetches the current FX rate from Yahoo Finance.
+// baseCurrency is the source currency, quoteCurrency is the target.
+// E.g., FetchFxRate(ctx, "GBP", "USD") returns how many USD per 1 GBP.
 // Returns a MarketData entry with data_type="fx" and date="" (latest).
-func (f *YahooFinanceFetcher) FetchFxRate(_ context.Context, pair string) (*MarketData, error) {
-	yahooSymbol := FxPairToYahooSymbol(pair)
+func (f *YahooFinanceFetcher) FetchFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*MarketData, error) {
+	yahooSymbol := FxPairToYahooSymbol(baseCurrency, quoteCurrency)
 
 	t, err := yf.New(yahooSymbol)
 	if err != nil {
-		f.logger.Warn("failed to create FX ticker", "pair", pair, "yahooSymbol", yahooSymbol, "error", err)
-		return nil, fmt.Errorf("failed to create ticker for FX pair %s: %w", pair, err)
+		f.logger.Warn("failed to create FX ticker", "base", baseCurrency, "quote", quoteCurrency, "yahooSymbol", yahooSymbol, "error", err)
+		return nil, fmt.Errorf("failed to create ticker for %s/%s: %w", baseCurrency, quoteCurrency, err)
 	}
 	defer t.Close()
 
 	quote, err := t.Quote()
 	if err != nil {
-		f.logger.Warn("failed to fetch FX quote", "pair", pair, "error", err)
-		return nil, fmt.Errorf("failed to fetch FX rate for %s: %w", pair, err)
+		f.logger.Warn("failed to fetch FX quote", "base", baseCurrency, "quote", quoteCurrency, "error", err)
+		return nil, fmt.Errorf("failed to fetch FX rate for %s/%s: %w", baseCurrency, quoteCurrency, err)
 	}
 
 	price, err := decimal.NewFromFloat64(quote.RegularMarketPrice)
 	if err != nil {
-		f.logger.Warn("failed to convert FX price to decimal", "pair", pair, "price", quote.RegularMarketPrice, "error", err)
-		return nil, fmt.Errorf("failed to convert FX price for %s: %w", pair, err)
-	}
-
-	parts := strings.Split(pair, "/")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid FX pair format: %s (expected BASE/QUOTE)", pair)
+		f.logger.Warn("failed to convert FX price to decimal", "base", baseCurrency, "quote", quoteCurrency, "price", quote.RegularMarketPrice, "error", err)
+		return nil, fmt.Errorf("failed to convert FX price for %s/%s: %w", baseCurrency, quoteCurrency, err)
 	}
 
 	return &MarketData{
-		Symbol:   pair,
-		Price:    price,
-		Currency: parts[1], // quote currency
-		DataType: "fx",
-		Source:   "yahoo",
-		Date:     "",
+		Symbol:    FormatFxPair(baseCurrency, quoteCurrency),
+		Price:     price,
+		Currency:  quoteCurrency,
+		DataType:  "fx",
+		Source:    "yahoo",
+		Date:      "",
 		FetchedAt: time.Now(),
 	}, nil
 }
 
-// FetchRate fetches the current FX rate for a currency pair and returns
-// an FxRate. This satisfies the FxRateFetcher interface.
-func (f *YahooFinanceFetcher) FetchRate(ctx context.Context, pair string) (*FxRate, error) {
-	md, err := f.FetchFxRate(ctx, pair)
-	if err != nil {
-		return nil, err
-	}
-
-	base, quote, err := ParseFxPair(pair)
+// FetchRate fetches the current FX rate and returns an FxRate.
+// This satisfies the FxRateFetcher interface.
+func (f *YahooFinanceFetcher) FetchRate(ctx context.Context, baseCurrency, quoteCurrency string) (*FxRate, error) {
+	md, err := f.FetchFxRate(ctx, baseCurrency, quoteCurrency)
 	if err != nil {
 		return nil, err
 	}
 
 	return &FxRate{
-		Pair:          pair,
-		BaseCurrency:  base,
-		QuoteCurrency: quote,
+		BaseCurrency:  baseCurrency,
+		QuoteCurrency: quoteCurrency,
 		Rate:          md.Price,
 		FetchedAt:     md.FetchedAt,
 	}, nil
@@ -194,12 +184,8 @@ func (f *YahooFinanceFetcher) FetchQuotesBatch(_ context.Context, symbols []stri
 	return result
 }
 
-// FxPairToYahooSymbol converts a currency pair like "GBP/USD" to Yahoo's
-// ticker format "GBPUSD=X".
-func FxPairToYahooSymbol(pair string) string {
-	parts := strings.Split(pair, "/")
-	if len(parts) != 2 {
-		return pair + "=X"
-	}
-	return parts[0] + parts[1] + "=X"
+// FxPairToYahooSymbol converts base/quote currencies to Yahoo's
+// ticker format, e.g. ("GBP", "USD") → "GBPUSD=X".
+func FxPairToYahooSymbol(baseCurrency, quoteCurrency string) string {
+	return baseCurrency + quoteCurrency + "=X"
 }

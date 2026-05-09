@@ -763,7 +763,7 @@ func (m *mockMarketDataFetcher) FetchQuote(_ context.Context, symbol string) (*m
 	return nil, fmt.Errorf("no quote for %s", symbol)
 }
 
-func (m *mockMarketDataFetcher) FetchFxRate(_ context.Context, _ string) (*market.MarketData, error) {
+func (m *mockMarketDataFetcher) FetchFxRate(_ context.Context, _, _ string) (*market.MarketData, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -801,7 +801,7 @@ func (m *mockMarketDataRepo) Upsert(_ context.Context, md *market.MarketData) er
 	return nil
 }
 
-func (m *mockMarketDataRepo) GetCurrentFxRate(_ context.Context, _ string) (*market.MarketData, error) {
+func (m *mockMarketDataRepo) GetCurrentFxRate(_ context.Context, _, _ string) (*market.MarketData, error) {
 	return nil, nil
 }
 

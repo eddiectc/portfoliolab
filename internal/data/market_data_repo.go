@@ -99,10 +99,11 @@ func (r *MarketDataRepository) Upsert(ctx context.Context, m *market.MarketData)
 	return nil
 }
 
-// GetCurrentFxRate retrieves the current (date='') FX rate for a currency pair.
-// The pair is specified as "BASE/QUOTE" (e.g. "GBP/USD").
+// GetCurrentFxRate retrieves the current (date='') FX rate.
+// baseCurrency is the source currency, quoteCurrency is the target.
 // Returns nil if no rate found.
-func (r *MarketDataRepository) GetCurrentFxRate(ctx context.Context, pair string) (*market.MarketData, error) {
+func (r *MarketDataRepository) GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error) {
+	pair := market.FormatFxPair(baseCurrency, quoteCurrency)
 	m, err := r.q.GetCurrentFxRate(ctx, r.db, pair)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
