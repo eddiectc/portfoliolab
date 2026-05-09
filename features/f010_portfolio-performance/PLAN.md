@@ -195,17 +195,17 @@ For MVP, Option A is sufficient. The equity curve uses current prices for the mo
 
 **Description:** REST API endpoint for retrieving performance data. Returns equity curve data points and return metrics as JSON.
 
-- [ ] Create `internal/api/handlers/performance.go`
-- [ ] Define `PerformanceHandler` struct with `*position.Service` and `*portfolio.Service` dependencies
-- [ ] Register route: `GET /api/performance` with query params: `portfolio_id`, `period`
-- [ ] Parse query params into `PerformanceFilters`
-- [ ] Call `service.ComputeEquityCurve(ctx, filters)` and return JSON response
-- [ ] Define response DTO: `PerformanceResponse` with EquityCurve, ReturnMetrics, BaseCurrency, Warnings
-- [ ] Register route: `POST /api/performance/refresh` with same query params
-- [ ] Call `service.RefreshMarketData(ctx, filters)` and return JSON response
-- [ ] Handle errors: portfolio not found, mismatched currencies, internal error
-- [ ] Write unit tests (mock service, verify request/response mapping)
-- [ ] Write integration-style tests with hand-written service mock
+- [x] Create `internal/api/handlers/performance.go`
+- [x] Define `PerformanceHandler` struct with `*position.Service` and `*portfolio.Service` dependencies
+- [x] Register route: `GET /api/performance` with query params: `portfolio_id`, `period`
+- [x] Parse query params into `PerformanceFilters`
+- [x] Call `service.ComputeEquityCurve(ctx, filters)` and return JSON response
+- [x] Define response DTO: `PerformanceResponse` with EquityCurve, ReturnMetrics, BaseCurrency, Warnings
+- [x] Register route: `POST /api/performance/refresh` with same query params
+- [x] Call `service.RefreshMarketData(ctx, filters)` and return JSON response
+- [x] Handle errors: portfolio not found, mismatched currencies, internal error
+- [x] Write unit tests (mock service, verify request/response mapping)
+- [x] Write integration-style tests with hand-written service mock
 
 **Verification:** API returns correct JSON for valid requests; returns appropriate error codes for invalid inputs.
 
