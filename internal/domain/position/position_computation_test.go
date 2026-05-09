@@ -23,7 +23,7 @@ func TestComputePositions_SimpleBuy(t *testing.T) {
 	}
 	sellLots := []LotGroup{}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 1 {
 		t.Fatalf("expected 1 open position, got %d", len(open))
@@ -73,7 +73,7 @@ func TestComputePositions_BuyPartialSell(t *testing.T) {
 			dec(-5, 0), decimal.Zero, dec(87500, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 1 {
 		t.Fatalf("expected 1 open position, got %d", len(open))
@@ -115,7 +115,7 @@ func TestComputePositions_BuyFullSell(t *testing.T) {
 			dec(-10, 0), decimal.Zero, dec(175000, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 0 {
 		t.Fatalf("expected 0 open positions, got %d", len(open))
@@ -162,7 +162,7 @@ func TestComputePositions_OneClosedOneOpen(t *testing.T) {
 			dec(-10, 0), decimal.Zero, dec(175000, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 1 {
 		t.Fatalf("expected 1 open position, got %d", len(open))
@@ -235,7 +235,7 @@ func TestComputePositions_TwoFullCycles(t *testing.T) {
 			dec(-5, 0), decimal.Zero, dec(90000, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 0 {
 		t.Fatalf("expected 0 open positions, got %d", len(open))
@@ -292,7 +292,7 @@ func TestComputePositions_ShortPosition(t *testing.T) {
 			dec(-10, 0), decimal.Zero, dec(175000, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 1 {
 		t.Fatalf("expected 1 open position, got %d", len(open))
@@ -342,7 +342,7 @@ func TestComputePositions_MixedSymbols(t *testing.T) {
 			dec(-3, 0), decimal.Zero, dec(67500, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 2 {
 		t.Fatalf("expected 2 open positions, got %d", len(open))
@@ -396,7 +396,7 @@ func TestComputePositions_MixedSymbols(t *testing.T) {
 }
 
 func TestComputePositions_EmptyLots(t *testing.T) {
-	open, closed := ComputePositions(nil, nil, nil)
+	open, closed := ComputePositions(nil, nil)
 
 	if len(open) != 0 {
 		t.Errorf("expected 0 open positions, got %d", len(open))
@@ -427,7 +427,7 @@ func TestComputePositions_MultipleBuysOneSell(t *testing.T) {
 			dec(-8, 0), decimal.Zero, dec(140000, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 1 {
 		t.Fatalf("expected 1 open position, got %d", len(open))
@@ -474,7 +474,7 @@ func TestComputePositions_SellThenBuySameCycle(t *testing.T) {
 			dec(-3, 0), decimal.Zero, dec(52500, 2)),
 	}
 
-	open, closed := ComputePositions(buyLots, sellLots, nil)
+	open, closed := ComputePositions(buyLots, sellLots)
 
 	if len(open) != 1 {
 		t.Fatalf("expected 1 open position, got %d", len(open))

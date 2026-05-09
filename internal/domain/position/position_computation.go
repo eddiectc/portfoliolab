@@ -7,7 +7,7 @@ import (
 	"github.com/govalues/decimal"
 )
 
-// ComputePositions computes open and closed positions from FIFO-matched lots.
+// ComputePositions computes open and closed positions from lots.
 //
 // It groups lots by symbol, then walks through each symbol's lots
 // chronologically, tracking the running quantity. When the quantity
@@ -18,10 +18,9 @@ import (
 // closed positions. Direction changes (long → short or short → long) also
 // terminate the current cycle and start a new one.
 //
-// consumptions is accepted for API completeness but P&L is derived from
-// the lots directly (sell proceeds + cost basis), which is mathematically
-// equivalent to summing consumption P&Ls.
-func ComputePositions(buyLots, sellLots []LotGroup, consumptions []LotConsumption) ([]Position, []Position) {
+// P&L is derived from the lots directly (sell proceeds + cost basis),
+// which is mathematically equivalent to summing consumption P&Ls.
+func ComputePositions(buyLots, sellLots []LotGroup) ([]Position, []Position) {
 	allLots := make([]LotGroup, 0, len(buyLots)+len(sellLots))
 	allLots = append(allLots, buyLots...)
 	allLots = append(allLots, sellLots...)

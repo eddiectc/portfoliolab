@@ -26,7 +26,7 @@ func CalculatePositions(_ context.Context, accountID int64, transactions []trans
 	consumptions, _ := MatchSellLotsAgainstBuys(buyLots, sellLots)
 
 	// Step 3: Compute open and closed positions from the matched lots.
-	openPositions, closedPositions := ComputePositions(buyLots, sellLots, consumptions)
+	openPositions, closedPositions := ComputePositions(buyLots, sellLots)
 
 	// Step 4: Compute cash positions from cash-affecting transactions.
 	cashPositions := ComputeCashPositions(transactions)
