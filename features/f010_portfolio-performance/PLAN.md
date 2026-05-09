@@ -160,15 +160,20 @@ Given that CAGR is a display metric (not used for financial decisions), **Option
 
 **Description:** Allow the user to manually trigger a refresh of historical market data (prices + FX rates) for the visible period. Fetches current prices/FX rates, upserts them, and returns a summary.
 
-- [ ] Add `RefreshMarketData(ctx context.Context, filters PerformanceFilters) (*RefreshResult, error)` method on `position.Service`
-- [ ] Determine the set of symbols held during the period (from open positions + transactions)
-- [ ] For each symbol, fetch current quote via `FetchQuote` and upsert into market_data
-- [ ] For each currency pair needed, fetch current FX rate via `FxConverter.GetCurrentRate` (which already caches)
-- [ ] Collect failed symbols and return in RefreshResult
-- [ ] Write unit tests with mocks:
+- [x] Add `RefreshMarketData(ctx context.Context, filters PerformanceFilters) (*RefreshResult, error)` method on `position.Service`
+- [x] Determine the set of symbols held during the period (from open positions + transactions)
+- [x] For each symbol, fetch current quote via `FetchQuotesBatch` and upsert into market_data
+- [x] For each currency pair needed, fetch current FX rate via `FxConverter.GetCurrentRate` (which already caches)
+- [x] Collect failed symbols and return in RefreshResult
+- [x] Write unit tests with mocks:
   - Successful refresh for multiple symbols
   - Partial failure (some symbols fail, others succeed)
   - Empty portfolio (no symbols to refresh)
+  - Multi-currency with FX pair refresh
+  - Open positions only (no transactions in range)
+  - No market fetcher configured
+  - Period filtering
+  - Portfolio filtering
 
 **Verification:** Clicking refresh fetches current data for all symbols and returns a summary of what was refreshed and what failed.
 
