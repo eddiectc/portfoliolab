@@ -11,6 +11,7 @@ This feature answers the core question: *"How much money did I make beyond what 
 - As an investor, I want to see my portfolio's equity curve over time alongside my net deposits, so I can visually track how much value I've created beyond what I put in.
 - As an investor, I want to see summary return metrics (total return, annualized return, CAGR), so I can quickly assess overall performance at a glance.
 - As an investor with multi-currency accounts, I want all performance metrics expressed in my portfolio's base currency, so I have a consistent view without manual conversion.
+- As an investor, I want to manually trigger a refresh of historical market data, so that cached prices and FX rates are re-fetched and the performance view reflects the latest available data.
 
 ## Scenarios
 
@@ -76,6 +77,14 @@ This feature answers the core question: *"How much money did I make beyond what 
 **When** the investor views the performance page
 **Then** they see an empty state message indicating no performance data is available yet
 
+### Scenario: Manually refresh historical market data
+**Given** a portfolio with transactions and cached market data that may be stale
+**When** the investor clicks a "Refresh" button on the performance page
+**Then** historical prices for all symbols held during the visible period are re-fetched and cached
+**And** historical FX rates for all currency pairs needed are re-fetched and cached
+**And** the performance chart and metrics update to reflect the refreshed data
+**And** if some symbols fail to fetch, the refresh completes for the rest and a warning lists the failed symbols
+
 ## Edge Cases
 
 - **No market data for a position**: If a symbol has no cached or fetchable price, that position is excluded from the market value calculation for that date, and a warning is shown.
@@ -84,6 +93,7 @@ This feature answers the core question: *"How much money did I make beyond what 
 - **Very short time periods**: If the selected period (e.g., 1W on a new portfolio) has fewer than 2 data points, return metrics show N/A and a message explains the insufficient data.
 - **Single-currency portfolio**: FX conversion is skipped entirely when all accounts share the portfolio base currency.
 - **Large portfolios (100+ positions)**: Historical price fetching is batched and cached to avoid excessive API calls. Stale data is served if fetching is still in progress.
+- **Refresh while data is incomplete**: If the refresh is triggered and some historical data points are still being fetched, the chart renders with the data available so far and indicates which symbols are pending.
 
 ## Constraints
 
