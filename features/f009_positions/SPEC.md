@@ -384,8 +384,8 @@ As an investor, I want to browse my open and closed positions through a web inte
 - **P&L in base currency:** realized P&L uses the FX rate on the transaction date; unrealized P&L uses the current spot FX rate; if historical rate unavailable, falls back to current spot with indicator
 - **P&L percentage:** shown for both open and closed positions; computed as P&L / |CostBasis| × 100; displayed with 2 decimal places
 - **Base currency on open positions:** market value and unrealized P&L are converted to portfolio base currency using current spot FX rate; shown alongside native currency values
-- **Summary panel:** open positions page includes a summary panel with aggregated base-currency totals: Cost Basis (Base), Mkt Value (Base), Unrealized P&L (Base), Unrealized P&L %. Native currency values not shown in summary.
-- **FX rate display:** closed positions show the FX rate used for base-currency conversion
+- **Summary panel:** open positions page includes a summary panel with aggregated base-currency totals: Cost Basis (Base), Mkt Value (Base), Unrealized P&L (Base), Unrealized P&L %. Closed positions page includes a summary panel with Total Realized P&L (Base). Native currency values not shown in summary. Summary aggregates ALL positions, not just the current page.
+- **FX rate display:** closed positions show the FX rate used for base-currency conversion. Market convention order is used (e.g., GBP/USD not USD/GBP) and the stored rate is inverted if needed. A hover tooltip (⚠) warns when the rate was a fallback estimate.
 - **Market data:** market price, market value, and unrealized P&L are computed when viewing positions using current market data; they are not persisted; positions are shown even when market data is unavailable (market value/unrealized P&L marked as unavailable)
 - **Recalculation:** positions are updated immediately when transactions are created, updated, or deleted; also available as a manual trigger for a single account, a portfolio, or all accounts
 - **Stored vs. computed data:** positions store quantity, cost basis, realized P&L, and dates; market price, market value, and unrealized P&L are computed at read time using current market data and are not persisted
@@ -399,6 +399,9 @@ As an investor, I want to browse my open and closed positions through a web inte
 
 ## Non-Goals
 - Tax lot reporting (FIFO/LIFO/specific identification selection)
+
+## Testing Requirements
+- **Web rendering regression tests:** Open and closed positions pages must have integration tests that verify they render 200 OK with HTML content, both with data and empty. These catch template errors (undefined fields, nil pointers) before they reach production.
 - Historical position snapshots (point-in-time position state)
 - Position alerts or notifications
 - Background/asynchronous recalculation jobs

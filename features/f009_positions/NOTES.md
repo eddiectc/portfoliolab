@@ -1,5 +1,15 @@
 # Notes: Positions
 
+## Regression Tests and Template Fixes (2026-05-09)
+- **Closed positions template crash: `.BaseCurrency` undefined on `Position` struct.** The `closed.html` template referenced `.BaseCurrency` on each position item, but only `PositionWithMarket` (open positions) has that field — `Position` (closed positions) does not. Fixed by using `$.BaseCurrency` (page-level data struct field) instead of `.BaseCurrency` (item-level).
+- **`market_data.updated_at` migration failed with non-constant default.** SQLite's `ALTER TABLE ADD COLUMN` rejects expression defaults like `datetime('now')`. Migration `013` uses `DEFAULT ''` (literal empty string) instead, and `ON CONFLICT DO UPDATE SET updated_at = datetime('now')` in the `InsertMarketData` query sets the timestamp on every upsert.
+- **Web rendering regression tests added.** 4 new integration tests hit the actual web pages and verify they render 200 OK with HTML content, catching template errors early:
+  - `TestWeb_OpenPositionsPage_Renders200` — open positions with data
+  - `TestWeb_ClosedPositionsPage_Renders200` — closed positions with data
+  - `TestWeb_ClosedPositionsPage_Empty_Renders200` — empty closed positions
+  - `TestWeb_OpenPositionsPage_Empty_Renders200` — empty open positions
+- **Router options pattern for templates directory.** Added `RouterOption` functional options to `api.Router()` so integration tests can specify the templates directory relative to their package location (`../../templates`). Tests use `skipIfTemplatesUnavailable` guard to skip gracefully when templates aren't accessible.
+
 ## Post-Review Bug Fixes and UX Improvements (2026-05-09)
 
 ### Bug Fixes

@@ -536,8 +536,10 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 | Calculator split | 4 sub-tasks + integration | Each sub-task is independently testable; follows single-responsibility principle |
 | P&L% computation | During recalculation in `buildPosition` | Pure computation, no I/O; stored with position for efficient display |
 | Base currency for open positions | Current spot FX rate via `EnrichWithMarketData` | Consistent with unrealized P&L; computed at read time |
-| Summary panel scope | Current page only (not across all pages) | Pagination means only visible positions are summed; keeps computation simple |
+| Summary panel scope | All positions (not just current page) | Summary must reflect total portfolio state regardless of pagination; uses unbounded fetch (10k limit) |
 | `sign` template function | Returns "positive"/"negative"/"" for decimal strings | Avoids complex conditional logic in templates; handles zero edge cases |
+| Web rendering regression tests | Integration tests hit actual web pages and verify 200 OK | Catches template errors (undefined fields, nil pointers) before they reach production |
+| Router options pattern | Functional options (`RouterOption`) for configurable templates dir | Allows integration tests to specify templates path relative to package location |
 
 ## Risks
 
