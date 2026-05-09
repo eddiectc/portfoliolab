@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/govalues/decimal"
+	"github.com/wnjoon/go-yfinance/pkg/multi"
 	yf "github.com/wnjoon/go-yfinance/pkg/ticker"
 )
 
@@ -15,12 +16,12 @@ import (
 // or FX rates. Date uses empty string ("") as sentinel for "latest/current"
 // and YYYY-MM-DD for historical snapshots.
 type MarketData struct {
-	Symbol   string           `json:"symbol"`
-	Price    decimal.Decimal  `json:"price"`
-	Currency string           `json:"currency"`
-	DataType string           `json:"data_type"` // "stock" or "fx"
-	Source   string           `json:"source"`     // provider identifier, e.g. "yahoo"
-	Date     string           `json:"date"`       // "" = latest, "YYYY-MM-DD" = historical
+	Symbol    string          `json:"symbol"`
+	Price     decimal.Decimal `json:"price"`
+	Currency  string          `json:"currency"`
+	DataType  string          `json:"data_type"` // "stock" or "fx"
+	Source    string          `json:"source"`     // provider identifier, e.g. "yahoo"
+	Date      string          `json:"date"`       // "" = latest, "YYYY-MM-DD" = historical
 	FetchedAt time.Time       `json:"fetched_at"`
 }
 
@@ -28,6 +29,10 @@ type MarketData struct {
 type MarketDataFetcher interface {
 	FetchQuote(ctx context.Context, symbol string) (*MarketData, error)
 	FetchFxRate(ctx context.Context, pair string) (*MarketData, error)
+	// FetchQuotesBatch fetches quotes for multiple symbols using a shared
+	// HTTP client (single auth session). Returns a map of symbol → MarketData
+	// for successfully fetched quotes. Symbols that fail are omitted.
+	FetchQuotesBatch(ctx context.Context, symbols []string) map[string]*MarketData
 }
 
 // YahooFinanceFetcher implements MarketDataFetcher using go-yfinance.
@@ -135,6 +140,58 @@ func (f *YahooFinanceFetcher) FetchRate(ctx context.Context, pair string) (*FxRa
 		Rate:          md.Price,
 		FetchedAt:     md.FetchedAt,
 	}, nil
+}
+
+// FetchQuotesBatch fetches quotes for multiple symbols using a shared HTTP
+// client (single auth session via go-yfinance's multi package). Returns a map
+// of symbol → MarketData for successfully fetched quotes. Symbols that fail
+// to fetch are omitted from the result.
+func (f *YahooFinanceFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*MarketData {
+	result := make(map[string]*MarketData)
+	if len(symbols) == 0 {
+		return result
+	}
+
+	// multi.NewTickers creates tickers sharing one HTTP client,
+	// so cookie/crumb auth is done once and reused for all symbols.
+	tickers, err := multi.NewTickers(symbols)
+	if err != nil {
+		f.logger.Warn("failed to create tickers for batch fetch", "error", err)
+		return result
+	}
+	defer tickers.Close()
+
+	now := time.Now()
+	for _, sym := range tickers.Symbols() {
+		tkr := tickers.Get(sym)
+		if tkr == nil {
+			continue
+		}
+
+		quote, err := tkr.Quote()
+		if err != nil {
+			f.logger.Debug("failed to fetch quote in batch", "symbol", sym, "error", err)
+			continue
+		}
+
+		price, err := decimal.NewFromFloat64(quote.RegularMarketPrice)
+		if err != nil {
+			f.logger.Warn("failed to convert batch price", "symbol", sym, "error", err)
+			continue
+		}
+
+		result[sym] = &MarketData{
+			Symbol:   quote.Symbol,
+			Price:    price,
+			Currency: quote.Currency,
+			DataType: "stock",
+			Source:   "yahoo",
+			Date:     "",
+			FetchedAt: now,
+		}
+	}
+
+	return result
 }
 
 // FxPairToYahooSymbol converts a currency pair like "GBP/USD" to Yahoo's

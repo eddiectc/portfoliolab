@@ -792,6 +792,20 @@ func (f *testQuoteFetcher) FetchFxRate(_ context.Context, pair string) (*market.
 	return nil, fmt.Errorf("not implemented")
 }
 
+func (f *testQuoteFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
+	result := make(map[string]*market.MarketData)
+	if f.err != nil {
+		return result
+	}
+	for _, sym := range symbols {
+		if d, ok := f.data[sym]; ok {
+			cp := *d
+			result[sym] = &cp
+		}
+	}
+	return result
+}
+
 func TestHandlePreview_SymbolsMatch(t *testing.T) {
 	repo := newTestSMRepo()
 	fetcher := &testQuoteFetcher{
