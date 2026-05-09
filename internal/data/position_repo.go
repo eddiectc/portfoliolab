@@ -108,15 +108,12 @@ func toPosition(p queries.Position) (*position.Position, error) {
 		avgOpen = *avgOpenPrice
 	}
 
-	// Compute P&L% = RealizedPnL / |CostBasis| × 100
+	// Read P&L% from DB (pre-computed during position calculation).
 	var realizedPnlPct *decimal.Decimal
-	if !costBasis.IsZero() {
-		mul, err := realizedPnL.Mul(decimal.MustNew(10000, 2))
+	if p.RealizedPnlPct.Valid && p.RealizedPnlPct.String != "" {
+		v, err := decimal.Parse(p.RealizedPnlPct.String)
 		if err == nil {
-			pct, err2 := mul.Quo(costBasis.Abs())
-			if err2 == nil {
-				realizedPnlPct = &pct
-			}
+			realizedPnlPct = &v
 		}
 	}
 
@@ -276,6 +273,7 @@ func (r *PositionRepository) CreatePosition(ctx context.Context, p *position.Pos
 		AvgOpenPrice:    toNullStringPtr(&p.AvgOpenPrice),
 		AvgClosePrice:   toNullStringPtr(p.AvgClosePrice),
 		RealizedPnl:     p.RealizedPnL.String(),
+		RealizedPnlPct:  toNullStringPtr(p.RealizedPnlPct),
 		RealizedPnlBase: toNullStringPtr(p.RealizedPnlBase),
 		FxRateUsed:      toNullStringPtr(p.FxRateUsed),
 		FxRateFallback:  sql.NullBool{Valid: true, Bool: p.FxRateFallback},
@@ -407,27 +405,38 @@ func (r *PositionRepository) DeleteAllForAccount(ctx context.Context, accountID 
 
 // Recalculate deletes old position data and inserts new data within a single
 // database transaction. Called by the position service after CalculatePositions.
+//
+// Deletes use sqlc-generated queries (parameterized, type-safe). Inserts use
+// parameterized raw SQL in loops (sqlc does not support bulk inserts, but
+// parameterized raw SQL is safe from injection). SQLite WAL mode serializes
+// writes; concurrent recalculations will get "database is locked" errors.
 func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, result *position.CalculateResult) error {
+	// Acquire a write transaction. SQLite WAL mode allows concurrent reads
+	// but serializes writes. If two recalculations race, the second gets
+	// "database is locked" — the caller (service layer) can retry.
 	tx, err := r.sqlDB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Delete old data.
-	if _, err := tx.ExecContext(ctx, "DELETE FROM lot_consumptions WHERE sell_lot_id IN (SELECT l.lot_id FROM lots l WHERE l.account_id = ?) OR buy_lot_id IN (SELECT l.lot_id FROM lots l WHERE l.account_id = ?)", accountID, accountID); err != nil {
+	// Delete old data using sqlc-generated queries (parameterized, type-safe).
+	if err := r.q.DeleteAllLotConsumptionsForAccount(ctx, tx, queries.DeleteAllLotConsumptionsForAccountParams{
+		AccountID:   accountID,
+		AccountID_2: accountID,
+	}); err != nil {
 		return fmt.Errorf("delete lot consumptions: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM lots WHERE account_id = ?", accountID); err != nil {
+	if _, err := r.q.DeleteAllLotsForAccount(ctx, tx, accountID); err != nil {
 		return fmt.Errorf("delete lots: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM positions WHERE account_id = ?", accountID); err != nil {
+	if _, err := r.q.DeleteAllPositionsForAccount(ctx, tx, accountID); err != nil {
 		return fmt.Errorf("delete positions: %w", err)
 	}
 
 	now := time.Now()
 
-	// Insert lots.
+	// Insert lots using parameterized raw SQL (sqlc does not support bulk inserts).
 	for i := range result.Lots {
 		l := &result.Lots[i]
 		l.CreatedAt = now
@@ -453,7 +462,7 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 		}
 	}
 
-	// Insert consumptions.
+	// Insert consumptions using parameterized raw SQL.
 	for i := range result.Consumptions {
 		c := &result.Consumptions[i]
 		c.CreatedAt = now
@@ -469,7 +478,7 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 		}
 	}
 
-	// Insert positions (open, closed, cash).
+	// Insert positions (open, closed, cash) using parameterized raw SQL.
 	allPositions := append(append(result.OpenPositions, result.ClosedPositions...), result.CashPositions...)
 	for i := range allPositions {
 		p := &allPositions[i]
@@ -479,6 +488,10 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 		avgClosePrice := ""
 		if p.AvgClosePrice != nil {
 			avgClosePrice = p.AvgClosePrice.String()
+		}
+		realizedPnlPct := ""
+		if p.RealizedPnlPct != nil {
+			realizedPnlPct = p.RealizedPnlPct.String()
 		}
 		realizedPnlBase := ""
 		if p.RealizedPnlBase != nil {
@@ -501,11 +514,11 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 			isClosed = 1
 		}
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO positions (account_id, symbol, currency, quantity, cost_basis, avg_open_price, avg_close_price, realized_pnl, realized_pnl_pct, realized_pnl_base, fx_rate_used, fx_rate_fallback, open_date, close_date, is_closed, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			p.AccountID, p.Symbol, p.Currency, p.Quantity.String(),
 			p.CostBasis.String(), avgOpenPrice, avgClosePrice,
-			p.RealizedPnL.String(), realizedPnlBase, fxRateUsed, fxRateFallback,
+			p.RealizedPnL.String(), realizedPnlPct, realizedPnlBase, fxRateUsed, fxRateFallback,
 			p.OpenDate.Format(time.RFC3339), closeDate, isClosed,
 			p.CreatedAt.Format(time.RFC3339), p.UpdatedAt.Format(time.RFC3339),
 		)
@@ -514,7 +527,10 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
 }
 
 // --- Helper functions ---

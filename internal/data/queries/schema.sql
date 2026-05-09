@@ -66,6 +66,7 @@ CREATE TABLE positions (
     avg_open_price    TEXT,
     avg_close_price   TEXT,
     realized_pnl      TEXT    NOT NULL DEFAULT '0',
+    realized_pnl_pct  TEXT    DEFAULT NULL,
     realized_pnl_base TEXT,
     fx_rate_used      TEXT    DEFAULT '',
     fx_rate_fallback  BOOLEAN DEFAULT 0,

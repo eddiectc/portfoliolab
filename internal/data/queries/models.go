@@ -81,6 +81,7 @@ type Position struct {
 	AvgOpenPrice    sql.NullString `db:"avg_open_price"`
 	AvgClosePrice   sql.NullString `db:"avg_close_price"`
 	RealizedPnl     string         `db:"realized_pnl"`
+	RealizedPnlPct  sql.NullString `db:"realized_pnl_pct"`
 	RealizedPnlBase sql.NullString `db:"realized_pnl_base"`
 	FxRateUsed      sql.NullString `db:"fx_rate_used"`
 	FxRateFallback  sql.NullBool   `db:"fx_rate_fallback"`
