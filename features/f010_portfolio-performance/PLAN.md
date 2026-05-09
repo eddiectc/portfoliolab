@@ -249,14 +249,14 @@ For MVP, Option A is sufficient. The equity curve uses current prices for the mo
 
 **Description:** Wire the performance handlers into the router and enable the Analytics navigation link.
 
-- [ ] Update `internal/api/router.go`:
+- [x] Update `internal/api/router.go`:
   - Create `performanceHandler` and `performanceWebHandler` instances
   - Wire dependencies (positionSvc, portfolioSvc, renderer)
   - Call `RegisterRoutes(r)` for both handlers
-- [ ] Update `templates/partials/nav.html`:
+- [x] Update `templates/partials/nav.html`:
   - Change `<a href="#" class="disabled">Analytics</a>` to `<a href="/performance">Performance</a>`
-- [ ] Run `go build` and verify no compilation errors
-- [ ] Run `go test ./...` and verify all tests pass
+- [x] Run `go build` and verify no compilation errors
+- [x] Run `go test ./...` and verify all tests pass
 
 **Verification:** Application builds and runs; navigation link works; performance page is accessible at `/performance`.
 
