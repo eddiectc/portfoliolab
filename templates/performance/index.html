@@ -1,0 +1,170 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Performance</h1>
+    <div class="header-actions">
+        <form action="{{.RefreshURL}}" method="POST" class="inline-form">
+            <button type="submit" class="btn btn-sm">Refresh</button>
+        </form>
+    </div>
+</div>
+
+{{/* Filter bar: portfolio + period selectors */}}
+<form class="filter-bar" method="GET" action="/performance">
+    <div class="filter-row">
+        <div class="filter-group">
+            <label for="portfolio_id">Portfolio</label>
+            <select id="portfolio_id" name="portfolio_id">
+                <option value="">All Portfolios</option>
+                {{range .Portfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioID}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Period</label>
+            <div class="period-buttons">
+                <a href="{{index .PeriodURLs "1W"}}" class="tab {{if eq .SelectedPeriod "1W"}}active{{end}}">1W</a>
+                <a href="{{index .PeriodURLs "1M"}}" class="tab {{if eq .SelectedPeriod "1M"}}active{{end}}">1M</a>
+                <a href="{{index .PeriodURLs "3M"}}" class="tab {{if eq .SelectedPeriod "3M"}}active{{end}}">3M</a>
+                <a href="{{index .PeriodURLs "1Y"}}" class="tab {{if eq .SelectedPeriod "1Y"}}active{{end}}">1Y</a>
+                <a href="{{index .PeriodURLs "3Y"}}" class="tab {{if eq .SelectedPeriod "3Y"}}active{{end}}">3Y</a>
+                <a href="{{index .PeriodURLs "5Y"}}" class="tab {{if eq .SelectedPeriod "5Y"}}active{{end}}">5Y</a>
+                <a href="{{index .PeriodURLs "YTD"}}" class="tab {{if eq .SelectedPeriod "YTD"}}active{{end}}">YTD</a>
+                <a href="{{index .PeriodURLs "All"}}" class="tab {{if or (eq .SelectedPeriod "All") (eq .SelectedPeriod "")}}active{{end}}">All</a>
+            </div>
+        </div>
+
+        <div class="filter-group filter-actions">
+            <button type="submit" class="btn btn-sm">Apply</button>
+        </div>
+    </div>
+</form>
+
+{{/* Error state */}}
+{{if .Error}}
+<div class="alert alert-error">{{.Error}}</div>
+{{else if not .Result}}
+<p class="empty-state">No performance data available. Add transactions to your portfolio to see performance analytics.</p>
+{{else}}
+
+{{/* Summary metrics cards */}}
+<div class="position-summary">
+    <div class="summary-card">
+        <span class="summary-label">Total Return</span>
+        <span class="summary-value pnl {{if .Result.ReturnMetrics.TotalReturnPct}}{{sign .Result.ReturnMetrics.TotalReturnPct.String}}{{end}}">
+            {{if .Result.ReturnMetrics.TotalReturnPct}}{{formatPct .Result.ReturnMetrics.TotalReturnPct}}%{{else}}—{{end}}
+        </span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Annualized Return (CAGR)</span>
+        <span class="summary-value pnl {{if .Result.ReturnMetrics.AnnualizedReturnPct}}{{sign .Result.ReturnMetrics.AnnualizedReturnPct.String}}{{end}}">
+            {{if .Result.ReturnMetrics.AnnualizedReturnPct}}{{formatPct .Result.ReturnMetrics.AnnualizedReturnPct}}%{{else if .Result.ReturnMetrics.HasInsufficientData}}Insufficient data{{else}}—{{end}}
+        </span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Current Value ({{.Result.BaseCurrency}})</span>
+        <span class="summary-value">{{if .CurrentValue}}{{formatMoney .CurrentValue}}{{else}}—{{end}}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Net Deposit ({{.Result.BaseCurrency}})</span>
+        <span class="summary-value">{{if .CurrentNetDeposit}}{{formatMoney .CurrentNetDeposit}}{{else}}—{{end}}</span>
+    </div>
+</div>
+
+{{/* Warnings */}}
+{{if .Result.Warnings}}
+<div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;">
+    {{range .Result.Warnings}}
+    <span>{{.}}</span><br>
+    {{end}}
+</div>
+{{end}}
+
+{{/* Equity curve chart */}}
+<div class="chart-container">
+    <div id="equity-chart" style="width:100%;height:400px;"></div>
+</div>
+
+{{/* Chart data — passed as JSON for ECharts */}}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>
+(function() {
+    var rawData = JSON.parse('{{.ChartData}}');
+    var dates = [], values = [], deposits = [];
+    for (var i = 0; i < rawData.length; i++) {
+        dates.push(rawData[i].date);
+        values.push(parseFloat(rawData[i].portfolio_value));
+        deposits.push(parseFloat(rawData[i].net_deposit));
+    }
+
+    var chart = echarts.init(document.getElementById('equity-chart'));
+    chart.setOption({
+        tooltip: {
+            trigger: 'axis',
+            formatter: function(params) {
+                var date = params[0].axisValue;
+                var html = '<strong>' + date + '</strong><br/>';
+                for (var i = 0; i < params.length; i++) {
+                    html += params[i].marker + params[i].seriesName + ': '
+                        + params[i].value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                        + ' {{.Result.BaseCurrency}}<br/>';
+                }
+                return html;
+            }
+        },
+        legend: {
+            data: ['Portfolio Value', 'Net Deposit'],
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '12%',
+            top: '8%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            axisLabel: {
+                rotate: 0,
+                interval: 'auto'
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                formatter: function(value) {
+                    return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Portfolio Value',
+                type: 'line',
+                data: values,
+                smooth: false,
+                symbol: 'none',
+                lineStyle: { width: 2 }
+            },
+            {
+                name: 'Net Deposit',
+                type: 'line',
+                data: deposits,
+                smooth: false,
+                symbol: 'none',
+                lineStyle: { width: 1, type: 'dashed' }
+            }
+        ]
+    });
+
+    window.addEventListener('resize', function() { chart.resize(); });
+})();
+</script>
+
+{{end}}
+{{end}}
+
+{{template "base" .}}
