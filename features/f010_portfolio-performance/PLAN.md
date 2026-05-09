@@ -71,26 +71,26 @@ Tasks 2 and 3 can be worked in parallel after Task 1. Tasks 4 and 5 are independ
 
 **Description:** Core computation that walks transactions chronologically and produces the equity curve (portfolio market value + cumulative net deposit per date). This is the heart of the feature.
 
-- [ ] Add `ComputeEquityCurve(ctx context.Context, filters PerformanceFilters) (*PerformanceResult, error)` method on `position.Service`
-- [ ] Implement date-range determination: earliest transaction date → today (or date-to from filters)
-- [ ] Fetch all transactions for the filtered accounts within the date range, sorted by date ASC
-- [ ] Walk transactions chronologically, maintaining:
+- [x] Add `ComputeEquityCurve(ctx context.Context, filters PerformanceFilters) (*PerformanceResult, error)` method on `position.Service`
+- [x] Implement date-range determination: earliest transaction date → today (or date-to from filters)
+- [x] Fetch all transactions for the filtered accounts within the date range, sorted by date ASC
+- [x] Walk transactions chronologically, maintaining:
   - Position quantities per symbol (increment on buy, decrement on sell)
   - Running cash balance per currency (from net_cash of all cash-affecting types)
   - Cumulative net deposit (sum of deposit/withdrawal net_cash only)
-- [ ] Collect all unique symbols held during the period and batch-fetch historical prices via `FetchHistoricalPricesBatch` (uses `multi.Download` with shared HTTP client, `AutoAdjust: false`, `Interval: "1d"`)
+- [x] Collect all unique symbols held during the period and batch-fetch historical prices via `FetchHistoricalPricesBatch` (uses `multi.Download` with shared HTTP client, `AutoAdjust: false`, `Interval: "1d"`)
   - Upsert all fetched prices into market_data table
   - Track failed symbols for warnings
-- [ ] At each unique transaction date, compute portfolio market value:
+- [x] At each unique transaction date, compute portfolio market value:
   - Sum of (quantity × historical price) for each open symbol position
   - Plus cash balances, converted to base currency
   - Use cached historical prices from the batch fetch
   - FX-convert foreign currency values using `FxConverter.GetRateForDate`
-- [ ] Build `EquityCurvePoint` for each date with PortfolioValue and NetDeposit in base currency
-- [ ] Implement daily interpolation: carry forward last known value for non-transaction days
-- [ ] Handle "all portfolios" mode: check base currency consistency, return error if mismatched
-- [ ] Handle empty state: no transactions → empty result with appropriate flag
-- [ ] Write comprehensive unit tests with hand-written mocks:
+- [x] Build `EquityCurvePoint` for each date with PortfolioValue and NetDeposit in base currency
+- [x] Implement daily interpolation: carry forward last known value for non-transaction days
+- [x] Handle "all portfolios" mode: check base currency consistency, return error if mismatched
+- [x] Handle empty state: no transactions → empty result with appropriate flag
+- [x] Write comprehensive unit tests with hand-written mocks:
   - Happy path: deposits + buys + sells across multiple months
   - Single-currency portfolio
   - Multi-currency portfolio with FX conversion
