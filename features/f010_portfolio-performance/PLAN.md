@@ -217,15 +217,15 @@ For MVP, Option A is sufficient. The equity curve uses current prices for the mo
 
 **Description:** Server-rendered performance page with equity curve chart (ECharts), period selector, portfolio selector, summary metrics, and refresh button.
 
-- [ ] Create `internal/api/handlers/performance_web.go`
-- [ ] Define `PerformanceWebHandler` with `*position.Service`, `*portfolio.Service`, `*web.Renderer`
-- [ ] Register routes: `GET /performance`, `POST /performance/refresh`
-- [ ] `HandlePerformance` renders the page:
+- [x] Create `internal/api/handlers/performance_web.go`
+- [x] Define `PerformanceWebHandler` with `*position.Service`, `*portfolio.Service`, `*web.Renderer`
+- [x] Register routes: `GET /performance`, `POST /performance/refresh`
+- [x] `HandlePerformance` renders the page:
   - Parse portfolio_id and period from query params
   - Call `ComputeEquityCurve` to get data
   - Pass data to template
-- [ ] `HandleRefresh` triggers refresh, sets flash message, redirects to `/performance`
-- [ ] Create `templates/performance/index.html`:
+- [x] `HandleRefresh` triggers refresh, sets flash message, redirects to `/performance`
+- [x] Create `templates/performance/index.html`:
   - Portfolio selector dropdown (all portfolios + individual)
   - Period selector buttons (1W, 1M, 3M, 1Y, 3Y, 5Y, YTD, All)
   - ECharts line chart with two series: Portfolio Value, Net Deposit
@@ -234,10 +234,12 @@ For MVP, Option A is sufficient. The equity curve uses current prices for the mo
   - Empty state message (no transactions)
   - Error state (mismatched currencies)
   - Warning indicators (missing market data, FX fallback)
-- [ ] Pass chart data as JSON in `<script>` tag (following existing pattern)
-- [ ] Write unit tests for handler (mock service, verify template rendering)
+- [x] Pass chart data as JSON in `<script>` tag (following existing pattern)
+- [x] Write unit tests for handler (mock service, verify template rendering)
 
 **Verification:** Performance page renders correctly with chart, metrics, and controls. Period selector updates the chart. Refresh button triggers data refresh and shows flash message.
+
+**Deviation from plan:** Pre-built URLs in handler (`RefreshURL`, `PeriodURLs`) instead of inline template expressions, because Go's html/template is strict about expressions inside href/action attributes ("ambiguous context within a URL").
 
 ---
 

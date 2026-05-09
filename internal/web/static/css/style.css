@@ -887,3 +887,49 @@ legend {
     margin-left: 2px;
     text-decoration: none;
 }
+
+/* Period selector buttons */
+.period-buttons {
+    display: flex;
+    gap: 0;
+    flex-wrap: wrap;
+}
+
+.period-buttons .tab {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #666;
+    text-decoration: none;
+    border: 1px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+}
+
+.period-buttons .tab:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.period-buttons .tab:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.period-buttons .tab:hover {
+    color: #333;
+    background: #f8f9fa;
+}
+
+.period-buttons .tab.active {
+    color: #fff;
+    background: #1a1a2e;
+    border-color: #1a1a2e;
+    font-weight: 500;
+}
+
+/* Chart container */
+.chart-container {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-top: 1rem;
+}
