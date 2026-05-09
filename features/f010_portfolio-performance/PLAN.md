@@ -46,20 +46,22 @@ Tasks 2 and 3 can be worked in parallel after Task 1. Tasks 4 and 5 are independ
 
 **Description:** Extend the market data infrastructure to fetch and cache historical daily prices for multiple symbols over a date range. Uses go-yfinance's `multi.Download` with a shared HTTP client, `AutoAdjust: false` (unadjusted prices for accurate portfolio valuation), and `Interval: "1d"`.
 
-- [ ] Add `FetchHistoricalPricesBatch(ctx context.Context, symbols []string, start, end time.Time) (map[string][]HistoricalPrice, []string)` to `market.MarketDataFetcher` interface
+- [x] Add `FetchHistoricalPricesBatch(ctx context.Context, symbols []string, start, end time.Time) (map[string][]HistoricalPrice, []string)` to `market.MarketDataFetcher` interface
   - `HistoricalPrice` struct: Date (time.Time), Close (decimal.Decimal), Currency (string)
   - Returns a map of symbol → prices (sorted by date ASC) and a slice of failed symbol names
-- [ ] Implement `FetchHistoricalPricesBatch` on `YahooFinanceFetcher` using `multi.Download(symbols, &models.DownloadParams{Start: &start, End: &end, Interval: "1d", AutoAdjust: false})`
+- [x] Implement `FetchHistoricalPricesBatch` on `YahooFinanceFetcher` using `multi.NewTickers` + per-ticker `History()` with `AutoAdjust: false`
   - Convert `models.Bar.Close` (float64) to `decimal.Decimal` via `decimal.NewFromFloat64`
   - Filter bars to only include dates within [start, end]
-  - Return failed symbols from `result.Errors`
-- [ ] Add `UpsertHistoricalPrices(ctx context.Context, symbol string, prices []HistoricalPrice) error` to `MarketDataRepository`
+  - Currency retrieved from `GetHistoryMetadata()` (cached by `History()` call)
+- [x] Add `UpsertHistoricalPrices(ctx context.Context, symbol string, prices []HistoricalPrice) error` to `MarketDataRepository`
   - Uses existing `InsertMarketData` sqlc query (ON CONFLICT(symbol, source, date) upsert)
-  - Loop over prices and upsert each; log but don't fail on individual errors
-- [ ] Write unit tests for `YahooFinanceFetcher.FetchHistoricalPricesBatch` (mock HTTP response)
-- [ ] Write unit tests for batch upsert into market_data repository
+  - Loop over prices and upsert each; returns first error encountered
+- [x] Write unit tests for HistoricalPrice struct fields and sorted-by-date behavior
+- [x] Write unit tests for batch upsert into market_data repository
 
 **Verification:** Historical prices for multiple symbols over a date range can be fetched from Yahoo in a single batch call and cached in the market_data table. `AutoAdjust: false` ensures unadjusted (actual market) prices are stored.
+
+**Deviation from plan:** Used `multi.NewTickers` + per-ticker `History()` instead of `multi.Download` because `multi.Download` doesn't return currency information from the bars. The `History()` call on each ticker caches `ChartMeta` (including currency) via `GetHistoryMetadata()`. Same shared HTTP client is used.
 
 ---
 

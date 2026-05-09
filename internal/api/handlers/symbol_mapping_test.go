@@ -806,6 +806,10 @@ func (f *testQuoteFetcher) FetchQuotesBatch(_ context.Context, symbols []string)
 	return result
 }
 
+func (f *testQuoteFetcher) FetchHistoricalPricesBatch(_ context.Context, _ []string, _, _ time.Time) (map[string][]market.HistoricalPrice, []string) {
+	return nil, nil
+}
+
 func TestHandlePreview_SymbolsMatch(t *testing.T) {
 	repo := newTestSMRepo()
 	fetcher := &testQuoteFetcher{

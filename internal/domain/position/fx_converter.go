@@ -36,12 +36,13 @@ type FxConverter struct {
 }
 
 // MarketDataRepository defines the subset of market data operations
-// needed by the FX converter.
+// needed by the FX converter and performance layer.
 type MarketDataRepository interface {
 	GetLatest(ctx context.Context, symbol string) (*market.MarketData, error)
 	GetBySourceAndDate(ctx context.Context, symbol, source, date string) (*market.MarketData, error)
 	Upsert(ctx context.Context, m *market.MarketData) error
 	GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error)
+	UpsertHistoricalPrices(ctx context.Context, symbol string, prices []market.HistoricalPrice) error
 }
 
 // NewFxConverter creates a new FxConverter.
