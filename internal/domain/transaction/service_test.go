@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/govalues/decimal"
 )
@@ -1275,5 +1276,240 @@ func Test_mapValidationError(t *testing.T) {
 				t.Errorf("expected %v, got %v", tc.want, got)
 			}
 		})
+	}
+}
+
+// ==================== CACHE SCHEDULING ====================
+
+// mockCacheScheduler tracks scheduled fetches.
+type mockCacheScheduler struct {
+	symbolFetches []string
+	symbolDates   []time.Time
+	fxFetches     []string
+	fxDates       []time.Time
+}
+
+func (m *mockCacheScheduler) ScheduleSymbolFetch(symbol string, fromDate time.Time) {
+	m.symbolFetches = append(m.symbolFetches, symbol)
+	m.symbolDates = append(m.symbolDates, fromDate)
+}
+
+func (m *mockCacheScheduler) ScheduleFxPairFetch(base, quote string, fromDate time.Time) {
+	m.fxFetches = append(m.fxFetches, base+"/"+quote)
+	m.fxDates = append(m.fxDates, fromDate)
+}
+
+// mockEarliestDateFinder returns a fixed earliest date.
+type mockEarliestDateFinder struct {
+	date time.Time
+}
+
+func (m *mockEarliestDateFinder) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
+	if !m.date.IsZero() {
+		return &m.date, nil
+	}
+	return nil, nil
+}
+
+// mockAccountPortfolioFinder returns a fixed portfolio ID.
+type mockAccountPortfolioFinder struct {
+	portfolioID int64
+}
+
+func (m *mockAccountPortfolioFinder) GetPortfolioID(_ context.Context, _ int64) (int64, error) {
+	return m.portfolioID, nil
+}
+
+// mockPortfolioCurrencyResolver returns a fixed currency.
+type mockPortfolioCurrencyResolver struct {
+	currency string
+}
+
+func (m *mockPortfolioCurrencyResolver) GetCurrency(_ context.Context, _ int64) (string, error) {
+	return m.currency, nil
+}
+
+func TestService_Create_SchedulesCacheFetchForSymbol(t *testing.T) {
+	repo := newMockRepository()
+	accounts := newMockAccountChecker(3)
+	symCheck := newMockSymbolChecker("AAPL")
+	symCreate := newMockSymbolCreator(symCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, nil, nil)
+
+	scheduler := &mockCacheScheduler{}
+	svc.WithCacheScheduler(scheduler)
+
+	req := CreateRequest{
+		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
+		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
+		NetCash: dec(-150000, 2),
+	}
+	_, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if len(scheduler.symbolFetches) != 1 || scheduler.symbolFetches[0] != "AAPL" {
+		t.Errorf("expected 1 symbol fetch for AAPL, got %v", scheduler.symbolFetches)
+	}
+}
+
+func TestService_Create_SkipsCacheFetchForCashSymbol(t *testing.T) {
+	repo := newMockRepository()
+	accounts := newMockAccountChecker(3)
+	symCheck := newMockSymbolChecker("$CASH-USD")
+	symCreate := newMockSymbolCreator(symCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, nil, nil)
+
+	scheduler := &mockCacheScheduler{}
+	svc.WithCacheScheduler(scheduler)
+
+	req := CreateRequest{
+		AccountID: 3, Date: "2025-01-15", Type: "deposit", Symbol: "$CASH-USD",
+		Quantity: dec(1000, 2), Price: dec(100, 2), Currency: "USD",
+		NetCash: dec(-100000, 2),
+	}
+	_, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if len(scheduler.symbolFetches) != 0 {
+		t.Errorf("expected no symbol fetches for cash symbol, got %v", scheduler.symbolFetches)
+	}
+}
+
+func TestService_Create_UsesEarliestDateForCacheFetch(t *testing.T) {
+	repo := newMockRepository()
+	accounts := newMockAccountChecker(3)
+	symCheck := newMockSymbolChecker("AAPL")
+	symCreate := newMockSymbolCreator(symCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, nil, nil)
+
+	scheduler := &mockCacheScheduler{}
+	svc.WithCacheScheduler(scheduler)
+
+	earliest := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	svc.WithEarliestDateFinder(&mockEarliestDateFinder{date: earliest})
+
+	req := CreateRequest{
+		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
+		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
+		NetCash: dec(-150000, 2),
+	}
+	_, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if len(scheduler.symbolDates) != 1 {
+		t.Fatalf("expected 1 date, got %d", len(scheduler.symbolDates))
+	}
+	if !scheduler.symbolDates[0].Equal(earliest) {
+		t.Errorf("expected earliest date %v, got %v", earliest, scheduler.symbolDates[0])
+	}
+}
+
+func TestService_Create_SchedulesFxPairFetch(t *testing.T) {
+	repo := newMockRepository()
+	accounts := newMockAccountChecker(3)
+	symCheck := newMockSymbolChecker("AAPL")
+	symCreate := newMockSymbolCreator(symCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, nil, nil)
+
+	scheduler := &mockCacheScheduler{}
+	svc.WithCacheScheduler(scheduler)
+	svc.WithAccountPortfolioFinder(&mockAccountPortfolioFinder{portfolioID: 1})
+	svc.WithPortfolioCurrencyResolver(&mockPortfolioCurrencyResolver{currency: "USD"})
+
+	req := CreateRequest{
+		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
+		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "GBP",
+		NetCash: dec(-150000, 2),
+	}
+	_, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if len(scheduler.fxFetches) != 1 || scheduler.fxFetches[0] != "GBP/USD" {
+		t.Errorf("expected 1 FX fetch for GBP/USD, got %v", scheduler.fxFetches)
+	}
+}
+
+func TestService_Create_SkipsFxPairFetchWhenCurrencyMatchesPortfolio(t *testing.T) {
+	repo := newMockRepository()
+	accounts := newMockAccountChecker(3)
+	symCheck := newMockSymbolChecker("AAPL")
+	symCreate := newMockSymbolCreator(symCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, nil, nil)
+
+	scheduler := &mockCacheScheduler{}
+	svc.WithCacheScheduler(scheduler)
+	svc.WithAccountPortfolioFinder(&mockAccountPortfolioFinder{portfolioID: 1})
+	svc.WithPortfolioCurrencyResolver(&mockPortfolioCurrencyResolver{currency: "USD"})
+
+	req := CreateRequest{
+		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
+		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
+		NetCash: dec(-150000, 2),
+	}
+	_, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if len(scheduler.fxFetches) != 0 {
+		t.Errorf("expected no FX fetch when currency matches portfolio, got %v", scheduler.fxFetches)
+	}
+}
+
+func TestService_Delete_SchedulesCacheFetch(t *testing.T) {
+	repo := newMockRepository()
+	txn := Transaction{AccountID: 3, Symbol: "AAPL", Type: "buy", Date: time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC), Currency: "USD"}
+	if err := repo.Create(ctx, &txn); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	accounts := newMockAccountChecker(3)
+	symCheck := newMockSymbolChecker("AAPL")
+	symCreate := newMockSymbolCreator(symCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, nil, nil)
+
+	scheduler := &mockCacheScheduler{}
+	svc.WithCacheScheduler(scheduler)
+
+	err := svc.Delete(ctx, txn.ID)
+	if err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	if len(scheduler.symbolFetches) != 1 || scheduler.symbolFetches[0] != "AAPL" {
+		t.Errorf("expected 1 symbol fetch after delete, got %v", scheduler.symbolFetches)
+	}
+}
+
+func TestService_Update_SchedulesCacheFetch(t *testing.T) {
+	repo := newMockRepository()
+	txn := Transaction{AccountID: 3, Symbol: "AAPL", Type: "buy", Date: time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC), Currency: "USD", Quantity: dec(10, 0), Price: dec(15000, 2)}
+	if err := repo.Create(ctx, &txn); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	accounts := newMockAccountChecker(3)
+	symCheck := newMockSymbolChecker("AAPL")
+	symCreate := newMockSymbolCreator(symCheck)
+	svc := NewService(repo, accounts, symCheck, symCreate, nil, nil)
+
+	scheduler := &mockCacheScheduler{}
+	svc.WithCacheScheduler(scheduler)
+
+	newQty := dec(20, 0)
+	req := UpdateRequest{Quantity: &newQty}
+	_, err := svc.Update(ctx, txn.ID, req)
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	if len(scheduler.symbolFetches) != 1 || scheduler.symbolFetches[0] != "AAPL" {
+		t.Errorf("expected 1 symbol fetch after update, got %v", scheduler.symbolFetches)
 	}
 }

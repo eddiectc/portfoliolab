@@ -19,7 +19,7 @@ import (
 func setupTx(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64, accountID int64) {
 	t.Helper()
 	db = setupTestDB(t)
-	router = api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ = api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Test Portfolio", "currency": "USD"}`)

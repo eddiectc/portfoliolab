@@ -87,6 +87,20 @@ func (m *mockTxnRepoForPerf) ListAllTransactionsByAccount(_ context.Context, acc
 	return result, nil
 }
 
+// Stub implementations for new TransactionRepository methods (unused in these tests).
+func (m *mockTxnRepoForPerf) GetSymbolsWithEarliestDate(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTxnRepoForPerf) GetSymbolsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTxnRepoForPerf) GetFxPairsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTxnRepoForPerf) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
+	return nil, nil
+}
+
 type mockAccountCheckerForPerf struct {
 	existing map[int64]bool
 }

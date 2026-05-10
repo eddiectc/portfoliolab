@@ -353,6 +353,93 @@ func (r *TransactionRepository) ListAllTransactionsByAccount(ctx context.Context
 	return toDomainSlice(items)
 }
 
+// GetSymbolsWithEarliestDate returns all non-cash symbols with their earliest
+// transaction date. Used by the SymbolDiscoverer for market data caching.
+func (r *TransactionRepository) GetSymbolsWithEarliestDate(ctx context.Context) (map[string]time.Time, error) {
+	rows, err := r.q.GetSymbolsWithEarliestDate(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("get symbols with earliest date: %w", err)
+	}
+	result := make(map[string]time.Time, len(rows))
+	for _, row := range rows {
+		t, err := parseInterfaceTime(row.EarliestDate)
+		if err != nil {
+			return nil, fmt.Errorf("parse earliest date for %s: %w", row.Symbol, err)
+		}
+		result[row.Symbol] = t
+	}
+	return result, nil
+}
+
+// GetSymbolsByOpenPositions returns symbols that have open positions, keyed by
+// symbol with the earliest transaction date as value.
+func (r *TransactionRepository) GetSymbolsByOpenPositions(ctx context.Context) (map[string]time.Time, error) {
+	rows, err := r.q.GetSymbolsByOpenPositions(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("get symbols by open positions: %w", err)
+	}
+	result := make(map[string]time.Time, len(rows))
+	for _, row := range rows {
+		t, err := parseInterfaceTime(row.EarliestDate)
+		if err != nil {
+			return nil, fmt.Errorf("parse earliest date for %s: %w", row.Symbol, err)
+		}
+		result[row.Symbol] = t
+	}
+	return result, nil
+}
+
+// GetFxPairsByOpenPositions returns FX pairs needed for open positions,
+// keyed by "BASE/QUOTE" with the earliest transaction date as value.
+func (r *TransactionRepository) GetFxPairsByOpenPositions(ctx context.Context) (map[string]time.Time, error) {
+	rows, err := r.q.GetFxPairsByOpenPositions(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("get FX pairs by open positions: %w", err)
+	}
+	result := make(map[string]time.Time, len(rows))
+	for _, row := range rows {
+		t, err := parseInterfaceTime(row.EarliestDate)
+		if err != nil {
+			return nil, fmt.Errorf("parse earliest date for %s/%s: %w", row.BaseCurrency, row.QuoteCurrency, err)
+		}
+		pair := fmt.Sprintf("%s/%s", row.BaseCurrency, row.QuoteCurrency)
+		result[pair] = t
+	}
+	return result, nil
+}
+
+// GetEarliestDateBySymbol returns the earliest transaction date for a
+// specific symbol. Returns nil if no transactions found.
+func (r *TransactionRepository) GetEarliestDateBySymbol(ctx context.Context, symbol string) (*time.Time, error) {
+	val, err := r.q.GetEarliestDateBySymbol(ctx, r.db, symbol)
+	if err != nil {
+		return nil, fmt.Errorf("get earliest date for %s: %w", symbol, err)
+	}
+	t, err := parseInterfaceTime(val)
+	if err != nil {
+		return nil, fmt.Errorf("parse earliest date for %s: %w", symbol, err)
+	}
+	return &t, nil
+}
+
+// parseInterfaceTime converts an interface{} value (from SQLite MIN(date))
+// to a time.Time. Handles string and []byte representations.
+func parseInterfaceTime(v interface{}) (time.Time, error) {
+	if v == nil {
+		return time.Time{}, fmt.Errorf("nil date value")
+	}
+	var s string
+	switch val := v.(type) {
+	case string:
+		s = val
+	case []byte:
+		s = string(val)
+	default:
+		return time.Time{}, fmt.Errorf("unexpected date type %T", v)
+	}
+	return time.Parse(time.RFC3339, s)
+}
+
 // Update modifies an existing transaction.
 func (r *TransactionRepository) Update(ctx context.Context, t *transaction.Transaction) error {
 	_, err := r.q.UpdateTransaction(ctx, r.db, queries.UpdateTransactionParams{

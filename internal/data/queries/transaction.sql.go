@@ -83,6 +83,132 @@ func (q *Queries) DeleteTransaction(ctx context.Context, db DBTX, id int64) (int
 	return result.RowsAffected()
 }
 
+const getEarliestDateBySymbol = `-- name: GetEarliestDateBySymbol :one
+SELECT MIN(date) AS earliest_date
+FROM transactions
+WHERE symbol = ?
+`
+
+func (q *Queries) GetEarliestDateBySymbol(ctx context.Context, db DBTX, symbol string) (interface{}, error) {
+	row := db.QueryRowContext(ctx, getEarliestDateBySymbol, symbol)
+	var earliest_date interface{}
+	err := row.Scan(&earliest_date)
+	return earliest_date, err
+}
+
+const getFxPairsByOpenPositions = `-- name: GetFxPairsByOpenPositions :many
+SELECT p.currency AS base_currency, port.currency AS quote_currency, MIN(t.date) AS earliest_date
+FROM positions p
+JOIN accounts a ON a.id = p.account_id
+JOIN portfolios port ON port.id = a.portfolio_id
+JOIN transactions t ON t.currency = p.currency
+WHERE p.is_closed = 0
+  AND p.currency != port.currency
+  AND p.symbol NOT LIKE '$CASH-%'
+GROUP BY p.currency, port.currency
+`
+
+type GetFxPairsByOpenPositionsRow struct {
+	BaseCurrency  string      `db:"base_currency"`
+	QuoteCurrency string      `db:"quote_currency"`
+	EarliestDate  interface{} `db:"earliest_date"`
+}
+
+func (q *Queries) GetFxPairsByOpenPositions(ctx context.Context, db DBTX) ([]GetFxPairsByOpenPositionsRow, error) {
+	rows, err := db.QueryContext(ctx, getFxPairsByOpenPositions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetFxPairsByOpenPositionsRow{}
+	for rows.Next() {
+		var i GetFxPairsByOpenPositionsRow
+		if err := rows.Scan(&i.BaseCurrency, &i.QuoteCurrency, &i.EarliestDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSymbolsByOpenPositions = `-- name: GetSymbolsByOpenPositions :many
+SELECT p.symbol, MIN(t.date) AS earliest_date
+FROM positions p
+JOIN transactions t ON t.symbol = p.symbol
+WHERE p.is_closed = 0
+  AND p.symbol NOT LIKE '$CASH-%'
+GROUP BY p.symbol
+`
+
+type GetSymbolsByOpenPositionsRow struct {
+	Symbol       string      `db:"symbol"`
+	EarliestDate interface{} `db:"earliest_date"`
+}
+
+func (q *Queries) GetSymbolsByOpenPositions(ctx context.Context, db DBTX) ([]GetSymbolsByOpenPositionsRow, error) {
+	rows, err := db.QueryContext(ctx, getSymbolsByOpenPositions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSymbolsByOpenPositionsRow{}
+	for rows.Next() {
+		var i GetSymbolsByOpenPositionsRow
+		if err := rows.Scan(&i.Symbol, &i.EarliestDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSymbolsWithEarliestDate = `-- name: GetSymbolsWithEarliestDate :many
+SELECT symbol, MIN(date) AS earliest_date
+FROM transactions
+WHERE symbol NOT LIKE '$CASH-%'
+GROUP BY symbol
+`
+
+type GetSymbolsWithEarliestDateRow struct {
+	Symbol       string      `db:"symbol"`
+	EarliestDate interface{} `db:"earliest_date"`
+}
+
+func (q *Queries) GetSymbolsWithEarliestDate(ctx context.Context, db DBTX) ([]GetSymbolsWithEarliestDateRow, error) {
+	rows, err := db.QueryContext(ctx, getSymbolsWithEarliestDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSymbolsWithEarliestDateRow{}
+	for rows.Next() {
+		var i GetSymbolsWithEarliestDateRow
+		if err := rows.Scan(&i.Symbol, &i.EarliestDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTransaction = `-- name: GetTransaction :one
 SELECT id, account_id, date, type, symbol, quantity, price, currency, net_cash, external_system, external_reference, lot_id, description, created_at, updated_at FROM transactions WHERE id = ?
 `

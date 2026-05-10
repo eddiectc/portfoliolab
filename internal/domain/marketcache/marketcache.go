@@ -9,6 +9,15 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
+// MarketCacheScheduler defines the scheduling interface for background
+// market data fetches. Used by consumer services (position, transaction) to
+// trigger cache updates without importing the concrete MarketCache type.
+type MarketCacheScheduler interface {
+	ScheduleSymbolFetch(symbol string, fromDate time.Time)
+	ScheduleFxPairFetch(baseCurrency, quoteCurrency string, fromDate time.Time)
+	RefreshAll(ctx context.Context)
+}
+
 // SymbolDiscoverer finds symbols and FX pairs that need market data.
 type SymbolDiscoverer interface {
 	// ActiveSymbols returns symbols with open positions.

@@ -205,6 +205,20 @@ func (m *mockRefreshTxnRepo) ListAllTransactionsByAccount(_ context.Context, acc
 	return txns, nil
 }
 
+// Stub implementations for new TransactionRepository methods (unused in these tests).
+func (m *mockRefreshTxnRepo) GetSymbolsWithEarliestDate(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockRefreshTxnRepo) GetSymbolsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockRefreshTxnRepo) GetFxPairsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockRefreshTxnRepo) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
+	return nil, nil
+}
+
 // mockRefreshPositionRepo simulates open position listing for refresh tests.
 type mockRefreshPositionRepo struct {
 	positions []Position

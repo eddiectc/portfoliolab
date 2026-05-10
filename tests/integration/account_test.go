@@ -14,7 +14,7 @@ import (
 
 func TestAccount_CreateAndGet(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create a portfolio first
 	body := json.RawMessage(`{"name": "Test Portfolio", "currency": "USD"}`)
@@ -66,7 +66,7 @@ func TestAccount_CreateAndGet(t *testing.T) {
 
 func TestAccount_ListEmpty(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/accounts", nil)
 	w := httptest.NewRecorder()
@@ -85,7 +85,7 @@ func TestAccount_ListEmpty(t *testing.T) {
 
 func TestAccount_CreateListDelete(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create a portfolio
 	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
@@ -146,7 +146,7 @@ func TestAccount_CreateListDelete(t *testing.T) {
 
 func TestAccount_Update(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
@@ -187,7 +187,7 @@ func TestAccount_Update(t *testing.T) {
 
 func TestAccount_DuplicateName(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
@@ -221,7 +221,7 @@ func TestAccount_DuplicateName(t *testing.T) {
 
 func TestAccount_CascadeDeletePortfolio(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
@@ -277,7 +277,7 @@ func TestAccount_CascadeDeletePortfolio(t *testing.T) {
 
 func TestAccount_Pagination(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
@@ -315,7 +315,7 @@ func TestAccount_Pagination(t *testing.T) {
 
 func TestAccount_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/accounts/999", nil)
 	w := httptest.NewRecorder()
@@ -328,7 +328,7 @@ func TestAccount_NotFound(t *testing.T) {
 
 func TestAccount_NonExistentPortfolio(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	body := json.RawMessage(`{"name": "Test", "portfolio_id": 999}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/accounts", bytes.NewReader(body))
@@ -343,7 +343,7 @@ func TestAccount_NonExistentPortfolio(t *testing.T) {
 
 func TestAccount_Pagination_ZeroLimitDefaultsTo50(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
@@ -381,7 +381,7 @@ func TestAccount_Pagination_ZeroLimitDefaultsTo50(t *testing.T) {
 
 func TestAccount_Pagination_NegativeOffsetDefaultsTo0(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Main", "currency": "USD"}`)
