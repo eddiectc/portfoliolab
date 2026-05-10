@@ -381,12 +381,16 @@ func buildEquityCurvePoints(
 	for _, snap := range snapshots {
 		// Compute portfolio value: positions + cash.
 		var portfolioValue decimal.Decimal
+		var posValue decimal.Decimal
 
 		// Position values.
 		for symbol, qty := range snap.positions {
 			dateKey := snap.date.Format("2006-01-02")
 			price, found := lookupPrice(priceLookup, symbol, dateKey)
 			if !found {
+				if logger != nil {
+					logger.Debug("performance: no price found for position", "symbol", symbol, "qty", qty.String(), "date", dateKey)
+				}
 				continue // no price available, skip this position
 			}
 
@@ -395,14 +399,17 @@ func buildEquityCurvePoints(
 			if price.Currency != baseCurrency {
 				value, _ = convertToBase(ctx, marketService, price.Currency, baseCurrency, value, snap.date)
 			}
+			posValue, _ = posValue.Add(value)
 			portfolioValue, _ = portfolioValue.Add(value)
 		}
 
 		// Cash balances.
+		var cashValue decimal.Decimal
 		for currency, balance := range snap.cashBalance {
 			if currency != baseCurrency {
 				balance, _ = convertToBase(ctx, marketService, currency, baseCurrency, balance, snap.date)
 			}
+			cashValue, _ = cashValue.Add(balance)
 			portfolioValue, _ = portfolioValue.Add(balance)
 		}
 
@@ -413,6 +420,16 @@ func buildEquityCurvePoints(
 				deposit, _ = convertToBase(ctx, marketService, currency, baseCurrency, deposit, snap.date)
 			}
 			netDepositBase, _ = netDepositBase.Add(deposit)
+		}
+
+		if logger != nil {
+			logger.Debug("performance: snapshot",
+				"date", snap.date.Format("2006-01-02"),
+				"posValue", posValue.String(),
+				"cashValue", cashValue.String(),
+				"portfolioValue", portfolioValue.String(),
+				"netDeposit", netDepositBase.String(),
+			)
 		}
 
 		points = append(points, EquityCurvePoint{
