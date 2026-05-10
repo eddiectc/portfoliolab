@@ -229,6 +229,13 @@ func (f *YahooFinanceFetcher) FetchHistoricalPricesBatch(_ context.Context, symb
 			currency = meta.Currency
 		}
 
+		// Yahoo returns some UK stock prices in GBp (pence) instead of GBP.
+		// Convert to GBP (divide by 100) so all prices are in major currency units.
+		isPence := currency == "GBp"
+		if isPence {
+			currency = "GBP"
+		}
+
 		var prices []HistoricalPrice
 		var filteredOut int
 		for _, bar := range bars {
@@ -241,6 +248,9 @@ func (f *YahooFinanceFetcher) FetchHistoricalPricesBatch(_ context.Context, symb
 				f.logger.Debug("failed to convert close price", "symbol", sym, "close", bar.Close, "error", convErr)
 				continue
 			}
+			if isPence {
+				close, _ = close.Quo(decimal.MustNew(100, 0))
+			}
 			prices = append(prices, HistoricalPrice{
 				Date:     bar.Date,
 				Close:    close,
@@ -248,7 +258,7 @@ func (f *YahooFinanceFetcher) FetchHistoricalPricesBatch(_ context.Context, symb
 			})
 		}
 		if f.logger != nil {
-			f.logger.Debug("historical fetch result", "symbol", sym, "totalBars", len(bars), "inRange", len(prices), "filteredOut", filteredOut, "currency", currency)
+			f.logger.Debug("historical fetch result", "symbol", sym, "totalBars", len(bars), "inRange", len(prices), "filteredOut", filteredOut, "currency", currency, "wasPence", isPence)
 		}
 		if len(prices) > 0 {
 			result[sym] = prices
