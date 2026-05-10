@@ -489,18 +489,19 @@ func (s *Service) GetLotInfo(ctx context.Context, lotID string) (*transaction.Lo
 	}, nil
 }
 
-// EnrichWithMarketData fetches current market prices for open positions and
-// computes MarketValue, UnrealizedPnL, and UnrealizedPnlPct. Cash positions
-// get MarketValue = balance with no P&L. If the market fetcher is not configured,
-// returns positions with MarketDataAvailable=false and zero market values.
+// EnrichWithMarketData reads current market prices from the cache for open
+// positions and computes MarketValue, UnrealizedPnL, and UnrealizedPnlPct.
+// Cash positions get MarketValue = balance with no P&L. If the market data
+// repository is not configured, returns positions with MarketDataAvailable=false
+// and zero market values.
 // baseCurrency, if non-empty, is used to convert MarketValue and UnrealizedPnL
 // to the portfolio base currency.
 //
-// Market data is fetched in a single batch call (grouping unique symbols) rather
-// than one request per symbol.
+// Market data is read from the cache (populated by the MarketCache background
+// service) rather than fetched live.
 func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position, baseCurrency string) []PositionWithMarket {
-	if s.marketFetcher == nil || s.marketDataRepo == nil {
-		// No market data fetcher configured — return positions with no market data.
+	if s.marketDataRepo == nil {
+		// No market data repository configured — return positions with no market data.
 		result := make([]PositionWithMarket, len(positions))
 		for i, p := range positions {
 			result[i] = PositionWithMarket{
@@ -512,7 +513,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 		return result
 	}
 
-	// Collect unique non-cash symbols for batch fetching.
+	// Collect unique non-cash symbols for batch reading.
 	symbolSet := make(map[string]struct{})
 	for _, p := range positions {
 		if !isCashPosition(p.Symbol) {
@@ -525,18 +526,10 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 		symbols = append(symbols, sym)
 	}
 
-	// Batch-fetch all unique symbols in one API call.
+	// Read cached quotes for all unique symbols.
 	quotes := make(map[string]*market.MarketData)
 	if len(symbols) > 0 {
-		quotes = s.marketFetcher.FetchQuotesBatch(ctx, symbols)
-		// Cache all fetched quotes.
-		for _, q := range quotes {
-			if cacheErr := s.marketDataRepo.Upsert(ctx, q); cacheErr != nil {
-				if s.logger != nil {
-					s.logger.Debug("failed to cache market data", "symbol", q.Symbol, "error", cacheErr)
-				}
-			}
-		}
+		quotes = s.marketDataRepo.GetLatestQuotesBatch(ctx, symbols)
 	}
 
 	result := make([]PositionWithMarket, len(positions))
@@ -572,11 +565,11 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			continue
 		}
 
-		// Look up the batch-fetched quote.
+		// Look up the cached quote.
 		quote, found := quotes[p.Symbol]
 		if !found {
 			if s.logger != nil {
-				s.logger.Debug("no market quote found in batch", "symbol", p.Symbol)
+				s.logger.Debug("no cached market quote found", "symbol", p.Symbol)
 			}
 			result[i] = PositionWithMarket{
 				Position:            p,
