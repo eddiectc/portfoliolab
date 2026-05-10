@@ -29,6 +29,8 @@
 - **Task 6 circular dependency**: `MarketCache` needs `position.Service` as SymbolDiscoverer, and `position.Service` needs `MarketCache` for scheduling. Resolved by creating `position.Service` first, then `MarketCache`, then wiring `MarketCache` into `position.Service` via `WithMarketCache`.
 - **Task 6 interface explosion**: Adding 4 new methods to `TransactionRepository` in the position package required updating 5 mock implementations across test files (service_test, refresh_test, performance_test, position_test). Each mock got stub implementations returning nil.
 - **Task 6 router signature change**: `Router()` now returns `(http.Handler, *marketcache.MarketCache)` instead of just `http.Handler`. All integration tests updated with `, _` to discard the cache reference.
+- **Task 7 handler interface**: `MarketDataHandler` depends on a private `marketCacheStatus` interface (not the concrete `*marketcache.MarketCache`) so it can be mocked in tests. Follows the same pattern as other handlers that use interfaces for cross-package dependencies.
+- **Task 7 cross-task**: Creating and registering `MarketDataHandler` also satisfied the corresponding Task 9 sub-task. Task 9 now only has one remaining item: passing MarketCache to the performance and position web handlers.
 
 ## Future Improvements
 
