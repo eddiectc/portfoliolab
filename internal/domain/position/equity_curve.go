@@ -120,13 +120,15 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		if len(pricesBySymbol) > 0 {
 			latestDates := s.marketService.GetLatestPriceDatePerSymbol(ctx, symbols)
 			now := time.Now().UTC()
+			expectedLatest := tradingDayBeforeOrOn(now)
 			for sym := range pricesBySymbol {
 				latestDate, ok := latestDates[sym]
 				if !ok || latestDate == nil {
 					continue
 				}
-				// If the latest cached date is more than 1 calendar day old, warn.
-				if latestDate.Before(now.AddDate(0, 0, -1)) {
+				// If the latest cached date is before the expected latest trading
+				// day, warn. Skips false positives on weekends when markets are closed.
+				if latestDate.Before(expectedLatest) {
 					daysAgo := now.Sub(*latestDate).Hours() / 24
 					warnings = append(warnings, fmt.Sprintf("stale market data for %s (last updated %.0f days ago)", sym, daysAgo))
 				}
@@ -481,4 +483,17 @@ func copyStringMap(src map[string]string) map[string]string {
 		dst[k] = v
 	}
 	return dst
+}
+
+// tradingDayBeforeOrOn returns the most recent trading day on or before the
+// given date, skipping Saturday (6) and Sunday (0). Used for staleness checks
+// so weekend gaps don't trigger false "stale data" warnings.
+// Does not account for market holidays — those are rare enough to be a minor
+// false positive (one extra day of "staleness").
+func tradingDayBeforeOrOn(t time.Time) time.Time {
+	d := t
+	for d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+		d = d.AddDate(0, 0, -1)
+	}
+	return d
 }
