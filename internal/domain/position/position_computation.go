@@ -197,11 +197,13 @@ func buildPosition(c cycleState) Position {
 
 	isClosed := c.finalQty.Equal(decimal.Zero)
 
-	// If there are no sell lots, no P&L has been realized — set to zero.
-	// For closed positions or partial sells, use the computed value.
+	// Realized P&L only applies to fully closed positions. For open positions
+	// (including partial sells), the sell proceeds are already reflected in
+	// the cash balance, and remaining shares are valued at market price.
+	// Showing partial realized P&L would double-count against the equity curve.
 	var realizedPnLFinal decimal.Decimal
 	var realizedPnlPct *decimal.Decimal
-	if !totalSellQty.Equal(decimal.Zero) {
+	if isClosed {
 		realizedPnLFinal = realizedPnL
 		absCostBasis := totalCostBasis.Abs()
 		if !absCostBasis.Equal(decimal.Zero) {
