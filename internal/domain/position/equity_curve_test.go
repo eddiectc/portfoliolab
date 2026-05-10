@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,11 +62,29 @@ func (m *mockHistoricalFetcher) FetchHistoricalPricesBatch(_ context.Context, sy
 }
 
 type mockHistoricalRepo struct {
-	upserted map[string][]market.HistoricalPrice
+	upserted      map[string][]market.HistoricalPrice
+	cachedPrices  map[string][]market.HistoricalPrice
+	latestDates   map[string]*time.Time
 }
 
 func newMockHistoricalRepo() *mockHistoricalRepo {
-	return &mockHistoricalRepo{upserted: make(map[string][]market.HistoricalPrice)}
+	return &mockHistoricalRepo{
+		upserted:     make(map[string][]market.HistoricalPrice),
+		cachedPrices: make(map[string][]market.HistoricalPrice),
+		latestDates:  make(map[string]*time.Time),
+	}
+}
+
+func (m *mockHistoricalRepo) SetCachedPrices(symbol string, prices []market.HistoricalPrice) {
+	m.cachedPrices[symbol] = prices
+	if len(prices) > 0 {
+		latest := prices[len(prices)-1].Date
+		m.latestDates[symbol] = &latest
+	}
+}
+
+func (m *mockHistoricalRepo) SetLatestDate(symbol string, date time.Time) {
+	m.latestDates[symbol] = &date
 }
 
 func (m *mockHistoricalRepo) GetLatest(_ context.Context, _ string) (*market.MarketData, error) {
@@ -89,16 +108,37 @@ func (m *mockHistoricalRepo) UpsertHistoricalPrices(_ context.Context, symbol st
 	return nil
 }
 
-func (m *mockHistoricalRepo) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
-	return nil, nil
+func (m *mockHistoricalRepo) GetHistoricalPricesBySymbol(_ context.Context, symbol string, start, end time.Time) ([]market.HistoricalPrice, error) {
+	prices, ok := m.cachedPrices[symbol]
+	if !ok {
+		return nil, nil
+	}
+	// Filter by date range.
+	var filtered []market.HistoricalPrice
+	for _, p := range prices {
+		if !start.IsZero() && p.Date.Before(start) {
+			continue
+		}
+		if !end.IsZero() && p.Date.After(end) {
+			continue
+		}
+		filtered = append(filtered, p)
+	}
+	return filtered, nil
 }
 
-func (m *mockHistoricalRepo) GetLatestQuotesBatch(context.Context, []string) map[string]*market.MarketData {
+func (m *mockHistoricalRepo) GetLatestQuotesBatch(_ context.Context, _ []string) map[string]*market.MarketData {
 	return nil
 }
 
-func (m *mockHistoricalRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
-	return nil
+func (m *mockHistoricalRepo) GetLatestPriceDatePerSymbol(_ context.Context, symbols []string) map[string]*time.Time {
+	result := make(map[string]*time.Time)
+	for _, sym := range symbols {
+		if date, ok := m.latestDates[sym]; ok {
+			result[sym] = date
+		}
+	}
+	return result
 }
 
 // --- Test helpers ---
@@ -604,18 +644,14 @@ func TestComputeEquityCurve_HappyPath(t *testing.T) {
 		eqTxn(1, testTime(2024, 3, 15), "sell", "AAPL", "USD", 500, 17000, 85000),
 	})
 
-	// Set up market data fetcher with historical prices.
-	fetcher := &mockHistoricalFetcher{
-		prices: map[string][]market.HistoricalPrice{
-			"AAPL": {
-				histPrice(testTime(2024, 1, 15), 15000, "USD"),
-				histPrice(testTime(2024, 2, 15), 15000, "USD"),
-				histPrice(testTime(2024, 3, 15), 17000, "USD"),
-			},
-		},
-	}
+	// Set up cached historical prices.
 	repo := newMockHistoricalRepo()
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	repo.SetCachedPrices("AAPL", []market.HistoricalPrice{
+		histPrice(testTime(2024, 1, 15), 15000, "USD"),
+		histPrice(testTime(2024, 2, 15), 15000, "USD"),
+		histPrice(testTime(2024, 3, 15), 17000, "USD"),
+	})
+	svc.WithMarketDataFetcher(nil, repo, nil)
 
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),
@@ -683,13 +719,9 @@ func TestComputeEquityCurve_MissingMarketData(t *testing.T) {
 		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
 	})
 
-	// Fetcher fails for AAPL.
-	fetcher := &mockHistoricalFetcher{
-		prices: map[string][]market.HistoricalPrice{},
-		failed: []string{"AAPL"},
-	}
+	// No cached data for AAPL.
 	repo := newMockHistoricalRepo()
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataFetcher(nil, repo, nil)
 
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),
@@ -933,7 +965,7 @@ func TestComputeEquityCurve_NegativeNetDeposit(t *testing.T) {
 	}
 }
 
-func TestComputeEquityCurve_HistoricalPricesUpserted(t *testing.T) {
+func TestComputeEquityCurve_StaleDataWarning(t *testing.T) {
 	svc, txnRepo, accountLister := newTestServiceForEquity()
 	accountLister.SetAccountsByPortfolio(1, []AccountRef{
 		{ID: 1, PortfolioCurrency: "USD"},
@@ -944,18 +976,17 @@ func TestComputeEquityCurve_HistoricalPricesUpserted(t *testing.T) {
 		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
 	})
 
-	prices := []market.HistoricalPrice{
-		histPrice(testTime(2024, 2, 15), 15000, "USD"),
-	}
-	fetcher := &mockHistoricalFetcher{
-		prices: map[string][]market.HistoricalPrice{
-			"AAPL": prices,
-		},
-	}
+	// Set cached prices with an old latest date (far in the past).
+	oldDate := testTime(2024, 2, 15)
 	repo := newMockHistoricalRepo()
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	repo.SetCachedPrices("AAPL", []market.HistoricalPrice{
+		histPrice(testTime(2024, 2, 15), 15000, "USD"),
+	})
+	// Override latest date to be old.
+	repo.SetLatestDate("AAPL", oldDate)
+	svc.WithMarketDataFetcher(nil, repo, nil)
 
-	_, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -963,11 +994,54 @@ func TestComputeEquityCurve_HistoricalPricesUpserted(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify prices were upserted.
-	if _, ok := repo.upserted["AAPL"]; !ok {
-		t.Error("expected AAPL prices to be upserted")
+	// Should have a stale data warning for AAPL.
+	var foundStale bool
+	for _, w := range result.Warnings {
+		if strings.HasPrefix(w, "stale market") && strings.Contains(w, "AAPL") {
+			foundStale = true
+			break
+		}
 	}
-	if len(repo.upserted["AAPL"]) != 1 {
-		t.Errorf("expected 1 AAPL price upserted, got %d", len(repo.upserted["AAPL"]))
+	if !foundStale {
+		t.Errorf("expected stale market data warning for AAPL, got warnings: %v", result.Warnings)
+	}
+}
+
+func TestComputeEquityCurve_PartialCache(t *testing.T) {
+	svc, txnRepo, accountLister := newTestServiceForEquity()
+	accountLister.SetAccountsByPortfolio(1, []AccountRef{
+		{ID: 1, PortfolioCurrency: "USD"},
+	})
+
+	txnRepo.SetTransactions(1, []transaction.Transaction{
+		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
+		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
+		eqTxn(1, testTime(2024, 3, 15), "buy", "MSFT", "USD", 500, 40000, -2000000),
+	})
+
+	// Only AAPL is cached, MSFT is missing.
+	repo := newMockHistoricalRepo()
+	repo.SetCachedPrices("AAPL", []market.HistoricalPrice{
+		histPrice(testTime(2024, 2, 15), 15000, "USD"),
+	})
+	// Set AAPL's latest date to today so it doesn't trigger a stale warning.
+	now := time.Now().UTC()
+	repo.SetLatestDate("AAPL", now)
+	svc.WithMarketDataFetcher(nil, repo, nil)
+
+	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+		PortfolioID: ptrInt64(1),
+		Period:      "All",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should have a missing data warning for MSFT.
+	if len(result.Warnings) != 1 {
+		t.Fatalf("expected 1 warning, got %d: %v", len(result.Warnings), result.Warnings)
+	}
+	if result.Warnings[0] != "missing market data for MSFT" {
+		t.Errorf("unexpected warning: %s", result.Warnings[0])
 	}
 }

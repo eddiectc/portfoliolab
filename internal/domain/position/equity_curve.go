@@ -80,25 +80,48 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	// 7. Walk transactions chronologically, capturing state at each date.
 	snapshots := walkTransactions(allTxns)
 
-	// 8. Collect unique non-cash symbols and fetch historical prices.
+	// 8. Collect unique non-cash symbols and read historical prices from cache.
 	symbols := collectUniqueSymbols(allTxns)
 	var warnings []string
 	var pricesBySymbol map[string][]market.HistoricalPrice
-	if len(symbols) > 0 && s.marketFetcher != nil {
-		var failedSymbols []string
-		pricesBySymbol, failedSymbols = s.marketFetcher.FetchHistoricalPricesBatch(ctx, symbols, dateFrom, dateTo)
-		// Upsert fetched prices into market_data table.
-		if s.marketDataRepo != nil {
-			for sym, prices := range pricesBySymbol {
-				if upsertErr := s.marketDataRepo.UpsertHistoricalPrices(ctx, sym, prices, "stock"); upsertErr != nil {
-					if s.logger != nil {
-						s.logger.Debug("failed to upsert historical prices", "symbol", sym, "error", upsertErr)
-					}
+	if len(symbols) > 0 && s.marketDataRepo != nil {
+		// Read cached historical prices for each symbol.
+		pricesBySymbol = make(map[string][]market.HistoricalPrice)
+		var missingSymbols []string
+		for _, sym := range symbols {
+			prices, err := s.marketDataRepo.GetHistoricalPricesBySymbol(ctx, sym, dateFrom, dateTo)
+			if err != nil {
+				if s.logger != nil {
+					s.logger.Warn("failed to read cached prices", "symbol", sym, "error", err)
+				}
+				missingSymbols = append(missingSymbols, sym)
+				continue
+			}
+			if len(prices) == 0 {
+				missingSymbols = append(missingSymbols, sym)
+				continue
+			}
+			pricesBySymbol[sym] = prices
+		}
+		for _, sym := range missingSymbols {
+			warnings = append(warnings, fmt.Sprintf("missing market data for %s", sym))
+		}
+
+		// Check staleness for symbols that have cached data.
+		if len(pricesBySymbol) > 0 {
+			latestDates := s.marketDataRepo.GetLatestPriceDatePerSymbol(ctx, symbols)
+			now := time.Now().UTC()
+			for sym := range pricesBySymbol {
+				latestDate, ok := latestDates[sym]
+				if !ok || latestDate == nil {
+					continue
+				}
+				// If the latest cached date is more than 1 calendar day old, warn.
+				if latestDate.Before(now.AddDate(0, 0, -1)) {
+					daysAgo := now.Sub(*latestDate).Hours() / 24
+					warnings = append(warnings, fmt.Sprintf("stale market data for %s (last updated %.0f days ago)", sym, daysAgo))
 				}
 			}
-		}
-		for _, sym := range failedSymbols {
-			warnings = append(warnings, fmt.Sprintf("missing market data for %s", sym))
 		}
 	}
 
