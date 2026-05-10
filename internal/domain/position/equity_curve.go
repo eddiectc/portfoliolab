@@ -418,6 +418,15 @@ func buildEquityCurvePoints(
 ) []EquityCurvePoint {
 	priceLookup := buildPriceLookupFF(buildPriceLookup(pricesBySymbol))
 
+	// Collect unique FX pairs needed: position currencies and cash currencies
+	// that differ from base currency.
+	fxPairs := collectFxPairs(snapshots, baseCurrency)
+
+	// Fetch historical FX rates for the full date range and build forward-fill
+	// lookup so weekends/holidays use the last known rate instead of dropping
+	// to unconverted values.
+	fxLookup := buildFxLookupFF(ctx, marketService, fxPairs, snapshots, logger)
+
 	var points []EquityCurvePoint
 	for _, snap := range snapshots {
 		// Compute portfolio value: positions + cash.
@@ -438,7 +447,7 @@ func buildEquityCurvePoints(
 			value, _ := qty.Mul(price.Close)
 			// Convert from price currency to base currency.
 			if price.Currency != baseCurrency {
-				value, _ = convertToBase(ctx, marketService, price.Currency, baseCurrency, value, snap.date)
+				value = convertWithFxLookup(fxLookup, price.Currency, baseCurrency, value, snap.date)
 			}
 			posValue, _ = posValue.Add(value)
 			portfolioValue, _ = portfolioValue.Add(value)
@@ -448,7 +457,7 @@ func buildEquityCurvePoints(
 		var cashValue decimal.Decimal
 		for currency, balance := range snap.cashBalance {
 			if currency != baseCurrency {
-				balance, _ = convertToBase(ctx, marketService, currency, baseCurrency, balance, snap.date)
+				balance = convertWithFxLookup(fxLookup, currency, baseCurrency, balance, snap.date)
 			}
 			cashValue, _ = cashValue.Add(balance)
 			portfolioValue, _ = portfolioValue.Add(balance)
@@ -458,7 +467,7 @@ func buildEquityCurvePoints(
 		var netDepositBase decimal.Decimal
 		for currency, deposit := range snap.netDeposit {
 			if currency != baseCurrency {
-				deposit, _ = convertToBase(ctx, marketService, currency, baseCurrency, deposit, snap.date)
+				deposit = convertWithFxLookup(fxLookup, currency, baseCurrency, deposit, snap.date)
 			}
 			netDepositBase, _ = netDepositBase.Add(deposit)
 		}
@@ -525,6 +534,121 @@ func lookupPrice(ff map[string]*priceLookupFF, symbol, dateKey string) (market.H
 	return market.HistoricalPrice{}, false
 }
 
+// fxLookupFF holds a forward-fill lookup for FX rates: pair -> sorted dates + rates.
+type fxLookupFF struct {
+	dates []string
+	rates map[string]decimal.Decimal
+}
+
+// collectFxPairs returns the unique FX pair symbols needed from the snapshots,
+// excluding pairs where from == to (base currency).
+func collectFxPairs(snapshots []dateSnapshot, baseCurrency string) []string {
+	set := make(map[string]bool)
+	for _, snap := range snapshots {
+		for _, currency := range snap.positionCurrency {
+			if currency != baseCurrency {
+				set[market.FormatFxPair(currency, baseCurrency)] = true
+			}
+		}
+		for currency := range snap.cashBalance {
+			if currency != baseCurrency {
+				set[market.FormatFxPair(currency, baseCurrency)] = true
+			}
+		}
+		for currency := range snap.netDeposit {
+			if currency != baseCurrency {
+				set[market.FormatFxPair(currency, baseCurrency)] = true
+			}
+		}
+	}
+	pairs := make([]string, 0, len(set))
+	for pair := range set {
+		pairs = append(pairs, pair)
+	}
+	return pairs
+}
+
+// buildFxLookupFF fetches historical FX rates for the given pairs across the
+// snapshot date range and returns a map of pair -> forward-fill lookup.
+func buildFxLookupFF(
+	ctx context.Context,
+	marketService MarketDataService,
+	fxPairs []string,
+	snapshots []dateSnapshot,
+	logger *slog.Logger,
+) map[string]*fxLookupFF {
+	lookup := make(map[string]*fxLookupFF)
+	if marketService == nil || len(fxPairs) == 0 || len(snapshots) == 0 {
+		return lookup
+	}
+
+	dateFrom := snapshots[0].date
+	dateTo := snapshots[len(snapshots)-1].date
+
+	for _, pair := range fxPairs {
+		prices, err := marketService.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("failed to read cached FX rates", "pair", pair, "error", err)
+			}
+			continue
+		}
+		if len(prices) == 0 {
+			if logger != nil {
+				logger.Debug("no cached FX rates", "pair", pair)
+			}
+			continue
+		}
+
+		dates := make([]string, len(prices))
+		rates := make(map[string]decimal.Decimal, len(prices))
+		for i, p := range prices {
+			key := p.Date.Format("2006-01-02")
+			dates[i] = key
+			rates[key] = p.Close
+		}
+		sort.Strings(dates)
+		lookup[pair] = &fxLookupFF{
+			dates: dates,
+			rates: rates,
+		}
+	}
+	return lookup
+}
+
+// convertWithFxLookup converts a value using the forward-fill FX rate lookup.
+// If no rate is found (even with forward-fill), returns the unconverted value.
+func convertWithFxLookup(
+	lookup map[string]*fxLookupFF,
+	fromCurrency, toCurrency string,
+	value decimal.Decimal,
+	date time.Time,
+) decimal.Decimal {
+	if fromCurrency == toCurrency {
+		return value
+	}
+	pair := market.FormatFxPair(fromCurrency, toCurrency)
+	ff, ok := lookup[pair]
+	if !ok || len(ff.dates) == 0 {
+		return value // no FX data available
+	}
+	dateKey := date.Format("2006-01-02")
+	idx := sort.SearchStrings(ff.dates, dateKey)
+	// Exact match.
+	if idx < len(ff.dates) && ff.dates[idx] == dateKey {
+		rate := ff.rates[dateKey]
+		converted, _ := value.Mul(rate)
+		return converted
+	}
+	// Forward-fill from previous date.
+	if idx > 0 {
+		rate := ff.rates[ff.dates[idx-1]]
+		converted, _ := value.Mul(rate)
+		return converted
+	}
+	return value // no prior rate found
+}
+
 // convertToBase converts a value from one currency to another using the
 // market data service. If currencies match, returns the value unchanged.
 // If no FX rate is available, returns the original value with found=false.
@@ -578,9 +702,13 @@ func interpolateDaily(
 		pointMap[key] = p
 	}
 
-	// Build forward-fill lookups for price lookups on extended dates.
+	// Build forward-fill lookups for price and FX lookups on extended dates.
 	priceLookup := buildPriceLookup(pricesBySymbol)
 	ff := buildPriceLookupFF(priceLookup)
+
+	// Build FX forward-fill lookup for the extended date range.
+	fxPairs := collectFxPairsForInterpolation(positionCurrency, cashBalance, baseCurrency)
+	fxLookup := buildFxLookupForInterpolation(ctx, marketService, fxPairs, points, dateTo)
 
 	dateFrom := points[0].Date
 	lastPointDate := points[len(points)-1].Date
@@ -605,7 +733,7 @@ func interpolateDaily(
 		} else if lastPoint != nil {
 			// Beyond last transaction: compute portfolio value from
 			// current positions + cash + cached historical prices.
-			portfolioValue := computePortfolioValue(positions, positionCurrency, cashBalance, ff, baseCurrency, d, marketService, ctx)
+			portfolioValue := computePortfolioValue(positions, positionCurrency, cashBalance, ff, fxLookup, baseCurrency, d)
 			result = append(result, EquityCurvePoint{
 				Date:           d,
 				PortfolioValue: portfolioValue,
@@ -618,16 +746,15 @@ func interpolateDaily(
 }
 
 // computePortfolioValue calculates the portfolio value for a given date using
-// the current positions, cash balance, and cached historical prices.
+// the current positions, cash balance, cached historical prices, and FX rates.
 func computePortfolioValue(
 	positions map[string]decimal.Decimal,
 	positionCurrency map[string]string,
 	cashBalance map[string]decimal.Decimal,
 	ff map[string]*priceLookupFF,
+	fxLookup map[string]*fxLookupFF,
 	baseCurrency string,
 	date time.Time,
-	marketService MarketDataService,
-	ctx context.Context,
 ) decimal.Decimal {
 	var portfolioValue decimal.Decimal
 	dateKey := date.Format("2006-01-02")
@@ -635,7 +762,7 @@ func computePortfolioValue(
 	// Cash balance.
 	for currency, val := range cashBalance {
 		if currency != baseCurrency {
-			val, _ = convertToBase(ctx, marketService, currency, baseCurrency, val, date)
+			val = convertWithFxLookup(fxLookup, currency, baseCurrency, val, date)
 		}
 		portfolioValue, _ = portfolioValue.Add(val)
 	}
@@ -651,12 +778,74 @@ func computePortfolioValue(
 		}
 		value, _ := qty.Mul(price.Close)
 		if positionCurrency[symbol] != baseCurrency {
-			value, _ = convertToBase(ctx, marketService, positionCurrency[symbol], baseCurrency, value, date)
+			value = convertWithFxLookup(fxLookup, positionCurrency[symbol], baseCurrency, value, date)
 		}
 		portfolioValue, _ = portfolioValue.Add(value)
 	}
 
 	return portfolioValue
+}
+
+// collectFxPairsForInterpolation returns unique FX pairs needed for the
+// interpolation extension phase (positions + cash, excluding base currency).
+func collectFxPairsForInterpolation(
+	positionCurrency map[string]string,
+	cashBalance map[string]decimal.Decimal,
+	baseCurrency string,
+) []string {
+	set := make(map[string]bool)
+	for _, currency := range positionCurrency {
+		if currency != baseCurrency {
+			set[market.FormatFxPair(currency, baseCurrency)] = true
+		}
+	}
+	for currency := range cashBalance {
+		if currency != baseCurrency {
+			set[market.FormatFxPair(currency, baseCurrency)] = true
+		}
+	}
+	pairs := make([]string, 0, len(set))
+	for pair := range set {
+		pairs = append(pairs, pair)
+	}
+	return pairs
+}
+
+// buildFxLookupForInterpolation fetches FX rates for the interpolation date
+// range (first point to dateTo) and builds a forward-fill lookup.
+func buildFxLookupForInterpolation(
+	ctx context.Context,
+	marketService MarketDataService,
+	fxPairs []string,
+	points []EquityCurvePoint,
+	dateTo time.Time,
+) map[string]*fxLookupFF {
+	lookup := make(map[string]*fxLookupFF)
+	if marketService == nil || len(fxPairs) == 0 || len(points) == 0 {
+		return lookup
+	}
+
+	dateFrom := points[0].Date
+
+	for _, pair := range fxPairs {
+		prices, err := marketService.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
+		if err != nil || len(prices) == 0 {
+			continue
+		}
+		dates := make([]string, len(prices))
+		rates := make(map[string]decimal.Decimal, len(prices))
+		for i, p := range prices {
+			key := p.Date.Format("2006-01-02")
+			dates[i] = key
+			rates[key] = p.Close
+		}
+		sort.Strings(dates)
+		lookup[pair] = &fxLookupFF{
+			dates: dates,
+			rates: rates,
+		}
+	}
+	return lookup
 }
 
 // copyDecimalMap creates a deep copy of a decimal map.

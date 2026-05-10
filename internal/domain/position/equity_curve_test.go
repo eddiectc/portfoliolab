@@ -839,9 +839,12 @@ func TestComputeEquityCurve_MultiCurrencyWithFX(t *testing.T) {
 	})
 
 	// FX provider: GBP → USD at 1.27
+	// FX rates are fetched via GetHistoricalPrices (stored in market_data table)
 	svc.WithMarketDataService(&mockMarketDataService{
-		historicalFx: map[string]*market.FxRate{
-			"GBP/USD": {BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: decimal.MustNew(127, 2)},
+		historical: map[string][]market.HistoricalPrice{
+			"GBP/USD": {
+				{Date: testTime(2024, 1, 15), Close: decimal.MustNew(127, 2)},
+			},
 		},
 	}, nil)
 
