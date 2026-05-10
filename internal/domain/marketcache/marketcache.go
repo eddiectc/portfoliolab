@@ -2,6 +2,7 @@ package marketcache
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -128,6 +129,9 @@ func (m *MarketCache) ScheduleSymbolFetch(symbol string, fromDate time.Time) {
 	m.mu.Lock()
 	if m.inProgress[symbol] || m.queued[symbol] {
 		m.mu.Unlock()
+		if m.logger != nil {
+			m.logger.Debug("symbol fetch skipped (already queued/in-progress)", "symbol", symbol)
+		}
 		return
 	}
 	m.queued[symbol] = true
@@ -135,6 +139,9 @@ func (m *MarketCache) ScheduleSymbolFetch(symbol string, fromDate time.Time) {
 
 	select {
 	case m.fetchCh <- fetchRequest{symbol: symbol, fromDate: fromDate}:
+		if m.logger != nil {
+			m.logger.Debug("symbol fetch queued", "symbol", symbol, "fromDate", fromDate.Format("2006-01-02"))
+		}
 	default:
 		// Channel full — drop the request.
 		m.mu.Lock()
@@ -236,6 +243,14 @@ func (m *MarketCache) processFetch(req fetchRequest) {
 	delete(m.queued, req.symbol)
 	m.mu.Unlock()
 
+	if m.logger != nil {
+		kind := "symbol"
+		if req.isFx {
+			kind = "fx"
+		}
+		m.logger.Debug("starting background fetch", "symbol", req.symbol, "kind", kind, "fromDate", req.fromDate.Format("2006-01-02"))
+	}
+
 	defer func() {
 		m.mu.Lock()
 		delete(m.inProgress, req.symbol)
@@ -266,6 +281,9 @@ func (m *MarketCache) fetchHistoricalDirect(ctx context.Context, symbol string, 
 // doFetchHistorical does the actual fetch and upsert for a stock symbol.
 func (m *MarketCache) doFetchHistorical(ctx context.Context, symbol string, fromDate time.Time) {
 	now := time.Now().UTC()
+	if m.logger != nil {
+		m.logger.Debug("fetching historical prices", "symbol", symbol, "fromDate", fromDate.Format("2006-01-02"), "toDate", now.Format("2006-01-02"))
+	}
 	prices, failed := m.fetcher.FetchHistoricalPricesBatch(ctx, []string{symbol}, fromDate, now)
 
 	if len(failed) > 0 {
@@ -291,9 +309,11 @@ func (m *MarketCache) doFetchHistorical(ctx context.Context, symbol string, from
 			delete(m.failedSymbols, symbol)
 			m.mu.Unlock()
 			if m.logger != nil {
-				m.logger.Info("cached historical prices", "symbol", symbol, "count", len(p))
+				m.logger.Info("cached historical prices", "symbol", symbol, "count", len(p), "dateRange", fmt.Sprintf("%s to %s", p[0].Date.Format("2006-01-02"), p[len(p)-1].Date.Format("2006-01-02")))
 			}
 		}
+	} else if m.logger != nil {
+		m.logger.Debug("fetch returned no prices", "symbol", symbol)
 	}
 }
 
@@ -317,6 +337,9 @@ func (m *MarketCache) doFetchFxPair(ctx context.Context, pair string, fromDate t
 	yahooSymbol := market.FxPairToYahooSymbol(base, quote)
 
 	now := time.Now().UTC()
+	if m.logger != nil {
+		m.logger.Debug("fetching FX historical prices", "pair", pair, "yahooSymbol", yahooSymbol, "fromDate", fromDate.Format("2006-01-02"), "toDate", now.Format("2006-01-02"))
+	}
 	prices, failed := m.fetcher.FetchHistoricalPricesBatch(ctx, []string{yahooSymbol}, fromDate, now)
 
 	if len(failed) > 0 {
@@ -342,9 +365,11 @@ func (m *MarketCache) doFetchFxPair(ctx context.Context, pair string, fromDate t
 			delete(m.failedSymbols, pair)
 			m.mu.Unlock()
 			if m.logger != nil {
-				m.logger.Info("cached FX historical prices", "pair", pair, "count", len(p))
+				m.logger.Info("cached FX historical prices", "pair", pair, "count", len(p), "dateRange", fmt.Sprintf("%s to %s", p[0].Date.Format("2006-01-02"), p[len(p)-1].Date.Format("2006-01-02")))
 			}
 		}
+	} else if m.logger != nil {
+		m.logger.Debug("FX fetch returned no prices", "pair", pair, "yahooSymbol", yahooSymbol)
 	}
 }
 
@@ -383,6 +408,10 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 	allSymbols, _ := m.discoverer.AllSymbols(ctx)
 	activeFxPairs, _ := m.discoverer.ActiveFxPairs(ctx)
 
+	if m.logger != nil {
+		m.logger.Debug("refresh cycle", "activeSymbols", len(activeSymbols), "allSymbols", len(allSymbols), "activeFxPairs", len(activeFxPairs))
+	}
+
 	// Refresh current quotes for active symbols.
 	if len(activeSymbols) > 0 {
 		symbols := make([]string, 0, len(activeSymbols))
@@ -390,6 +419,9 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 			symbols = append(symbols, sym)
 		}
 		quotes := m.fetcher.FetchQuotesBatch(ctx, symbols)
+		if m.logger != nil {
+			m.logger.Debug("current quotes fetched", "requested", len(symbols), "received", len(quotes))
+		}
 		for sym, quote := range quotes {
 			if err := m.repo.Upsert(ctx, quote); err != nil {
 				m.logWarn("failed to cache quote", "symbol", sym, "error", err)
@@ -409,6 +441,10 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 
 	if !refreshAllInProgress {
 		m.gapFillHistorical(ctx, allSymbols)
+	} else {
+		if m.logger != nil {
+			m.logger.Debug("skipping historical gap-fill (manual refresh in progress)")
+		}
 	}
 
 	// Update status.
@@ -438,6 +474,9 @@ func (m *MarketCache) refreshFxQuote(ctx context.Context, pair string) {
 // fetches for any gaps between the earliest transaction date and now.
 func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[string]time.Time) {
 	if len(allSymbols) == 0 {
+		if m.logger != nil {
+			m.logger.Debug("gap-fill: no symbols to check")
+		}
 		return
 	}
 
@@ -446,6 +485,10 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 		symbols = append(symbols, sym)
 	}
 	latestDates := m.repo.GetLatestPriceDatePerSymbol(ctx, symbols)
+
+	if m.logger != nil {
+		m.logger.Debug("gap-fill: latest cached dates", "symbolsChecked", len(symbols), "symbolsCached", len(latestDates))
+	}
 
 	now := time.Now().UTC()
 
@@ -456,11 +499,20 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 		if !hasCache {
 			// No cache at all — fetch from earliest transaction date.
 			fetchStart = fromDate
+			if m.logger != nil {
+				m.logger.Debug("gap-fill: no cache, scheduling full fetch", "symbol", sym, "fromDate", fromDate.Format("2006-01-02"))
+			}
 		} else if latestDate.Before(now.AddDate(0, 0, -1)) {
 			// Cache exists but not current — fetch from (latest + 1 day) to now.
 			fetchStart = latestDate.AddDate(0, 0, 1)
+			if m.logger != nil {
+				m.logger.Debug("gap-fill: cache stale, scheduling gap fetch", "symbol", sym, "latestCached", latestDate.Format("2006-01-02"), "fetchStart", fetchStart.Format("2006-01-02"))
+			}
 		} else {
 			// Fully covered — skip.
+			if m.logger != nil {
+				m.logger.Debug("gap-fill: cache current, skipping", "symbol", sym, "latestCached", latestDate.Format("2006-01-02"))
+			}
 			continue
 		}
 

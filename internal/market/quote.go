@@ -230,8 +230,10 @@ func (f *YahooFinanceFetcher) FetchHistoricalPricesBatch(_ context.Context, symb
 		}
 
 		var prices []HistoricalPrice
+		var filteredOut int
 		for _, bar := range bars {
 			if bar.Date.Before(start) || bar.Date.After(end) {
+				filteredOut++
 				continue
 			}
 			close, convErr := decimal.NewFromFloat64(bar.Close)
@@ -244,6 +246,9 @@ func (f *YahooFinanceFetcher) FetchHistoricalPricesBatch(_ context.Context, symb
 				Close:    close,
 				Currency: currency,
 			})
+		}
+		if f.logger != nil {
+			f.logger.Debug("historical fetch result", "symbol", sym, "totalBars", len(bars), "inRange", len(prices), "filteredOut", filteredOut, "currency", currency)
 		}
 		if len(prices) > 0 {
 			result[sym] = prices

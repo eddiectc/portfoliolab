@@ -152,6 +152,7 @@ func (r *MarketDataRepository) GetHistoricalPricesBySymbol(ctx context.Context, 
 			Currency: row.Currency,
 		})
 	}
+
 	return prices, nil
 }
 
