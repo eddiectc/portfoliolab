@@ -522,6 +522,15 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 			continue
 		}
 
+		// Skip if fetchStart is in the future (e.g. latest cached date was
+		// Friday, next trading day is Monday, but today is Saturday).
+		if fetchStart.After(now) {
+			if m.logger != nil {
+				m.logger.Debug("gap-fill: fetchStart in future, skipping", "symbol", sym, "fetchStart", fetchStart.Format("2006-01-02"), "now", now.Format("2006-01-02"))
+			}
+			continue
+		}
+
 		m.ScheduleSymbolFetch(sym, fetchStart)
 	}
 }
