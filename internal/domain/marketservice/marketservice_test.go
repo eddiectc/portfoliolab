@@ -14,8 +14,10 @@ var ctx = context.Background()
 // --- Mocks ---
 
 type mockFetcher struct {
-	quotes map[string]*market.MarketData
-	err    error
+	quotes   map[string]*market.MarketData
+	fxRates  map[string]*market.MarketData // key: "BASE/QUOTE"
+	fxErr    error
+	err      error
 }
 
 func (m *mockFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
@@ -31,8 +33,23 @@ func (m *mockFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[
 	return result
 }
 
+func (m *mockFetcher) FetchFxRate(_ context.Context, base, quote string) (*market.MarketData, error) {
+	if m.fxErr != nil {
+		return nil, m.fxErr
+	}
+	if m.fxRates == nil {
+		return nil, nil
+	}
+	pair := market.FormatFxPair(base, quote)
+	if md, ok := m.fxRates[pair]; ok {
+		return md, nil
+	}
+	return nil, nil
+}
+
 type mockRepo struct {
 	quotes       map[string]*market.MarketData
+	fxRates      map[string]*market.MarketData
 	historical   map[string][]market.HistoricalPrice
 	latestDates  map[string]*time.Time
 	upserted     []*market.MarketData
@@ -86,6 +103,33 @@ func (m *mockRepo) Upsert(_ context.Context, md *market.MarketData) error {
 	}
 	m.upserted = append(m.upserted, md)
 	return nil
+}
+
+func (m *mockRepo) GetCurrentFxRate(_ context.Context, base, quote string) (*market.MarketData, error) {
+	if m.fxRates == nil {
+		return nil, nil
+	}
+	pair := market.FormatFxPair(base, quote)
+	if md, ok := m.fxRates[pair]; ok {
+		return md, nil
+	}
+	return nil, nil
+}
+
+func (m *mockRepo) GetBySourceAndDate(_ context.Context, symbol, _, date string) (*market.MarketData, error) {
+	if m.fxRates == nil {
+		return nil, nil
+	}
+	// Simple lookup: key is "BASE/QUOTE" or "BASE/QUOTE:date"
+	if md, ok := m.fxRates[symbol]; ok {
+		if date == "" || md.Date == date {
+			return md, nil
+		}
+	}
+	if md, ok := m.fxRates[symbol+":"+date]; ok {
+		return md, nil
+	}
+	return nil, nil
 }
 
 // --- GetQuotes tests ---
@@ -300,6 +344,167 @@ func TestRefreshQuotes_UpsertError(t *testing.T) {
 	}
 	if len(result.Failed) != 1 || result.Failed[0] != "AAPL" {
 		t.Errorf("expected [AAPL] failed, got %v", result.Failed)
+	}
+}
+
+// --- FX tests ---
+
+func TestGetCurrentFxRate_FromCache(t *testing.T) {
+	rate := decimal.MustNew(13000, 2)
+	svc := New(nil, &mockRepo{
+		fxRates: map[string]*market.MarketData{
+			"GBP/USD": {Symbol: "GBP/USD", Price: rate, Currency: "USD", DataType: "fx"},
+		},
+	})
+
+	fx, err := svc.GetCurrentFxRate(ctx, "GBP", "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fx == nil {
+		t.Fatal("expected non-nil rate")
+	}
+	if !fx.Rate.Equal(rate) {
+		t.Errorf("expected rate %s, got %s", rate.String(), fx.Rate.String())
+	}
+	if fx.BaseCurrency != "GBP" || fx.QuoteCurrency != "USD" {
+		t.Errorf("unexpected pair: %s/%s", fx.BaseCurrency, fx.QuoteCurrency)
+	}
+}
+
+func TestGetCurrentFxRate_NotCached(t *testing.T) {
+	svc := New(nil, &mockRepo{})
+
+	fx, err := svc.GetCurrentFxRate(ctx, "GBP", "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fx != nil {
+		t.Errorf("expected nil, got %v", fx)
+	}
+}
+
+func TestGetCurrentFxRate_NoRepo(t *testing.T) {
+	svc := New(nil, nil)
+
+	fx, err := svc.GetCurrentFxRate(ctx, "GBP", "USD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fx != nil {
+		t.Errorf("expected nil, got %v", fx)
+	}
+}
+
+func TestGetHistoricalFxRate_FromCache(t *testing.T) {
+	rate := decimal.MustNew(12800, 2)
+	svc := New(nil, &mockRepo{
+		fxRates: map[string]*market.MarketData{
+			"GBP/USD:2024-01-15": {Symbol: "GBP/USD", Price: rate, Currency: "USD", DataType: "fx", Date: "2024-01-15"},
+		},
+	})
+
+	fx, err := svc.GetHistoricalFxRate(ctx, "GBP", "USD", time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fx == nil {
+		t.Fatal("expected non-nil rate")
+	}
+	if !fx.Rate.Equal(rate) {
+		t.Errorf("expected rate %s, got %s", rate.String(), fx.Rate.String())
+	}
+}
+
+func TestGetHistoricalFxRate_NotCached(t *testing.T) {
+	svc := New(nil, &mockRepo{})
+
+	fx, err := svc.GetHistoricalFxRate(ctx, "GBP", "USD", time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fx != nil {
+		t.Errorf("expected nil, got %v", fx)
+	}
+}
+
+func TestRefreshFxRates_Success(t *testing.T) {
+	rate := decimal.MustNew(13000, 2)
+	fetcher := &mockFetcher{
+		fxRates: map[string]*market.MarketData{
+			"GBP/USD": {Symbol: "GBP/USD", Price: rate, Currency: "USD", DataType: "fx"},
+			"EUR/USD": {Symbol: "EUR/USD", Price: rate, Currency: "USD", DataType: "fx"},
+		},
+	}
+	repo := &mockRepo{}
+	svc := New(fetcher, repo)
+
+	pairs := []FxPair{
+		{BaseCurrency: "GBP", QuoteCurrency: "USD"},
+		{BaseCurrency: "EUR", QuoteCurrency: "USD"},
+	}
+	result := svc.RefreshFxRates(ctx, pairs)
+
+	if len(result.Refreshed) != 2 {
+		t.Errorf("expected 2 refreshed, got %d", len(result.Refreshed))
+	}
+	if len(result.Failed) != 0 {
+		t.Errorf("expected 0 failed, got %d", len(result.Failed))
+	}
+	if len(repo.upserted) != 2 {
+		t.Errorf("expected 2 upserted, got %d", len(repo.upserted))
+	}
+}
+
+func TestRefreshFxRates_PartialFailure(t *testing.T) {
+	fetcher := &mockFetcher{
+		fxRates: map[string]*market.MarketData{
+			"GBP/USD": {Symbol: "GBP/USD", Price: decimal.MustNew(13000, 2), Currency: "USD"},
+			// EUR/USD not in map → fetch fails
+		},
+	}
+	repo := &mockRepo{}
+	svc := New(fetcher, repo)
+
+	pairs := []FxPair{
+		{BaseCurrency: "GBP", QuoteCurrency: "USD"},
+		{BaseCurrency: "EUR", QuoteCurrency: "USD"},
+	}
+	result := svc.RefreshFxRates(ctx, pairs)
+
+	if len(result.Refreshed) != 1 {
+		t.Errorf("expected 1 refreshed, got %d", len(result.Refreshed))
+	}
+	if len(result.Failed) != 1 {
+		t.Errorf("expected 1 failed, got %d", len(result.Failed))
+	}
+}
+
+func TestRefreshFxRates_NoFetcher(t *testing.T) {
+	svc := New(nil, &mockRepo{})
+
+	pairs := []FxPair{{BaseCurrency: "GBP", QuoteCurrency: "USD"}}
+	result := svc.RefreshFxRates(ctx, pairs)
+
+	if len(result.Refreshed) != 0 {
+		t.Errorf("expected 0 refreshed, got %d", len(result.Refreshed))
+	}
+	if len(result.Failed) != 1 {
+		t.Errorf("expected 1 failed, got %d", len(result.Failed))
+	}
+}
+
+func TestRefreshFxRates_EmptyPairs(t *testing.T) {
+	fetcher := &mockFetcher{fxRates: map[string]*market.MarketData{}}
+	svc := New(fetcher, &mockRepo{})
+
+	result := svc.RefreshFxRates(ctx, []FxPair{})
+
+	if len(result.Refreshed) != 0 {
+		t.Errorf("expected 0 refreshed, got %d", len(result.Refreshed))
+	}
+	if len(result.Failed) != 0 {
+		t.Errorf("expected 0 failed, got %d", len(result.Failed))
 	}
 }
 

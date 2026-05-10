@@ -126,7 +126,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	}
 
 	// 9. Build equity curve points from snapshots.
-	points := buildEquityCurvePoints(snapshots, pricesBySymbol, baseCurrency, s.fxProvider, ctx)
+	points := buildEquityCurvePoints(snapshots, pricesBySymbol, baseCurrency, s.marketService, ctx)
 
 	// 10. Interpolate for non-transaction days.
 	points = interpolateDaily(points)
@@ -327,7 +327,7 @@ func buildEquityCurvePoints(
 	snapshots []dateSnapshot,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
-	fxProvider FxRateProvider,
+	marketService MarketDataService,
 	ctx context.Context,
 ) []EquityCurvePoint {
 	priceLookup := buildPriceLookup(pricesBySymbol)
@@ -348,7 +348,7 @@ func buildEquityCurvePoints(
 			value, _ := qty.Mul(price.Close)
 			// Convert from price currency to base currency.
 			if price.Currency != baseCurrency {
-				value, _ = convertToBase(ctx, fxProvider, price.Currency, baseCurrency, value, snap.date)
+				value, _ = convertToBase(ctx, marketService, price.Currency, baseCurrency, value, snap.date)
 			}
 			portfolioValue, _ = portfolioValue.Add(value)
 		}
@@ -356,7 +356,7 @@ func buildEquityCurvePoints(
 		// Cash balances.
 		for currency, balance := range snap.cashBalance {
 			if currency != baseCurrency {
-				balance, _ = convertToBase(ctx, fxProvider, currency, baseCurrency, balance, snap.date)
+				balance, _ = convertToBase(ctx, marketService, currency, baseCurrency, balance, snap.date)
 			}
 			portfolioValue, _ = portfolioValue.Add(balance)
 		}
@@ -365,7 +365,7 @@ func buildEquityCurvePoints(
 		var netDepositBase decimal.Decimal
 		for currency, deposit := range snap.netDeposit {
 			if currency != baseCurrency {
-				deposit, _ = convertToBase(ctx, fxProvider, currency, baseCurrency, deposit, snap.date)
+				deposit, _ = convertToBase(ctx, marketService, currency, baseCurrency, deposit, snap.date)
 			}
 			netDepositBase, _ = netDepositBase.Add(deposit)
 		}
@@ -391,11 +391,11 @@ func lookupPrice(lookup map[string]map[string]market.HistoricalPrice, symbol, da
 }
 
 // convertToBase converts a value from one currency to another using the
-// FX rate provider. If currencies match, returns the value unchanged.
+// market data service. If currencies match, returns the value unchanged.
 // If no FX rate is available, returns the original value with found=false.
 func convertToBase(
 	ctx context.Context,
-	fxProvider FxRateProvider,
+	marketService MarketDataService,
 	fromCurrency, toCurrency string,
 	value decimal.Decimal,
 	date time.Time,
@@ -404,12 +404,12 @@ func convertToBase(
 		return value, true
 	}
 
-	if fxProvider == nil {
+	if marketService == nil {
 		return value, false
 	}
 
-	rate, found := fxProvider.GetRateForDate(ctx, fromCurrency, toCurrency, date)
-	if !found || rate == nil {
+	rate, _ := marketService.GetHistoricalFxRate(ctx, fromCurrency, toCurrency, date)
+	if rate == nil {
 		return value, false
 	}
 

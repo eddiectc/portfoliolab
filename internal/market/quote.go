@@ -129,22 +129,6 @@ func (f *YahooFinanceFetcher) FetchFxRate(_ context.Context, baseCurrency, quote
 	}, nil
 }
 
-// FetchRate fetches the current FX rate and returns an FxRate.
-// This satisfies the FxRateFetcher interface.
-func (f *YahooFinanceFetcher) FetchRate(ctx context.Context, baseCurrency, quoteCurrency string) (*FxRate, error) {
-	md, err := f.FetchFxRate(ctx, baseCurrency, quoteCurrency)
-	if err != nil {
-		return nil, err
-	}
-
-	return &FxRate{
-		BaseCurrency:  baseCurrency,
-		QuoteCurrency: quoteCurrency,
-		Rate:          md.Price,
-		FetchedAt:     md.FetchedAt,
-	}, nil
-}
-
 // FetchQuotesBatch fetches quotes for multiple symbols using a shared HTTP
 // client (single auth session via go-yfinance's multi package). Returns a map
 // of symbol → MarketData for successfully fetched quotes. Symbols that fail

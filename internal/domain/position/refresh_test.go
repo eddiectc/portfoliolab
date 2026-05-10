@@ -144,6 +144,18 @@ func (m *mockRefreshMarketService) RefreshQuotes(_ context.Context, symbols []st
 	return marketservice.RefreshResult{Refreshed: refreshed, Failed: failed}
 }
 
+func (m *mockRefreshMarketService) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) {
+	return nil, nil
+}
+
+func (m *mockRefreshMarketService) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) {
+	return nil, nil
+}
+
+func (m *mockRefreshMarketService) RefreshFxRates(_ context.Context, pairs []marketservice.FxPair) marketservice.FxRefreshResult {
+	return marketservice.FxRefreshResult{Refreshed: pairs, Failed: nil}
+}
+
 // mockRefreshAccountLister simulates account listing for refresh tests.
 type mockRefreshAccountLister struct {
 	accounts []AccountRef
@@ -241,24 +253,6 @@ func (m *mockRefreshPositionRepo) DeleteAllForAccount(_ context.Context, _ int64
 
 func (m *mockRefreshPositionRepo) Recalculate(_ context.Context, _ int64, _ *CalculateResult) error {
 	return nil
-}
-
-// mockRefreshFxProvider simulates FX rate provider for refresh tests.
-type mockRefreshFxProvider struct {
-	rates map[string]map[string]*market.FxRate
-}
-
-func (m *mockRefreshFxProvider) GetRateForDate(_ context.Context, from, to string, _ time.Time) (*market.FxRate, bool) {
-	if rates, ok := m.rates[from]; ok {
-		if rate, ok := rates[to]; ok {
-			return rate, true
-		}
-	}
-	return nil, false
-}
-
-func (m *mockRefreshFxProvider) GetCurrentRate(_ context.Context, from, to string) (*market.FxRate, bool) {
-	return m.GetRateForDate(context.Background(), from, to, time.Time{})
 }
 
 // --- Helper ---
@@ -486,18 +480,11 @@ func TestRefreshMarketData_MultiCurrency(t *testing.T) {
 
 	posRepo := &mockRefreshPositionRepo{}
 
-	fxProvider := &mockRefreshFxProvider{
-		rates: map[string]map[string]*market.FxRate{
-			"GBP": {"USD": makeFxRate("GBP", "USD", 12500)},
-		},
-	}
-
 	svc := &Service{
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
-		fxProvider:     fxProvider,
+		marketService:  &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})

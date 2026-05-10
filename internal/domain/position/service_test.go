@@ -365,7 +365,6 @@ func TestRecalculateAccount_AccountNotFound(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAccount(ctx, 999)
@@ -384,7 +383,6 @@ func TestRecalculateAccount_EmptyTransactions(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	// No transactions for account 1.
@@ -415,7 +413,6 @@ func TestRecalculateAccount_SimpleBuy(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAccount(ctx, 1)
@@ -469,7 +466,6 @@ func TestRecalculateAccount_BuyThenSell(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAccount(ctx, 1)
@@ -512,7 +508,6 @@ func TestGetOpenPositions_NoAccounts(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	result, err := svc.GetOpenPositions(ctx, []int64{}, 10, 0)
@@ -540,7 +535,6 @@ func TestGetOpenPositions_SingleAccount(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	result, err := svc.GetOpenPositions(ctx, []int64{1}, 10, 0)
@@ -578,7 +572,6 @@ func TestGetOpenPositions_Pagination(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	// Page 1: limit 2, offset 0.
@@ -628,7 +621,6 @@ func TestRecalculatePortfolio_PortfolioNotFound(t *testing.T) {
 		newMockPortfolioChecker(), // no portfolios
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	err := svc.RecalculatePortfolio(ctx, 999)
@@ -647,7 +639,6 @@ func TestRecalculateAll_NoAccounts(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	err := svc.RecalculateAll(ctx)
@@ -667,7 +658,6 @@ func TestGetLotDetails_NotFound(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	_, err := svc.GetLotDetails(ctx, "nonexistent")
@@ -700,7 +690,6 @@ func TestGetLotDetails_WithConsumptions(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	details, err := svc.GetLotDetails(ctx, "LOT-TEST")
@@ -730,7 +719,6 @@ func TestGetLotInfo(t *testing.T) {
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 
 	info, err := svc.GetLotInfo(ctx, "LOT-BUY1")
@@ -755,6 +743,8 @@ type mockMarketDataService struct {
 	quotes        map[string]*market.MarketData
 	historical    map[string][]market.HistoricalPrice
 	latestDates   map[string]*time.Time
+	currentFx     map[string]*market.FxRate // key: "BASE/QUOTE"
+	historicalFx  map[string]*market.FxRate // key: "BASE/QUOTE"
 	refreshed     []string
 	refreshFailed []string
 }
@@ -811,6 +801,32 @@ func (m *mockMarketDataService) RefreshQuotes(_ context.Context, symbols []strin
 	return marketservice.RefreshResult{Refreshed: refreshed, Failed: failed}
 }
 
+func (m *mockMarketDataService) GetCurrentFxRate(_ context.Context, base, quote string) (*market.FxRate, error) {
+	if m.currentFx == nil {
+		return nil, nil
+	}
+	pair := market.FormatFxPair(base, quote)
+	if rate, ok := m.currentFx[pair]; ok {
+		return rate, nil
+	}
+	return nil, nil
+}
+
+func (m *mockMarketDataService) GetHistoricalFxRate(_ context.Context, base, quote string, _ time.Time) (*market.FxRate, error) {
+	if m.historicalFx == nil {
+		return nil, nil
+	}
+	pair := market.FormatFxPair(base, quote)
+	if rate, ok := m.historicalFx[pair]; ok {
+		return rate, nil
+	}
+	return nil, nil
+}
+
+func (m *mockMarketDataService) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult {
+	return marketservice.FxRefreshResult{}
+}
+
 // --- EnrichWithMarketData tests ---
 
 func TestEnrichWithMarketData_NoFetcher(t *testing.T) {
@@ -820,7 +836,7 @@ func TestEnrichWithMarketData_NoFetcher(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	positions := []Position{
@@ -847,7 +863,7 @@ func TestEnrichWithMarketData_CashPosition(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	svc.WithMarketDataService(&mockMarketDataService{quotes: nil}, nil)
@@ -885,7 +901,7 @@ func TestEnrichWithMarketData_Success(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// AAPL quote at 170.00 — pre-populated in cache.
@@ -935,7 +951,7 @@ func TestEnrichWithMarketData_MissingCachedQuote(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// Cache has no data for AAPL.
@@ -962,7 +978,7 @@ func TestEnrichWithMarketData_MultiplePositions(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// Cache has AAPL but not MSFT.
@@ -1003,7 +1019,7 @@ func TestEnrichWithMarketData_GbpConversion(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// UK stock quoted in GBp (pence) — Yahoo returns price in pence.
@@ -1052,7 +1068,7 @@ func TestEnrichWithMarketData_GbpNotConvertedForNonGbpPosition(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// If the position currency is NOT GBP but the quote is GBp,
@@ -1085,7 +1101,7 @@ func TestGetClosedPositionsSummary_SumsAllPositions(t *testing.T) {
 	}
 	svc := NewService(repo, newMockTransactionRepository(),
 		newMockAccountChecker(), newMockPortfolioChecker(),
-		list, nil, nil)
+		list, nil)
 
 	// Create 3 closed positions with known RealizedPnlBase.
 	rpnl1 := decimal.MustNew(20000, 2) // 200.00
@@ -1124,7 +1140,7 @@ func TestGetClosedPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) 
 	}
 	svc := NewService(repo, newMockTransactionRepository(),
 		newMockAccountChecker(), newMockPortfolioChecker(),
-		list, nil, nil)
+		list, nil)
 
 	// Create 50 closed positions, each with RealizedPnlBase = 100.00
 	for i := 0; i < 50; i++ {
@@ -1162,7 +1178,7 @@ func TestGetClosedPositionsSummary_FilterByAccount(t *testing.T) {
 	}
 	svc := NewService(repo, newMockTransactionRepository(),
 		newMockAccountChecker(), newMockPortfolioChecker(),
-		list, nil, nil)
+		list, nil)
 
 	// Account 1: 200.00
 	rpnl1 := decimal.MustNew(20000, 2)
@@ -1198,7 +1214,7 @@ func TestGetOpenPositionsSummary_SumsAllPositions(t *testing.T) {
 	}
 	svc := NewService(repo, newMockTransactionRepository(),
 		newMockAccountChecker(), newMockPortfolioChecker(),
-		list, nil, nil)
+		list, nil)
 
 	// Create 3 open positions with known values.
 	// CostBasis is negative (cash outflow), so total cost = Abs(CostBasis).
@@ -1249,7 +1265,7 @@ func TestGetOpenPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) {
 	}
 	svc := NewService(repo, newMockTransactionRepository(),
 		newMockAccountChecker(), newMockPortfolioChecker(),
-		list, nil, nil)
+		list, nil)
 
 	// Create 25 open positions, each with cost basis -1000.00
 	for i := 0; i < 25; i++ {
@@ -1294,7 +1310,7 @@ func TestUnrealizedPnlPct_PositivePnl(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// Bought 10 shares at $100, now at $120 → 20% gain.
@@ -1328,7 +1344,7 @@ func TestUnrealizedPnlPct_NegativePnl(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// Bought 10 shares at $100, now at $80 → -20% loss.
@@ -1362,7 +1378,7 @@ func TestUnrealizedPnlPct_ZeroPnl(t *testing.T) {
 		newMockAccountChecker(),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	// Bought 10 shares at $100, now at $100 → 0% P&L.
@@ -1406,7 +1422,7 @@ func TestRecalculateAccount_RepositoryError(t *testing.T) {
 		newMockAccountChecker(1),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	err := svc.RecalculateAccount(ctx, 1)
@@ -1429,7 +1445,7 @@ func TestRecalculateAccount_TransactionListError(t *testing.T) {
 		newMockAccountChecker(1),
 		newMockPortfolioChecker(),
 		newMockAccountLister(),
-		nil, nil,
+		nil,
 	)
 
 	err := svc.RecalculateAccount(ctx, 1)

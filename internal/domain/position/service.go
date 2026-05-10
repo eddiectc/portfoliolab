@@ -61,14 +61,17 @@ type PortfolioCurrencyChecker interface {
 	GetPortfolioCurrency(ctx context.Context, portfolioID int64) (string, error)
 }
 
-// MarketDataService abstracts market data retrieval for stock quotes and
-// historical prices. Consumers don't know whether data comes from cache or
-// a live fetch.
+// MarketDataService abstracts market data retrieval for stock quotes,
+// historical prices, and FX rates. Consumers don't know whether data comes
+// from cache or a live fetch.
 type MarketDataService interface {
 	GetQuotes(ctx context.Context, symbols []string) map[string]*market.MarketData
 	GetHistoricalPrices(ctx context.Context, symbol string, start, end time.Time) ([]market.HistoricalPrice, error)
 	GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time
 	RefreshQuotes(ctx context.Context, symbols []string) marketservice.RefreshResult
+	GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.FxRate, error)
+	GetHistoricalFxRate(ctx context.Context, baseCurrency, quoteCurrency string, date time.Time) (*market.FxRate, error)
+	RefreshFxRates(ctx context.Context, pairs []marketservice.FxPair) marketservice.FxRefreshResult
 }
 
 // --- Service errors ---
@@ -89,7 +92,6 @@ type Service struct {
 	portfolios               PortfolioChecker
 	accountLister            AccountLister
 	portfolioCurrencyChecker PortfolioCurrencyChecker
-	fxProvider               FxRateProvider
 	marketService            MarketDataService
 	logger                   *slog.Logger
 }
@@ -102,7 +104,6 @@ func NewService(
 	portfolios PortfolioChecker,
 	accountLister AccountLister,
 	portfolioCurrencyChecker PortfolioCurrencyChecker,
-	fxProvider FxRateProvider,
 ) *Service {
 	return &Service{
 		positions:                positions,
@@ -111,7 +112,6 @@ func NewService(
 		portfolios:               portfolios,
 		accountLister:            accountLister,
 		portfolioCurrencyChecker: portfolioCurrencyChecker,
-		fxProvider:               fxProvider,
 	}
 }
 
@@ -142,7 +142,7 @@ func (s *Service) RecalculateAccount(ctx context.Context, accountID int64) error
 	}
 
 	// Convert P&L to portfolio base currency.
-	if s.portfolioCurrencyChecker != nil && s.fxProvider != nil {
+	if s.portfolioCurrencyChecker != nil && s.marketService != nil {
 		accounts, listErr := s.accountLister.GetAllAccounts(ctx)
 		if listErr != nil {
 			return fmt.Errorf("list accounts for FX conversion: %w", listErr)
@@ -204,16 +204,19 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 		date = p.OpenDate
 	}
 
-	// Get the FX rate.
+	// Get the FX rate from cache (no live fetch fallback).
 	var rate *market.FxRate
 	var isFallback bool
-	if isClosed {
-		rate, isFallback = s.fxProvider.GetRateForDate(ctx, p.Currency, baseCurrency, date)
-	} else {
-		var found bool
-		rate, found = s.fxProvider.GetCurrentRate(ctx, p.Currency, baseCurrency)
-		if !found {
-			rate, isFallback = s.fxProvider.GetRateForDate(ctx, p.Currency, baseCurrency, date)
+	if s.marketService != nil {
+		if isClosed {
+			// Closed position: try historical rate for the open date.
+			rate, _ = s.marketService.GetHistoricalFxRate(ctx, p.Currency, baseCurrency, date)
+		} else {
+			// Open position: try current spot rate.
+			rate, _ = s.marketService.GetCurrentFxRate(ctx, p.Currency, baseCurrency)
+		}
+		if rate == nil {
+			isFallback = true
 		}
 	}
 
@@ -223,6 +226,96 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 	p.RealizedPnlBase = &converted
 	p.FxRateUsed = rateUsed
 	p.FxRateFallback = fallback
+}
+
+// ConvertPnlToBase converts realized P&L from the position currency to the
+// base currency using the given FX rate. Returns the converted value, the
+// rate used (nil if same currency), and whether a fallback was applied.
+func ConvertPnlToBase(pnl decimal.Decimal, positionCurrency, baseCurrency string,
+	rate *market.FxRate, isFallback bool) (decimal.Decimal, *decimal.Decimal, bool) {
+
+	// Same currency — no conversion needed.
+	if positionCurrency == baseCurrency {
+		return pnl, nil, false
+	}
+
+	// No rate available — return original P&L as fallback.
+	if rate == nil {
+		return pnl, nil, true
+	}
+
+	// Convert: pnl is in positionCurrency, rate is positionCurrency/baseCurrency.
+	// pnl_in_base = pnl * rate.
+	converted, err := pnl.Mul(rate.Rate)
+	if err != nil {
+		// On decimal error, return original as fallback.
+		return pnl, &rate.Rate, true
+	}
+	return converted, &rate.Rate, isFallback
+}
+
+// FxRateDisplay holds an FX rate formatted in standard market convention.
+type FxRateDisplay struct {
+	Pair string          // e.g. "GBP/USD"
+	Rate decimal.Decimal // rate in convention order
+}
+
+// ConventionFxRate returns the FX rate displayed in standard market convention.
+// Returns nil if currencies match, rate is nil, or rate is zero.
+func ConventionFxRate(positionCurrency, baseCurrency string, storedRate *decimal.Decimal) *FxRateDisplay {
+	if positionCurrency == baseCurrency || storedRate == nil || storedRate.Equal(decimal.Zero) {
+		return nil
+	}
+
+	conventionPair, inverted := conventionPairOrder(positionCurrency, baseCurrency)
+
+	var rate decimal.Decimal
+	if inverted {
+		// storedRate is position/base, convention is base/position → invert
+		rate, _ = decimal.One.Quo(*storedRate)
+	} else {
+		// storedRate is already in convention order
+		rate = *storedRate
+	}
+
+	return &FxRateDisplay{
+		Pair: conventionPair,
+		Rate: rate,
+	}
+}
+
+// conventionPairOrder returns the standard market-convention pair string and
+// whether the position/base order is inverted relative to convention.
+//
+// Convention rules:
+//   - USD vs GBP/EUR/AUD/NZD/CAD → USD is quote (e.g. GBP/USD, EUR/USD)
+//   - EUR vs GBP → EUR is base (e.g. EUR/GBP)
+//   - otherwise → first currency is base (position/base)
+func conventionPairOrder(currencyA, currencyB string) (string, bool) {
+	// Currencies where USD is conventionally the quote currency.
+	usdMajors := map[string]bool{
+		"GBP": true, "EUR": true, "AUD": true, "NZD": true, "CAD": true,
+	}
+
+	if currencyA == "USD" && usdMajors[currencyB] {
+		// Convention: GBP/USD (USD is quote). Position/base was USD/GBP → inverted.
+		return fmt.Sprintf("%s/%s", currencyB, currencyA), true
+	}
+	if currencyB == "USD" && usdMajors[currencyA] {
+		// Convention: GBP/USD (USD is quote). Position/base was GBP/USD → not inverted.
+		return fmt.Sprintf("%s/%s", currencyA, currencyB), false
+	}
+
+	// EUR/GBP convention: EUR is base.
+	if currencyA == "EUR" && currencyB == "GBP" {
+		return "EUR/GBP", false
+	}
+	if currencyA == "GBP" && currencyB == "EUR" {
+		return "EUR/GBP", true
+	}
+
+	// Default: position/base order.
+	return fmt.Sprintf("%s/%s", currencyA, currencyB), false
 }
 
 // RecalculatePortfolio recalculates positions for all accounts in a portfolio.
@@ -553,7 +646,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			}
 			// Convert cash position to base currency if needed.
 			if baseCurrency != "" && p.Currency != baseCurrency {
-				entry.MarketValueBase, entry.UnrealizedPnLBase = convertValuesToBase(ctx, s.fxProvider, p.Currency, baseCurrency, p.Quantity, decimal.Zero)
+				entry.MarketValueBase, entry.UnrealizedPnLBase = convertValuesToBase(ctx, s.marketService, p.Currency, baseCurrency, p.Quantity, decimal.Zero)
 				// CostBasis = Quantity for cash, so CostBasisBase = MarketValueBase.
 				entry.CostBasisBase = entry.MarketValueBase
 			} else if baseCurrency != "" && p.Currency == baseCurrency {
@@ -624,7 +717,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 
 		// Convert to base currency if needed.
 		if baseCurrency != "" && p.Currency != baseCurrency {
-			entry.MarketValueBase, entry.UnrealizedPnLBase = convertValuesToBase(ctx, s.fxProvider, p.Currency, baseCurrency, marketValue, unrealizedPnL)
+			entry.MarketValueBase, entry.UnrealizedPnLBase = convertValuesToBase(ctx, s.marketService, p.Currency, baseCurrency, marketValue, unrealizedPnL)
 			// Cost basis in base currency: CostBasis.Abs() × FX rate.
 			if entry.MarketValueBase != nil {
 				// Derive rate from MarketValueBase / MarketValue, then apply to cost basis.
@@ -647,13 +740,13 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 
 // convertValuesToBase converts market value and unrealized P&L from one currency to another
 // using the current FX rate. Returns nil pointers if conversion is not possible.
-func convertValuesToBase(ctx context.Context, fxProvider FxRateProvider, fromCurrency, toCurrency string, marketValue, unrealizedPnL decimal.Decimal) (*decimal.Decimal, *decimal.Decimal) {
+func convertValuesToBase(ctx context.Context, marketService MarketDataService, fromCurrency, toCurrency string, marketValue, unrealizedPnL decimal.Decimal) (*decimal.Decimal, *decimal.Decimal) {
 	if fromCurrency == toCurrency {
 		return nil, nil
 	}
 
-	rate, found := fxProvider.GetCurrentRate(ctx, fromCurrency, toCurrency)
-	if !found || rate == nil {
+	rate, _ := marketService.GetCurrentFxRate(ctx, fromCurrency, toCurrency)
+	if rate == nil {
 		return nil, nil
 	}
 

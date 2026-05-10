@@ -97,14 +97,11 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler 
 	// Portfolio currency checker (for FX conversion)
 	portfolioCurrencyChecker := data.NewPortfolioCurrencyChecker(portfolioRepo)
 
-	// FX converter (historical rate lookup → on-demand fetch → current spot fallback)
-	fxConverter := position.NewFxConverter(marketDataRepo, yahooFetcher, logger)
-
 	// Position service (used as LotChecker + PositionRecalculator for transactions)
 	positionRepo := data.NewPositionRepository(db)
 	accountLister := data.NewAccountLister(accountRepo)
-	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister, portfolioCurrencyChecker, fxConverter)
-	// Wire market data service for enriching positions and refreshing quotes.
+	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister, portfolioCurrencyChecker)
+	// Wire market data service for enriching positions, FX rates, and refreshing.
 	marketSvc := marketservice.New(yahooFetcher, marketDataRepo)
 	positionSvc.WithMarketDataService(marketSvc, logger)
 

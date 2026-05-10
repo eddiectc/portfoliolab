@@ -19,6 +19,7 @@ type Service struct {
 // MarketDataFetcher fetches market data from external providers.
 type MarketDataFetcher interface {
 	FetchQuotesBatch(ctx context.Context, symbols []string) map[string]*market.MarketData
+	FetchFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error)
 }
 
 // MarketDataRepository reads and writes cached market data.
@@ -26,6 +27,8 @@ type MarketDataRepository interface {
 	GetLatestQuotesBatch(ctx context.Context, symbols []string) map[string]*market.MarketData
 	GetHistoricalPricesBySymbol(ctx context.Context, symbol string, start, end time.Time) ([]market.HistoricalPrice, error)
 	GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time
+	GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error)
+	GetBySourceAndDate(ctx context.Context, symbol, source, date string) (*market.MarketData, error)
 	Upsert(ctx context.Context, m *market.MarketData) error
 }
 
@@ -71,6 +74,18 @@ type RefreshResult struct {
 	Failed    []string // symbols that failed to refresh
 }
 
+// FxPair represents a currency pair for FX operations.
+type FxPair struct {
+	BaseCurrency  string // e.g. "GBP"
+	QuoteCurrency string // e.g. "USD"
+}
+
+// FxRefreshResult holds the result of an FX rate refresh operation.
+type FxRefreshResult struct {
+	Refreshed []FxPair // pairs successfully refreshed
+	Failed    []FxPair // pairs that failed to refresh
+}
+
 // RefreshQuotes fetches current quotes for the given symbols from the live
 // provider and upserts them into the cache. Returns which symbols succeeded
 // and which failed.
@@ -103,5 +118,82 @@ func (s *Service) RefreshQuotes(ctx context.Context, symbols []string) RefreshRe
 	return RefreshResult{
 		Refreshed: refreshed,
 		Failed:    failed,
+	}
+}
+
+// GetCurrentFxRate returns the current (spot) FX rate from cache.
+// Returns nil if no rate is cached.
+func (s *Service) GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.FxRate, error) {
+	if s.repo == nil {
+		return nil, nil
+	}
+	md, err := s.repo.GetCurrentFxRate(ctx, baseCurrency, quoteCurrency)
+	if err != nil {
+		return nil, err
+	}
+	if md == nil {
+		return nil, nil
+	}
+	return toFxRate(baseCurrency, quoteCurrency, md), nil
+}
+
+// GetHistoricalFxRate returns the FX rate from cache for a specific date.
+// Returns nil if no rate is cached for that date.
+func (s *Service) GetHistoricalFxRate(ctx context.Context, baseCurrency, quoteCurrency string, date time.Time) (*market.FxRate, error) {
+	if s.repo == nil {
+		return nil, nil
+	}
+	pair := market.FormatFxPair(baseCurrency, quoteCurrency)
+	dateStr := date.Format("2006-01-02")
+	md, err := s.repo.GetBySourceAndDate(ctx, pair, "yahoo", dateStr)
+	if err != nil {
+		return nil, err
+	}
+	if md == nil {
+		return nil, nil
+	}
+	return toFxRate(baseCurrency, quoteCurrency, md), nil
+}
+
+// RefreshFxRates fetches current FX rates for the given pairs from the live
+// provider and upserts them into the cache. Returns which pairs succeeded
+// and which failed.
+func (s *Service) RefreshFxRates(ctx context.Context, pairs []FxPair) FxRefreshResult {
+	if s.fetcher == nil || len(pairs) == 0 {
+		return FxRefreshResult{
+			Refreshed: nil,
+			Failed:    pairs,
+		}
+	}
+
+	var refreshed, failed []FxPair
+	for _, pair := range pairs {
+		md, err := s.fetcher.FetchFxRate(ctx, pair.BaseCurrency, pair.QuoteCurrency)
+		if err != nil || md == nil {
+			failed = append(failed, pair)
+			continue
+		}
+		if s.repo != nil {
+			if err := s.repo.Upsert(ctx, md); err != nil {
+				failed = append(failed, pair)
+				continue
+			}
+		}
+		refreshed = append(refreshed, pair)
+	}
+
+	return FxRefreshResult{
+		Refreshed: refreshed,
+		Failed:    failed,
+	}
+}
+
+// toFxRate converts a MarketData entry to an FxRate.
+func toFxRate(baseCurrency, quoteCurrency string, md *market.MarketData) *market.FxRate {
+	return &market.FxRate{
+		BaseCurrency:  baseCurrency,
+		QuoteCurrency: quoteCurrency,
+		Rate:          md.Price,
+		FetchedAt:     md.FetchedAt,
 	}
 }
