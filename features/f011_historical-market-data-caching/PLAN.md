@@ -352,7 +352,7 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 - [x] Run `go build ./...` — verify no compilation errors
 - [x] Run `go test ./...` — verify all tests pass
 - [x] Create and register `MarketDataHandler` (for manual refresh + status API) — done in Task 7
-- [ ] Pass MarketCache to performance web handler and position web handler
+- [x] Pass MarketCache to performance web handler and position web handler
 
 **Verification:** Application builds and runs; MarketCache starts on boot, stops on shutdown; all handlers wired correctly.
 

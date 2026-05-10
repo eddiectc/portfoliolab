@@ -22,4 +22,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f008 | Import Trading 212 CSV | done | f002, f003, f004 |
 | f009 | Positions | done | f002, f003, f004, f005, f007, f008 |
 | f010 | Portfolio Performance | done | f009 |
-| f011 | Historical Market Data Caching | spec | f010, f009, f004 |
+| f011 | Historical Market Data Caching | done | f010, f009, f004 |
