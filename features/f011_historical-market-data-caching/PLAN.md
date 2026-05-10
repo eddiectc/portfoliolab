@@ -254,10 +254,9 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
   - Uses `EarliestDateFinder` to find the earliest transaction date for the full range
   - For non-portfolio-currency transactions, schedules FX pair fetch too
   - Uses separate optional interfaces: `MarketDataScheduler`, `EarliestDateFinder`, `AccountPortfolioFinder`, `PortfolioCurrencyResolver`
-- [ ] In `position.Service.RecalculateAccount` (and RecalculatePortfolio/RecalculateAll):
+- [x] In `position.Service.RecalculateAccount` (and RecalculatePortfolio/RecalculateAll):
   - After recalculation, check open positions for symbols/FX pairs without cached data
   - Schedule background fetches for any missing symbols
-  - **Deferred**: transaction hooks cover the main path; recalc hooks can be added later
 - [x] In `cmd/server/main.go`:
   - `MarketCache` created inside `router.go` (has all dependencies) and returned for lifecycle management
   - `marketCache.Start(ctx)` called before HTTP server starts
