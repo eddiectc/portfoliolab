@@ -884,7 +884,8 @@ func TestComputeEquityCurve_PeriodFiltering(t *testing.T) {
 		eqTxn(1, testTime(2024, 6, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
 	})
 
-	// Filter with explicit dates: only include June deposit.
+	// Filter with explicit dates. The period slices the OUTPUT curve,
+	// but the portfolio state includes ALL transactions (both deposits).
 	from := testTime(2024, 5, 1)
 	to := testTime(2024, 12, 31)
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
@@ -896,15 +897,17 @@ func TestComputeEquityCurve_PeriodFiltering(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should only have the June deposit (Jan deposit is before dateFrom).
+	// The curve includes both deposits (walked from all history),
+	// sliced to start at dateFrom. First point >= May 1.
 	if len(result.EquityCurve) < 1 {
 		t.Fatalf("expected at least 1 point, got %d", len(result.EquityCurve))
 	}
 
-	// The first point should be June 15 with net deposit = $5,000.
+	// The first point in the sliced period (May 1) has only the Jan deposit
+	// in its cumulative net deposit. The June deposit hasn't happened yet.
 	first := result.EquityCurve[0]
-	if !first.NetDeposit.Equal(decimal.MustNew(500000, 2)) {
-		t.Errorf("first net deposit: got %s, want 500000", first.NetDeposit.String())
+	if !first.NetDeposit.Equal(decimal.MustNew(1000000, 2)) {
+		t.Errorf("first net deposit: got %s, want 1000000", first.NetDeposit.String())
 	}
 }
 

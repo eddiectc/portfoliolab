@@ -186,7 +186,7 @@ func TestPerformanceTemplate_WithData(t *testing.T) {
 	result := &position.PerformanceResult{
 		EquityCurve: curve,
 		ReturnMetrics: position.ReturnMetrics{
-			TotalReturnPct:      &totalReturn,
+			PeriodReturnPct:      &totalReturn,
 			AnnualizedReturnPct: &cagr,
 		},
 		BaseCurrency: "USD",

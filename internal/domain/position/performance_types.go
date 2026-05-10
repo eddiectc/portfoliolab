@@ -18,11 +18,12 @@ type EquityCurvePoint struct {
 }
 
 // ReturnMetrics holds summary return calculations derived from the equity curve.
-// TotalReturnPct is (current_value - net_deposit) / net_deposit × 100.
+// PeriodReturnPct is (end_value - begin_value) / begin_value × 100 for the
+// selected period. Nil when begin_value is zero or non-positive.
 // AnnualizedReturnPct is the CAGR: (end_value / begin_value)^(365 / days) - 1.
 // HasInsufficientData is true when fewer than 2 data points are available.
 type ReturnMetrics struct {
-	TotalReturnPct      *decimal.Decimal `json:"total_return_pct,omitempty"`
+	PeriodReturnPct     *decimal.Decimal `json:"period_return_pct,omitempty"`
 	AnnualizedReturnPct *decimal.Decimal `json:"annualized_return_pct,omitempty"`
 	HasInsufficientData bool             `json:"has_insufficient_data"`
 }

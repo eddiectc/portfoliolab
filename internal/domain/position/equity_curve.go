@@ -42,10 +42,9 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		return nil, err
 	}
 
-	// 3. Determine date range from period filter.
-	dateFrom, dateTo := determineDateRange(filters)
-
-	// 4. Fetch all transactions for resolved accounts.
+	// 3. Fetch ALL transactions for resolved accounts (not filtered by period).
+	// The period filter only slices the output curve and return metrics —
+	// the portfolio state must include all historical buys/sells/deposits.
 	accountIDs := make([]int64, len(accounts))
 	for i, a := range accounts {
 		accountIDs[i] = a.ID
@@ -60,20 +59,8 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		allTxns = append(allTxns, txns...)
 	}
 
-	// 5. Filter to date range and sort by date ASC, then ID ASC.
-	allTxns = filterByDateRange(allTxns, dateFrom, dateTo)
-	sort.SliceStable(allTxns, func(i, j int) bool {
-		if !allTxns[i].Date.Equal(allTxns[j].Date) {
-			return allTxns[i].Date.Before(allTxns[j].Date)
-		}
-		return allTxns[i].ID < allTxns[j].ID
-	})
-
-	// 6. Handle empty state.
+	// 4. Handle empty state.
 	if len(allTxns) == 0 {
-		if s.logger != nil {
-			s.logger.Debug("performance: no transactions in range", "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
-		}
 		return &PerformanceResult{
 			EquityCurve:   []EquityCurvePoint{},
 			ReturnMetrics: ReturnMetrics{HasInsufficientData: true},
@@ -81,30 +68,45 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		}, nil
 	}
 
+	// Sort by date ASC, then ID ASC.
+	sort.SliceStable(allTxns, func(i, j int) bool {
+		if !allTxns[i].Date.Equal(allTxns[j].Date) {
+			return allTxns[i].Date.Before(allTxns[j].Date)
+		}
+		return allTxns[i].ID < allTxns[j].ID
+	})
+
+	// 5. Determine date range from period filter (for slicing output only).
+	dateFrom, dateTo := determineDateRange(filters)
+
 	if s.logger != nil {
 		s.logger.Debug("performance: computing equity curve", "accounts", len(accountIDs), "baseCurrency", baseCurrency, "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"), "txns", len(allTxns))
 	}
 
-	// 7. Walk transactions chronologically, capturing state at each date.
+	// 6. Walk ALL transactions chronologically, capturing state at each date.
 	snapshots, finalState := walkTransactions(allTxns)
 
 	if s.logger != nil {
 		s.logger.Debug("performance: walk complete", "snapshots", len(snapshots))
 	}
 
-	// 8. Collect unique non-cash symbols and read historical prices from cache.
+	// 7. Collect unique non-cash symbols and read historical prices from cache.
+	// Fetch prices from the earliest transaction to dateTo so the full
+	// portfolio state can be valued, even though the output curve will
+	// be sliced to the period range.
+	priceFrom := allTxns[0].Date // earliest transaction
 	symbols := collectUniqueSymbols(allTxns)
 	var warnings []string
 	var pricesBySymbol map[string][]market.HistoricalPrice
 	if len(symbols) > 0 && s.marketService != nil {
 		if s.logger != nil {
-			s.logger.Debug("reading cached historical prices", "symbols", len(symbols), "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
+			s.logger.Debug("reading cached historical prices", "symbols", len(symbols), "dateFrom", priceFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
 		}
 		// Read cached historical prices for each symbol.
 		pricesBySymbol = make(map[string][]market.HistoricalPrice)
 		var missingSymbols []string
 		for _, sym := range symbols {
-			prices, err := s.marketService.GetHistoricalPrices(ctx, sym, dateFrom, dateTo)
+			prices, err := s.marketService.GetHistoricalPrices(ctx, sym, priceFrom, dateTo)
 			if err != nil {
 				if s.logger != nil {
 					s.logger.Warn("failed to read cached prices", "symbol", sym, "error", err)
@@ -114,7 +116,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 			}
 			if len(prices) == 0 {
 				if s.logger != nil {
-					s.logger.Debug("no cached prices found", "symbol", sym, "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
+					s.logger.Debug("no cached prices found", "symbol", sym, "dateFrom", priceFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
 				}
 				missingSymbols = append(missingSymbols, sym)
 				continue
@@ -162,19 +164,38 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		s.logger.Debug("performance: interpolation complete", "points", len(points))
 	}
 
-	returnMetrics := ComputeReturnMetrics(points, baseCurrency)
+	// 11. Slice to period range. The portfolio state includes all history,
+	// but the output curve only shows the selected period.
+	if !dateFrom.IsZero() {
+		points = sliceFrom(points, dateFrom)
+	}
 
 	if s.logger != nil {
-		totalStr := "nil"
-		if returnMetrics.TotalReturnPct != nil {
-			totalStr = returnMetrics.TotalReturnPct.String()
+		if len(points) > 0 {
+			s.logger.Debug("performance: equity curve built",
+				"points", len(points),
+				"firstDate", points[0].Date.Format("2006-01-02"),
+				"firstValue", points[0].PortfolioValue.String(),
+				"lastDate", points[len(points)-1].Date.Format("2006-01-02"),
+				"lastValue", points[len(points)-1].PortfolioValue.String(),
+			)
+		}
+	}
+
+	// 12. Compute period return metrics from the sliced curve.
+	returnMetrics := ComputePeriodReturn(points, baseCurrency)
+
+	if s.logger != nil {
+		periodStr := "nil"
+		if returnMetrics.PeriodReturnPct != nil {
+			periodStr = returnMetrics.PeriodReturnPct.String()
 		}
 		annStr := "nil"
 		if returnMetrics.AnnualizedReturnPct != nil {
 			annStr = returnMetrics.AnnualizedReturnPct.String()
 		}
 		s.logger.Debug("performance: return metrics computed",
-			"totalReturn", totalStr,
+			"periodReturn", periodStr,
 			"annualizedReturn", annStr,
 			"hasInsufficientData", returnMetrics.HasInsufficientData,
 		)
@@ -269,6 +290,22 @@ func determineDateRange(filters PerformanceFilters) (time.Time, time.Time) {
 	}
 
 	return dateFrom, dateTo
+}
+
+// sliceFrom returns only the equity curve points on or after the given date.
+// Zero dateFrom returns the full curve unchanged.
+func sliceFrom(points []EquityCurvePoint, dateFrom time.Time) []EquityCurvePoint {
+	if dateFrom.IsZero() {
+		return points
+	}
+	// Binary search for the first point on or after dateFrom.
+	idx := sort.Search(len(points), func(i int) bool {
+		return !points[i].Date.Before(dateFrom)
+	})
+	if idx >= len(points) {
+		return []EquityCurvePoint{}
+	}
+	return points[idx:]
 }
 
 // filterByDateRange filters transactions to the given date range.
