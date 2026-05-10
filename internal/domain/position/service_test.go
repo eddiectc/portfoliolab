@@ -300,6 +300,25 @@ func (m *mockAccountLister) SetAccountsByPortfolio(portfolioID int64, accounts [
 	m.accountsByPortfolio[portfolioID] = accounts
 }
 
+// mockPortfolioCurrencyChecker returns portfolio base currencies.
+type mockPortfolioCurrencyChecker struct {
+	currencies map[int64]string
+}
+
+func newMockPortfolioCurrencyChecker(currencies map[int64]string) *mockPortfolioCurrencyChecker {
+	if currencies == nil {
+		currencies = make(map[int64]string)
+	}
+	return &mockPortfolioCurrencyChecker{currencies: currencies}
+}
+
+func (m *mockPortfolioCurrencyChecker) GetPortfolioCurrency(_ context.Context, portfolioID int64) (string, error) {
+	if c, ok := m.currencies[portfolioID]; ok {
+		return c, nil
+	}
+	return "", nil
+}
+
 func (m *mockAccountLister) GetAllAccounts(_ context.Context) ([]AccountRef, error) {
 	if m.err != nil {
 		return nil, m.err
@@ -839,6 +858,48 @@ func (m *mockMarketDataService) GetHistoricalFxRate(_ context.Context, base, quo
 
 func (m *mockMarketDataService) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult {
 	return marketservice.FxRefreshResult{}
+}
+
+// mockCacheScheduler records scheduled fetches for verification in tests.
+type mockCacheScheduler struct {
+	mu              sync.Mutex
+	symbolFetches   []struct{ symbol string; fromDate time.Time }
+	fxPairFetches   []struct{ base, quote string; fromDate time.Time }
+	refreshAllCalls int
+}
+
+func (m *mockCacheScheduler) ScheduleSymbolFetch(symbol string, fromDate time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.symbolFetches = append(m.symbolFetches, struct{ symbol string; fromDate time.Time }{symbol, fromDate})
+}
+
+func (m *mockCacheScheduler) ScheduleFxPairFetch(base, quote string, fromDate time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.fxPairFetches = append(m.fxPairFetches, struct{ base, quote string; fromDate time.Time }{base, quote, fromDate})
+}
+
+func (m *mockCacheScheduler) RefreshAll(context.Context) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.refreshAllCalls++
+}
+
+func (m *mockCacheScheduler) GetSymbolFetches() []struct{ symbol string; fromDate time.Time } {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make([]struct{ symbol string; fromDate time.Time }, len(m.symbolFetches))
+	copy(result, m.symbolFetches)
+	return result
+}
+
+func (m *mockCacheScheduler) GetFxPairFetches() []struct{ base, quote string; fromDate time.Time } {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make([]struct{ base, quote string; fromDate time.Time }, len(m.fxPairFetches))
+	copy(result, m.fxPairFetches)
+	return result
 }
 
 // --- EnrichWithMarketData tests ---
@@ -1468,5 +1529,270 @@ func TestRecalculateAccount_TransactionListError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "connection reset") {
 		t.Errorf("expected error to contain 'connection reset', got: %v", err)
+	}
+}
+
+// --- RecalculateAccount cache scheduling tests ---
+
+func TestRecalculateAccount_SchedulesSymbolFetch(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	txnRepo := newMockTransactionRepository()
+
+	buy := makeBuyTxn(1, "AAPL", now(), 1000, 15000)
+	txnRepo.SetTransactions(1, []transaction.Transaction{buy})
+
+	scheduler := &mockCacheScheduler{}
+
+	accountLister := newMockAccountLister()
+	accountLister.SetAllAccounts([]AccountRef{
+		{ID: 1, Name: "Broker", PortfolioID: 1, PortfolioCurrency: "USD"},
+	})
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(1),
+		accountLister,
+		newMockPortfolioCurrencyChecker(map[int64]string{1: "USD"}),
+	)
+	svc.WithMarketCache(scheduler)
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should have scheduled a fetch for AAPL.
+	fetches := scheduler.GetSymbolFetches()
+	if len(fetches) != 1 {
+		t.Fatalf("expected 1 symbol fetch, got %d", len(fetches))
+	}
+	if fetches[0].symbol != "AAPL" {
+		t.Errorf("expected symbol AAPL, got %s", fetches[0].symbol)
+	}
+	if !fetches[0].fromDate.Equal(now()) {
+		t.Errorf("expected fromDate %v, got %v", now(), fetches[0].fromDate)
+	}
+
+	// No FX pair fetches (USD position in USD portfolio).
+	if len(scheduler.GetFxPairFetches()) != 0 {
+		t.Errorf("expected 0 FX pair fetches, got %d", len(scheduler.GetFxPairFetches()))
+	}
+}
+
+func TestRecalculateAccount_SchedulesFxPairFetch(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	txnRepo := newMockTransactionRepository()
+
+	// GBP buy transaction in a USD portfolio.
+	gbpBuy := makeBuyTxn(1, "SHEL.L", now(), 2000, 2500)
+	gbpBuy.Currency = "GBP"
+	gbpBuy.NetCash = decimal.MustNew(-500000, 2)
+	txnRepo.SetTransactions(1, []transaction.Transaction{gbpBuy})
+
+	scheduler := &mockCacheScheduler{}
+
+	accountLister := newMockAccountLister()
+	accountLister.SetAllAccounts([]AccountRef{
+		{ID: 1, Name: "Broker", PortfolioID: 1, PortfolioCurrency: "USD"},
+	})
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(1),
+		accountLister,
+		newMockPortfolioCurrencyChecker(map[int64]string{1: "USD"}),
+	)
+	svc.WithMarketCache(scheduler)
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should have scheduled a symbol fetch for SHEL.L.
+	symbolFetches := scheduler.GetSymbolFetches()
+	if len(symbolFetches) != 1 || symbolFetches[0].symbol != "SHEL.L" {
+		t.Errorf("expected 1 symbol fetch for SHEL.L, got %d: %v", len(symbolFetches), symbolFetches)
+	}
+
+	// Should have scheduled an FX pair fetch for GBP/USD.
+	fxFetches := scheduler.GetFxPairFetches()
+	if len(fxFetches) != 1 {
+		t.Fatalf("expected 1 FX pair fetch, got %d", len(fxFetches))
+	}
+	if fxFetches[0].base != "GBP" || fxFetches[0].quote != "USD" {
+		t.Errorf("expected GBP/USD, got %s/%s", fxFetches[0].base, fxFetches[0].quote)
+	}
+}
+
+func TestRecalculateAccount_SkipsCashSymbols(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	txnRepo := newMockTransactionRepository()
+
+	// Cash deposit only — no stock symbols.
+	cashTxn := transaction.Transaction{
+		AccountID: 1,
+		Date:      now(),
+		Type:      "deposit",
+		Symbol:    "$CASH-USD",
+		Quantity:  decimal.MustNew(100000, 2),
+		Price:     decimal.MustNew(100, 2),
+		Currency:  "USD",
+		NetCash:   decimal.MustNew(100000, 2),
+		CreatedAt: now(),
+		UpdatedAt: now(),
+	}
+	txnRepo.SetTransactions(1, []transaction.Transaction{cashTxn})
+
+	scheduler := &mockCacheScheduler{}
+
+	accountLister := newMockAccountLister()
+	accountLister.SetAllAccounts([]AccountRef{
+		{ID: 1, Name: "Broker", PortfolioID: 1, PortfolioCurrency: "USD"},
+	})
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(1),
+		accountLister,
+		newMockPortfolioCurrencyChecker(map[int64]string{1: "USD"}),
+	)
+	svc.WithMarketCache(scheduler)
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// No symbol fetches (only cash position).
+	if len(scheduler.GetSymbolFetches()) != 0 {
+		t.Errorf("expected 0 symbol fetches, got %d", len(scheduler.GetSymbolFetches()))
+	}
+	if len(scheduler.GetFxPairFetches()) != 0 {
+		t.Errorf("expected 0 FX pair fetches, got %d", len(scheduler.GetFxPairFetches()))
+	}
+}
+
+func TestRecalculateAccount_NoScheduler(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	txnRepo := newMockTransactionRepository()
+
+	buy := makeBuyTxn(1, "AAPL", now(), 1000, 15000)
+	txnRepo.SetTransactions(1, []transaction.Transaction{buy})
+
+	accountLister := newMockAccountLister()
+	accountLister.SetAllAccounts([]AccountRef{
+		{ID: 1, Name: "Broker", PortfolioID: 1, PortfolioCurrency: "USD"},
+	})
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(1),
+		accountLister,
+		newMockPortfolioCurrencyChecker(map[int64]string{1: "USD"}),
+	)
+	// No WithMarketCache call — scheduler is nil.
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Recalculation should succeed even without a scheduler.
+	posRepo.mu.RLock()
+	defer posRepo.mu.RUnlock()
+	if len(posRepo.positions) == 0 {
+		t.Error("expected positions to be calculated")
+	}
+}
+
+func TestRecalculateAccount_MultipleSymbols(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	txnRepo := newMockTransactionRepository()
+
+	// Two different symbols.
+	aaplBuy := makeBuyTxn(1, "AAPL", now(), 1000, 15000)
+	googlBuy := makeBuyTxn(1, "GOOGL", now().AddDate(0, 0, 1), 500, 14000)
+	txnRepo.SetTransactions(1, []transaction.Transaction{aaplBuy, googlBuy})
+
+	scheduler := &mockCacheScheduler{}
+
+	accountLister := newMockAccountLister()
+	accountLister.SetAllAccounts([]AccountRef{
+		{ID: 1, Name: "Broker", PortfolioID: 1, PortfolioCurrency: "USD"},
+	})
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(1),
+		accountLister,
+		newMockPortfolioCurrencyChecker(map[int64]string{1: "USD"}),
+	)
+	svc.WithMarketCache(scheduler)
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should have scheduled fetches for both symbols.
+	fetches := scheduler.GetSymbolFetches()
+	if len(fetches) != 2 {
+		t.Fatalf("expected 2 symbol fetches, got %d", len(fetches))
+	}
+
+	// Check both symbols are present.
+	symbols := make(map[string]bool)
+	for _, f := range fetches {
+		symbols[f.symbol] = true
+	}
+	if !symbols["AAPL"] || !symbols["GOOGL"] {
+		t.Errorf("expected AAPL and GOOGL, got %v", symbols)
+	}
+}
+
+func TestRecalculateAccount_SchedulesAfterRecalcError_NoSchedule(t *testing.T) {
+	posRepo := newMockPositionRepository()
+	posRepo.recalculateErr = fmt.Errorf("db error")
+	txnRepo := newMockTransactionRepository()
+
+	buy := makeBuyTxn(1, "AAPL", now(), 1000, 15000)
+	txnRepo.SetTransactions(1, []transaction.Transaction{buy})
+
+	scheduler := &mockCacheScheduler{}
+
+	accountLister := newMockAccountLister()
+	accountLister.SetAllAccounts([]AccountRef{
+		{ID: 1, Name: "Broker", PortfolioID: 1, PortfolioCurrency: "USD"},
+	})
+
+	svc := NewService(
+		posRepo,
+		txnRepo,
+		newMockAccountChecker(1),
+		newMockPortfolioChecker(1),
+		accountLister,
+		newMockPortfolioCurrencyChecker(map[int64]string{1: "USD"}),
+	)
+	svc.WithMarketCache(scheduler)
+
+	err := svc.RecalculateAccount(ctx, 1)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	// Should NOT have scheduled any fetches because recalc failed.
+	if len(scheduler.GetSymbolFetches()) != 0 {
+		t.Errorf("expected 0 symbol fetches after recalc error, got %d", len(scheduler.GetSymbolFetches()))
 	}
 }

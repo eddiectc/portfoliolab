@@ -37,5 +37,6 @@
 - **Task 8 positions page staleness**: Positions template uses `CacheStatus.FailedSymbols` as the staleness proxy (non-empty = stale) since there's no per-symbol staleness check in `EnrichWithMarketData`. This is less precise than the performance page but sufficient for the aggregate indicator.
 
 ## Future Improvements
+- Recalculate hooks schedule fetches for ALL open position symbols regardless of whether cache already exists. The market cache's concurrent protection (queued + in-progress sets) deduplicates, but this means extra channel messages. Could optimize by checking cache first, but the trade-off is an extra DB query per recalc.
 
 ## Known Issues

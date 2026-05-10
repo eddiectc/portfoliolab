@@ -194,19 +194,83 @@ func (s *Service) RecalculateAccount(ctx context.Context, accountID int64) error
 		return fmt.Errorf("calculate positions for account %d: %w", accountID, err)
 	}
 
-	// Convert P&L to portfolio base currency.
-	if s.portfolioCurrencyChecker != nil && s.marketService != nil {
+	// Determine base currency for P&L conversion and cache scheduling.
+	var baseCurrency string
+	if s.portfolioCurrencyChecker != nil {
 		accounts, listErr := s.accountLister.GetAllAccounts(ctx)
 		if listErr != nil {
 			return fmt.Errorf("list accounts for FX conversion: %w", listErr)
 		}
-		baseCurrency := s.getBaseCurrencyForAccount(accounts, accountID)
-		if baseCurrency != "" {
-			s.convertPnlToBase(ctx, result, baseCurrency)
+		baseCurrency = s.getBaseCurrencyForAccount(accounts, accountID)
+	}
+
+	// Convert P&L to portfolio base currency.
+	if s.marketService != nil && baseCurrency != "" {
+		s.convertPnlToBase(ctx, result, baseCurrency)
+	}
+
+	if err := s.positions.Recalculate(ctx, accountID, result); err != nil {
+		return err
+	}
+
+	// Schedule background market data fetches for open positions.
+	s.scheduleCacheFetches(ctx, result, accountID, baseCurrency)
+
+	return nil
+}
+
+// scheduleCacheFetches schedules background fetches for symbols and FX pairs
+// found in the open positions of the calculate result. It skips cash symbols
+// and uses the position's open date as the fetch start date.
+func (s *Service) scheduleCacheFetches(ctx context.Context, result *CalculateResult, accountID int64, baseCurrency string) {
+	if s.cacheScheduler == nil {
+		return
+	}
+
+	// Collect unique non-cash symbols, keeping the earliest open date per symbol.
+	symbolDates := make(map[string]time.Time)
+	// Collect FX pairs (currency/baseCurrency) with earliest date.
+	pairDates := make(map[string]time.Time)
+
+	for _, p := range result.OpenPositions {
+		if isCashPosition(p.Symbol) {
+			continue
+		}
+
+		// Track earliest open date per symbol.
+		if existing, ok := symbolDates[p.Symbol]; !ok || p.OpenDate.Before(existing) {
+			symbolDates[p.Symbol] = p.OpenDate
+		}
+
+		// Track FX pair if position currency differs from base.
+		if baseCurrency != "" && p.Currency != baseCurrency {
+			pairKey := p.Currency + "/" + baseCurrency
+			if existing, ok := pairDates[pairKey]; !ok || p.OpenDate.Before(existing) {
+				pairDates[pairKey] = p.OpenDate
+			}
 		}
 	}
 
-	return s.positions.Recalculate(ctx, accountID, result)
+	// Schedule symbol fetches.
+	for sym, fromDate := range symbolDates {
+		s.ScheduleSymbolFetch(sym, fromDate)
+	}
+
+	// Schedule FX pair fetches.
+	for pair, fromDate := range pairDates {
+		base, quote := splitFxPair(pair)
+		s.ScheduleFxPairFetch(base, quote, fromDate)
+	}
+}
+
+// splitFxPair splits "BASE/QUOTE" into its components.
+func splitFxPair(pair string) (base, quote string) {
+	for i, c := range pair {
+		if c == '/' {
+			return pair[:i], pair[i+1:]
+		}
+	}
+	return pair, ""
 }
 
 // getBaseCurrencyForAccount looks up the portfolio base currency for an account.
