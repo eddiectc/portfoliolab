@@ -84,12 +84,12 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	symbols := collectUniqueSymbols(allTxns)
 	var warnings []string
 	var pricesBySymbol map[string][]market.HistoricalPrice
-	if len(symbols) > 0 && s.marketDataRepo != nil {
+	if len(symbols) > 0 && s.marketService != nil {
 		// Read cached historical prices for each symbol.
 		pricesBySymbol = make(map[string][]market.HistoricalPrice)
 		var missingSymbols []string
 		for _, sym := range symbols {
-			prices, err := s.marketDataRepo.GetHistoricalPricesBySymbol(ctx, sym, dateFrom, dateTo)
+			prices, err := s.marketService.GetHistoricalPrices(ctx, sym, dateFrom, dateTo)
 			if err != nil {
 				if s.logger != nil {
 					s.logger.Warn("failed to read cached prices", "symbol", sym, "error", err)
@@ -109,7 +109,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 
 		// Check staleness for symbols that have cached data.
 		if len(pricesBySymbol) > 0 {
-			latestDates := s.marketDataRepo.GetLatestPriceDatePerSymbol(ctx, symbols)
+			latestDates := s.marketService.GetLatestPriceDatePerSymbol(ctx, symbols)
 			now := time.Now().UTC()
 			for sym := range pricesBySymbol {
 				latestDate, ok := latestDates[sym]

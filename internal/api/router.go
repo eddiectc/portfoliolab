@@ -15,6 +15,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/data"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/trading212import"
@@ -22,7 +23,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
-) 
+)
 
 // RouterOption configures the router.
 type RouterOption func(*routerConfig)
@@ -103,8 +104,9 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler 
 	positionRepo := data.NewPositionRepository(db)
 	accountLister := data.NewAccountLister(accountRepo)
 	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister, portfolioCurrencyChecker, fxConverter)
-	// Wire market data fetcher for enriching open positions with live prices.
-	positionSvc.WithMarketDataFetcher(yahooFetcher, marketDataRepo, logger)
+	// Wire market data service for enriching positions and refreshing quotes.
+	marketSvc := marketservice.New(yahooFetcher, marketDataRepo)
+	positionSvc.WithMarketDataService(marketSvc, logger)
 
 	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator, positionSvc, positionSvc)
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)
