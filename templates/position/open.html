@@ -6,6 +6,15 @@
         <form action="/positions/recalculate" method="POST" class="inline-form">
             <button type="submit" class="btn btn-sm">Recalculate</button>
         </form>
+        {{if .HasCacheStatus}}
+        <span class="cache-status {{if .CacheStatus.Refreshing}}cache-status-refreshing{{else if .CacheStatus.FailedSymbols}}cache-status-stale{{else}}cache-status-current{{end}}">
+            {{if .CacheStatus.Refreshing}}
+            Refreshing...
+            {{else if .LastRefreshText}}
+            {{.LastRefreshText}}
+            {{end}}
+        </span>
+        {{end}}
     </div>
 </div>
 

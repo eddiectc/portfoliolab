@@ -933,3 +933,24 @@ legend {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-top: 1rem;
 }
+
+/* Cache status indicator */
+.cache-status {
+    font-size: 0.8rem;
+    color: #666;
+    align-self: center;
+    margin-left: 0.5rem;
+}
+
+.cache-status-current {
+    color: #28a745;
+}
+
+.cache-status-stale {
+    color: #856404;
+}
+
+.cache-status-refreshing {
+    color: #0066cc;
+    font-style: italic;
+}

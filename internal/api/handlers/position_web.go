@@ -11,6 +11,7 @@ import (
 	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
@@ -84,14 +85,17 @@ type positionSummary struct {
 // with positions enriched with market data.
 type openPositionListPageData struct {
 	web.PageData
-	Positions    []position.PositionWithMarket
-	Accounts     []account.Account
-	Filter       PositionFilter
-	BaseCurrency string
-	Summary      positionSummary
-	Page         int
-	HasPrev      bool
-	HasNext      bool
+	Positions       []position.PositionWithMarket
+	Accounts        []account.Account
+	Filter          PositionFilter
+	BaseCurrency    string
+	Summary         positionSummary
+	Page            int
+	HasPrev         bool
+	HasNext         bool
+	CacheStatus     marketcache.CacheStatus
+	HasCacheStatus  bool
+	LastRefreshText string
 }
 
 // lotDetailPageData is the data struct for the lot detail template.
@@ -107,15 +111,17 @@ type PositionWebHandler struct {
 	positionSvc  *position.Service
 	accountSvc   *account.Service
 	portfolioSvc *portfolio.Service
+	marketCache  cacheStatusProvider
 	renderer     *web.Renderer
 }
 
 // NewPositionWebHandler creates a new position web handler.
-func NewPositionWebHandler(positionSvc *position.Service, accountSvc *account.Service, portfolioSvc *portfolio.Service, renderer *web.Renderer) *PositionWebHandler {
+func NewPositionWebHandler(positionSvc *position.Service, accountSvc *account.Service, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, renderer *web.Renderer) *PositionWebHandler {
 	return &PositionWebHandler{
 		positionSvc:  positionSvc,
 		accountSvc:   accountSvc,
 		portfolioSvc: portfolioSvc,
+		marketCache:  marketCache,
 		renderer:     renderer,
 	}
 }
@@ -177,19 +183,34 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 	// Fetch accounts for filter dropdown.
 	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
 
+	// Cache status for aggregate indicator.
+	var cacheStatus marketcache.CacheStatus
+	var hasCacheStatus bool
+	var lastRefreshText string
+	if h.marketCache != nil {
+		cacheStatus = h.marketCache.GetStatus()
+		hasCacheStatus = true
+		if !cacheStatus.LastRefresh.IsZero() {
+			lastRefreshText = formatLastRefresh(cacheStatus.LastRefresh)
+		}
+	}
+
 	data := openPositionListPageData{
 		PageData: web.PageData{
 			Title: "Open Positions",
 			Flash: getFlash(w, r),
 		},
-		Positions:    enriched,
-		Accounts:     accounts,
-		Filter:       filter,
-		BaseCurrency: baseCurrency,
-		Summary:      toPositionSummary(summary),
-		Page:         page,
-		HasPrev:      page > 1,
-		HasNext:      len(enriched) == limit,
+		Positions:       enriched,
+		Accounts:        accounts,
+		Filter:          filter,
+		BaseCurrency:    baseCurrency,
+		Summary:         toPositionSummary(summary),
+		Page:            page,
+		HasPrev:         page > 1,
+		HasNext:         len(enriched) == limit,
+		CacheStatus:     cacheStatus,
+		HasCacheStatus:  hasCacheStatus,
+		LastRefreshText: lastRefreshText,
 	}
 
 	if data.Positions == nil {

@@ -31,6 +31,10 @@
 - **Task 6 router signature change**: `Router()` now returns `(http.Handler, *marketcache.MarketCache)` instead of just `http.Handler`. All integration tests updated with `, _` to discard the cache reference.
 - **Task 7 handler interface**: `MarketDataHandler` depends on a private `marketCacheStatus` interface (not the concrete `*marketcache.MarketCache`) so it can be mocked in tests. Follows the same pattern as other handlers that use interfaces for cross-package dependencies.
 - **Task 7 cross-task**: Creating and registering `MarketDataHandler` also satisfied the corresponding Task 9 sub-task. Task 9 now only has one remaining item: passing MarketCache to the performance and position web handlers.
+- **Task 8 cache status interface**: `cacheStatusProvider` interface defined in `performance_web.go` (not a separate file) since both web handlers are in the same `handlers` package. Same pattern as `marketCacheStatus` in `market_data.go`.
+- **Task 8 refresh behavior change**: `HandleRefresh` now calls `marketCache.RefreshAll()` (full refresh of ALL symbols) instead of `positionSvc.RefreshMarketData()` (limited to visible period symbols). Button renamed "Refresh All" and `buildRefreshURL` simplified — no longer includes period query param since refresh is always global.
+- **Task 8 stale symbol extraction**: `extractStaleSymbols()` parses warning strings ("stale market data for SYMBOL (...)" / "missing market data for SYMBOL") to build the `StaleSymbols` list for the aggregate indicator. Only used on the performance page — the positions page has no equivalent warnings from `EnrichWithMarketData`.
+- **Task 8 positions page staleness**: Positions template uses `CacheStatus.FailedSymbols` as the staleness proxy (non-empty = stale) since there's no per-symbol staleness check in `EnrichWithMarketData`. This is less precise than the performance page but sufficient for the aggregate indicator.
 
 ## Future Improvements
 

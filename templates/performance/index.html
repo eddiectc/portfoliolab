@@ -3,7 +3,7 @@
     <h1>Performance</h1>
     <div class="header-actions">
         <form action="{{.RefreshURL}}" method="POST" class="inline-form">
-            <button type="submit" class="btn btn-sm">Refresh</button>
+            <button type="submit" class="btn btn-sm">Refresh All</button>
         </form>
     </div>
 </div>
@@ -37,6 +37,17 @@
 
         <div class="filter-group filter-actions">
             <button type="submit" class="btn btn-sm">Apply</button>
+            {{if .HasCacheStatus}}
+            <span class="cache-status {{if .CacheStatus.Refreshing}}cache-status-refreshing{{else if gt (len .StaleSymbols) 0}}cache-status-stale{{else}}cache-status-current{{end}}">
+                {{if .CacheStatus.Refreshing}}
+                Refreshing...
+                {{else if gt (len .StaleSymbols) 0}}
+                {{len .StaleSymbols}} symbol(s) stale · {{.LastRefreshText}}
+                {{else if .LastRefreshText}}
+                {{.LastRefreshText}}
+                {{end}}
+            </span>
+            {{end}}
         </div>
     </div>
 </form>
