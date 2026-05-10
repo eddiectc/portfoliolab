@@ -334,6 +334,26 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 
 ---
 
+### Task 4.1: Post-completion bug fixes [PRIORITY: HIGH]
+
+**Corresponds to:** Production bugs discovered after initial implementation
+
+**Description:** Fix critical bugs found during production use of the equity curve.
+
+- [x] **Fix GBp (pence) → GBP conversion**: Yahoo returns some UK stocks in pence with `currency: "GBp"`. Detect at the fetcher layer (`FetchQuotesBatch` and `FetchHistoricalPricesBatch` in `internal/market/quote.go`), divide price by 100, store as `"GBP"`. Single source of truth — position service no longer handles currency quirks.
+- [x] **Fix RefreshAll context bug**: Background refresh was cancelled when the HTTP request completed because `r.Context()` was passed. Changed to use internal lifecycle context (`m.ctx`) managed by `Start`/`Stop`.
+- [x] **Fix weekend staleness warnings**: Added `tradingDayBeforeOrOn()` helper to skip weekend staleness checks. Added `nextTradingDay()` helper to skip weekends when scheduling gap fetches. Truncated dates to midnight UTC before comparison.
+- [x] **Fix RealizedPnL for open positions**: Open positions always get `RealizedPnL = 0` (including partial sells). Sell proceeds are already reflected in cash, and remaining shares are valued via market price. Showing partial realized P&L double-counted against the equity curve.
+- [x] **Fix walkTransactions double-negated sell quantities**: Sell transactions store **negative** quantities in the DB, but `walkTransactions` did `Neg()` on them, turning `-228` into `+228` and **adding** to the position instead of subtracting. Fixed by removing the `Neg()` — just add `txn.Quantity` directly.
+- [x] **Fix equity curve stopping at last transaction date**: `interpolateDaily` only filled gaps between transaction dates with flat carry-forward. Now extends through `dateTo` using cached historical prices for current positions + cash, so the curve reflects actual price changes through the end date.
+- [x] **Refactor: extract shared WalkPortfolioState**: Position quantity tracking was duplicated in `walkTransactions` (equity curve) and the calculator. Extracted `WalkPortfolioState` as the single source of truth for portfolio state (quantities, cash, net deposit) tracking. `walkTransactions` delegates to it and only adds position currency tracking on top.
+- [x] Add `TestWalkTransactions_NegativeSellQuantity` to enforce the signed-quantity convention
+- [x] Add comprehensive tests for `WalkPortfolioState` / `WalkPositionQuantities`
+
+**Verification:** `go build ./...` and `go test ./...` pass; equity curve shows correct values after sells; curve extends to today with real prices.
+
+---
+
 ### Task 9: Router wiring [PRIORITY: LOW]
 
 **Corresponds to:** All scenarios (integration)
