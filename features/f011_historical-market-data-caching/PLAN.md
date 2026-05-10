@@ -164,11 +164,11 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
 
 **Description:** Change `EnrichWithMarketData` in `position.Service` to read current quotes from the DB cache instead of fetching live.
 
-- [ ] In `internal/domain/position/service.go`, modify `EnrichWithMarketData`:
+- [x] In `internal/domain/position/service.go`, modify `EnrichWithMarketData`:
   - Replace `s.marketFetcher.FetchQuotesBatch(ctx, symbols)` with `s.marketDataRepo.GetLatestQuotesBatch(ctx, symbols)`
   - Remove the live-upsert-after-fetch logic (MarketCache handles caching)
   - Keep all enrichment logic (market value, unrealized P&L, FX conversion) unchanged
-- [ ] Update unit tests in `service_test.go`:
+- [x] Update unit tests in `service_test.go`:
   - Mock `GetLatestQuotesBatch` to return cached quotes
   - Verify enrichment works with cached data
   - Verify missing quotes handled gracefully (MarketDataAvailable=false)
