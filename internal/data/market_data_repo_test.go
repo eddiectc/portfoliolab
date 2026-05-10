@@ -406,3 +406,215 @@ func TestMarketDataRepository_UpsertHistoricalPrices_OverwritesExisting(t *testi
 		t.Errorf("Price = %v, want %v (expected upsert to overwrite)", got.Price, wantPrice)
 	}
 }
+
+func TestMarketDataRepository_GetHistoricalPricesBySymbol(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	// Insert historical prices for AAPL.
+	prices := []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 6, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17000, 2), Currency: "USD"},
+		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
+		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
+	}
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+	if err != nil {
+		t.Fatalf("UpsertHistoricalPrices: %v", err)
+	}
+
+	// Query the full range.
+	got, err := repo.GetHistoricalPricesBySymbol(context.Background(), "AAPL",
+		time.Date(2026, 5, 6, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("GetHistoricalPricesBySymbol: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 prices, got %d", len(got))
+	}
+	for i, want := range prices {
+		if !got[i].Close.Equal(want.Close) {
+			t.Errorf("price[%d] = %v, want %v", i, got[i].Close, want.Close)
+		}
+		if !got[i].Date.Equal(want.Date) {
+			t.Errorf("date[%d] = %v, want %v", i, got[i].Date, want.Date)
+		}
+		if got[i].Currency != want.Currency {
+			t.Errorf("currency[%d] = %q, want %q", i, got[i].Currency, want.Currency)
+		}
+	}
+}
+
+func TestMarketDataRepository_GetHistoricalPricesBySymbol_PartialRange(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	// Insert 3 days of prices.
+	prices := []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 6, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17000, 2), Currency: "USD"},
+		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
+		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
+	}
+	repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+
+	// Query only the middle day.
+	got, err := repo.GetHistoricalPricesBySymbol(context.Background(), "AAPL",
+		time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("GetHistoricalPricesBySymbol: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 price, got %d", len(got))
+	}
+	if !got[0].Close.Equal(decimal.MustNew(17500, 2)) {
+		t.Errorf("price = %v, want %v", got[0].Close, decimal.MustNew(17500, 2))
+	}
+}
+
+func TestMarketDataRepository_GetHistoricalPricesBySymbol_NoData(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	got, err := repo.GetHistoricalPricesBySymbol(context.Background(), "NONEXISTENT",
+		time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("GetHistoricalPricesBySymbol: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected 0 prices, got %d", len(got))
+	}
+}
+
+func TestMarketDataRepository_GetHistoricalPricesBySymbol_ExcludesCurrent(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	// Insert a historical price and a current (date="") quote.
+	histPrice := []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
+	}
+	repo.UpsertHistoricalPrices(context.Background(), "AAPL", histPrice)
+
+	currentPrice, _ := decimal.NewFromFloat64(185.00)
+	repo.Upsert(context.Background(), &market.MarketData{
+		Symbol:   "AAPL",
+		Price:    currentPrice,
+		Currency: "USD",
+		DataType: "stock",
+		Source:   "yahoo",
+		Date:     "", // current
+		FetchedAt: time.Now(),
+	})
+
+	got, err := repo.GetHistoricalPricesBySymbol(context.Background(), "AAPL",
+		time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("GetHistoricalPricesBySymbol: %v", err)
+	}
+	// Should only return the historical price, not the current quote.
+	if len(got) != 1 {
+		t.Fatalf("expected 1 price (current quote excluded), got %d", len(got))
+	}
+}
+
+func TestMarketDataRepository_GetLatestQuotesBatch(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	// Insert current quotes for two symbols.
+	for _, sym := range []string{"AAPL", "MSFT"} {
+		price, _ := decimal.NewFromFloat64(185.00)
+		if sym == "MSFT" {
+			price, _ = decimal.NewFromFloat64(420.00)
+		}
+		repo.Upsert(context.Background(), &market.MarketData{
+			Symbol:   sym,
+			Price:    price,
+			Currency: "USD",
+			DataType: "stock",
+			Source:   "yahoo",
+			Date:     "",
+			FetchedAt: time.Now(),
+		})
+	}
+
+	got := repo.GetLatestQuotesBatch(context.Background(), []string{"AAPL", "MSFT", "GOOG"})
+	if len(got) != 2 {
+		t.Fatalf("expected 2 quotes (GOOG missing), got %d", len(got))
+	}
+
+	wantAAPL, _ := decimal.NewFromFloat64(185.00)
+	if !got["AAPL"].Price.Equal(wantAAPL) {
+		t.Errorf("AAPL price = %v, want %v", got["AAPL"].Price, wantAAPL)
+	}
+
+	wantMSFT, _ := decimal.NewFromFloat64(420.00)
+	if !got["MSFT"].Price.Equal(wantMSFT) {
+		t.Errorf("MSFT price = %v, want %v", got["MSFT"].Price, wantMSFT)
+	}
+
+	if _, ok := got["GOOG"]; ok {
+		t.Error("GOOG should be omitted (no cached data)")
+	}
+}
+
+func TestMarketDataRepository_GetLatestQuotesBatch_Empty(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	got := repo.GetLatestQuotesBatch(context.Background(), []string{})
+	if len(got) != 0 {
+		t.Errorf("expected 0 quotes, got %d", len(got))
+	}
+
+	got = repo.GetLatestQuotesBatch(context.Background(), nil)
+	if len(got) != 0 {
+		t.Errorf("expected 0 quotes for nil, got %d", len(got))
+	}
+}
+
+func TestMarketDataRepository_GetLatestPriceDatePerSymbol(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	// Insert historical prices for two symbols.
+	repo.UpsertHistoricalPrices(context.Background(), "AAPL", []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 6, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17000, 2), Currency: "USD"},
+		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
+	})
+	repo.UpsertHistoricalPrices(context.Background(), "MSFT", []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(41000, 2), Currency: "USD"},
+	})
+
+	got := repo.GetLatestPriceDatePerSymbol(context.Background(), []string{"AAPL", "MSFT", "GOOG"})
+	if len(got) != 2 {
+		t.Fatalf("expected 2 entries (GOOG missing), got %d", len(got))
+	}
+
+	wantAAPL := time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC)
+	if !got["AAPL"].Equal(wantAAPL) {
+		t.Errorf("AAPL latest = %v, want %v", *got["AAPL"], wantAAPL)
+	}
+
+	wantMSFT := time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC)
+	if !got["MSFT"].Equal(wantMSFT) {
+		t.Errorf("MSFT latest = %v, want %v", *got["MSFT"], wantMSFT)
+	}
+
+	if _, ok := got["GOOG"]; ok {
+		t.Error("GOOG should be omitted (no cached data)")
+	}
+}
+
+func TestMarketDataRepository_GetLatestPriceDatePerSymbol_Empty(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	got := repo.GetLatestPriceDatePerSymbol(context.Background(), []string{"NONEXISTENT"})
+	if len(got) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(got))
+	}
+}

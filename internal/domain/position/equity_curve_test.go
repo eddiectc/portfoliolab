@@ -89,6 +89,18 @@ func (m *mockHistoricalRepo) UpsertHistoricalPrices(_ context.Context, symbol st
 	return nil
 }
 
+func (m *mockHistoricalRepo) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
+	return nil, nil
+}
+
+func (m *mockHistoricalRepo) GetLatestQuotesBatch(context.Context, []string) map[string]*market.MarketData {
+	return nil
+}
+
+func (m *mockHistoricalRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
+	return nil
+}
+
 // --- Test helpers ---
 
 func testTime(year, month int, day int) time.Time {

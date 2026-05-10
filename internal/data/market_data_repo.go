@@ -123,6 +123,94 @@ func (r *MarketDataRepository) DeleteStaleMarketData(ctx context.Context, symbol
 	})
 }
 
+// GetHistoricalPricesBySymbol reads cached historical prices for one symbol
+// within [start, end], sorted by date ASC. Returns empty slice if no data found.
+func (r *MarketDataRepository) GetHistoricalPricesBySymbol(ctx context.Context, symbol string, start, end time.Time) ([]market.HistoricalPrice, error) {
+	rows, err := r.q.GetHistoricalPricesBySymbolAndRange(ctx, r.db, queries.GetHistoricalPricesBySymbolAndRangeParams{
+		Symbol: symbol,
+		Date:   start.Format("2006-01-02"),
+		Date_2: end.Format("2006-01-02"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get historical prices for %s: %w", symbol, err)
+	}
+
+	var prices []market.HistoricalPrice
+	for _, row := range rows {
+		// Historical dates are stored as YYYY-MM-DD, not RFC3339.
+		date, err := time.Parse("2006-01-02", row.Date)
+		if err != nil {
+			return nil, fmt.Errorf("parse date %q for %s: %w", row.Date, symbol, err)
+		}
+		price, err := decimal.Parse(row.Price)
+		if err != nil {
+			return nil, fmt.Errorf("parse price for %s on %s: %w", symbol, row.Date, err)
+		}
+		prices = append(prices, market.HistoricalPrice{
+			Date:     date,
+			Close:    price,
+			Currency: row.Currency,
+		})
+	}
+	return prices, nil
+}
+
+// GetLatestQuotesBatch reads the latest (date='') quote for multiple symbols.
+// Symbols with no cached quote are omitted from the result. This loops over
+// the single-symbol sqlc query because sqlc doesn't support dynamic IN clauses
+// for SQLite.
+func (r *MarketDataRepository) GetLatestQuotesBatch(ctx context.Context, symbols []string) map[string]*market.MarketData {
+	result := make(map[string]*market.MarketData)
+	for _, symbol := range symbols {
+		md, err := r.q.GetLatestQuote(ctx, r.db, symbol)
+		if err != nil {
+			// sql.ErrNoRows or other DB error — skip this symbol
+			continue
+		}
+		m, err := toMarketDatum(md)
+		if err != nil {
+			continue
+		}
+		result[symbol] = m
+	}
+	return result
+}
+
+// GetLatestPriceDatePerSymbol reads MAX(date) for stock data per symbol,
+// excluding current (date='') entries. Symbols with no cached history are
+// omitted from the result.
+func (r *MarketDataRepository) GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time {
+	result := make(map[string]*time.Time)
+	for _, symbol := range symbols {
+		row, err := r.q.GetLatestPriceDatePerSymbol(ctx, r.db, symbol)
+		if err != nil {
+			// sql.ErrNoRows or other DB error — skip this symbol
+			continue
+		}
+		// LatestDate is interface{} (can be nil if no rows match).
+		// SQLite's MAX() can return string or []byte depending on driver.
+		if row.LatestDate == nil {
+			continue
+		}
+		var dateStr string
+		switch v := row.LatestDate.(type) {
+		case string:
+			dateStr = v
+		case []byte:
+			dateStr = string(v)
+		default:
+			continue
+		}
+		// Dates are stored as YYYY-MM-DD.
+		date, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			continue
+		}
+		result[symbol] = &date
+	}
+	return result
+}
+
 // UpsertHistoricalPrices inserts or updates historical price entries for a
 // symbol. Each price is upserted individually using ON CONFLICT(symbol, source,
 // date). Errors on individual rows are logged but don't stop the batch.

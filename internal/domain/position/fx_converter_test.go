@@ -73,6 +73,18 @@ func (m *mockFxRepo) UpsertHistoricalPrices(_ context.Context, _symbol string, _
 	return nil
 }
 
+func (m *mockFxRepo) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
+	return nil, nil
+}
+
+func (m *mockFxRepo) GetLatestQuotesBatch(context.Context, []string) map[string]*market.MarketData {
+	return nil
+}
+
+func (m *mockFxRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
+	return nil
+}
+
 type mockFxFetcher struct {
 	rates map[string]*market.FxRate // keyed by "base,quote"
 	err   error
