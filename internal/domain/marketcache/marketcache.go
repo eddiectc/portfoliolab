@@ -507,8 +507,10 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 				m.logger.Debug("gap-fill: no cache, scheduling full fetch", "symbol", sym, "fromDate", fromDate.Format("2006-01-02"))
 			}
 		} else if latestDate.Before(tradingDayBeforeOrOn(now)) {
-			// Cache exists but not current — fetch from (latest + 1 day) to now.
-			fetchStart = latestDate.AddDate(0, 0, 1)
+			// Cache exists but not current — fetch from next trading day after
+			// the latest cached date to now. Skips weekends so Yahoo actually
+			// has data for the requested range.
+			fetchStart = nextTradingDay(*latestDate)
 			if m.logger != nil {
 				m.logger.Debug("gap-fill: cache stale, scheduling gap fetch", "symbol", sym, "latestCached", latestDate.Format("2006-01-02"), "fetchStart", fetchStart.Format("2006-01-02"))
 			}
@@ -612,6 +614,15 @@ func tradingDayBeforeOrOn(t time.Time) time.Time {
 	d := t
 	for d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
 		d = d.AddDate(0, 0, -1)
+	}
+	return d
+}
+
+// nextTradingDay returns the next day after t that is not Saturday or Sunday.
+func nextTradingDay(t time.Time) time.Time {
+	d := t.AddDate(0, 0, 1)
+	for d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+		d = d.AddDate(0, 0, 1)
 	}
 	return d
 }
