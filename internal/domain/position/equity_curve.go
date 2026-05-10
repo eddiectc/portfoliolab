@@ -291,22 +291,26 @@ func filterByDateRange(txns []transaction.Transaction, dateFrom, dateTo time.Tim
 // portfolio state (positions, cash, net deposit) at each unique date.
 // Also returns the final state (after all transactions) for extending
 // the equity curve beyond the last transaction date.
+//
+// Position quantity tracking is delegated to WalkPositionQuantities,
+// the shared single source of truth. walkTransactions adds cash balance
+// and net deposit tracking on top.
 // Transactions are assumed to be sorted by date ASC, then ID ASC.
 func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnapshot) {
-	var snapshots []dateSnapshot
+	// Shared position quantity tracking — single source of truth.
+	positionSnaps := WalkPositionQuantities(txns)
+	finalQuantities := FinalPositionQuantities(txns)
 
-	positions := make(map[string]decimal.Decimal)
+	// Walk transactions again for cash/net-deposit, aligning with position snapshots.
+	var snapshots []dateSnapshot
 	positionCurrency := make(map[string]string)
 	cashBalance := make(map[string]decimal.Decimal)
 	netDeposit := make(map[string]decimal.Decimal)
 
+	snapIdx := 0
 	for i, txn := range txns {
-		// Update position quantities for buy/sell.
-		// Transaction quantities are signed: positive for buys, negative for sells.
-		// Just add directly — the sign is already correct.
+		// Track currency per symbol.
 		if txn.Type == "buy" || txn.Type == "sell" {
-			qty, _ := positions[txn.Symbol].Add(txn.Quantity)
-			positions[txn.Symbol] = qty
 			positionCurrency[txn.Symbol] = txn.Currency
 		}
 
@@ -320,21 +324,23 @@ func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnaps
 			netDeposit[txn.Currency] = dep
 		}
 
-		// Take snapshot at end of each date.
+		// Take snapshot at end of each date, using position quantities
+		// from the shared WalkPositionQuantities.
 		isLastForDate := i == len(txns)-1 || txns[i+1].Date.After(txn.Date)
-		if isLastForDate {
+		if isLastForDate && snapIdx < len(positionSnaps) {
 			snapshots = append(snapshots, dateSnapshot{
-				date:             txn.Date,
-				positions:        copyDecimalMap(positions),
+				date:             positionSnaps[snapIdx].Date,
+				positions:        positionSnaps[snapIdx].Quantities,
 				positionCurrency: copyStringMap(positionCurrency),
 				cashBalance:      copyDecimalMap(cashBalance),
 				netDeposit:       copyDecimalMap(netDeposit),
 			})
+			snapIdx++
 		}
 	}
 
 	return snapshots, dateSnapshot{
-		positions:        copyDecimalMap(positions),
+		positions:        finalQuantities,
 		positionCurrency: copyStringMap(positionCurrency),
 		cashBalance:      copyDecimalMap(cashBalance),
 		netDeposit:       copyDecimalMap(netDeposit),
