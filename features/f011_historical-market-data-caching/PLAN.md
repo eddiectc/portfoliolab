@@ -139,15 +139,15 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
 
 **Description:** Change `ComputeEquityCurve` in `position.Service` to read historical prices from the DB cache instead of fetching live from Yahoo Finance.
 
-- [ ] In `internal/domain/position/equity_curve.go`, modify the price-fetching step:
+- [x] In `internal/domain/position/equity_curve.go`, modify the price-fetching step:
   - Replace `s.marketFetcher.FetchHistoricalPricesBatch(ctx, symbols, dateFrom, dateTo)` with a loop calling `s.marketDataRepo.GetHistoricalPricesBySymbol(ctx, sym, dateFrom, dateTo)` for each symbol
   - Build the same `pricesBySymbol` map from cached data
-- [ ] Add staleness detection:
+- [x] Add staleness detection:
   - After reading cache, check which symbols have no data in the requested range
   - For symbols with data, check if the latest cached date is >1 trading day old using `GetLatestPriceDatePerSymbol`
   - Add warnings: `"stale market data for SYMBOL (last updated X days ago)"` and `"missing market data for SYMBOL"`
-- [ ] Remove the live fetch and upsert logic (no longer needed — MarketCache handles that)
-- [ ] Update unit tests in `equity_curve_test.go`:
+- [x] Remove the live fetch and upsert logic (no longer needed — MarketCache handles that)
+- [x] Update unit tests in `equity_curve_test.go`:
   - Mock `GetHistoricalPricesBySymbol` to return cached data
   - Mock `GetLatestPriceDatePerSymbol` for staleness checks
   - Verify staleness warnings appear correctly
