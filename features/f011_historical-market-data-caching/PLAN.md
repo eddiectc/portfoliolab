@@ -69,7 +69,7 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
 
 **Description:** New package `internal/domain/marketcache` with a service that orchestrates background fetching of historical prices and FX rates.
 
-- [ ] Create `internal/domain/marketcache/marketcache.go`:
+- [x] Create `internal/domain/marketcache/marketcache.go`:
   - `MarketCache` struct with: fetcher (`market.MarketDataFetcher`), repo (`MarketDataRepository`), discoverer (`SymbolDiscoverer`), logger, in-memory status (mutex-protected)
   - `SymbolDiscoverer` interface (implemented by position package):
     - `ActiveSymbols(ctx) (map[string]time.Time, error)` — symbols with **open** positions → need current quotes + historical (value: earliest transaction date)
@@ -83,7 +83,7 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
   - `RefreshAll(ctx context.Context)` — triggers full refresh of all symbols; sets `refreshAllInProgress` flag
   - `GetStatus() CacheStatus` — returns aggregate status: last refresh time, refresh in progress, failed symbols count
   - `CacheStatus` struct: `LastRefresh time.Time`, `Refreshing bool`, `FailedSymbols []string`, `TotalSymbols int`
-- [ ] Background worker:
+- [x] Background worker:
   - Channel-based: receives `fetchRequest{symbol, fromDate, isFx, fxPair}` structs
   - For each request: check in-progress set → skip if running → mark in-progress → fetch → store → clear in-progress
   - Fetch logic: call `FetchHistoricalPricesBatch(ctx, []string{symbol}, fromDate, now)` → `UpsertHistoricalPrices`
@@ -91,7 +91,7 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
   - Partial failure: successful symbols cached, failed symbols recorded in status
   - Full failure (provider unreachable): existing cache preserved, failure recorded
   - Non-trading days: Yahoo returns no bars for weekends/holidays → nothing stored (natural behavior)
-- [ ] Periodic refresh (ticker, every 2 minutes):
+- [x] Periodic refresh (ticker, every 2 minutes):
   - **Discover**: call `SymbolDiscoverer` to get active symbols, all symbols, and FX pairs with earliest dates
   - **Current quotes**: refresh `date=''` for active symbols (open positions only) and active FX pairs via `FetchQuotesBatch` → `Upsert`
   - **Historical gap-fill**: for all symbols (open + closed), compare earliest transaction date against cached date range → only fetch missing dates:
@@ -99,7 +99,7 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
     - Cache exists but latest cached date is before most recent trading day → fetch from (latest cached + 1 day) to now
     - Fully covered → skip
   - Skips historical gap-fill if a full manual refresh is already in progress (current quotes still refresh)
-- [ ] Create `internal/domain/marketcache/marketcache_test.go`:
+- [x] Create `internal/domain/marketcache/marketcache_test.go`:
   - Table-driven tests with hand-written mocks for fetcher and repo
   - Test: ScheduleSymbolFetch triggers a fetch
   - Test: Concurrent fetch protection (second request for same symbol ignored)
