@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -139,6 +140,27 @@ func (m *mockHistoricalRepo) GetLatestPriceDatePerSymbol(_ context.Context, symb
 		}
 	}
 	return result
+}
+
+// mockEqMarketService wraps mockHistoricalRepo to implement MarketDataService.
+type mockEqMarketService struct {
+	repo *mockHistoricalRepo
+}
+
+func (m *mockEqMarketService) GetQuotes(_ context.Context, _ []string) map[string]*market.MarketData {
+	return nil
+}
+
+func (m *mockEqMarketService) GetHistoricalPrices(_ context.Context, symbol string, _, _ time.Time) ([]market.HistoricalPrice, error) {
+	return m.repo.GetHistoricalPricesBySymbol(context.Background(), symbol, time.Time{}, time.Time{})
+}
+
+func (m *mockEqMarketService) GetLatestPriceDatePerSymbol(_ context.Context, symbols []string) map[string]*time.Time {
+	return m.repo.GetLatestPriceDatePerSymbol(context.Background(), symbols)
+}
+
+func (m *mockEqMarketService) RefreshQuotes(_ context.Context, _ []string) marketservice.RefreshResult {
+	return marketservice.RefreshResult{}
 }
 
 // --- Test helpers ---
@@ -651,7 +673,7 @@ func TestComputeEquityCurve_HappyPath(t *testing.T) {
 		histPrice(testTime(2024, 2, 15), 15000, "USD"),
 		histPrice(testTime(2024, 3, 15), 17000, "USD"),
 	})
-	svc.WithMarketDataFetcher(nil, repo, nil)
+	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),
@@ -721,7 +743,7 @@ func TestComputeEquityCurve_MissingMarketData(t *testing.T) {
 
 	// No cached data for AAPL.
 	repo := newMockHistoricalRepo()
-	svc.WithMarketDataFetcher(nil, repo, nil)
+	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),
@@ -984,7 +1006,7 @@ func TestComputeEquityCurve_StaleDataWarning(t *testing.T) {
 	})
 	// Override latest date to be old.
 	repo.SetLatestDate("AAPL", oldDate)
-	svc.WithMarketDataFetcher(nil, repo, nil)
+	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),
@@ -1027,7 +1049,7 @@ func TestComputeEquityCurve_PartialCache(t *testing.T) {
 	// Set AAPL's latest date to today so it doesn't trigger a stale warning.
 	now := time.Now().UTC()
 	repo.SetLatestDate("AAPL", now)
-	svc.WithMarketDataFetcher(nil, repo, nil)
+	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),

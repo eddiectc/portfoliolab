@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -237,6 +238,41 @@ func (m *mockMarketDataRepoForPerf) GetLatestPriceDatePerSymbol(context.Context,
 	return nil
 }
 
+// mockPerfMarketService wraps mockMarketFetcherForPerf + mockMarketDataRepoForPerf.
+type mockPerfMarketService struct {
+	fetcher *mockMarketFetcherForPerf
+	repo    *mockMarketDataRepoForPerf
+}
+
+func (m *mockPerfMarketService) GetQuotes(_ context.Context, symbols []string) map[string]*market.MarketData {
+	return m.repo.GetLatestQuotesBatch(context.Background(), symbols)
+}
+
+func (m *mockPerfMarketService) GetHistoricalPrices(_ context.Context, symbol string, start, end time.Time) ([]market.HistoricalPrice, error) {
+	return m.repo.GetHistoricalPricesBySymbol(context.Background(), symbol, start, end)
+}
+
+func (m *mockPerfMarketService) GetLatestPriceDatePerSymbol(_ context.Context, symbols []string) map[string]*time.Time {
+	return m.repo.GetLatestPriceDatePerSymbol(context.Background(), symbols)
+}
+
+func (m *mockPerfMarketService) RefreshQuotes(_ context.Context, symbols []string) marketservice.RefreshResult {
+	quotes := m.fetcher.FetchQuotesBatch(context.Background(), symbols)
+	var refreshed, failed []string
+	for _, sym := range symbols {
+		if quote, found := quotes[sym]; found {
+			if err := m.repo.Upsert(context.Background(), quote); err != nil {
+				failed = append(failed, sym)
+				continue
+			}
+			refreshed = append(refreshed, sym)
+		} else {
+			failed = append(failed, sym)
+		}
+	}
+	return marketservice.RefreshResult{Refreshed: refreshed, Failed: failed}
+}
+
 // --- Test helpers ---
 
 func perfTxn(accountID int64, date time.Time, typ, symbol, currency string, qty, price, netCash int64) transaction.Transaction {
@@ -284,7 +320,7 @@ func newPerfService(accountIDs []int64, portfolioIDs []int64) (*position.Service
 		nil, // no portfolio currency checker
 		nil, // no FX provider
 	)
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockPerfMarketService{fetcher: fetcher, repo: repo}, nil)
 
 	return svc, txnRepo, accountLister, fetcher, repo
 }

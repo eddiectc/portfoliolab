@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -106,6 +107,41 @@ func (m *mockRefreshRepo) GetLatestQuotesBatch(context.Context, []string) map[st
 
 func (m *mockRefreshRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
 	return nil
+}
+
+// mockRefreshMarketService wraps mockRefreshFetcher + mockRefreshRepo to implement MarketDataService.
+type mockRefreshMarketService struct {
+	fetcher *mockRefreshFetcher
+	repo    *mockRefreshRepo
+}
+
+func (m *mockRefreshMarketService) GetQuotes(_ context.Context, _ []string) map[string]*market.MarketData {
+	return nil
+}
+
+func (m *mockRefreshMarketService) GetHistoricalPrices(_ context.Context, _ string, _, _ time.Time) ([]market.HistoricalPrice, error) {
+	return nil, nil
+}
+
+func (m *mockRefreshMarketService) GetLatestPriceDatePerSymbol(_ context.Context, _ []string) map[string]*time.Time {
+	return nil
+}
+
+func (m *mockRefreshMarketService) RefreshQuotes(_ context.Context, symbols []string) marketservice.RefreshResult {
+	quotes := m.fetcher.FetchQuotesBatch(context.Background(), symbols)
+	var refreshed, failed []string
+	for _, sym := range symbols {
+		if quote, found := quotes[sym]; found {
+			if err := m.repo.Upsert(context.Background(), quote); err != nil {
+				failed = append(failed, sym)
+				continue
+			}
+			refreshed = append(refreshed, sym)
+		} else {
+			failed = append(failed, sym)
+		}
+	}
+	return marketservice.RefreshResult{Refreshed: refreshed, Failed: failed}
 }
 
 // mockRefreshAccountLister simulates account listing for refresh tests.
@@ -284,8 +320,7 @@ func TestRefreshMarketData_Success(t *testing.T) {
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketFetcher:  fetcher,
-		marketDataRepo: repo,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
@@ -352,8 +387,7 @@ func TestRefreshMarketData_PartialFailure(t *testing.T) {
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketFetcher:  fetcher,
-		marketDataRepo: repo,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
@@ -392,8 +426,7 @@ func TestRefreshMarketData_EmptyPortfolio(t *testing.T) {
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketFetcher:  fetcher,
-		marketDataRepo: repo,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
@@ -463,8 +496,7 @@ func TestRefreshMarketData_MultiCurrency(t *testing.T) {
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketFetcher:  fetcher,
-		marketDataRepo: repo,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 		fxProvider:     fxProvider,
 	}
 
@@ -509,8 +541,7 @@ func TestRefreshMarketData_OpenPositionsOnly(t *testing.T) {
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketFetcher:  fetcher,
-		marketDataRepo: repo,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
@@ -525,7 +556,6 @@ func TestRefreshMarketData_OpenPositionsOnly(t *testing.T) {
 }
 
 func TestRefreshMarketData_NoMarketFetcher(t *testing.T) {
-	repo := newMockRefreshRepo()
 	txnRepo := newMockRefreshTxnRepo()
 	txnRepo.Add(1, transaction.Transaction{
 		AccountID: 1, Date: testTime(2025, 1, 15), Type: "buy",
@@ -540,11 +570,10 @@ func TestRefreshMarketData_NoMarketFetcher(t *testing.T) {
 	posRepo := &mockRefreshPositionRepo{}
 
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
-		// No marketFetcher set
-		marketDataRepo: repo,
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
+		// No marketService set
 	}
 
 	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
@@ -594,8 +623,7 @@ func TestRefreshMarketData_PeriodFilter(t *testing.T) {
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketFetcher:  fetcher,
-		marketDataRepo: repo,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	// Use 1M period — should only pick up TSLA from transactions
@@ -646,8 +674,7 @@ func TestRefreshMarketData_PortfolioFilter(t *testing.T) {
 		positions:      posRepo,
 		transactions:   txnRepo,
 		accountLister:  accountLister,
-		marketFetcher:  fetcher,
-		marketDataRepo: repo,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{PortfolioID: &portfolioID})

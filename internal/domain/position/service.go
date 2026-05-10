@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -60,6 +61,16 @@ type PortfolioCurrencyChecker interface {
 	GetPortfolioCurrency(ctx context.Context, portfolioID int64) (string, error)
 }
 
+// MarketDataService abstracts market data retrieval for stock quotes and
+// historical prices. Consumers don't know whether data comes from cache or
+// a live fetch.
+type MarketDataService interface {
+	GetQuotes(ctx context.Context, symbols []string) map[string]*market.MarketData
+	GetHistoricalPrices(ctx context.Context, symbol string, start, end time.Time) ([]market.HistoricalPrice, error)
+	GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time
+	RefreshQuotes(ctx context.Context, symbols []string) marketservice.RefreshResult
+}
+
 // --- Service errors ---
 
 var (
@@ -79,8 +90,7 @@ type Service struct {
 	accountLister            AccountLister
 	portfolioCurrencyChecker PortfolioCurrencyChecker
 	fxProvider               FxRateProvider
-	marketFetcher            market.MarketDataFetcher
-	marketDataRepo           MarketDataRepository
+	marketService            MarketDataService
 	logger                   *slog.Logger
 }
 
@@ -105,12 +115,11 @@ func NewService(
 	}
 }
 
-// WithMarketDataFetcher sets the market data fetcher and repository for
-// enriching open positions with live market data. Both must be non-nil.
-// If either is nil, market data enrichment is disabled.
-func (s *Service) WithMarketDataFetcher(fetcher market.MarketDataFetcher, repo MarketDataRepository, logger *slog.Logger) {
-	s.marketFetcher = fetcher
-	s.marketDataRepo = repo
+// WithMarketDataService sets the market data service for enriching open
+// positions with market data and refreshing quotes. If nil, market data
+// enrichment and refresh are disabled.
+func (s *Service) WithMarketDataService(marketService MarketDataService, logger *slog.Logger) {
+	s.marketService = marketService
 	s.logger = logger
 }
 
@@ -500,8 +509,8 @@ func (s *Service) GetLotInfo(ctx context.Context, lotID string) (*transaction.Lo
 // Market data is read from the cache (populated by the MarketCache background
 // service) rather than fetched live.
 func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position, baseCurrency string) []PositionWithMarket {
-	if s.marketDataRepo == nil {
-		// No market data repository configured — return positions with no market data.
+	if s.marketService == nil {
+		// No market data service configured — return positions with no market data.
 		result := make([]PositionWithMarket, len(positions))
 		for i, p := range positions {
 			result[i] = PositionWithMarket{
@@ -529,7 +538,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 	// Read cached quotes for all unique symbols.
 	quotes := make(map[string]*market.MarketData)
 	if len(symbols) > 0 {
-		quotes = s.marketDataRepo.GetLatestQuotesBatch(ctx, symbols)
+		quotes = s.marketService.GetQuotes(ctx, symbols)
 	}
 
 	result := make([]PositionWithMarket, len(positions))

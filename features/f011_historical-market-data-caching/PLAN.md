@@ -17,6 +17,8 @@ Task 4 (equity curve)   Task 5 (positions)    Task 6 (hooks + startup)
           ↓                   ↓                   ↓
           └───────────────────┼───────────────────┘
                               ↓
+Task 5.5 (MarketDataService abstraction)
+                              ↓
 Task 7 (API endpoints) ←─────┘
                               ↓
 Task 8 (web UI)
@@ -24,7 +26,7 @@ Task 8 (web UI)
 Task 9 (router wiring)
 ```
 
-Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integration.
+Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache access pattern. Tasks 7 and 8 are sequential integration.
 
 ## Tasks
 
@@ -174,6 +176,35 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
   - Verify missing quotes handled gracefully (MarketDataAvailable=false)
 
 **Verification:** Positions page enriches from cached quotes; no external API calls during rendering.
+
+---
+
+### Task 5.5: MarketDataService abstraction [PRIORITY: HIGH]
+
+**Corresponds to:** All scenarios (foundational abstraction)
+
+**Description:** Create a `MarketDataService` in `internal/domain/marketservice/` that centralizes market data retrieval (quotes, historical prices, refresh) so consumer services don't know whether data comes from cache or live fetch.
+
+- [x] Create `internal/domain/marketservice/marketservice.go` with:
+  - `Service` struct holding `MarketDataFetcher` and `MarketDataRepository`
+  - `GetQuotes(ctx, symbols)` — reads latest quotes from cache
+  - `GetHistoricalPrices(ctx, symbol, start, end)` — reads cached historical prices
+  - `GetLatestPriceDatePerSymbol(ctx, symbols)` — reads latest cached dates per symbol
+  - `RefreshQuotes(ctx, symbols)` — fetches live quotes and upserts to cache, returns `RefreshResult` (succeeded/failed symbols)
+  - `RefreshResult` struct with `Refreshed []string` and `Failed []string`
+- [x] Create `internal/domain/marketservice/marketservice_test.go` with comprehensive tests:
+  - GetQuotes from cache, no repo, empty symbols
+  - GetHistoricalPrices from cache, no data, no repo
+  - GetLatestPriceDatePerSymbol, no repo
+  - RefreshQuotes success, partial failure, no fetcher, empty symbols, upsert error
+- [x] Update `position.Service` to depend on `MarketDataService` interface instead of `marketFetcher` + `marketDataRepo`:
+  - Replace `marketFetcher` and `marketDataRepo` fields with `marketService`
+  - Rename `WithMarketDataFetcher()` → `WithMarketDataService()`
+  - Update `EnrichWithMarketData`, `ComputeEquityCurve`, `RefreshMarketData` to use `marketService`
+- [x] Update `router.go` to instantiate `marketservice.New(fetcher, repo)` and wire it
+- [x] Update all tests across `position/`, `api/handlers/` to use mock `MarketDataService`
+
+**Verification:** `go build ./...` and `go test -short ./...` pass; all consumers use the abstraction.
 
 ---
 

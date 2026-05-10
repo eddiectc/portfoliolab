@@ -11,6 +11,7 @@ import (
 
 	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
@@ -749,28 +750,18 @@ func TestGetLotInfo(t *testing.T) {
 
 // --- Mocks for market data ---
 
-type mockMarketDataFetcher struct {
-	quotes map[string]*market.MarketData
-	err    error
+// mockMarketDataService implements MarketDataService for tests.
+type mockMarketDataService struct {
+	quotes        map[string]*market.MarketData
+	historical    map[string][]market.HistoricalPrice
+	latestDates   map[string]*time.Time
+	refreshed     []string
+	refreshFailed []string
 }
 
-func (m *mockMarketDataFetcher) FetchQuote(_ context.Context, symbol string) (*market.MarketData, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	if q, ok := m.quotes[symbol]; ok {
-		return q, nil
-	}
-	return nil, fmt.Errorf("no quote for %s", symbol)
-}
-
-func (m *mockMarketDataFetcher) FetchFxRate(_ context.Context, _, _ string) (*market.MarketData, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockMarketDataFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
+func (m *mockMarketDataService) GetQuotes(_ context.Context, symbols []string) map[string]*market.MarketData {
 	result := make(map[string]*market.MarketData)
-	if m.err != nil {
+	if m.quotes == nil {
 		return result
 	}
 	for _, sym := range symbols {
@@ -781,60 +772,43 @@ func (m *mockMarketDataFetcher) FetchQuotesBatch(_ context.Context, symbols []st
 	return result
 }
 
-func (m *mockMarketDataFetcher) FetchHistoricalPricesBatch(_ context.Context, _ []string, _, _ time.Time) (map[string][]market.HistoricalPrice, []string) {
-	return nil, nil
-}
-
-type mockMarketDataRepo struct {
-	// cachedQuotes holds pre-populated quotes returned by GetLatestQuotesBatch.
-	cachedQuotes map[string]*market.MarketData
-	upserted     []*market.MarketData
-	upsertErr    error
-}
-
-func (m *mockMarketDataRepo) GetLatest(_ context.Context, _ string) (*market.MarketData, error) {
-	return nil, nil
-}
-
-func (m *mockMarketDataRepo) GetBySourceAndDate(_ context.Context, _, _, _ string) (*market.MarketData, error) {
-	return nil, nil
-}
-
-func (m *mockMarketDataRepo) Upsert(_ context.Context, md *market.MarketData) error {
-	if m.upsertErr != nil {
-		return m.upsertErr
+func (m *mockMarketDataService) GetHistoricalPrices(_ context.Context, symbol string, _, _ time.Time) ([]market.HistoricalPrice, error) {
+	if m.historical == nil {
+		return nil, nil
 	}
-	m.upserted = append(m.upserted, md)
-	return nil
+	prices, ok := m.historical[symbol]
+	if !ok {
+		return nil, nil
+	}
+	return prices, nil
 }
 
-func (m *mockMarketDataRepo) GetCurrentFxRate(_ context.Context, _, _ string) (*market.MarketData, error) {
-	return nil, nil
-}
-
-func (m *mockMarketDataRepo) UpsertHistoricalPrices(_ context.Context, _ string, _ []market.HistoricalPrice, _ string) error {
-	return nil
-}
-
-func (m *mockMarketDataRepo) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
-	return nil, nil
-}
-
-func (m *mockMarketDataRepo) GetLatestQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
-	result := make(map[string]*market.MarketData)
-	if m.cachedQuotes == nil {
+func (m *mockMarketDataService) GetLatestPriceDatePerSymbol(_ context.Context, symbols []string) map[string]*time.Time {
+	result := make(map[string]*time.Time)
+	if m.latestDates == nil {
 		return result
 	}
 	for _, sym := range symbols {
-		if q, ok := m.cachedQuotes[sym]; ok {
-			result[sym] = q
+		if t, ok := m.latestDates[sym]; ok {
+			result[sym] = t
 		}
 	}
 	return result
 }
 
-func (m *mockMarketDataRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
-	return nil
+func (m *mockMarketDataService) RefreshQuotes(_ context.Context, symbols []string) marketservice.RefreshResult {
+	// Simulate: all symbols succeed if quotes are available, fail otherwise.
+	var refreshed, failed []string
+	for _, sym := range symbols {
+		if m.quotes != nil && m.quotes[sym] != nil {
+			refreshed = append(refreshed, sym)
+		} else {
+			failed = append(failed, sym)
+		}
+	}
+	m.refreshed = refreshed
+	m.refreshFailed = failed
+	return marketservice.RefreshResult{Refreshed: refreshed, Failed: failed}
 }
 
 // --- EnrichWithMarketData tests ---
@@ -876,9 +850,7 @@ func TestEnrichWithMarketData_CashPosition(t *testing.T) {
 		nil, nil,
 	)
 
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: nil}, nil)
 
 	positions := []Position{
 		{ID: 1, AccountID: 1, Symbol: "$CASH-USD", Quantity: decimal.MustNew(50000, 2), CostBasis: decimal.MustNew(0, 2)},
@@ -918,13 +890,9 @@ func TestEnrichWithMarketData_Success(t *testing.T) {
 
 	// AAPL quote at 170.00 — pre-populated in cache.
 	price := decimal.MustNew(17000, 2)
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD", DataType: "stock", Source: "yahoo"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD", DataType: "stock", Source: "yahoo"},
+	}}, nil)
 
 	// Quantity 10.00, CostBasis -15000.00 (total cost of 15000.00)
 	positions := []Position{
@@ -971,9 +939,7 @@ func TestEnrichWithMarketData_MissingCachedQuote(t *testing.T) {
 	)
 
 	// Cache has no data for AAPL.
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{cachedQuotes: map[string]*market.MarketData{}}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: nil}, nil)
 
 	positions := []Position{
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
@@ -1000,13 +966,9 @@ func TestEnrichWithMarketData_MultiplePositions(t *testing.T) {
 	)
 
 	// Cache has AAPL but not MSFT.
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17000, 2), Currency: "USD", DataType: "stock"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17000, 2), Currency: "USD", DataType: "stock"},
+	}}, nil)
 
 	positions := []Position{
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-1500000, 2)},
@@ -1047,13 +1009,9 @@ func TestEnrichWithMarketData_GbpConversion(t *testing.T) {
 	// UK stock quoted in GBp (pence) — Yahoo returns price in pence.
 	// ARCI.L at 350 GBp = 3.50 GBP.
 	gbpPrice := decimal.MustNew(35000, 2) // 350.00 GBp
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"ARCI.L": {Symbol: "ARCI.L", Price: gbpPrice, Currency: "GBp", DataType: "stock", Source: "yahoo"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"ARCI.L": {Symbol: "ARCI.L", Price: gbpPrice, Currency: "GBp", DataType: "stock", Source: "yahoo"},
+	}}, nil)
 
 	// Quantity 100, CostBasis -350.00 GBP (bought at 3.50 GBP/share).
 	positions := []Position{
@@ -1100,13 +1058,9 @@ func TestEnrichWithMarketData_GbpNotConvertedForNonGbpPosition(t *testing.T) {
 	// If the position currency is NOT GBP but the quote is GBp,
 	// the price should NOT be divided (no conversion applied).
 	gbpPrice := decimal.MustNew(35000, 2) // 350.00 GBp
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"ARCI.L": {Symbol: "ARCI.L", Price: gbpPrice, Currency: "GBp", DataType: "stock", Source: "yahoo"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"ARCI.L": {Symbol: "ARCI.L", Price: gbpPrice, Currency: "GBp", DataType: "stock", Source: "yahoo"},
+	}}, nil)
 
 	positions := []Position{
 		{ID: 1, AccountID: 1, Symbol: "ARCI.L", Currency: "USD",
@@ -1260,14 +1214,10 @@ func TestGetOpenPositionsSummary_SumsAllPositions(t *testing.T) {
 	})
 
 	// Wire cached market data so enrichment works.
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	marketRepo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(11000, 2), Currency: "USD"},
-			"MSFT": {Symbol: "MSFT", Price: decimal.MustNew(22000, 2), Currency: "USD"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, marketRepo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(11000, 2), Currency: "USD"},
+		"MSFT": {Symbol: "MSFT", Price: decimal.MustNew(22000, 2), Currency: "USD"},
+	}}, nil)
 
 	summary, err := svc.GetOpenPositionsSummary(ctx, ListFilters{}, "USD")
 	if err != nil {
@@ -1316,8 +1266,7 @@ func TestGetOpenPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) {
 		sym := fmt.Sprintf("SYM%02d", i)
 		cachedQuotes[sym] = &market.MarketData{Symbol: sym, Price: decimal.MustNew(10000, 2), Currency: "USD"}
 	}
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	svc.WithMarketDataFetcher(fetcher, &mockMarketDataRepo{cachedQuotes: cachedQuotes}, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: cachedQuotes}, nil)
 
 	// Fetch only 10 positions (page 1) — should NOT affect the summary.
 	_, err := svc.GetOpenPositionsFiltered(ctx, ListFilters{}, 10, 0)
@@ -1354,13 +1303,9 @@ func TestUnrealizedPnlPct_PositivePnl(t *testing.T) {
 	// UnrealizedPnL = 1200.00 + (-1000.00) = 200.00
 	// PnlPct = 200 / 1000 × 100 = 20.00%
 	price := decimal.MustNew(12000, 2)
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
+	}}, nil)
 
 	positions := []Position{
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-100000, 2)},
@@ -1392,13 +1337,9 @@ func TestUnrealizedPnlPct_NegativePnl(t *testing.T) {
 	// UnrealizedPnL = 800.00 + (-1000.00) = -200.00
 	// PnlPct = -200 / 1000 × 100 = -20.00%
 	price := decimal.MustNew(8000, 2)
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
+	}}, nil)
 
 	positions := []Position{
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-100000, 2)},
@@ -1430,13 +1371,9 @@ func TestUnrealizedPnlPct_ZeroPnl(t *testing.T) {
 	// UnrealizedPnL = 1000.00 + (-1000.00) = 0.00
 	// PnlPct = 0 / 1000 × 100 = 0.00%
 	price := decimal.MustNew(10000, 2)
-	fetcher := &mockMarketDataFetcher{quotes: map[string]*market.MarketData{}}
-	repo := &mockMarketDataRepo{
-		cachedQuotes: map[string]*market.MarketData{
-			"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
-		},
-	}
-	svc.WithMarketDataFetcher(fetcher, repo, nil)
+	svc.WithMarketDataService(&mockMarketDataService{quotes: map[string]*market.MarketData{
+		"AAPL": {Symbol: "AAPL", Price: price, Currency: "USD"},
+	}}, nil)
 
 	positions := []Position{
 		{ID: 1, AccountID: 1, Symbol: "AAPL", Quantity: decimal.MustNew(1000, 2), CostBasis: decimal.MustNew(-100000, 2)},

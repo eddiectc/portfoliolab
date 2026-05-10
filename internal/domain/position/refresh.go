@@ -70,26 +70,14 @@ func (s *Service) RefreshMarketData(ctx context.Context, filters PerformanceFilt
 	// Deduplicate symbols.
 	symbols = deduplicateStrings(symbols)
 
-	// 7. Fetch current quotes for all symbols.
+	// 7. Refresh current quotes for all symbols via the market data service.
 	var symbolsRefreshed []string
 	var failedSymbols []string
 
-	if len(symbols) > 0 && s.marketFetcher != nil {
-		quotes := s.marketFetcher.FetchQuotesBatch(ctx, symbols)
-		for _, sym := range symbols {
-			if quote, found := quotes[sym]; found {
-				if s.marketDataRepo != nil {
-					if cacheErr := s.marketDataRepo.Upsert(ctx, quote); cacheErr != nil {
-						if s.logger != nil {
-							s.logger.Debug("failed to cache quote", "symbol", sym, "error", cacheErr)
-						}
-					}
-				}
-				symbolsRefreshed = append(symbolsRefreshed, sym)
-			} else {
-				failedSymbols = append(failedSymbols, sym)
-			}
-		}
+	if len(symbols) > 0 && s.marketService != nil {
+		result := s.marketService.RefreshQuotes(ctx, symbols)
+		symbolsRefreshed = result.Refreshed
+		failedSymbols = result.Failed
 	}
 
 	// 8. Determine currencies that need FX conversion.
