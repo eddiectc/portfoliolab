@@ -181,8 +181,12 @@ func (m *MarketCache) ScheduleFxPairFetch(baseCurrency, quoteCurrency string, fr
 }
 
 // RefreshAll triggers a full refresh of all symbols and FX pairs. It runs in
-// the background and returns immediately.
-func (m *MarketCache) RefreshAll(ctx context.Context) {
+// the background and returns immediately. Uses the cache's internal context
+// (not the caller's) so it survives after the HTTP request ends.
+func (m *MarketCache) RefreshAll(_ context.Context) {
+	if m.logger != nil {
+		m.logger.Info("refresh-all: triggered")
+	}
 	m.mu.Lock()
 	m.refreshAllInProgress = true
 	m.mu.Unlock()
@@ -195,7 +199,7 @@ func (m *MarketCache) RefreshAll(ctx context.Context) {
 			m.mu.Unlock()
 		}()
 
-		m.doRefreshAll(ctx)
+		m.doRefreshAll(m.ctx)
 	}()
 }
 
@@ -529,6 +533,10 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 	activeSymbols, _ := m.discoverer.ActiveSymbols(ctx)
 	activeFxPairs, _ := m.discoverer.ActiveFxPairs(ctx)
 
+	if m.logger != nil {
+		m.logger.Info("refresh-all: discovered symbols", "allSymbols", len(allSymbols), "activeSymbols", len(activeSymbols), "activeFxPairs", len(activeFxPairs))
+	}
+
 	// Refresh current quotes for active symbols.
 	if len(activeSymbols) > 0 {
 		symbols := make([]string, 0, len(activeSymbols))
@@ -572,6 +580,10 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 		m.mu.Lock()
 		delete(m.inProgress, pair)
 		m.mu.Unlock()
+	}
+
+	if m.logger != nil {
+		m.logger.Info("refresh-all: completed")
 	}
 }
 
