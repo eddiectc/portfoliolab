@@ -176,8 +176,10 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 				"points", len(points),
 				"firstDate", points[0].Date.Format("2006-01-02"),
 				"firstValue", points[0].PortfolioValue.String(),
+				"firstNetDeposit", points[0].NetDeposit.String(),
 				"lastDate", points[len(points)-1].Date.Format("2006-01-02"),
 				"lastValue", points[len(points)-1].PortfolioValue.String(),
+				"lastNetDeposit", points[len(points)-1].NetDeposit.String(),
 			)
 		}
 	}
@@ -483,14 +485,10 @@ func buildEquityCurvePoints(
 		first := points[0]
 		last := points[len(points)-1]
 		if logger != nil {
-			logger.Debug("performance: equity curve built",
-				"points", len(points),
+			logger.Debug("performance: buildEquityCurvePoints done",
+				"snapshots", len(points),
 				"firstDate", first.Date.Format("2006-01-02"),
-				"firstValue", first.PortfolioValue.String(),
-				"firstNetDeposit", first.NetDeposit.String(),
 				"lastDate", last.Date.Format("2006-01-02"),
-				"lastValue", last.PortfolioValue.String(),
-				"lastNetDeposit", last.NetDeposit.String(),
 			)
 		}
 	}
