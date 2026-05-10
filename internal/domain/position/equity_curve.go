@@ -90,7 +90,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		// Upsert fetched prices into market_data table.
 		if s.marketDataRepo != nil {
 			for sym, prices := range pricesBySymbol {
-				if upsertErr := s.marketDataRepo.UpsertHistoricalPrices(ctx, sym, prices); upsertErr != nil {
+				if upsertErr := s.marketDataRepo.UpsertHistoricalPrices(ctx, sym, prices, "stock"); upsertErr != nil {
 					if s.logger != nil {
 						s.logger.Debug("failed to upsert historical prices", "symbol", sym, "error", upsertErr)
 					}

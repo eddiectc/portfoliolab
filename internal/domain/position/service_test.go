@@ -810,7 +810,7 @@ func (m *mockMarketDataRepo) GetCurrentFxRate(_ context.Context, _, _ string) (*
 	return nil, nil
 }
 
-func (m *mockMarketDataRepo) UpsertHistoricalPrices(_ context.Context, _ string, _ []market.HistoricalPrice) error {
+func (m *mockMarketDataRepo) UpsertHistoricalPrices(_ context.Context, _ string, _ []market.HistoricalPrice, _ string) error {
 	return nil
 }
 

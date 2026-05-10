@@ -42,7 +42,7 @@ type MarketDataRepository interface {
 	GetBySourceAndDate(ctx context.Context, symbol, source, date string) (*market.MarketData, error)
 	Upsert(ctx context.Context, m *market.MarketData) error
 	GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error)
-	UpsertHistoricalPrices(ctx context.Context, symbol string, prices []market.HistoricalPrice) error
+	UpsertHistoricalPrices(ctx context.Context, symbol string, prices []market.HistoricalPrice, dataType string) error
 	GetHistoricalPricesBySymbol(ctx context.Context, symbol string, start, end time.Time) ([]market.HistoricalPrice, error)
 	GetLatestQuotesBatch(ctx context.Context, symbols []string) map[string]*market.MarketData
 	GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time

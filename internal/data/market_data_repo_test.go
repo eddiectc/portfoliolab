@@ -330,7 +330,7 @@ func TestMarketDataRepository_UpsertHistoricalPrices(t *testing.T) {
 		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
 	}
 
-	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices, "stock")
 	if err != nil {
 		t.Fatalf("UpsertHistoricalPrices: %v", err)
 	}
@@ -360,12 +360,12 @@ func TestMarketDataRepository_UpsertHistoricalPrices_Empty(t *testing.T) {
 	db := setupMarketDataDB(t)
 	repo := NewMarketDataRepository(db)
 
-	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", nil)
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", nil, "stock")
 	if err != nil {
 		t.Fatalf("UpsertHistoricalPrices with nil: %v", err)
 	}
 
-	err = repo.UpsertHistoricalPrices(context.Background(), "AAPL", []market.HistoricalPrice{})
+	err = repo.UpsertHistoricalPrices(context.Background(), "AAPL", []market.HistoricalPrice{}, "stock")
 	if err != nil {
 		t.Fatalf("UpsertHistoricalPrices with empty slice: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestMarketDataRepository_UpsertHistoricalPrices_OverwritesExisting(t *testi
 	prices := []market.HistoricalPrice{
 		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
 	}
-	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices, "stock")
 	if err != nil {
 		t.Fatalf("UpsertHistoricalPrices: %v", err)
 	}
@@ -417,7 +417,7 @@ func TestMarketDataRepository_GetHistoricalPricesBySymbol(t *testing.T) {
 		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
 		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
 	}
-	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+	err := repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices, "stock")
 	if err != nil {
 		t.Fatalf("UpsertHistoricalPrices: %v", err)
 	}
@@ -455,7 +455,7 @@ func TestMarketDataRepository_GetHistoricalPricesBySymbol_PartialRange(t *testin
 		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
 		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
 	}
-	repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices)
+	repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices, "stock")
 
 	// Query only the middle day.
 	got, err := repo.GetHistoricalPricesBySymbol(context.Background(), "AAPL",
@@ -495,7 +495,7 @@ func TestMarketDataRepository_GetHistoricalPricesBySymbol_ExcludesCurrent(t *tes
 	histPrice := []market.HistoricalPrice{
 		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
 	}
-	repo.UpsertHistoricalPrices(context.Background(), "AAPL", histPrice)
+	repo.UpsertHistoricalPrices(context.Background(), "AAPL", histPrice, "stock")
 
 	currentPrice, _ := decimal.NewFromFloat64(185.00)
 	repo.Upsert(context.Background(), &market.MarketData{
@@ -584,10 +584,10 @@ func TestMarketDataRepository_GetLatestPriceDatePerSymbol(t *testing.T) {
 	repo.UpsertHistoricalPrices(context.Background(), "AAPL", []market.HistoricalPrice{
 		{Date: time.Date(2026, 5, 6, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17000, 2), Currency: "USD"},
 		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
-	})
+	}, "stock")
 	repo.UpsertHistoricalPrices(context.Background(), "MSFT", []market.HistoricalPrice{
 		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(41000, 2), Currency: "USD"},
-	})
+	}, "stock")
 
 	got := repo.GetLatestPriceDatePerSymbol(context.Background(), []string{"AAPL", "MSFT", "GOOG"})
 	if len(got) != 2 {
