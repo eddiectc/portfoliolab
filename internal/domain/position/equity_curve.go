@@ -159,23 +159,6 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		s.logger.Debug("performance: interpolation complete", "points", len(points))
 	}
 
-	// 11. Add current portfolio value using live market data for open positions.
-	// This ensures the last point reflects today's prices, not forward-filled
-	// prices from the last transaction date.
-	if len(accountIDs) > 0 {
-		lastNetDeposit := decimal.Zero
-		if len(points) > 0 {
-			lastNetDeposit = points[len(points)-1].NetDeposit
-		}
-		currentPoint := s.buildCurrentPoint(ctx, accountIDs, baseCurrency, lastNetDeposit)
-		if currentPoint != nil {
-			// Only append if current date is same or later than last point.
-			if len(points) == 0 || !currentPoint.Date.Before(points[len(points)-1].Date) {
-				points = append(points, *currentPoint)
-			}
-		}
-	}
-
 	returnMetrics := ComputeReturnMetrics(points, baseCurrency)
 
 	if s.logger != nil {
@@ -314,13 +297,10 @@ func walkTransactions(txns []transaction.Transaction) []dateSnapshot {
 
 	for i, txn := range txns {
 		// Update position quantities for buy/sell.
-		if txn.Type == "buy" {
+		// Transaction quantities are signed: positive for buys, negative for sells.
+		// Just add directly — the sign is already correct.
+		if txn.Type == "buy" || txn.Type == "sell" {
 			qty, _ := positions[txn.Symbol].Add(txn.Quantity)
-			positions[txn.Symbol] = qty
-			positionCurrency[txn.Symbol] = txn.Currency
-		} else if txn.Type == "sell" {
-			negQty := txn.Quantity.Neg()
-			qty, _ := positions[txn.Symbol].Add(negQty)
 			positions[txn.Symbol] = qty
 			positionCurrency[txn.Symbol] = txn.Currency
 		}
@@ -543,67 +523,6 @@ func convertToBase(
 
 	converted, _ := value.Mul(rate.Rate)
 	return converted, true
-}
-
-// buildCurrentPoint computes the current portfolio value using live market
-// data for open positions. Returns nil if no market data service is available.
-func (s *Service) buildCurrentPoint(ctx context.Context, accountIDs []int64, baseCurrency string, netDeposit decimal.Decimal) *EquityCurvePoint {
-	if s.marketService == nil {
-		return nil
-	}
-
-	var portfolioValue decimal.Decimal
-	var symbols []string
-
-	// Fetch open positions and cash for all accounts.
-	const fetchLimit = 10000
-	for _, id := range accountIDs {
-		positions, err := s.positions.GetOpenPositions(ctx, id, fetchLimit, 0)
-		if err != nil {
-			continue
-		}
-		for _, p := range positions {
-			if isCashPosition(p.Symbol) {
-				// Cash: market value = quantity (balance).
-				val := p.Quantity
-				if p.Currency != baseCurrency {
-					val, _ = convertToBase(ctx, s.marketService, p.Currency, baseCurrency, val, time.Now().UTC())
-				}
-				portfolioValue, _ = portfolioValue.Add(val)
-			} else {
-				symbols = append(symbols, p.Symbol)
-			}
-		}
-	}
-
-	// Get current quotes for all symbols.
-	quotes := s.marketService.GetQuotes(ctx, symbols)
-	for _, id := range accountIDs {
-		positions, err := s.positions.GetOpenPositions(ctx, id, fetchLimit, 0)
-		if err != nil {
-			continue
-		}
-		for _, p := range positions {
-			if isCashPosition(p.Symbol) {
-				continue
-			}
-			quote, ok := quotes[p.Symbol]
-			if !ok || quote.Price.Equal(decimal.Zero) {
-				continue
-			}
-			value, _ := p.Quantity.Mul(quote.Price)
-			if quote.Currency != baseCurrency {
-				value, _ = convertToBase(ctx, s.marketService, quote.Currency, baseCurrency, value, time.Now().UTC())
-			}
-			portfolioValue, _ = portfolioValue.Add(value)
-		}
-	}
-
-	return &EquityCurvePoint{
-		Date:           time.Now().UTC(),
-		PortfolioValue: portfolioValue,
-		NetDeposit:     netDeposit,
-	}
 }
 
 // interpolateDaily fills in non-transaction days by carrying forward the

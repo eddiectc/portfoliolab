@@ -292,8 +292,8 @@ func TestWalkTransactions_HappyPath(t *testing.T) {
 		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
 		// Mar 15: deposit $5,000
 		eqTxn(1, testTime(2024, 3, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
-		// Apr 15: sell 5 AAPL at $170
-		eqTxn(1, testTime(2024, 4, 15), "sell", "AAPL", "USD", 500, 17000, 850000),
+		// Apr 15: sell 5 AAPL at $170 (negative quantity, matching real DB convention)
+		eqTxn(1, testTime(2024, 4, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
 	}
 
 	snapshots := walkTransactions(txns)
@@ -350,6 +350,34 @@ func TestWalkTransactions_HappyPath(t *testing.T) {
 	}
 }
 
+func TestWalkTransactions_NegativeSellQuantity(t *testing.T) {
+	// Real transaction data stores sell quantities as negative.
+	// walkTransactions must handle this correctly — not double-negate.
+	txns := []transaction.Transaction{
+		// Jan 15: buy 10 AAPL at $150
+		eqTxn(1, testTime(2024, 1, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
+		// Feb 15: sell 5 AAPL at $170 (quantity is negative, matching real DB convention)
+		eqTxn(1, testTime(2024, 2, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
+	}
+
+	snapshots := walkTransactions(txns)
+	if len(snapshots) != 2 {
+		t.Fatalf("expected 2 snapshots, got %d", len(snapshots))
+	}
+
+	// Snapshot 1: 10 AAPL
+	wantQty1 := decimal.MustNew(1000, 2)
+	if !snapshots[0].positions["AAPL"].Equal(wantQty1) {
+		t.Errorf("snapshot 1 AAPL qty: got %s, want %s", snapshots[0].positions["AAPL"].String(), wantQty1.String())
+	}
+
+	// Snapshot 2: 10 + (-5) = 5 AAPL remaining
+	wantQty2 := decimal.MustNew(500, 2)
+	if !snapshots[1].positions["AAPL"].Equal(wantQty2) {
+		t.Errorf("snapshot 2 AAPL qty: got %s, want %s", snapshots[1].positions["AAPL"].String(), wantQty2.String())
+	}
+}
+
 func TestWalkTransactions_MultipleTxnsSameDate(t *testing.T) {
 	txns := []transaction.Transaction{
 		// Jan 15: deposit $10,000
@@ -400,7 +428,7 @@ func TestCollectUniqueSymbols(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
 		eqTxn(1, testTime(2024, 3, 15), "buy", "MSFT", "USD", 500, 40000, -2000000),
-		eqTxn(1, testTime(2024, 4, 15), "sell", "AAPL", "USD", 500, 17000, 850000),
+		eqTxn(1, testTime(2024, 4, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
 	}
 
 	symbols := collectUniqueSymbols(txns)
@@ -657,7 +685,7 @@ func TestComputeEquityCurve_HappyPath(t *testing.T) {
 	txnRepo.SetTransactions(1, []transaction.Transaction{
 		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -150000),
-		eqTxn(1, testTime(2024, 3, 15), "sell", "AAPL", "USD", 500, 17000, 85000),
+		eqTxn(1, testTime(2024, 3, 15), "sell", "AAPL", "USD", -500, 17000, 85000),
 	})
 
 	// Set up cached historical prices.
