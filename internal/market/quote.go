@@ -167,10 +167,18 @@ func (f *YahooFinanceFetcher) FetchQuotesBatch(_ context.Context, symbols []stri
 			continue
 		}
 
+		// Yahoo returns some UK stock prices in GBp (pence) instead of GBP.
+		// Convert to GBP (divide by 100) so all prices are in major currency units.
+		currency := quote.Currency
+		if currency == "GBp" {
+			price, _ = price.Quo(decimal.MustNew(100, 0))
+			currency = "GBP"
+		}
+
 		result[sym] = &MarketData{
 			Symbol:   quote.Symbol,
 			Price:    price,
-			Currency: quote.Currency,
+			Currency: currency,
 			DataType: "stock",
 			Source:   "yahoo",
 			Date:     "",
