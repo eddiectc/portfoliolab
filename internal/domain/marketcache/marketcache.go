@@ -506,7 +506,7 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 			if m.logger != nil {
 				m.logger.Debug("gap-fill: no cache, scheduling full fetch", "symbol", sym, "fromDate", fromDate.Format("2006-01-02"))
 			}
-		} else if latestDate.Before(now.AddDate(0, 0, -1)) {
+		} else if latestDate.Before(tradingDayBeforeOrOn(now)) {
 			// Cache exists but not current — fetch from (latest + 1 day) to now.
 			fetchStart = latestDate.AddDate(0, 0, 1)
 			if m.logger != nil {
@@ -603,4 +603,15 @@ func parseFxPair(pair string) (base, quote string) {
 		}
 	}
 	return pair, ""
+}
+
+// tradingDayBeforeOrOn returns the most recent trading day on or before the
+// given date, skipping Saturday and Sunday. Used so weekend gaps don't
+// trigger unnecessary gap-fetches.
+func tradingDayBeforeOrOn(t time.Time) time.Time {
+	d := t
+	for d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+		d = d.AddDate(0, 0, -1)
+	}
+	return d
 }
