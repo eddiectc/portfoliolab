@@ -7,6 +7,7 @@
 - Task 1: `GetLatestQuotesBatch` → `GetLatestQuote` (single symbol). Batch logic moved to repo layer (Task 2).
 
 ## Implementation Gotchas
+- Staleness check uses calendar days (`>1 day old`) not trading days. Simpler and more conservative (warns on weekends too), but never misses stale data. Would need a trading calendar to do trading-day-accurate staleness.
 - Historical dates are stored as `YYYY-MM-DD` (not RFC3339), so `parseTime()` doesn't work for them — use `time.Parse("2006-01-02", s)` instead
 - SQLite `MAX(date)` returns `interface{}` that can be `string` or `[]byte` depending on driver — handle both cases
 - Extending `MarketDataRepository` interface requires updating mocks in 5 test files (equity_curve, fx_converter, refresh, service, performance)
