@@ -220,7 +220,7 @@ func (m *mockMarketDataRepoForPerf) Upsert(context.Context, *market.MarketData) 
 func (m *mockMarketDataRepoForPerf) GetCurrentFxRate(context.Context, string, string) (*market.MarketData, error) {
 	return nil, nil
 }
-func (m *mockMarketDataRepoForPerf) UpsertHistoricalPrices(_ context.Context, symbol string, prices []market.HistoricalPrice) error {
+func (m *mockMarketDataRepoForPerf) UpsertHistoricalPrices(_ context.Context, symbol string, prices []market.HistoricalPrice, _dataType string) error {
 	m.upserted[symbol] = prices
 	return nil
 }

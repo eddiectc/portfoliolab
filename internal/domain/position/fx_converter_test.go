@@ -69,7 +69,7 @@ func (m *mockFxRepo) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurr
 	return nil, nil
 }
 
-func (m *mockFxRepo) UpsertHistoricalPrices(_ context.Context, _symbol string, _prices []market.HistoricalPrice) error {
+func (m *mockFxRepo) UpsertHistoricalPrices(_ context.Context, _symbol string, _prices []market.HistoricalPrice, _dataType string) error {
 	return nil
 }
 

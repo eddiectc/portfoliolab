@@ -92,7 +92,7 @@ func (m *mockRefreshRepo) GetCurrentFxRate(_ context.Context, _, _ string) (*mar
 	return nil, nil
 }
 
-func (m *mockRefreshRepo) UpsertHistoricalPrices(_ context.Context, _ string, _ []market.HistoricalPrice) error {
+func (m *mockRefreshRepo) UpsertHistoricalPrices(_ context.Context, _ string, _ []market.HistoricalPrice, _ string) error {
 	return nil
 }
 

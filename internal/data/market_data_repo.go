@@ -214,14 +214,15 @@ func (r *MarketDataRepository) GetLatestPriceDatePerSymbol(ctx context.Context, 
 // UpsertHistoricalPrices inserts or updates historical price entries for a
 // symbol. Each price is upserted individually using ON CONFLICT(symbol, source,
 // date). Errors on individual rows are logged but don't stop the batch.
-func (r *MarketDataRepository) UpsertHistoricalPrices(ctx context.Context, symbol string, prices []market.HistoricalPrice) error {
+// dataType is "stock" or "fx".
+func (r *MarketDataRepository) UpsertHistoricalPrices(ctx context.Context, symbol string, prices []market.HistoricalPrice, dataType string) error {
 	now := time.Now()
 	for _, p := range prices {
 		md := &market.MarketData{
 			Symbol:    symbol,
 			Price:     p.Close,
 			Currency:  p.Currency,
-			DataType:  "stock",
+			DataType:  dataType,
 			Source:    "yahoo",
 			Date:      p.Date.Format("2006-01-02"),
 			FetchedAt: now,
