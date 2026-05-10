@@ -36,6 +36,46 @@
 - **Task 8 stale symbol extraction**: `extractStaleSymbols()` parses warning strings ("stale market data for SYMBOL (...)" / "missing market data for SYMBOL") to build the `StaleSymbols` list for the aggregate indicator. Only used on the performance page — the positions page has no equivalent warnings from `EnrichWithMarketData`.
 - **Task 8 positions page staleness**: Positions template uses `CacheStatus.FailedSymbols` as the staleness proxy (non-empty = stale) since there's no per-symbol staleness check in `EnrichWithMarketData`. This is less precise than the performance page but sufficient for the aggregate indicator.
 
+## Post-Completion Fixes (2026-05-10)
+
+### GBp (pence) → GBP conversion
+- Yahoo returns some UK stocks (e.g. XNAQ.L, QGRP.L) in pence with `currency: "GBp"`
+- Fix at fetcher layer (`FetchQuotesBatch` + `FetchHistoricalPricesBatch` in `internal/market/quote.go`): detect `GBp`, divide by 100, store as `GBP`
+- Moved from position service workaround to fetcher layer — single source of truth
+
+### RefreshAll context bug
+- `RefreshAll` was passing `r.Context()` to background goroutine, cancelled on HTTP response
+- Changed to use `m.ctx` (internal lifecycle context from `Start`/`Stop`)
+
+### Weekend staleness + gap-fill
+- Added `tradingDayBeforeOrOn()` to skip weekend staleness checks
+- Added `nextTradingDay()` to skip weekends when scheduling gap fetches
+- Truncated dates to midnight UTC before comparison to eliminate false positives
+
+### RealizedPnL for open positions
+- Open positions always get `RealizedPnL = 0` (including partial sells)
+- Sell proceeds already in cash balance; remaining shares valued via market price
+- Showing partial realized P&L double-counted against equity curve
+
+### walkTransactions double-negated sell quantities (CRITICAL)
+- Sell transactions store **negative** quantities in DB (matching calculator convention)
+- `walkTransactions` did `txn.Quantity.Neg()`, turning `-228` into `+228`
+- This **added** to the position instead of subtracting — positions doubled after sells
+- Fix: remove `Neg()`, add `txn.Quantity` directly (sign already correct)
+
+### Equity curve stopping at last transaction date
+- `interpolateDaily` only filled between transaction dates with flat carry-forward
+- Curve stopped at 2026-04-06 (last txn) instead of extending to today
+- Fix: pass `dateTo`, positions, cash, and cached prices to `interpolateDaily`
+- Extended dates compute real portfolio value from cached prices
+
+### Refactor: WalkPortfolioState
+- Position quantity tracking was duplicated in `walkTransactions` and the calculator
+- The double-negation bug was exactly this divergence
+- Extracted `WalkPortfolioState` (quantities + cash + net deposit) as single source of truth
+- `walkTransactions` delegates to it, only adds position currency tracking
+- Old `WalkPositionQuantities` kept as thin wrapper for backward compat
+
 ## Future Improvements
 - Recalculate hooks schedule fetches for ALL open position symbols regardless of whether cache already exists. The market cache's concurrent protection (queued + in-progress sets) deduplicates, but this means extra channel messages. Could optimize by checking cache first, but the trade-off is an extra DB query per recalc.
 
