@@ -52,12 +52,12 @@ Tasks 4, 5, 6 are independent after Task 3. Tasks 7 and 8 are sequential integra
 
 **Description:** Add methods to `MarketDataRepository` that expose the new sqlc queries, and extend the `MarketDataRepository` interface in the position package.
 
-- [ ] Add to `internal/data/market_data_repo.go`:
+- [x] Add to `internal/data/market_data_repo.go`:
   - `GetHistoricalPricesBySymbol(ctx, symbol, start, end) ([]market.HistoricalPrice, error)` — reads cached historical prices for one symbol in a date range
   - `GetLatestQuotesBatch(ctx, symbols []string) map[string]*market.MarketData` — reads latest quotes for multiple symbols; missing symbols omitted from result
   - `GetLatestPriceDatePerSymbol(ctx, symbols []string) map[string]*time.Time` — latest cached date per symbol; missing symbols omitted
-- [ ] Extend `MarketDataRepository` interface in `internal/domain/position/fx_converter.go` with the new methods
-- [ ] Write unit tests for each new repo method using the existing `setupMarketDataDB` pattern
+- [x] Extend `MarketDataRepository` interface in `internal/domain/position/fx_converter.go` with the new methods
+- [x] Write unit tests for each new repo method using the existing `setupMarketDataDB` pattern
 
 **Verification:** Repo methods return correct data from in-memory SQLite; missing symbols handled gracefully.
 

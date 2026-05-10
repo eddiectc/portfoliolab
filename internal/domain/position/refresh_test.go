@@ -96,6 +96,18 @@ func (m *mockRefreshRepo) UpsertHistoricalPrices(_ context.Context, _ string, _ 
 	return nil
 }
 
+func (m *mockRefreshRepo) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
+	return nil, nil
+}
+
+func (m *mockRefreshRepo) GetLatestQuotesBatch(context.Context, []string) map[string]*market.MarketData {
+	return nil
+}
+
+func (m *mockRefreshRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
+	return nil
+}
+
 // mockRefreshAccountLister simulates account listing for refresh tests.
 type mockRefreshAccountLister struct {
 	accounts []AccountRef

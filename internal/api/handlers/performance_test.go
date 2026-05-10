@@ -225,6 +225,18 @@ func (m *mockMarketDataRepoForPerf) UpsertHistoricalPrices(_ context.Context, sy
 	return nil
 }
 
+func (m *mockMarketDataRepoForPerf) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
+	return nil, nil
+}
+
+func (m *mockMarketDataRepoForPerf) GetLatestQuotesBatch(context.Context, []string) map[string]*market.MarketData {
+	return nil
+}
+
+func (m *mockMarketDataRepoForPerf) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
+	return nil
+}
+
 // --- Test helpers ---
 
 func perfTxn(accountID int64, date time.Time, typ, symbol, currency string, qty, price, netCash int64) transaction.Transaction {
