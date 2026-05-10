@@ -129,6 +129,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	performanceHandler := handlers.NewPerformanceHandler(positionSvc)
 	performanceHandler.RegisterRoutes(r)
 
+	// Market data cache API
+	marketDataHandler := handlers.NewMarketDataHandler(marketCache)
+	marketDataHandler.RegisterRoutes(r)
+
 	// IBKR Flex XML Import (API)
 	symbolResolver := data.NewSymbolResolver(symbolMappingRepo)
 	brokerSymbolAdder := data.NewBrokerSymbolAdder(symbolMappingRepo, symbolMappingSvc)

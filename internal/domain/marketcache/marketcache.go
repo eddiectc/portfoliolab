@@ -47,10 +47,10 @@ type MarketDataFetcher interface {
 
 // CacheStatus holds the current state of the market data cache.
 type CacheStatus struct {
-	LastRefresh   time.Time
-	Refreshing    bool
-	FailedSymbols []string
-	TotalSymbols  int
+	LastRefresh   time.Time `json:"last_refresh"`
+	Refreshing    bool      `json:"refreshing"`
+	FailedSymbols []string  `json:"failed_symbols"`
+	TotalSymbols  int       `json:"total_symbols"`
 }
 
 // fetchRequest is a single fetch job sent to the background worker.
