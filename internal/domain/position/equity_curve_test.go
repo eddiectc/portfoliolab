@@ -296,7 +296,7 @@ func TestWalkTransactions_HappyPath(t *testing.T) {
 		eqTxn(1, testTime(2024, 4, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
 	}
 
-	snapshots := walkTransactions(txns)
+	snapshots, _ := walkTransactions(txns)
 	if len(snapshots) != 4 {
 		t.Fatalf("expected 4 snapshots, got %d", len(snapshots))
 	}
@@ -360,7 +360,7 @@ func TestWalkTransactions_NegativeSellQuantity(t *testing.T) {
 		eqTxn(1, testTime(2024, 2, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
 	}
 
-	snapshots := walkTransactions(txns)
+	snapshots, _ := walkTransactions(txns)
 	if len(snapshots) != 2 {
 		t.Fatalf("expected 2 snapshots, got %d", len(snapshots))
 	}
@@ -386,7 +386,7 @@ func TestWalkTransactions_MultipleTxnsSameDate(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
 	}
 
-	snapshots := walkTransactions(txns)
+	snapshots, _ := walkTransactions(txns)
 	if len(snapshots) != 1 {
 		t.Fatalf("expected 1 snapshot (both txns same date), got %d", len(snapshots))
 	}
@@ -411,7 +411,7 @@ func TestWalkTransactions_NegativeNetDeposit(t *testing.T) {
 		eqTxn(1, testTime(2024, 2, 15), "withdrawal", "$CASH-USD", "USD", 0, 0, -800000),
 	}
 
-	snapshots := walkTransactions(txns)
+	snapshots, _ := walkTransactions(txns)
 	if len(snapshots) != 2 {
 		t.Fatalf("expected 2 snapshots, got %d", len(snapshots))
 	}
@@ -455,7 +455,7 @@ func TestCollectUniqueSymbols_ExcludesCash(t *testing.T) {
 }
 
 func TestInterpolateDaily_NoPoints(t *testing.T) {
-	result := interpolateDaily([]EquityCurvePoint{})
+	result := interpolateDaily([]EquityCurvePoint{}, time.Time{}, nil, nil, nil, nil, "", nil, nil)
 	if len(result) != 0 {
 		t.Errorf("expected 0 points, got %d", len(result))
 	}
@@ -465,7 +465,7 @@ func TestInterpolateDaily_SinglePoint(t *testing.T) {
 	points := []EquityCurvePoint{
 		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustNew(1000000, 2), NetDeposit: decimal.MustNew(1000000, 2)},
 	}
-	result := interpolateDaily(points)
+	result := interpolateDaily(points, testTime(2024, 1, 15), nil, nil, nil, nil, "", nil, nil)
 	if len(result) != 1 {
 		t.Errorf("expected 1 point, got %d", len(result))
 	}
@@ -476,7 +476,7 @@ func TestInterpolateDaily_FillsGaps(t *testing.T) {
 		{Date: testTime(2024, 1, 1), PortfolioValue: decimal.MustNew(1000000, 2), NetDeposit: decimal.MustNew(1000000, 2)},
 		{Date: testTime(2024, 1, 4), PortfolioValue: decimal.MustNew(1100000, 2), NetDeposit: decimal.MustNew(1000000, 2)},
 	}
-	result := interpolateDaily(points)
+	result := interpolateDaily(points, testTime(2024, 1, 4), nil, nil, nil, nil, "", nil, nil)
 	// Jan 1 (original), Jan 2 (carried), Jan 3 (carried), Jan 4 (original) = 4 points
 	if len(result) != 4 {
 		t.Fatalf("expected 4 points, got %d", len(result))

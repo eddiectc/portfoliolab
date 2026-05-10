@@ -86,7 +86,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	}
 
 	// 7. Walk transactions chronologically, capturing state at each date.
-	snapshots := walkTransactions(allTxns)
+	snapshots, finalState := walkTransactions(allTxns)
 
 	if s.logger != nil {
 		s.logger.Debug("performance: walk complete", "snapshots", len(snapshots))
@@ -152,8 +152,11 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	// 9. Build equity curve points from snapshots.
 	points := buildEquityCurvePoints(snapshots, pricesBySymbol, baseCurrency, s.marketService, s.logger, ctx)
 
-	// 10. Interpolate for non-transaction days.
-	points = interpolateDaily(points)
+	// 10. Interpolate for non-transaction days, extending through dateTo.
+	// Uses cached historical prices so the curve reflects actual price changes
+	// after the last transaction, not just a flat carry-forward.
+	lastSnapshot := finalState
+	points = interpolateDaily(points, dateTo, lastSnapshot.positions, lastSnapshot.positionCurrency, lastSnapshot.cashBalance, pricesBySymbol, baseCurrency, s.marketService, ctx)
 
 	if s.logger != nil {
 		s.logger.Debug("performance: interpolation complete", "points", len(points))
@@ -286,8 +289,10 @@ func filterByDateRange(txns []transaction.Transaction, dateFrom, dateTo time.Tim
 
 // walkTransactions walks transactions chronologically and captures the
 // portfolio state (positions, cash, net deposit) at each unique date.
+// Also returns the final state (after all transactions) for extending
+// the equity curve beyond the last transaction date.
 // Transactions are assumed to be sorted by date ASC, then ID ASC.
-func walkTransactions(txns []transaction.Transaction) []dateSnapshot {
+func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnapshot) {
 	var snapshots []dateSnapshot
 
 	positions := make(map[string]decimal.Decimal)
@@ -328,7 +333,12 @@ func walkTransactions(txns []transaction.Transaction) []dateSnapshot {
 		}
 	}
 
-	return snapshots
+	return snapshots, dateSnapshot{
+		positions:        copyDecimalMap(positions),
+		positionCurrency: copyStringMap(positionCurrency),
+		cashBalance:      copyDecimalMap(cashBalance),
+		netDeposit:       copyDecimalMap(netDeposit),
+	}
 }
 
 // collectUniqueSymbols collects all unique non-cash symbols from transactions
@@ -526,9 +536,20 @@ func convertToBase(
 }
 
 // interpolateDaily fills in non-transaction days by carrying forward the
-// last known portfolio value and net deposit. Generates one point per
-// calendar day between the first and last snapshot date.
-func interpolateDaily(points []EquityCurvePoint) []EquityCurvePoint {
+// last known portfolio value and net deposit. Extends through dateTo using
+// cached historical prices for the current positions, so the curve reflects
+// actual price changes after the last transaction.
+func interpolateDaily(
+	points []EquityCurvePoint,
+	dateTo time.Time,
+	positions map[string]decimal.Decimal,
+	positionCurrency map[string]string,
+	cashBalance map[string]decimal.Decimal,
+	pricesBySymbol map[string][]market.HistoricalPrice,
+	baseCurrency string,
+	marketService MarketDataService,
+	ctx context.Context,
+) []EquityCurvePoint {
 	if len(points) == 0 {
 		return points
 	}
@@ -540,28 +561,85 @@ func interpolateDaily(points []EquityCurvePoint) []EquityCurvePoint {
 		pointMap[key] = p
 	}
 
+	// Build forward-fill lookups for price lookups on extended dates.
+	priceLookup := buildPriceLookup(pricesBySymbol)
+	ff := buildPriceLookupFF(priceLookup)
+
 	dateFrom := points[0].Date
-	dateTo := points[len(points)-1].Date
+	lastPointDate := points[len(points)-1].Date
 
 	var result []EquityCurvePoint
 	var lastPoint *EquityCurvePoint
+	var lastNetDeposit decimal.Decimal
 
 	for d := dateFrom; !d.After(dateTo); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
 		if p, ok := pointMap[key]; ok {
 			lastPoint = &p
+			lastNetDeposit = p.NetDeposit
 			result = append(result, p)
-		} else if lastPoint != nil {
-			// Carry forward last known value.
+		} else if lastPoint != nil && !d.After(lastPointDate) {
+			// Between transaction dates: carry forward last known value.
 			result = append(result, EquityCurvePoint{
 				Date:           d,
 				PortfolioValue: lastPoint.PortfolioValue,
-				NetDeposit:     lastPoint.NetDeposit,
+				NetDeposit:     lastNetDeposit,
+			})
+		} else if lastPoint != nil {
+			// Beyond last transaction: compute portfolio value from
+			// current positions + cash + cached historical prices.
+			portfolioValue := computePortfolioValue(positions, positionCurrency, cashBalance, ff, baseCurrency, d, marketService, ctx)
+			result = append(result, EquityCurvePoint{
+				Date:           d,
+				PortfolioValue: portfolioValue,
+				NetDeposit:     lastNetDeposit,
 			})
 		}
 	}
 
 	return result
+}
+
+// computePortfolioValue calculates the portfolio value for a given date using
+// the current positions, cash balance, and cached historical prices.
+func computePortfolioValue(
+	positions map[string]decimal.Decimal,
+	positionCurrency map[string]string,
+	cashBalance map[string]decimal.Decimal,
+	ff map[string]*priceLookupFF,
+	baseCurrency string,
+	date time.Time,
+	marketService MarketDataService,
+	ctx context.Context,
+) decimal.Decimal {
+	var portfolioValue decimal.Decimal
+	dateKey := date.Format("2006-01-02")
+
+	// Cash balance.
+	for currency, val := range cashBalance {
+		if currency != baseCurrency {
+			val, _ = convertToBase(ctx, marketService, currency, baseCurrency, val, date)
+		}
+		portfolioValue, _ = portfolioValue.Add(val)
+	}
+
+	// Position values.
+	for symbol, qty := range positions {
+		if isCashPosition(symbol) {
+			continue
+		}
+		price, ok := lookupPrice(ff, symbol, dateKey)
+		if !ok {
+			continue
+		}
+		value, _ := qty.Mul(price.Close)
+		if positionCurrency[symbol] != baseCurrency {
+			value, _ = convertToBase(ctx, marketService, positionCurrency[symbol], baseCurrency, value, date)
+		}
+		portfolioValue, _ = portfolioValue.Add(value)
+	}
+
+	return portfolioValue
 }
 
 // copyDecimalMap creates a deep copy of a decimal map.
