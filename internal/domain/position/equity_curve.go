@@ -480,19 +480,6 @@ func buildEquityCurvePoints(
 		})
 	}
 
-	// Log first and last point for diagnostics.
-	if len(points) > 0 {
-		first := points[0]
-		last := points[len(points)-1]
-		if logger != nil {
-			logger.Debug("performance: buildEquityCurvePoints done",
-				"snapshots", len(points),
-				"firstDate", first.Date.Format("2006-01-02"),
-				"lastDate", last.Date.Format("2006-01-02"),
-			)
-		}
-	}
-
 	return points
 }
 
