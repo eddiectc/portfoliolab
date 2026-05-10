@@ -801,14 +801,7 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 		// Compute market value and unrealized P&L.
 		// CostBasis is negative (cash outflow), so total cost = Abs(CostBasis).
 		// MarketValue = quantity * price (positive for long, negative for short).
-		//
-		// GBp handling: Yahoo Finance returns some UK stock prices in GBp (pence)
-		// instead of GBP. Detect this from the quote's Currency field — if the
-		// quote currency is "GBp" but the position currency is "GBP", divide by 100.
 		price := quote.Price
-		if quote.Currency == "GBp" && p.Currency == "GBP" {
-			price, _ = price.Quo(decimal.MustNew(100, 0))
-		}
 
 		marketValue, _ := p.Quantity.Mul(price)
 		// UnrealizedPnL = market_value - total_cost = market_value + cost_basis
