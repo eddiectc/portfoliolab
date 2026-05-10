@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
@@ -76,20 +77,16 @@ func TestBuildRefreshURL(t *testing.T) {
 	tests := []struct {
 		name        string
 		portfolioID string
-		period      string
 		want        string
 	}{
-		{"no filter", "", "", "/performance/refresh"},
-		{"portfolio only", "3", "", "/performance/refresh?portfolio_id=3"},
-		{"portfolio + period", "3", "1M", "/performance/refresh?portfolio_id=3&period=1M"},
-		{"period only", "", "1Y", "/performance/refresh?period=1Y"},
-		{"All period omitted", "3", "All", "/performance/refresh?portfolio_id=3"},
+		{"no filter", "", "/performance/refresh"},
+		{"portfolio only", "3", "/performance/refresh?portfolio_id=3"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildRefreshURL(tt.portfolioID, tt.period)
+			got := buildRefreshURL(tt.portfolioID)
 			if got != tt.want {
-				t.Errorf("buildRefreshURL(%q, %q) = %q, want %q", tt.portfolioID, tt.period, got, tt.want)
+				t.Errorf("buildRefreshURL(%q) = %q, want %q", tt.portfolioID, got, tt.want)
 			}
 		})
 	}
@@ -265,5 +262,242 @@ func TestPerformanceTemplate_ErrorState(t *testing.T) {
 	body := w.Body.String()
 	if !strings.Contains(body, "Cannot combine portfolios") {
 		t.Error("expected error message in page")
+	}
+}
+
+// --- extractStaleSymbols tests ---
+
+func TestExtractStaleSymbols(t *testing.T) {
+	tests := []struct {
+		name     string
+		warnings []string
+		want     []string
+	}{
+		{
+			name:     "empty warnings",
+			warnings: []string{},
+			want:     nil,
+		},
+		{
+			name:     "nil warnings",
+			warnings: nil,
+			want:     nil,
+		},
+		{
+			name: "stale warning",
+			warnings: []string{
+				"stale market data for AAPL (last updated 5 days ago)",
+			},
+			want: []string{"AAPL"},
+		},
+		{
+			name: "missing warning",
+			warnings: []string{
+				"missing market data for GOOGL",
+			},
+			want: []string{"GOOGL"},
+		},
+		{
+			name: "mixed warnings",
+			warnings: []string{
+				"stale market data for AAPL (last updated 5 days ago)",
+				"missing market data for GOOGL",
+				"stale market data for MSFT (last updated 3 days ago)",
+			},
+			want: []string{"AAPL", "GOOGL", "MSFT"},
+		},
+		{
+			name: "unrelated warnings ignored",
+			warnings: []string{
+				"some other warning",
+				"stale market data for AAPL (last updated 5 days ago)",
+			},
+			want: []string{"AAPL"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractStaleSymbols(tt.warnings)
+			if len(got) != len(tt.want) {
+				t.Errorf("extractStaleSymbols() got %d symbols, want %d: %v", len(got), len(tt.want), got)
+				return
+			}
+			for i, sym := range got {
+				if sym != tt.want[i] {
+					t.Errorf("got[%d] = %q, want %q", i, sym, tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// --- formatLastRefresh tests ---
+
+func TestFormatLastRefresh(t *testing.T) {
+	tests := []struct {
+		name  string
+		delta string // e.g. "5s", "2m", "3h", "2d"
+		want  string
+	}{
+		{"just now", "10s", "Just now"},
+		{"seconds", "45s", "Updated 45s ago"},
+		{"minutes", "5m", "Updated 5m ago"},
+		{"hours", "3h", "Updated 3h ago"},
+		{"one day", "24h", "Updated 1d ago"},
+		{"multiple days", "72h", "Updated 3d ago"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, err := time.ParseDuration(tt.delta)
+			if err != nil {
+				t.Fatalf("invalid duration %q: %v", tt.delta, err)
+			}
+			got := formatLastRefresh(time.Now().Add(-d))
+			if got != tt.want {
+				t.Errorf("formatLastRefresh() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- Template tests with cache status ---
+
+func TestPerformanceTemplate_CacheStatusCurrent(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	data := performancePageData{
+		PageData:       web.PageData{Title: "Performance"},
+		Result:         result,
+		ChartData:      serializeChartData(curve),
+		CurrentValue:   "100000.00",
+		Portfolios:     []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod: "1Y",
+		HasCacheStatus: true,
+		LastRefreshText: "Just now",
+		StaleSymbols:   []string{},
+		RefreshURL:     "/performance/refresh",
+		PeriodURLs:     map[string]string{"All": "/performance"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "cache-status-current") {
+		t.Error("expected cache-status-current class")
+	}
+	if !strings.Contains(body, "Just now") {
+		t.Error("expected 'Just now' in page")
+	}
+}
+
+func TestPerformanceTemplate_CacheStatusStale(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+		Warnings:     []string{"stale market data for AAPL (last updated 5 days ago)"},
+	}
+
+	data := performancePageData{
+		PageData:        web.PageData{Title: "Performance"},
+		Result:          result,
+		ChartData:       serializeChartData(curve),
+		CurrentValue:    "100000.00",
+		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod:  "1Y",
+		HasCacheStatus:  true,
+		LastRefreshText: "Updated 5d ago",
+		StaleSymbols:    []string{"AAPL"},
+		RefreshURL:      "/performance/refresh",
+		PeriodURLs:      map[string]string{"All": "/performance"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "cache-status-stale") {
+		t.Error("expected cache-status-stale class")
+	}
+	if !strings.Contains(body, "1 symbol(s) stale") {
+		t.Error("expected stale symbol count in page")
+	}
+}
+
+func TestPerformanceTemplate_CacheStatusRefreshing(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	data := performancePageData{
+		PageData:       web.PageData{Title: "Performance"},
+		Result:         result,
+		ChartData:      serializeChartData(curve),
+		CurrentValue:   "100000.00",
+		Portfolios:     []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod: "1Y",
+		HasCacheStatus: true,
+		CacheStatus:    marketcache.CacheStatus{Refreshing: true},
+		RefreshURL:     "/performance/refresh",
+		PeriodURLs:     map[string]string{"All": "/performance"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "cache-status-refreshing") {
+		t.Error("expected cache-status-refreshing class")
+	}
+	if !strings.Contains(body, "Refreshing...") {
+		t.Error("expected 'Refreshing...' in page")
+	}
+}
+
+func TestPerformanceTemplate_NoCacheStatus(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	data := performancePageData{
+		PageData:       web.PageData{Title: "Performance"},
+		Portfolios:     []portfolio.Portfolio{},
+		HasCacheStatus: false,
+		PeriodURLs:     map[string]string{"All": "/performance"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+	if strings.Contains(body, "cache-status") {
+		t.Error("expected no cache status indicator when HasCacheStatus is false")
 	}
 }

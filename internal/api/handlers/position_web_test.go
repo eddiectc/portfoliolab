@@ -1,8 +1,15 @@
 package handlers
 
 import (
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
+
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
 // --- PositionFilter Tests ---
@@ -109,6 +116,79 @@ func TestParsePositionFilter_Both(t *testing.T) {
 	}
 	if f.PortfolioID != "10" {
 		t.Errorf("expected portfolio_id=10, got %q", f.PortfolioID)
+	}
+}
+
+// --- Template tests with cache status ---
+
+func TestPositionsTemplate_CacheStatusCurrent(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	data := openPositionListPageData{
+		PageData:        web.PageData{Title: "Open Positions"},
+		Positions:       []position.PositionWithMarket{},
+		Accounts:        []account.Account{},
+		HasCacheStatus:  true,
+		LastRefreshText: "Updated 2m ago",
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "position/open", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "cache-status-current") {
+		t.Error("expected cache-status-current class")
+	}
+	if !strings.Contains(body, "Updated 2m ago") {
+		t.Error("expected 'Updated 2m ago' in page")
+	}
+}
+
+func TestPositionsTemplate_CacheStatusRefreshing(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	data := openPositionListPageData{
+		PageData:     web.PageData{Title: "Open Positions"},
+		Positions:    []position.PositionWithMarket{},
+		Accounts:     []account.Account{},
+		HasCacheStatus: true,
+		CacheStatus:  marketcache.CacheStatus{Refreshing: true},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "position/open", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "cache-status-refreshing") {
+		t.Error("expected cache-status-refreshing class")
+	}
+	if !strings.Contains(body, "Refreshing...") {
+		t.Error("expected 'Refreshing...' in page")
+	}
+}
+
+func TestPositionsTemplate_NoCacheStatus(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	data := openPositionListPageData{
+		PageData:       web.PageData{Title: "Open Positions"},
+		Positions:      []position.PositionWithMarket{},
+		Accounts:       []account.Account{},
+		HasCacheStatus: false,
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "position/open", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+	if strings.Contains(body, "cache-status") {
+		t.Error("expected no cache status indicator when HasCacheStatus is false")
 	}
 }
 

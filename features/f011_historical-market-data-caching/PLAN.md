@@ -310,26 +310,26 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 
 **Description:** Add aggregate status indicator to performance and positions pages. Show staleness warnings. Update refresh button behavior.
 
-- [ ] Update `performancePageData` struct in `performance_web.go`:
+- [x] Update `performancePageData` struct in `performance_web.go`:
   - Add `CacheStatus` field (last refresh time, refreshing flag, failed count)
   - Add `StaleSymbols` field ([]string) for the staleness warning banner
-- [ ] Update `HandlePerformance` in `performance_web.go`:
+- [x] Update `HandlePerformance` in `performance_web.go`:
   - After `ComputeEquityCurve`, check cache status via `marketCache.GetStatus()`
   - Pass status and stale symbols to template
-- [ ] Update `templates/performance/index.html`:
-  - Replace the existing Refresh button form to POST to `/market-data/refresh` (all symbols, not just visible period)
-  - Add aggregate status text near the refresh button:
-    - Data current: *"Data current"* (green/subtle)
-    - Stale: *"3 symbols stale · Updated 2d ago"* (amber)
-    - Refreshing: *"Refreshing..."* (blue/spinning indicator)
+- [x] Update `templates/performance/index.html`:
+  - Replace the existing Refresh button form to POST to `/performance/refresh` (triggers full refresh via marketCache.RefreshAll)
+  - Add aggregate status text near the filter bar:
+    - Data current: *"Just now"* (green/subtle)
+    - Stale: *"3 symbol(s) stale · Updated 2d ago"* (amber)
+    - Refreshing: *"Refreshing..."* (blue/italic)
   - Keep existing warning banner for missing/stale data details
-- [ ] Update `openPositionListPageData` in `position_web.go`:
-  - Add `CacheStatus` field
-- [ ] Update `HandleOpenPositions` in `position_web.go`:
+- [x] Update `openPositionListPageData` in `position_web.go`:
+  - Add `CacheStatus`, `HasCacheStatus`, `LastRefreshText` fields
+- [x] Update `HandleOpenPositions` in `position_web.go`:
   - Check cache status, pass to template
-- [ ] Update `templates/position/open.html`:
+- [x] Update `templates/position/open.html`:
   - Add aggregate status indicator near page header (same style as performance page)
-- [ ] Write unit tests for handlers verifying status is passed to templates
+- [x] Write unit tests for handlers verifying status is passed to templates
 
 **Verification:** Performance and positions pages show aggregate cache status; refresh button triggers full historical refresh; staleness warnings appear when data is old.
 

@@ -172,7 +172,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		transactionWebHandler.RegisterRoutes(r)
 
 		// Position web pages
-		positionWebHandler := handlers.NewPositionWebHandler(positionSvc, accountSvc, portfolioSvc, renderer)
+		positionWebHandler := handlers.NewPositionWebHandler(positionSvc, accountSvc, portfolioSvc, marketCache, renderer)
 		positionWebHandler.RegisterRoutes(r)
 
 		// IBKR import web pages
@@ -184,7 +184,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		t212WebHandler.RegisterRoutes(r)
 
 		// Performance web pages
-		performanceWebHandler := handlers.NewPerformanceWebHandler(positionSvc, portfolioSvc, renderer)
+		performanceWebHandler := handlers.NewPerformanceWebHandler(positionSvc, portfolioSvc, marketCache, renderer)
 		performanceWebHandler.RegisterRoutes(r)
 
 		// Root redirect
