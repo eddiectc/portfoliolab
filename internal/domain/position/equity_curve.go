@@ -292,58 +292,47 @@ func filterByDateRange(txns []transaction.Transaction, dateFrom, dateTo time.Tim
 // Also returns the final state (after all transactions) for extending
 // the equity curve beyond the last transaction date.
 //
-// Position quantity tracking is delegated to WalkPositionQuantities,
-// the shared single source of truth. walkTransactions adds cash balance
-// and net deposit tracking on top.
+// The core tracking (quantities, cash, net deposit) is delegated to
+// WalkPortfolioState, the shared single source of truth. walkTransactions
+// only adds position currency tracking on top.
 // Transactions are assumed to be sorted by date ASC, then ID ASC.
 func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnapshot) {
-	// Shared position quantity tracking — single source of truth.
-	positionSnaps := WalkPositionQuantities(txns)
-	finalQuantities := FinalPositionQuantities(txns)
+	// Shared portfolio state tracking — single source of truth.
+	portfolioSnaps := WalkPortfolioState(txns)
+	finalState := FinalPortfolioState(txns)
 
-	// Walk transactions again for cash/net-deposit, aligning with position snapshots.
+	// Walk transactions for position currency tracking.
 	var snapshots []dateSnapshot
 	positionCurrency := make(map[string]string)
-	cashBalance := make(map[string]decimal.Decimal)
-	netDeposit := make(map[string]decimal.Decimal)
 
 	snapIdx := 0
-	for i, txn := range txns {
-		// Track currency per symbol.
+	for _, txn := range txns {
 		if txn.Type == "buy" || txn.Type == "sell" {
 			positionCurrency[txn.Symbol] = txn.Currency
 		}
 
-		// Update cash balance for all transaction types (net_cash captures cash flow).
-		bal, _ := cashBalance[txn.Currency].Add(txn.NetCash)
-		cashBalance[txn.Currency] = bal
-
-		// Update cumulative net deposit for deposit/withdrawal types only.
-		if txn.Type == "deposit" || txn.Type == "withdrawal" {
-			dep, _ := netDeposit[txn.Currency].Add(txn.NetCash)
-			netDeposit[txn.Currency] = dep
-		}
-
-		// Take snapshot at end of each date, using position quantities
-		// from the shared WalkPositionQuantities.
-		isLastForDate := i == len(txns)-1 || txns[i+1].Date.After(txn.Date)
-		if isLastForDate && snapIdx < len(positionSnaps) {
-			snapshots = append(snapshots, dateSnapshot{
-				date:             positionSnaps[snapIdx].Date,
-				positions:        positionSnaps[snapIdx].Quantities,
-				positionCurrency: copyStringMap(positionCurrency),
-				cashBalance:      copyDecimalMap(cashBalance),
-				netDeposit:       copyDecimalMap(netDeposit),
-			})
-			snapIdx++
+		// Align with portfolio snapshots at end of each date.
+		if snapIdx < len(portfolioSnaps) && portfolioSnaps[snapIdx].Date.Equal(txn.Date) {
+			// Check if this is the last txn for this date.
+			isLastForDate := txn == txns[len(txns)-1] || (snapIdx+1 >= len(portfolioSnaps) || portfolioSnaps[snapIdx+1].Date.After(txn.Date))
+			if isLastForDate {
+				snapshots = append(snapshots, dateSnapshot{
+					date:             portfolioSnaps[snapIdx].Date,
+					positions:        portfolioSnaps[snapIdx].Quantities,
+					positionCurrency: copyStringMap(positionCurrency),
+					cashBalance:      portfolioSnaps[snapIdx].CashBalance,
+					netDeposit:       portfolioSnaps[snapIdx].NetDeposit,
+				})
+				snapIdx++
+			}
 		}
 	}
 
 	return snapshots, dateSnapshot{
-		positions:        finalQuantities,
+		positions:        finalState.Quantities,
 		positionCurrency: copyStringMap(positionCurrency),
-		cashBalance:      copyDecimalMap(cashBalance),
-		netDeposit:       copyDecimalMap(netDeposit),
+		cashBalance:      finalState.CashBalance,
+		netDeposit:       finalState.NetDeposit,
 	}
 }
 
