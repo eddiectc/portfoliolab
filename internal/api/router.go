@@ -16,6 +16,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/trading212import"
@@ -39,8 +40,9 @@ func WithTemplatesDir(dir string) RouterOption {
 	}
 }
 
-// Router builds and returns the application HTTP router.
-func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler {
+// Router builds and returns the application HTTP router and the MarketCache
+// instance for lifecycle management (Start/Stop) in main.go.
+func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler, *marketcache.MarketCache) {
 	cfg := &routerConfig{
 		templatesDir: "templates",
 	}
@@ -105,7 +107,17 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler 
 	marketSvc := marketservice.New(yahooFetcher, marketDataRepo)
 	positionSvc.WithMarketDataService(marketSvc, logger)
 
+	// Create market cache (needs position service as SymbolDiscoverer).
+	marketCache := marketcache.New(yahooFetcher, marketDataRepo, positionSvc, logger)
+	// Wire market cache into position service for scheduling.
+	positionSvc.WithMarketCache(marketCache)
+
 	transactionSvc := transaction.NewService(transactionRepo, accountChecker, symbolChecker, symbolCreator, positionSvc, positionSvc)
+	// Wire market cache scheduling into transaction mutations.
+	transactionSvc.WithCacheScheduler(positionSvc)
+	transactionSvc.WithEarliestDateFinder(transactionRepo)
+	transactionSvc.WithAccountPortfolioFinder(accountRepo)
+	transactionSvc.WithPortfolioCurrencyResolver(portfolioRepo)
 	transactionHandler := handlers.NewTransactionHandler(transactionSvc)
 	transactionHandler.RegisterRoutes(r)
 
@@ -177,5 +189,5 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) http.Handler 
 		})
 	}
 
-	return r
+	return r, marketCache
 }

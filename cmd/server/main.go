@@ -57,8 +57,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Build router
-	router := api.Router(db, logger)
+	// Build router and market cache
+	router, marketCache := api.Router(db, logger)
+
+	// Start market cache background workers
+	marketCache.Start(context.Background())
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -87,6 +90,9 @@ func main() {
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Stop market cache background workers
+	marketCache.Stop()
 
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Error("forced shutdown", "error", err)

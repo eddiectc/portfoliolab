@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
@@ -133,6 +134,20 @@ func (m *mockTxnRepo) ListAllTransactionsByAccount(_ context.Context, accountID 
 	result := make([]transaction.Transaction, len(txns))
 	copy(result, txns)
 	return result, nil
+}
+
+// Stub implementations for new TransactionRepository methods (unused in these tests).
+func (m *mockTxnRepo) GetSymbolsWithEarliestDate(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTxnRepo) GetSymbolsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTxnRepo) GetFxPairsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTxnRepo) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
+	return nil, nil
 }
 
 type mockPosAccountChecker struct {

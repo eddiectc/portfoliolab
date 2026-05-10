@@ -155,3 +155,12 @@ func (r *AccountRepository) Delete(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+// GetPortfolioID returns the portfolio ID for an account.
+func (r *AccountRepository) GetPortfolioID(ctx context.Context, accountID int64) (int64, error) {
+	account, err := r.q.GetAccount(ctx, r.db, accountID)
+	if err != nil {
+		return 0, fmt.Errorf("get account %d: %w", accountID, err)
+	}
+	return account.PortfolioID, nil
+}

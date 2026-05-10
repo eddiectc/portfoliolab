@@ -148,3 +148,12 @@ func (r *PortfolioRepository) GetByName(ctx context.Context, name string) (*port
 	}
 	return toDomain(p)
 }
+
+// GetCurrency returns the base currency for a portfolio.
+func (r *PortfolioRepository) GetCurrency(ctx context.Context, portfolioID int64) (string, error) {
+	p, err := r.q.GetPortfolio(ctx, r.db, portfolioID)
+	if err != nil {
+		return "", fmt.Errorf("get portfolio %d: %w", portfolioID, err)
+	}
+	return p.Currency, nil
+}

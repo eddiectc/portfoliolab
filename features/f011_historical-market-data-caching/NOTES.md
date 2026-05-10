@@ -4,6 +4,9 @@
 - 2026-05-10: `GetLatestQuotesBatch` renamed to `GetLatestQuote` (single-symbol). sqlc doesn't support dynamic `IN` clauses with variable-length slices for SQLite. The batch version will be implemented in the repo layer by looping `GetLatestQuote` per symbol.
 - 2026-05-10: `MarketDataService` is a concrete struct (not an interface) in `marketservice` package. The `position` package defines its own `MarketDataService` interface for dependency inversion. This lets consumers mock the service without importing the concrete type.
 - 2026-05-10: `RefreshQuotes` on `MarketDataService` takes a symbol list and returns `RefreshResult{Refreshed, Failed}`. The caller (e.g., `position.Service.RefreshMarketData`) is responsible for collecting symbols from transactions/positions. This keeps symbol-discovery logic in the position layer where it belongs.
+- 2026-05-10: `MarketCacheScheduler` interface defined in `marketcache` package. Consumer services (position, transaction) depend on the interface, not the concrete `MarketCache` type. This avoids circular imports.
+- 2026-05-10: `MarketCache` created inside `router.go` (not `main.go`) because it needs the `YahooFinanceFetcher`, `MarketDataRepository`, and `position.Service` (as SymbolDiscoverer) which are all constructed in the router. The router returns the cache alongside the `http.Handler` for lifecycle management in `main.go`.
+- 2026-05-10: Transaction service uses separate optional interfaces (`MarketDataScheduler`, `EarliestDateFinder`, `AccountPortfolioFinder`, `PortfolioCurrencyResolver`) instead of a combined interface. This keeps dependencies minimal and testable.
 
 ## Deviations from Plan
 - Task 1: `GetLatestQuotesBatch` → `GetLatestQuote` (single symbol). Batch logic moved to repo layer (Task 2).
@@ -21,6 +24,11 @@
 - Extending `MarketDataRepository` interface requires updating mocks in 5 test files (equity_curve, fx_converter, refresh, service, performance)
 - Concurrent protection for `ScheduleSymbolFetch` requires both an `inProgress` set (worker processing) AND a `queued` set (in channel but not yet picked up). Without `queued`, two rapid calls both pass the check before the worker sets `inProgress`.
 - `UpsertHistoricalPrices` accepts a `dataType` parameter ("stock" or "fx") — added to support both stock and FX historical data through the same batch method instead of individual `Upsert` calls.
+- **Task 6 sqlc queries**: New queries in `transaction.sql` (`GetSymbolsWithEarliestDate`, `GetSymbolsByOpenPositions`, `GetFxPairsByOpenPositions`, `GetEarliestDateBySymbol`) use `MIN(date)` which returns `interface{}` from SQLite. The `parseInterfaceTime` helper in `transaction_repo.go` handles both `string` and `[]byte` representations.
+- **Task 6 sqlc comments**: sqlc fails with "edited query syntax is invalid" if there are inline comments between the `-- name:` annotation and the SQL. Remove comments or put them on a separate line before the annotation.
+- **Task 6 circular dependency**: `MarketCache` needs `position.Service` as SymbolDiscoverer, and `position.Service` needs `MarketCache` for scheduling. Resolved by creating `position.Service` first, then `MarketCache`, then wiring `MarketCache` into `position.Service` via `WithMarketCache`.
+- **Task 6 interface explosion**: Adding 4 new methods to `TransactionRepository` in the position package required updating 5 mock implementations across test files (service_test, refresh_test, performance_test, position_test). Each mock got stub implementations returning nil.
+- **Task 6 router signature change**: `Router()` now returns `(http.Handler, *marketcache.MarketCache)` instead of just `http.Handler`. All integration tests updated with `, _` to discard the cache reference.
 
 ## Future Improvements
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -30,6 +31,10 @@ type PositionRepository interface {
 // needed by the position service.
 type TransactionRepository interface {
 	ListAllTransactionsByAccount(ctx context.Context, accountID int64) ([]transaction.Transaction, error)
+	GetSymbolsWithEarliestDate(ctx context.Context) (map[string]time.Time, error)
+	GetSymbolsByOpenPositions(ctx context.Context) (map[string]time.Time, error)
+	GetFxPairsByOpenPositions(ctx context.Context) (map[string]time.Time, error)
+	GetEarliestDateBySymbol(ctx context.Context, symbol string) (*time.Time, error)
 }
 
 // AccountChecker defines the interface for checking account existence.
@@ -93,6 +98,7 @@ type Service struct {
 	accountLister            AccountLister
 	portfolioCurrencyChecker PortfolioCurrencyChecker
 	marketService            MarketDataService
+	cacheScheduler           marketcache.MarketCacheScheduler
 	logger                   *slog.Logger
 }
 
@@ -121,6 +127,53 @@ func NewService(
 func (s *Service) WithMarketDataService(marketService MarketDataService, logger *slog.Logger) {
 	s.marketService = marketService
 	s.logger = logger
+}
+
+// WithMarketCache sets the market cache scheduler for triggering background
+// fetches of historical prices and FX rates. If nil, cache scheduling is
+// disabled (market data is only refreshed on-demand).
+func (s *Service) WithMarketCache(scheduler marketcache.MarketCacheScheduler) {
+	s.cacheScheduler = scheduler
+}
+
+// --- SymbolDiscoverer implementation ---
+
+// ActiveSymbols returns symbols with open positions, keyed by symbol with the
+// earliest transaction date as value. Implements marketcache.SymbolDiscoverer.
+func (s *Service) ActiveSymbols(ctx context.Context) (map[string]time.Time, error) {
+	return s.transactions.GetSymbolsByOpenPositions(ctx)
+}
+
+// AllSymbols returns all symbols with any transactions (open + closed), keyed
+// by symbol with the earliest transaction date as value. Implements
+// marketcache.SymbolDiscoverer.
+func (s *Service) AllSymbols(ctx context.Context) (map[string]time.Time, error) {
+	return s.transactions.GetSymbolsWithEarliestDate(ctx)
+}
+
+// ActiveFxPairs returns FX pairs needed for open positions, keyed by
+// "BASE/QUOTE" with the earliest transaction date as value. Implements
+// marketcache.SymbolDiscoverer.
+func (s *Service) ActiveFxPairs(ctx context.Context) (map[string]time.Time, error) {
+	return s.transactions.GetFxPairsByOpenPositions(ctx)
+}
+
+// --- MarketCacheScheduler passthrough ---
+
+// ScheduleSymbolFetch delegates to the market cache scheduler to queue a
+// historical price fetch for a stock symbol.
+func (s *Service) ScheduleSymbolFetch(symbol string, fromDate time.Time) {
+	if s.cacheScheduler != nil {
+		s.cacheScheduler.ScheduleSymbolFetch(symbol, fromDate)
+	}
+}
+
+// ScheduleFxPairFetch delegates to the market cache scheduler to queue a
+// historical FX rate fetch for a currency pair.
+func (s *Service) ScheduleFxPairFetch(baseCurrency, quoteCurrency string, fromDate time.Time) {
+	if s.cacheScheduler != nil {
+		s.cacheScheduler.ScheduleFxPairFetch(baseCurrency, quoteCurrency, fromDate)
+	}
 }
 
 // RecalculateAccount fetches all transactions for the account, runs the

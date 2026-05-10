@@ -241,28 +241,28 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 
 **Description:** Wire MarketCache into the transaction lifecycle so new symbols trigger background fetches automatically.
 
-- [ ] Add `SymbolDiscoverer` methods to `position.Service`:
+- [x] Add `SymbolDiscoverer` methods to `position.Service`:
   - `ActiveSymbols(ctx) (map[string]time.Time, error)` — symbols with open positions, keyed by symbol, value is earliest transaction date
   - `AllSymbols(ctx) (map[string]time.Time, error)` — all symbols with any transactions, same format
   - `ActiveFxPairs(ctx) (map[string]time.Time, error)` — FX pairs needed for open positions, keyed by "BASE/QUOTE", value is earliest transaction date
-  - These use the existing transaction repo queries (GROUP BY symbol, MIN(date)) filtered by open/closed position state
-- [ ] Add `ScheduleHistoricalFetch(symbol string, fromDate time.Time)` method to `position.Service` (delegates to MarketCache if configured)
-- [ ] Add `WithMarketCache(marketcache.MarketCacheScheduler)` setter on `position.Service`
-- [ ] Define `MarketCacheScheduler` interface: `ScheduleSymbolFetch(symbol string, fromDate time.Time)`, `ScheduleFxPairFetch(base, quote string, fromDate time.Time)`, `RefreshAll(ctx context.Context)`
-- [ ] In `transaction.Service.Create` and `transaction.Service.Update` and `transaction.Service.Delete`:
-  - After position recalculation, check if the transaction's symbol needs historical data
-  - If so, find the earliest transaction date for that symbol and schedule a background fetch
-  - For non-USD transactions, schedule FX pair fetch too
-  - Use a new interface on the PositionRecalculator or add a separate hook
+  - These use new sqlc queries (GROUP BY symbol, MIN(date)) filtered by open/closed position state
+- [x] Add `ScheduleSymbolFetch`/`ScheduleFxPairFetch` methods to `position.Service` (delegates to MarketCache if configured)
+- [x] Add `WithMarketCache(marketcache.MarketCacheScheduler)` setter on `position.Service`
+- [x] Define `MarketCacheScheduler` interface: `ScheduleSymbolFetch(symbol string, fromDate time.Time)`, `ScheduleFxPairFetch(base, quote string, fromDate time.Time)`, `RefreshAll(ctx context.Context)`
+- [x] In `transaction.Service.Create` and `transaction.Service.Update` and `transaction.Service.Delete`:
+  - After position recalculation, schedule cache fetch for the symbol (skipping $CASH symbols)
+  - Uses `EarliestDateFinder` to find the earliest transaction date for the full range
+  - For non-portfolio-currency transactions, schedules FX pair fetch too
+  - Uses separate optional interfaces: `MarketDataScheduler`, `EarliestDateFinder`, `AccountPortfolioFinder`, `PortfolioCurrencyResolver`
 - [ ] In `position.Service.RecalculateAccount` (and RecalculatePortfolio/RecalculateAll):
   - After recalculation, check open positions for symbols/FX pairs without cached data
   - Schedule background fetches for any missing symbols
-- [ ] In `cmd/server/main.go`:
-  - Create `MarketCache` instance after DB open and migrations
-  - Start HTTP server first (listening)
-  - THEN call `marketCache.Start(serverCtx)` (non-blocking: immediate first pass + 2-min ticker)
-  - On shutdown: call `marketCache.Stop()` during graceful shutdown
-- [ ] Wire MarketCache through router.go to position service
+  - **Deferred**: transaction hooks cover the main path; recalc hooks can be added later
+- [x] In `cmd/server/main.go`:
+  - `MarketCache` created inside `router.go` (has all dependencies) and returned for lifecycle management
+  - `marketCache.Start(ctx)` called before HTTP server starts
+  - `marketCache.Stop()` called during graceful shutdown
+- [x] Wire MarketCache through router.go to position service and transaction service
 
 **Verification:** After saving a transaction for a new symbol, a background fetch is scheduled.
 
@@ -341,17 +341,18 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 
 **Description:** Wire MarketCache and new handlers into the router.
 
-- [ ] Update `internal/api/router.go`:
-  - Create `marketCache` instance with fetcher, repo, logger
+- [x] Update `internal/api/router.go`:
+  - `MarketCache` created inside router with fetcher, repo, position service (as SymbolDiscoverer), logger
+  - Returned alongside http.Handler for lifecycle management in main.go
   - Pass MarketCache to position service via `WithMarketCache`
-  - Create and register `MarketDataHandler`
-  - Pass MarketCache to performance web handler and position web handler
-- [ ] Update `cmd/server/main.go`:
-  - Create `MarketCache` instance after DB open and migrations
-  - Start HTTP server first (listening), then call `marketCache.Start(ctx)` (immediate first pass)
-  - Call `marketCache.Stop()` during graceful shutdown
-- [ ] Run `go build ./...` — verify no compilation errors
-- [ ] Run `go test ./...` — verify all tests pass
+  - Wire transaction service with cache scheduler, earliest date finder, account portfolio finder, portfolio currency resolver
+- [x] Update `cmd/server/main.go`:
+  - Receives MarketCache from router, calls `Start(ctx)` before HTTP server
+  - Calls `marketCache.Stop()` during graceful shutdown
+- [x] Run `go build ./...` — verify no compilation errors
+- [x] Run `go test ./...` — verify all tests pass
+- [ ] Create and register `MarketDataHandler` (for manual refresh + status API)
+- [ ] Pass MarketCache to performance web handler and position web handler
 
 **Verification:** Application builds and runs; MarketCache starts on boot, stops on shutdown; all handlers wired correctly.
 

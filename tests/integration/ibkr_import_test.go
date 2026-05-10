@@ -56,7 +56,7 @@ func buildImportForm(t *testing.T, xmlData []byte, accountID string) (body *byte
 func setupIBKR(t *testing.T) (db *sql.DB, router http.Handler, accountID int64) {
 	t.Helper()
 	db = setupTestDB(t)
-	router = api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ = api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Test Portfolio", "currency": "GBP"}`)
@@ -405,7 +405,7 @@ func TestIBKRImport_TransferClassification(t *testing.T) {
 func TestIBKRImport_UnmappedSymbolsSkipped(t *testing.T) {
 	// Create setup WITHOUT symbol mappings — all trade symbols should be skipped
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Test Portfolio", "currency": "GBP"}`)
@@ -471,7 +471,7 @@ func TestIBKRImport_UnmappedSymbolsSkipped(t *testing.T) {
 
 func TestIBKRImport_BrokerSymbolMapping(t *testing.T) {
 	db := setupTestDB(t)
-	router := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Test Portfolio", "currency": "GBP"}`)

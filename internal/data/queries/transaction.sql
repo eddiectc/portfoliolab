@@ -239,6 +239,36 @@ SELECT 1 FROM transactions
 WHERE external_system = ? AND external_reference = ?
 LIMIT 1;
 
+-- name: GetSymbolsWithEarliestDate :many
+SELECT symbol, MIN(date) AS earliest_date
+FROM transactions
+WHERE symbol NOT LIKE '$CASH-%'
+GROUP BY symbol;
+
+-- name: GetSymbolsByOpenPositions :many
+SELECT p.symbol, MIN(t.date) AS earliest_date
+FROM positions p
+JOIN transactions t ON t.symbol = p.symbol
+WHERE p.is_closed = 0
+  AND p.symbol NOT LIKE '$CASH-%'
+GROUP BY p.symbol;
+
+-- name: GetFxPairsByOpenPositions :many
+SELECT p.currency AS base_currency, port.currency AS quote_currency, MIN(t.date) AS earliest_date
+FROM positions p
+JOIN accounts a ON a.id = p.account_id
+JOIN portfolios port ON port.id = a.portfolio_id
+JOIN transactions t ON t.currency = p.currency
+WHERE p.is_closed = 0
+  AND p.currency != port.currency
+  AND p.symbol NOT LIKE '$CASH-%'
+GROUP BY p.currency, port.currency;
+
+-- name: GetEarliestDateBySymbol :one
+SELECT MIN(date) AS earliest_date
+FROM transactions
+WHERE symbol = ?;
+
 -- name: ListTransactionsWithAccountByAllFilters :many
 SELECT t.*, a.name AS account_name
 FROM transactions t

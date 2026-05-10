@@ -223,6 +223,20 @@ func (m *mockTransactionRepository) ListAllTransactionsByAccount(_ context.Conte
 	return result, nil
 }
 
+// Stub implementations for new TransactionRepository methods (unused in these tests).
+func (m *mockTransactionRepository) GetSymbolsWithEarliestDate(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTransactionRepository) GetSymbolsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTransactionRepository) GetFxPairsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
+	return nil, nil
+}
+func (m *mockTransactionRepository) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
+	return nil, nil
+}
+
 type mockAccountChecker struct {
 	mu       sync.RWMutex
 	existing map[int64]bool

@@ -52,6 +52,28 @@ type PositionRecalculator interface {
 	RecalculateAccount(ctx context.Context, accountID int64) error
 }
 
+// MarketDataScheduler schedules background market data fetches for symbols
+// and FX pairs. Used after transaction mutations to keep the cache fresh.
+type MarketDataScheduler interface {
+	ScheduleSymbolFetch(symbol string, fromDate time.Time)
+	ScheduleFxPairFetch(baseCurrency, quoteCurrency string, fromDate time.Time)
+}
+
+// EarliestDateFinder queries the earliest transaction date for a symbol.
+type EarliestDateFinder interface {
+	GetEarliestDateBySymbol(ctx context.Context, symbol string) (*time.Time, error)
+}
+
+// PortfolioCurrencyResolver returns the base currency for a portfolio.
+type PortfolioCurrencyResolver interface {
+	GetCurrency(ctx context.Context, portfolioID int64) (string, error)
+}
+
+// AccountPortfolioFinder returns the portfolio ID for an account.
+type AccountPortfolioFinder interface {
+	GetPortfolioID(ctx context.Context, accountID int64) (int64, error)
+}
+
 const (
 	// defaultLimit is the default pagination limit when not specified.
 	defaultLimit = 50
@@ -112,25 +134,54 @@ var (
 
 // Service handles transaction business logic.
 type Service struct {
-	repo             Repository
-	accounts         AccountChecker
-	symbols          SymbolChecker
-	symCreate        SymbolCreator
-	lotChecker       LotChecker
-	positionRecalc   PositionRecalculator
+	repo                   Repository
+	accounts               AccountChecker
+	symbols                SymbolChecker
+	symCreate              SymbolCreator
+	lotChecker             LotChecker
+	positionRecalc         PositionRecalculator
+	cacheScheduler         MarketDataScheduler
+	earliestDateFinder     EarliestDateFinder
+	accountPortfolioFinder AccountPortfolioFinder
+	portfolioCurrency      PortfolioCurrencyResolver
 }
 
 // NewService creates a new transaction service.
 // The positionRecalc argument may be nil if position recalculation is not needed.
 func NewService(repo Repository, accounts AccountChecker, symbols SymbolChecker, symCreate SymbolCreator, lotChecker LotChecker, positionRecalc PositionRecalculator) *Service {
 	return &Service{
-		repo:         repo,
-		accounts:     accounts,
-		symbols:      symbols,
-		symCreate:    symCreate,
-		lotChecker:   lotChecker,
+		repo:           repo,
+		accounts:       accounts,
+		symbols:        symbols,
+		symCreate:      symCreate,
+		lotChecker:     lotChecker,
 		positionRecalc: positionRecalc,
 	}
+}
+
+// WithCacheScheduler sets optional market data cache scheduling.
+// When configured, new/updated/deleted transactions trigger background
+// fetches of historical prices and FX rates.
+func (s *Service) WithCacheScheduler(scheduler MarketDataScheduler) {
+	s.cacheScheduler = scheduler
+}
+
+// WithEarliestDateFinder sets the earliest date finder for determining
+// the date range for market data fetches.
+func (s *Service) WithEarliestDateFinder(finder EarliestDateFinder) {
+	s.earliestDateFinder = finder
+}
+
+// WithAccountPortfolioFinder sets the account portfolio finder for
+// resolving the portfolio base currency for FX scheduling.
+func (s *Service) WithAccountPortfolioFinder(finder AccountPortfolioFinder) {
+	s.accountPortfolioFinder = finder
+}
+
+// WithPortfolioCurrencyResolver sets the portfolio currency resolver
+// for determining the quote currency in FX pair scheduling.
+func (s *Service) WithPortfolioCurrencyResolver(resolver PortfolioCurrencyResolver) {
+	s.portfolioCurrency = resolver
 }
 
 // Create creates a new transaction from a CreateRequest.
@@ -195,6 +246,9 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Transaction, 
 	if s.positionRecalc != nil {
 		_ = s.positionRecalc.RecalculateAccount(ctx, t.AccountID)
 	}
+
+	// Schedule market data cache fetches for the symbol and FX pair.
+	s.scheduleCacheFetch(ctx, t.Symbol, t.Currency, t.AccountID, t.Date)
 
 	return t, nil
 }
@@ -395,6 +449,9 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Tra
 		_ = s.positionRecalc.RecalculateAccount(ctx, t.AccountID)
 	}
 
+	// Schedule market data cache fetches for the symbol and FX pair.
+	s.scheduleCacheFetch(ctx, t.Symbol, t.Currency, t.AccountID, t.Date)
+
 	return t, nil
 }
 
@@ -412,6 +469,9 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 	if s.positionRecalc != nil {
 		_ = s.positionRecalc.RecalculateAccount(ctx, t.AccountID)
 	}
+
+	// Schedule market data cache fetches for the symbol and FX pair.
+	s.scheduleCacheFetch(ctx, t.Symbol, t.Currency, t.AccountID, t.Date)
 
 	return nil
 }
@@ -499,5 +559,43 @@ func mapValidationError(err error) error {
 		return ErrInvalidLotID
 	default:
 		return err
+	}
+}
+
+// scheduleCacheFetch schedules background market data fetches for a symbol
+// and/or FX pair after a transaction mutation. It is a no-op if the cache
+// scheduler is not configured or if the symbol is a cash symbol.
+func (s *Service) scheduleCacheFetch(ctx context.Context, symbol, currency string, accountID int64, txDate time.Time) {
+	if s.cacheScheduler == nil {
+		return
+	}
+
+	// Skip cash symbols.
+	if strings.HasPrefix(symbol, cashSymbolPrefix) {
+		return
+	}
+
+	// Get the earliest transaction date for this symbol to fetch
+	// the full historical range.
+	fromDate := txDate
+	if s.earliestDateFinder != nil {
+		if earliest, err := s.earliestDateFinder.GetEarliestDateBySymbol(ctx, symbol); err == nil && earliest != nil {
+			fromDate = *earliest
+		}
+	}
+
+	// Schedule historical price fetch for the symbol.
+	s.cacheScheduler.ScheduleSymbolFetch(symbol, fromDate)
+
+	// Schedule FX pair fetch if the transaction currency differs from
+	// the portfolio base currency.
+	if currency != "" && s.accountPortfolioFinder != nil && s.portfolioCurrency != nil {
+		if portfolioID, err := s.accountPortfolioFinder.GetPortfolioID(ctx, accountID); err == nil {
+			if baseCurrency, err := s.portfolioCurrency.GetCurrency(ctx, portfolioID); err == nil {
+				if currency != baseCurrency {
+					s.cacheScheduler.ScheduleFxPairFetch(currency, baseCurrency, fromDate)
+				}
+			}
+		}
 	}
 }
