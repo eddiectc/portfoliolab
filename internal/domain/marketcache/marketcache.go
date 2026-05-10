@@ -495,6 +495,8 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 	}
 
 	now := time.Now().UTC()
+	// Truncate to date-only for fair comparison with DB dates (YYYY-MM-DD midnight).
+	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
 	for sym, fromDate := range allSymbols {
 		latestDate, hasCache := latestDates[sym]
@@ -506,7 +508,7 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 			if m.logger != nil {
 				m.logger.Debug("gap-fill: no cache, scheduling full fetch", "symbol", sym, "fromDate", fromDate.Format("2006-01-02"))
 			}
-		} else if latestDate.Before(tradingDayBeforeOrOn(now)) {
+		} else if latestDate.Before(tradingDayBeforeOrOn(nowDate)) {
 			// Cache exists but not current — fetch from next trading day after
 			// the latest cached date to now. Skips weekends so Yahoo actually
 			// has data for the requested range.
@@ -524,9 +526,9 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 
 		// Skip if fetchStart is in the future (e.g. latest cached date was
 		// Friday, next trading day is Monday, but today is Saturday).
-		if fetchStart.After(now) {
+		if fetchStart.After(nowDate) {
 			if m.logger != nil {
-				m.logger.Debug("gap-fill: fetchStart in future, skipping", "symbol", sym, "fetchStart", fetchStart.Format("2006-01-02"), "now", now.Format("2006-01-02"))
+				m.logger.Debug("gap-fill: fetchStart in future, skipping", "symbol", sym, "fetchStart", fetchStart.Format("2006-01-02"), "nowDate", nowDate.Format("2006-01-02"))
 			}
 			continue
 		}

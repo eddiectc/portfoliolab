@@ -120,16 +120,17 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		if len(pricesBySymbol) > 0 {
 			latestDates := s.marketService.GetLatestPriceDatePerSymbol(ctx, symbols)
 			now := time.Now().UTC()
-			expectedLatest := tradingDayBeforeOrOn(now)
+			// Truncate to date-only (midnight) for fair comparison with DB dates
+			// which are also stored as YYYY-MM-DD (midnight UTC).
+			nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+			expectedLatest := tradingDayBeforeOrOn(nowDate)
 			for sym := range pricesBySymbol {
 				latestDate, ok := latestDates[sym]
 				if !ok || latestDate == nil {
 					continue
 				}
-				// If the latest cached date is before the expected latest trading
-				// day, warn. Skips false positives on weekends when markets are closed.
 				if latestDate.Before(expectedLatest) {
-					daysAgo := now.Sub(*latestDate).Hours() / 24
+					daysAgo := nowDate.Sub(*latestDate).Hours() / 24
 					warnings = append(warnings, fmt.Sprintf("stale market data for %s (last updated %.0f days ago)", sym, daysAgo))
 				}
 			}
