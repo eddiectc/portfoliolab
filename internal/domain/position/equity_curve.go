@@ -3,6 +3,7 @@ package position
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"time"
 
@@ -70,6 +71,9 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 
 	// 6. Handle empty state.
 	if len(allTxns) == 0 {
+		if s.logger != nil {
+			s.logger.Debug("performance: no transactions in range", "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
+		}
 		return &PerformanceResult{
 			EquityCurve:   []EquityCurvePoint{},
 			ReturnMetrics: ReturnMetrics{HasInsufficientData: true},
@@ -77,8 +81,16 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		}, nil
 	}
 
+	if s.logger != nil {
+		s.logger.Debug("performance: computing equity curve", "accounts", len(accountIDs), "baseCurrency", baseCurrency, "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"), "txns", len(allTxns))
+	}
+
 	// 7. Walk transactions chronologically, capturing state at each date.
 	snapshots := walkTransactions(allTxns)
+
+	if s.logger != nil {
+		s.logger.Debug("performance: walk complete", "snapshots", len(snapshots))
+	}
 
 	// 8. Collect unique non-cash symbols and read historical prices from cache.
 	symbols := collectUniqueSymbols(allTxns)
@@ -138,12 +150,32 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	}
 
 	// 9. Build equity curve points from snapshots.
-	points := buildEquityCurvePoints(snapshots, pricesBySymbol, baseCurrency, s.marketService, ctx)
+	points := buildEquityCurvePoints(snapshots, pricesBySymbol, baseCurrency, s.marketService, s.logger, ctx)
 
 	// 10. Interpolate for non-transaction days.
 	points = interpolateDaily(points)
 
+	if s.logger != nil {
+		s.logger.Debug("performance: interpolation complete", "points", len(points))
+	}
+
 	returnMetrics := ComputeReturnMetrics(points, baseCurrency)
+
+	if s.logger != nil {
+		totalStr := "nil"
+		if returnMetrics.TotalReturnPct != nil {
+			totalStr = returnMetrics.TotalReturnPct.String()
+		}
+		annStr := "nil"
+		if returnMetrics.AnnualizedReturnPct != nil {
+			annStr = returnMetrics.AnnualizedReturnPct.String()
+		}
+		s.logger.Debug("performance: return metrics computed",
+			"totalReturn", totalStr,
+			"annualizedReturn", annStr,
+			"hasInsufficientData", returnMetrics.HasInsufficientData,
+		)
+	}
 
 	return &PerformanceResult{
 		EquityCurve:   points,
@@ -340,6 +372,7 @@ func buildEquityCurvePoints(
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
 	marketService MarketDataService,
+	logger *slog.Logger,
 	ctx context.Context,
 ) []EquityCurvePoint {
 	priceLookup := buildPriceLookup(pricesBySymbol)
@@ -387,6 +420,23 @@ func buildEquityCurvePoints(
 			PortfolioValue: portfolioValue,
 			NetDeposit:     netDepositBase,
 		})
+	}
+
+	// Log first and last point for diagnostics.
+	if len(points) > 0 {
+		first := points[0]
+		last := points[len(points)-1]
+		if logger != nil {
+			logger.Debug("performance: equity curve built",
+				"points", len(points),
+				"firstDate", first.Date.Format("2006-01-02"),
+				"firstValue", first.PortfolioValue.String(),
+				"firstNetDeposit", first.NetDeposit.String(),
+				"lastDate", last.Date.Format("2006-01-02"),
+				"lastValue", last.PortfolioValue.String(),
+				"lastNetDeposit", last.NetDeposit.String(),
+			)
+		}
 	}
 
 	return points
