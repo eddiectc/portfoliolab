@@ -375,7 +375,7 @@ func buildEquityCurvePoints(
 	logger *slog.Logger,
 	ctx context.Context,
 ) []EquityCurvePoint {
-	priceLookup := buildPriceLookup(pricesBySymbol)
+	priceLookup := buildPriceLookupFF(buildPriceLookup(pricesBySymbol))
 
 	var points []EquityCurvePoint
 	for _, snap := range snapshots {
@@ -459,12 +459,44 @@ func buildEquityCurvePoints(
 	return points
 }
 
-// lookupPrice retrieves a historical price for a symbol on a specific date.
-func lookupPrice(lookup map[string]map[string]market.HistoricalPrice, symbol, dateKey string) (market.HistoricalPrice, bool) {
-	if dates, ok := lookup[symbol]; ok {
-		if price, ok := dates[dateKey]; ok {
-			return price, true
+// priceLookupFF is a forward-fill price lookup: for each symbol, stores
+// sorted date keys and their prices so we can find the nearest previous price.
+type priceLookupFF struct {
+	dates  []string // sorted ascending
+	prices map[string]market.HistoricalPrice
+}
+
+// buildPriceLookupFF builds a forward-fill price lookup from the price map.
+func buildPriceLookupFF(lookup map[string]map[string]market.HistoricalPrice) map[string]*priceLookupFF {
+	ff := make(map[string]*priceLookupFF)
+	for symbol, dateMap := range lookup {
+		dates := make([]string, 0, len(dateMap))
+		for d := range dateMap {
+			dates = append(dates, d)
 		}
+		sort.Strings(dates)
+		ff[symbol] = &priceLookupFF{dates: dates, prices: dateMap}
+	}
+	return ff
+}
+
+// lookupPrice retrieves a historical price for a symbol on or before a specific
+// date. If the exact date is not found, it forward-fills from the nearest
+// previous cached price. Returns false if no price exists before the given date.
+func lookupPrice(ff map[string]*priceLookupFF, symbol, dateKey string) (market.HistoricalPrice, bool) {
+	pf, ok := ff[symbol]
+	if !ok {
+		return market.HistoricalPrice{}, false
+	}
+	// Binary search for the largest date <= dateKey.
+	idx := sort.SearchStrings(pf.dates, dateKey)
+	// If exact match found.
+	if idx < len(pf.dates) && pf.dates[idx] == dateKey {
+		return pf.prices[dateKey], true
+	}
+	// Forward-fill from previous date.
+	if idx > 0 {
+		return pf.prices[pf.dates[idx-1]], true
 	}
 	return market.HistoricalPrice{}, false
 }
