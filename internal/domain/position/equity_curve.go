@@ -85,6 +85,9 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	var warnings []string
 	var pricesBySymbol map[string][]market.HistoricalPrice
 	if len(symbols) > 0 && s.marketService != nil {
+		if s.logger != nil {
+			s.logger.Debug("reading cached historical prices", "symbols", len(symbols), "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
+		}
 		// Read cached historical prices for each symbol.
 		pricesBySymbol = make(map[string][]market.HistoricalPrice)
 		var missingSymbols []string
@@ -98,8 +101,14 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 				continue
 			}
 			if len(prices) == 0 {
+				if s.logger != nil {
+					s.logger.Debug("no cached prices found", "symbol", sym, "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
+				}
 				missingSymbols = append(missingSymbols, sym)
 				continue
+			}
+			if s.logger != nil {
+				s.logger.Debug("cached prices loaded", "symbol", sym, "count", len(prices))
 			}
 			pricesBySymbol[sym] = prices
 		}
