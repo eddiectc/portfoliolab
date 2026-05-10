@@ -96,8 +96,8 @@ func TestComputePositions_BuyPartialSell(t *testing.T) {
 		t.Errorf("expected AvgClosePrice 175.00, got %v", p.AvgClosePrice)
 	}
 	// P&L = -1500.00 + 875.00 = -625.00
-	if !p.RealizedPnL.Equal(dec(-62500, 2)) {
-		t.Errorf("expected RealizedPnL -625.00, got %q", p.RealizedPnL.String())
+	if !p.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected RealizedPnL 0 (open position), got %q", p.RealizedPnL.String())
 	}
 	if p.IsClosed {
 		t.Error("expected IsClosed false")
@@ -318,9 +318,9 @@ func TestComputePositions_ShortPosition(t *testing.T) {
 	if p.AvgClosePrice == nil || !p.AvgClosePrice.Equal(dec(17500, 2)) {
 		t.Errorf("expected AvgClosePrice 175.00, got %v", p.AvgClosePrice)
 	}
-	// RealizedPnL = -900.00 + 1750.00 = 850.00
-	if !p.RealizedPnL.Equal(dec(85000, 2)) {
-		t.Errorf("expected RealizedPnL 850.00, got %q", p.RealizedPnL.String())
+	// Open position: RealizedPnL = 0 (P&L shown via unrealized)
+	if !p.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected RealizedPnL 0 (open position), got %q", p.RealizedPnL.String())
 	}
 	if p.IsClosed {
 		t.Error("expected IsClosed false")
@@ -389,9 +389,9 @@ func TestComputePositions_MixedSymbols(t *testing.T) {
 	if msftPos.AvgClosePrice == nil || !msftPos.AvgClosePrice.Equal(dec(22500, 2)) {
 		t.Errorf("expected MSFT AvgClosePrice 225.00, got %v", msftPos.AvgClosePrice)
 	}
-	// P&L = -1000.00 + 675.00 = -325.00
-	if !msftPos.RealizedPnL.Equal(dec(-32500, 2)) {
-		t.Errorf("expected MSFT RealizedPnL -325.00, got %q", msftPos.RealizedPnL.String())
+	// Open position: RealizedPnL = 0
+	if !msftPos.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected MSFT RealizedPnL 0 (open position), got %q", msftPos.RealizedPnL.String())
 	}
 }
 
@@ -453,9 +453,9 @@ func TestComputePositions_MultipleBuysOneSell(t *testing.T) {
 	if p.AvgClosePrice == nil || !p.AvgClosePrice.Equal(dec(17500, 2)) {
 		t.Errorf("expected AvgClosePrice 175.00, got %v", p.AvgClosePrice)
 	}
-	// RealizedPnL = -1550.00 + 1400.00 = -150.00
-	if !p.RealizedPnL.Equal(dec(-15000, 2)) {
-		t.Errorf("expected RealizedPnL -150.00, got %q", p.RealizedPnL.String())
+	// Open position: RealizedPnL = 0
+	if !p.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected RealizedPnL 0 (open position), got %q", p.RealizedPnL.String())
 	}
 }
 
@@ -512,9 +512,9 @@ func TestComputePositions_SellThenBuySameCycle(t *testing.T) {
 	if !op.AvgOpenPrice.Equal(decimal.Zero) {
 		t.Errorf("expected open AvgOpenPrice 0, got %q", op.AvgOpenPrice.String())
 	}
-	// SellProceeds = 525.00, P&L = 0 + 525.00 = 525.00
-	if !op.RealizedPnL.Equal(dec(52500, 2)) {
-		t.Errorf("expected open RealizedPnL 525.00, got %q", op.RealizedPnL.String())
+	// Open position: RealizedPnL = 0
+	if !op.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected open RealizedPnL 0 (open position), got %q", op.RealizedPnL.String())
 	}
 }
 

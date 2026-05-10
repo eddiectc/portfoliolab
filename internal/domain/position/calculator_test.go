@@ -71,11 +71,9 @@ func TestCalculatePositions_FullFlowWithOpenAndCashPosition(t *testing.T) {
 		}
 	}
 
-	// Position-level realized P&L = total cost basis + total sell proceeds
-	// = -1500.00 + 510.00 = -990.00 (net cash flow for the position).
-	// This is not the FIFO consumption P&L; it's the position's total cash flow.
-	if !aaplPos.RealizedPnL.Equal(dec(-99000, 2)) {
-		t.Errorf("expected realized P&L -990.00, got %q", aaplPos.RealizedPnL.String())
+	// Open position: RealizedPnL = 0 (sell proceeds are in cash balance)
+	if !aaplPos.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected realized P&L 0 (open position), got %q", aaplPos.RealizedPnL.String())
 	}
 
 	// No closed positions.
