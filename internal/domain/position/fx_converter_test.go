@@ -2,7 +2,6 @@ package position
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -85,38 +84,6 @@ func (m *mockFxRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[
 	return nil
 }
 
-type mockFxFetcher struct {
-	rates map[string]*market.FxRate // keyed by "base,quote"
-	err   error
-}
-
-func newMockFxFetcher() *mockFxFetcher {
-	return &mockFxFetcher{
-		rates: make(map[string]*market.FxRate),
-	}
-}
-
-func (m *mockFxFetcher) setRate(baseCurrency, quoteCurrency string, rate decimal.Decimal) {
-	key := baseCurrency + "," + quoteCurrency
-	m.rates[key] = &market.FxRate{
-		BaseCurrency:  baseCurrency,
-		QuoteCurrency: quoteCurrency,
-		Rate:          rate,
-		FetchedAt:     time.Now(),
-	}
-}
-
-func (m *mockFxFetcher) FetchRate(_ context.Context, baseCurrency, quoteCurrency string) (*market.FxRate, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	key := baseCurrency + "," + quoteCurrency
-	if rate, ok := m.rates[key]; ok {
-		return rate, nil
-	}
-	return nil, fmt.Errorf("no rate for %s/%s", baseCurrency, quoteCurrency)
-}
-
 // --- ConvertPnlToBase tests ---
 
 func TestConvertPnlToBase_SameCurrency(t *testing.T) {
@@ -196,157 +163,6 @@ func TestConvertPnlToBase_ZeroPnL(t *testing.T) {
 
 	if !converted.Equal(decimal.Zero) {
 		t.Errorf("expected zero, got %s", converted.String())
-	}
-}
-
-// --- FxConverter tests ---
-
-func TestFxConverter_GetRateForDate_HistoricalInDB(t *testing.T) {
-	repo := newMockFxRepo()
-	repo.setHistorical("GBP/USD", "2024-03-15", &market.MarketData{
-		Symbol: "GBP/USD", Price: decimal.MustNew(12500, 4), DataType: "fx",
-		Currency: "USD", Source: "yahoo", Date: "2024-03-15",
-		FetchedAt: time.Now(),
-	})
-
-	fetcher := newMockFxFetcher()
-	converter := NewFxConverter(repo, fetcher, nil)
-
-	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
-
-	if !found {
-		t.Error("expected historical rate found")
-	}
-	if rate == nil {
-		t.Fatal("expected non-nil rate")
-	}
-	if !rate.Rate.Equal(decimal.MustNew(12500, 4)) {
-		t.Errorf("expected rate 1.2500, got %s", rate.Rate.String())
-	}
-	// Should not have fetched from provider.
-	if len(repo.upsertCalls) > 0 {
-		t.Error("expected no upsert (historical rate was in DB)")
-	}
-}
-
-func TestFxConverter_GetRateForDate_FetchesOnDemand(t *testing.T) {
-	repo := newMockFxRepo()
-	fetcher := newMockFxFetcher()
-	fetcher.setRate("GBP", "USD", decimal.MustNew(12600, 4))
-
-	converter := NewFxConverter(repo, fetcher, nil)
-
-	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
-
-	if found {
-		t.Error("expected not found (on-demand fetch is not historical)")
-	}
-	if rate == nil {
-		t.Fatal("expected non-nil rate")
-	}
-	if !rate.Rate.Equal(decimal.MustNew(12600, 4)) {
-		t.Errorf("expected rate 1.2600, got %s", rate.Rate.String())
-	}
-	// Should have cached the fetched rate.
-	if len(repo.upsertCalls) != 1 {
-		t.Fatalf("expected 1 upsert, got %d", len(repo.upsertCalls))
-	}
-	if repo.upsertCalls[0].Date != "2024-03-15" {
-		t.Errorf("expected cached date 2024-03-15, got %s", repo.upsertCalls[0].Date)
-	}
-}
-
-func TestFxConverter_GetRateForDate_FallsBackToSpot(t *testing.T) {
-	repo := newMockFxRepo()
-	// No historical rate, but current spot available.
-	repo.setCurrentFx("GBP/USD", &market.MarketData{
-		Symbol: "GBP/USD", Price: decimal.MustNew(12700, 4), DataType: "fx",
-		Currency: "USD", Source: "yahoo", Date: "",
-		FetchedAt: time.Now(),
-	})
-	fetcher := newMockFxFetcher()
-	fetcher.err = fmt.Errorf("fetch unavailable") // force fetch failure
-
-	converter := NewFxConverter(repo, fetcher, nil)
-
-	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
-
-	if found {
-		t.Error("expected not found (spot rate is a fallback)")
-	}
-	if rate == nil {
-		t.Fatal("expected non-nil rate (from spot fallback)")
-	}
-	if !rate.Rate.Equal(decimal.MustNew(12700, 4)) {
-		t.Errorf("expected rate 1.2700, got %s", rate.Rate.String())
-	}
-}
-
-func TestFxConverter_GetRateForDate_NoRateAvailable(t *testing.T) {
-	repo := newMockFxRepo()
-	fetcher := newMockFxFetcher()
-	fetcher.err = fmt.Errorf("fetch unavailable")
-
-	converter := NewFxConverter(repo, fetcher, nil)
-
-	rate, found := converter.GetRateForDate(fxCtx, "GBP", "USD", time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC))
-
-	if found {
-		t.Error("expected not found")
-	}
-	if rate != nil {
-		t.Errorf("expected nil rate, got %v", rate)
-	}
-}
-
-func TestFxConverter_GetCurrentRate_FromCache(t *testing.T) {
-	repo := newMockFxRepo()
-	repo.setCurrentFx("EUR/USD", &market.MarketData{
-		Symbol: "EUR/USD", Price: decimal.MustNew(10800, 4), DataType: "fx",
-		Currency: "USD", Source: "yahoo", Date: "",
-		FetchedAt: time.Now(),
-	})
-	fetcher := newMockFxFetcher()
-
-	converter := NewFxConverter(repo, fetcher, nil)
-
-	rate, found := converter.GetCurrentRate(fxCtx, "EUR", "USD")
-
-	if !found {
-		t.Error("expected rate found")
-	}
-	if rate == nil {
-		t.Fatal("expected non-nil rate")
-	}
-	if !rate.Rate.Equal(decimal.MustNew(10800, 4)) {
-		t.Errorf("expected rate 1.0800, got %s", rate.Rate.String())
-	}
-}
-
-func TestFxConverter_GetCurrentRate_FetchesAndCaches(t *testing.T) {
-	repo := newMockFxRepo()
-	fetcher := newMockFxFetcher()
-	fetcher.setRate("EUR", "USD", decimal.MustNew(10900, 4))
-
-	converter := NewFxConverter(repo, fetcher, nil)
-
-	rate, found := converter.GetCurrentRate(fxCtx, "EUR", "USD")
-
-	if !found {
-		t.Error("expected rate found")
-	}
-	if rate == nil {
-		t.Fatal("expected non-nil rate")
-	}
-	if !rate.Rate.Equal(decimal.MustNew(10900, 4)) {
-		t.Errorf("expected rate 1.0900, got %s", rate.Rate.String())
-	}
-	// Should have cached.
-	if len(repo.upsertCalls) != 1 {
-		t.Fatalf("expected 1 upsert, got %d", len(repo.upsertCalls))
-	}
-	if repo.upsertCalls[0].Date != "" {
-		t.Errorf("expected cached date '' (current), got %q", repo.upsertCalls[0].Date)
 	}
 }
 

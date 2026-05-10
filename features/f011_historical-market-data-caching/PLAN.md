@@ -208,6 +208,33 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 
 ---
 
+### Task 5.6: Normalize FX rate access through MarketDataService [PRIORITY: HIGH]
+
+**Corresponds to:** Scenarios: Positions page uses cached data, Performance page uses cached data
+
+**Description:** Remove the `FxConverter`/`FxRateProvider` abstraction and merge FX rate access into `MarketDataService`. This eliminates the inline fallback chain (historical DB → live fetch → spot rate) and normalizes FX to the same cache-read-only pattern as stock data.
+
+- [x] Add FX methods to `MarketDataService` interface:
+  - `GetCurrentFxRate(ctx, base, quote string) (*FxRate, error)` — spot rate from cache
+  - `GetHistoricalFxRate(ctx, base, quote string, date time.Time) (*FxRate, error)` — historical rate from cache
+  - `RefreshFxRates(ctx, pairs []FxPair) FxRefreshResult` — live fetch + upsert
+- [x] Add FX methods to `marketservice.Service` implementation
+- [x] Extend `MarketDataFetcher` interface with `FetchFxRate`
+- [x] Extend `MarketDataRepository` interface with `GetCurrentFxRate`, `GetBySourceAndDate`
+- [x] Remove `FxConverter` from `position.Service` (delete `fx_converter.go`)
+- [x] Update `position.Service.convertPnlToBase` to use `marketService.GetCurrentFxRate` / `GetHistoricalFxRate`
+- [x] Update `position.Service.convertValuesToBase` to use `marketService.GetCurrentFxRate`
+- [x] Update `position/equity_curve.go` to use `marketService.GetHistoricalFxRate`
+- [x] Update `position/refresh.go` to use `marketService.RefreshFxRates`
+- [x] Update `router.go` to remove FxConverter instantiation
+- [x] Update all tests (service_test.go, equity_curve_test.go, refresh_test.go, performance_test.go, position_test.go)
+- [x] Move `ConvertPnlToBase`, `ConventionFxRate`, `FxRateDisplay` to `service.go`
+- [x] Remove obsolete `FxRateProvider` interface and `mockFxRateProvider` from tests
+
+**Verification:** `go build ./...` and `go test ./internal/... ./tests/...` pass; no references to `FxConverter`/`FxRateProvider` remain.
+
+---
+
 ### Task 6: Integration hooks — transaction save, position recalc [PRIORITY: MEDIUM]
 
 **Corresponds to:** Scenarios: Background fetch triggered by new symbol (transaction save), Background fetch triggered by new symbol (position recalculation), Background fetch triggered by new FX pair

@@ -273,6 +273,18 @@ func (m *mockPerfMarketService) RefreshQuotes(_ context.Context, symbols []strin
 	return marketservice.RefreshResult{Refreshed: refreshed, Failed: failed}
 }
 
+func (m *mockPerfMarketService) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) {
+	return nil, nil
+}
+
+func (m *mockPerfMarketService) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) {
+	return nil, nil
+}
+
+func (m *mockPerfMarketService) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult {
+	return marketservice.FxRefreshResult{}
+}
+
 // --- Test helpers ---
 
 func perfTxn(accountID int64, date time.Time, typ, symbol, currency string, qty, price, netCash int64) transaction.Transaction {
@@ -318,7 +330,6 @@ func newPerfService(accountIDs []int64, portfolioIDs []int64) (*position.Service
 		newMockPortfolioCheckerForPerf(portfolioIDs...),
 		accountLister,
 		nil, // no portfolio currency checker
-		nil, // no FX provider
 	)
 	svc.WithMarketDataService(&mockPerfMarketService{fetcher: fetcher, repo: repo}, nil)
 

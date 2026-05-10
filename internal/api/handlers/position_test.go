@@ -208,7 +208,7 @@ func setupPositionHandler(t *testing.T, accountIDs []int64, portfolioIDs []int64
 	for i, id := range accountIDs {
 		accountLister.allAccounts[i] = position.AccountRef{ID: id, Name: "Account " + string(rune('A'+i)), PortfolioID: 1}
 	}
-	svc := position.NewService(posRepo, txnRepo, accounts, portfolios, accountLister, nil, nil)
+	svc := position.NewService(posRepo, txnRepo, accounts, portfolios, accountLister, nil)
 	return NewPositionHandler(svc), posRepo, accountLister
 }
 
@@ -231,7 +231,7 @@ func setupPositionHandlerForRouter(t *testing.T, accountIDs []int64, portfolioID
 	for i, id := range accountIDs {
 		accountLister.allAccounts[i] = position.AccountRef{ID: id, Name: "Account " + string(rune('A'+i)), PortfolioID: 1}
 	}
-	svc := position.NewService(posRepo, txnRepo, accounts, portfolios, accountLister, nil, nil)
+	svc := position.NewService(posRepo, txnRepo, accounts, portfolios, accountLister, nil)
 	h := NewPositionHandler(svc)
 	h.RegisterRoutes(r)
 	return h, posRepo

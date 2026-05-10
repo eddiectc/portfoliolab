@@ -7,11 +7,6 @@ import (
 	"github.com/govalues/decimal"
 )
 
-func TestFxRateFetcherInterface(t *testing.T) {
-	// Verify YahooFinanceFetcher implements FxRateFetcher at compile time.
-	var _ FxRateFetcher = (*YahooFinanceFetcher)(nil)
-}
-
 func TestFormatFxPair(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -51,9 +46,4 @@ func TestFxRateFields(t *testing.T) {
 	}
 }
 
-func TestFxError(t *testing.T) {
-	err := &FxError{code: "invalid_fx_pair", message: "bad pair"}
-	if err.Error() != "bad pair" {
-		t.Errorf("FxError.Error() = %q, want %q", err.Error(), "bad pair")
-	}
-}
+

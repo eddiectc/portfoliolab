@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
@@ -84,13 +85,22 @@ func (s *Service) RefreshMarketData(ctx context.Context, filters PerformanceFilt
 	currencies := collectUniqueCurrencies(allTxns)
 	var fxPairsRefreshed []string
 
-	for _, currency := range currencies {
-		if currency == baseCurrency || currency == "" {
-			continue
+	if s.marketService != nil {
+		// Collect unique FX pairs to refresh.
+		pairs := make([]marketservice.FxPair, 0, len(currencies))
+		for _, currency := range currencies {
+			if currency == baseCurrency || currency == "" {
+				continue
+			}
+			pairs = append(pairs, marketservice.FxPair{
+				BaseCurrency:  currency,
+				QuoteCurrency: baseCurrency,
+			})
 		}
-		if s.fxProvider != nil {
-			if _, found := s.fxProvider.GetCurrentRate(ctx, currency, baseCurrency); found {
-				fxPairsRefreshed = append(fxPairsRefreshed, market.FormatFxPair(currency, baseCurrency))
+		if len(pairs) > 0 {
+			result := s.marketService.RefreshFxRates(ctx, pairs)
+			for _, pair := range result.Refreshed {
+				fxPairsRefreshed = append(fxPairsRefreshed, market.FormatFxPair(pair.BaseCurrency, pair.QuoteCurrency))
 			}
 		}
 	}

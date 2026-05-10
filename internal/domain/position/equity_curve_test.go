@@ -16,24 +16,6 @@ import (
 
 // --- Mocks for equity curve tests ---
 
-type mockFxRateProvider struct {
-	// rates[fromCurrency][toCurrency] = rate
-	rates map[string]map[string]*market.FxRate
-}
-
-func (m *mockFxRateProvider) GetRateForDate(_ context.Context, from, to string, _ time.Time) (*market.FxRate, bool) {
-	if rates, ok := m.rates[from]; ok {
-		if rate, ok := rates[to]; ok {
-			return rate, true
-		}
-	}
-	return nil, false
-}
-
-func (m *mockFxRateProvider) GetCurrentRate(_ context.Context, from, to string) (*market.FxRate, bool) {
-	return m.GetRateForDate(context.Background(), from, to, time.Time{})
-}
-
 type mockHistoricalFetcher struct {
 	prices   map[string][]market.HistoricalPrice
 	failed   []string
@@ -161,6 +143,18 @@ func (m *mockEqMarketService) GetLatestPriceDatePerSymbol(_ context.Context, sym
 
 func (m *mockEqMarketService) RefreshQuotes(_ context.Context, _ []string) marketservice.RefreshResult {
 	return marketservice.RefreshResult{}
+}
+
+func (m *mockEqMarketService) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) {
+	return nil, nil
+}
+
+func (m *mockEqMarketService) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) {
+	return nil, nil
+}
+
+func (m *mockEqMarketService) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult {
+	return marketservice.FxRefreshResult{}
 }
 
 // --- Test helpers ---
@@ -486,9 +480,10 @@ func TestConvertToBase_SameCurrency(t *testing.T) {
 }
 
 func TestConvertToBase_WithRate(t *testing.T) {
-	fx := &mockFxRateProvider{
-		rates: map[string]map[string]*market.FxRate{
-			"GBP": {"USD": &market.FxRate{BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: decimal.MustNew(12700, 2)}},
+	rate := decimal.MustNew(12700, 2)
+	fx := &mockMarketDataService{
+		historicalFx: map[string]*market.FxRate{
+			"GBP/USD": {BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: rate},
 		},
 	}
 
@@ -504,7 +499,7 @@ func TestConvertToBase_WithRate(t *testing.T) {
 }
 
 func TestConvertToBase_NoRate(t *testing.T) {
-	fx := &mockFxRateProvider{rates: map[string]map[string]*market.FxRate{}}
+	fx := &mockMarketDataService{}
 	value := decimal.MustNew(1000000, 2)
 	result, found := convertToBase(context.Background(), fx, "GBP", "USD", value, testTime(2024, 1, 1))
 	if found {
@@ -578,7 +573,6 @@ func newTestServiceForEquity() (*Service, *mockTransactionRepository, *mockAccou
 		newMockPortfolioChecker(1),
 		accountLister,
 		nil, // no portfolio currency checker
-		nil, // no FX provider (set later)
 	), txnRepo, accountLister
 }
 
@@ -817,12 +811,11 @@ func TestComputeEquityCurve_MultiCurrencyWithFX(t *testing.T) {
 	})
 
 	// FX provider: GBP → USD at 1.27
-	fx := &mockFxRateProvider{
-		rates: map[string]map[string]*market.FxRate{
-			"GBP": {"USD": &market.FxRate{BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: decimal.MustNew(127, 2)}},
+	svc.WithMarketDataService(&mockMarketDataService{
+		historicalFx: map[string]*market.FxRate{
+			"GBP/USD": {BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: decimal.MustNew(127, 2)},
 		},
-	}
-	svc.fxProvider = fx
+	}, nil)
 
 	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
 		PortfolioID: ptrInt64(1),
