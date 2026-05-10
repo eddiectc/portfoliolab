@@ -62,9 +62,9 @@
 {{/* Summary metrics cards */}}
 <div class="position-summary">
     <div class="summary-card">
-        <span class="summary-label">Total Return</span>
-        <span class="summary-value pnl {{if .Result.ReturnMetrics.TotalReturnPct}}{{sign .Result.ReturnMetrics.TotalReturnPct.String}}{{end}}">
-            {{if .Result.ReturnMetrics.TotalReturnPct}}{{formatPct .Result.ReturnMetrics.TotalReturnPct}}%{{else}}—{{end}}
+        <span class="summary-label">Period Return</span>
+        <span class="summary-value pnl {{if .Result.ReturnMetrics.PeriodReturnPct}}{{sign .Result.ReturnMetrics.PeriodReturnPct.String}}{{end}}">
+            {{if .Result.ReturnMetrics.PeriodReturnPct}}{{formatPct .Result.ReturnMetrics.PeriodReturnPct}}%{{else}}—{{end}}
         </span>
     </div>
     <div class="summary-card">

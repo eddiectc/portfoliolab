@@ -6,12 +6,12 @@ import (
 	"github.com/govalues/decimal"
 )
 
-func TestComputeReturnMetrics(t *testing.T) {
+func TestComputePeriodReturn(t *testing.T) {
 	tests := []struct {
 		name             string
 		equityCurve      []EquityCurvePoint
 		baseCurrency     string
-		wantTotalReturn  *decimal.Decimal
+		wantPeriodReturn  *decimal.Decimal
 		wantAnnualized   *decimal.Decimal
 		wantInsufficient bool
 	}{
@@ -23,7 +23,7 @@ func TestComputeReturnMetrics(t *testing.T) {
 			},
 			baseCurrency: "USD",
 			// Total return: (11500 - 10000) / 10000 * 100 = 15.00%
-			wantTotalReturn: ptrDec(dec(1500, 2)),
+			wantPeriodReturn: ptrDec(dec(1500, 2)),
 			// CAGR: (11500/10000)^(365/365) - 1 = 0.15 → 15.00%
 			wantAnnualized: ptrDec(dec(1500, 2)),
 			wantInsufficient: false,
@@ -36,7 +36,7 @@ func TestComputeReturnMetrics(t *testing.T) {
 			},
 			baseCurrency: "USD",
 			// Total return: (13000 - 10000) / 10000 * 100 = 30.00%
-			wantTotalReturn: ptrDec(dec(3000, 2)),
+			wantPeriodReturn: ptrDec(dec(3000, 2)),
 			// CAGR: (1.3)^(365/731) - 1 ≈ 0.1400 → 14.00% (731 days: 2022-06-01 to 2024-06-01, includes leap day)
 			wantAnnualized: ptrDec(dec(1400, 2)),
 			wantInsufficient: false,
@@ -49,30 +49,31 @@ func TestComputeReturnMetrics(t *testing.T) {
 			},
 			baseCurrency: "USD",
 			// Total return: (11000 - 10000) / 10000 * 100 = 10.00%
-			wantTotalReturn: ptrDec(dec(1000, 2)),
+			wantPeriodReturn: ptrDec(dec(1000, 2)),
 			// CAGR: (1.1)^(365/182) - 1 ≈ 0.2106 → 21.06% (182 days: 2024-01-01 to 2024-07-01, leap year)
 			wantAnnualized: ptrDec(decimal.MustParse("21.06")),
 			wantInsufficient: false,
 		},
 		{
-			name: "zero net deposit (total return N/A)",
+			name: "zero begin value (period return N/A)",
 			equityCurve: []EquityCurvePoint{
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(0, 2), NetDeposit: dec(0, 2)},
 				{Date: mustTime("2024-06-01"), PortfolioValue: dec(500000, 2), NetDeposit: dec(0, 2)},
 			},
 			baseCurrency: "USD",
-			wantTotalReturn:  nil, // N/A — zero net deposit
+			wantPeriodReturn:  nil, // N/A — zero begin value
 			wantAnnualized:   nil, // N/A — begin value is zero
 			wantInsufficient: false,
 		},
 		{
-			name: "negative net deposit (total return N/A)",
+			name: "negative net deposit (period return uses begin/end value)",
 			equityCurve: []EquityCurvePoint{
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(-500000, 2)},
 				{Date: mustTime("2024-06-01"), PortfolioValue: dec(1200000, 2), NetDeposit: dec(-500000, 2)},
 			},
 			baseCurrency: "USD",
-			wantTotalReturn:  nil, // N/A — negative net deposit
+			// Period return: (12000 - 10000) / 10000 * 100 = 20.00%
+			wantPeriodReturn:  ptrDec(dec(2000, 2)),
 			// CAGR: (1.2)^(365/152) - 1 ≈ 0.5493 → 54.93% (152 days: 2024-01-01 to 2024-06-01, leap year)
 			wantAnnualized:   ptrDec(decimal.MustParse("54.93")),
 			wantInsufficient: false,
@@ -83,7 +84,7 @@ func TestComputeReturnMetrics(t *testing.T) {
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
 			},
 			baseCurrency: "USD",
-			wantTotalReturn:  nil,
+			wantPeriodReturn:  nil,
 			wantAnnualized:   nil,
 			wantInsufficient: true,
 		},
@@ -91,7 +92,7 @@ func TestComputeReturnMetrics(t *testing.T) {
 			name:             "empty equity curve",
 			equityCurve:      []EquityCurvePoint{},
 			baseCurrency:     "USD",
-			wantTotalReturn:  nil,
+			wantPeriodReturn:  nil,
 			wantAnnualized:   nil,
 			wantInsufficient: true,
 		},
@@ -102,7 +103,7 @@ func TestComputeReturnMetrics(t *testing.T) {
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
 			},
 			baseCurrency: "USD",
-			wantTotalReturn:  ptrDec(decimal.Zero),
+			wantPeriodReturn:  ptrDec(decimal.Zero),
 			wantAnnualized:   ptrDec(decimal.Zero),
 			wantInsufficient: false,
 		},
@@ -114,7 +115,7 @@ func TestComputeReturnMetrics(t *testing.T) {
 			},
 			baseCurrency: "USD",
 			// Total return: (8500 - 10000) / 10000 * 100 = -15.00%
-			wantTotalReturn:  ptrDec(decimal.MustParse("-15.00")),
+			wantPeriodReturn:  ptrDec(decimal.MustParse("-15.00")),
 			// CAGR: (0.85)^(365/365) - 1 = -0.15 → -15.00%
 			wantAnnualized:   ptrDec(decimal.MustParse("-15.00")),
 			wantInsufficient: false,
@@ -127,9 +128,9 @@ func TestComputeReturnMetrics(t *testing.T) {
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1100000, 2), NetDeposit: dec(1100000, 2)},
 			},
 			baseCurrency: "USD",
-			// Total return uses last point: (11000 - 11000) / 11000 * 100 = 0.00%
-			wantTotalReturn:  ptrDec(decimal.Zero),
-			// CAGR uses first and last: (11000/10000)^(365/365) - 1 = 0.10 → 10.00%
+			// Period return: (11000 - 10000) / 10000 * 100 = 10.00%
+			wantPeriodReturn:  ptrDec(dec(1000, 2)),
+			// CAGR: (11000/10000)^(365/365) - 1 = 0.10 → 10.00%
 			wantAnnualized:   ptrDec(dec(1000, 2)),
 			wantInsufficient: false,
 		},
@@ -141,7 +142,7 @@ func TestComputeReturnMetrics(t *testing.T) {
 			},
 			baseCurrency: "USD",
 			// Total return: (11000 - 10000) / 10000 * 100 = 10.00%
-			wantTotalReturn:  ptrDec(dec(1000, 2)),
+			wantPeriodReturn:  ptrDec(dec(1000, 2)),
 			wantAnnualized:   nil, // N/A — zero days elapsed
 			wantInsufficient: false,
 		},
@@ -149,13 +150,13 @@ func TestComputeReturnMetrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ComputeReturnMetrics(tt.equityCurve, tt.baseCurrency)
+			got := ComputePeriodReturn(tt.equityCurve, tt.baseCurrency)
 
 			if got.HasInsufficientData != tt.wantInsufficient {
 				t.Errorf("has_insufficient_data: got %v, want %v", got.HasInsufficientData, tt.wantInsufficient)
 			}
 
-			checkDecimalPtr(t, "total_return_pct", got.TotalReturnPct, tt.wantTotalReturn)
+			checkDecimalPtr(t, "period_return_pct", got.PeriodReturnPct, tt.wantPeriodReturn)
 			checkDecimalPtr(t, "annualized_return_pct", got.AnnualizedReturnPct, tt.wantAnnualized)
 		})
 	}

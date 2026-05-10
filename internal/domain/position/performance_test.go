@@ -79,40 +79,40 @@ func TestReturnMetrics_JSONRoundTrip(t *testing.T) {
 		name  string
 		metrics ReturnMetrics
 		// What we expect to find after round-trip
-		wantTotal      *decimal.Decimal
+		wantPeriod      *decimal.Decimal
 		wantAnnualized *decimal.Decimal
 		wantInsufficient bool
 	}{
 		{
 			name: "standard metrics",
 			metrics: ReturnMetrics{
-				TotalReturnPct:      &totalReturn,
+				PeriodReturnPct:      &totalReturn,
 				AnnualizedReturnPct: &annualized,
 				HasInsufficientData: false,
 			},
-			wantTotal:      &totalReturn,
+			wantPeriod:      &totalReturn,
 			wantAnnualized: &annualized,
 			wantInsufficient: false,
 		},
 		{
 			name: "nil total return (N/A case)",
 			metrics: ReturnMetrics{
-				TotalReturnPct:      nil,
+				PeriodReturnPct:      nil,
 				AnnualizedReturnPct: &annualized,
 				HasInsufficientData: false,
 			},
-			wantTotal:      nil,
+			wantPeriod:      nil,
 			wantAnnualized: &annualized,
 			wantInsufficient: false,
 		},
 		{
 			name: "insufficient data",
 			metrics: ReturnMetrics{
-				TotalReturnPct:      nil,
+				PeriodReturnPct:      nil,
 				AnnualizedReturnPct: nil,
 				HasInsufficientData: true,
 			},
-			wantTotal:      nil,
+			wantPeriod:      nil,
 			wantAnnualized: nil,
 			wantInsufficient: true,
 		},
@@ -130,10 +130,10 @@ func TestReturnMetrics_JSONRoundTrip(t *testing.T) {
 				t.Fatalf("unmarshal: %v", err)
 			}
 
-			if tt.wantTotal == nil && got.TotalReturnPct != nil {
-				t.Errorf("expected nil total_return_pct, got %s", got.TotalReturnPct.String())
-			} else if tt.wantTotal != nil && (got.TotalReturnPct == nil || !got.TotalReturnPct.Equal(*tt.wantTotal)) {
-				t.Errorf("total_return_pct: got %v, want %s", got.TotalReturnPct, tt.wantTotal.String())
+			if tt.wantPeriod == nil && got.PeriodReturnPct != nil {
+				t.Errorf("expected nil period_return_pct, got %s", got.PeriodReturnPct.String())
+			} else if tt.wantPeriod != nil && (got.PeriodReturnPct == nil || !got.PeriodReturnPct.Equal(*tt.wantPeriod)) {
+				t.Errorf("period_return_pct: got %v, want %s", got.PeriodReturnPct, tt.wantPeriod.String())
 			}
 
 			if tt.wantAnnualized == nil && got.AnnualizedReturnPct != nil {
@@ -173,7 +173,7 @@ func TestPerformanceResult_JSONRoundTrip(t *testing.T) {
 			result: PerformanceResult{
 				EquityCurve: []EquityCurvePoint{point1, point2},
 				ReturnMetrics: ReturnMetrics{
-					TotalReturnPct:      &totalReturn,
+					PeriodReturnPct:      &totalReturn,
 					AnnualizedReturnPct: &annualized,
 					HasInsufficientData: false,
 				},
