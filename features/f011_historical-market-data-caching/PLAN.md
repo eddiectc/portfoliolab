@@ -290,12 +290,12 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 
 **Description:** API endpoints for triggering a full historical data refresh and checking cache status.
 
-- [ ] Create `internal/api/handlers/market_data.go`:
+- [x] Create `internal/api/handlers/market_data.go`:
   - `MarketDataHandler` struct with `*marketcache.MarketCache` dependency
   - `POST /api/market-data/refresh` — triggers `marketCache.RefreshAll(ctx)`, returns 202 Accepted (background operation)
   - `GET /api/market-data/status` — returns `CacheStatus` as JSON: `{last_refresh, refreshing, failed_symbols: [], total_symbols: N}`
-- [ ] Register routes in handler
-- [ ] Write unit tests:
+- [x] Register routes in handler
+- [x] Write unit tests:
   - POST /api/market-data/refresh returns 202
   - GET /api/market-data/status returns correct JSON
   - Status reflects in-progress refresh
@@ -351,7 +351,7 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
   - Calls `marketCache.Stop()` during graceful shutdown
 - [x] Run `go build ./...` — verify no compilation errors
 - [x] Run `go test ./...` — verify all tests pass
-- [ ] Create and register `MarketDataHandler` (for manual refresh + status API)
+- [x] Create and register `MarketDataHandler` (for manual refresh + status API) — done in Task 7
 - [ ] Pass MarketCache to performance web handler and position web handler
 
 **Verification:** Application builds and runs; MarketCache starts on boot, stops on shutdown; all handlers wired correctly.
