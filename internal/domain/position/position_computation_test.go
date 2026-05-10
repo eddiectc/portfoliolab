@@ -48,8 +48,8 @@ func TestComputePositions_SimpleBuy(t *testing.T) {
 	if p.AvgClosePrice != nil {
 		t.Errorf("expected AvgClosePrice nil, got %q", p.AvgClosePrice.String())
 	}
-	if !p.RealizedPnL.Equal(dec(-150000, 2)) {
-		t.Errorf("expected RealizedPnL -1500.00, got %q", p.RealizedPnL.String())
+	if !p.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected RealizedPnL 0 (no sells), got %q", p.RealizedPnL.String())
 	}
 	if !p.OpenDate.Equal(mustTime("2025-01-15")) {
 		t.Errorf("expected OpenDate 2025-01-15, got %q", p.OpenDate.Format("2006-01-02"))
@@ -212,8 +212,8 @@ func TestComputePositions_OneClosedOneOpen(t *testing.T) {
 	if op.AvgClosePrice != nil {
 		t.Errorf("expected open AvgClosePrice nil, got %q", op.AvgClosePrice.String())
 	}
-	if !op.RealizedPnL.Equal(dec(-80000, 2)) {
-		t.Errorf("expected open RealizedPnL -800.00, got %q", op.RealizedPnL.String())
+	if !op.RealizedPnL.Equal(decimal.Zero) {
+		t.Errorf("expected open RealizedPnL 0 (no sells), got %q", op.RealizedPnL.String())
 	}
 	if op.IsClosed {
 		t.Error("expected open IsClosed false")

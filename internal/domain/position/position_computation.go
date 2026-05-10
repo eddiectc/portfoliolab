@@ -197,28 +197,33 @@ func buildPosition(c cycleState) Position {
 
 	isClosed := c.finalQty.Equal(decimal.Zero)
 
-	// Compute P&L percentage relative to total cost basis.
+	// If there are no sell lots, no P&L has been realized — set to zero.
+	// For closed positions or partial sells, use the computed value.
+	var realizedPnLFinal decimal.Decimal
 	var realizedPnlPct *decimal.Decimal
-	absCostBasis := totalCostBasis.Abs()
-	if !absCostBasis.Equal(decimal.Zero) {
-		pct, err := realizedPnL.Quo(absCostBasis)
-		if err == nil {
-			pct, _ = pct.Mul(decimal.MustNew(10000, 2)) // × 100 for percentage
-			realizedPnlPct = &pct
+	if !totalSellQty.Equal(decimal.Zero) {
+		realizedPnLFinal = realizedPnL
+		absCostBasis := totalCostBasis.Abs()
+		if !absCostBasis.Equal(decimal.Zero) {
+			pct, err := realizedPnL.Quo(absCostBasis)
+			if err == nil {
+				pct, _ = pct.Mul(decimal.MustNew(10000, 2)) // × 100 for percentage
+				realizedPnlPct = &pct
+			}
 		}
 	}
 
 	pos := Position{
-		AccountID:     c.lots[0].AccountID,
-		Symbol:        c.lots[0].Symbol,
-		Currency:      getCurrencyFromLots(c.lots),
-		CostBasis:     totalCostBasis,
-		AvgOpenPrice:  avgOpenPrice.Abs(),
-		AvgClosePrice: avgClosePrice,
-		RealizedPnL:   realizedPnL,
+		AccountID:      c.lots[0].AccountID,
+		Symbol:         c.lots[0].Symbol,
+		Currency:       getCurrencyFromLots(c.lots),
+		CostBasis:      totalCostBasis,
+		AvgOpenPrice:   avgOpenPrice.Abs(),
+		AvgClosePrice:  avgClosePrice,
+		RealizedPnL:    realizedPnLFinal,
 		RealizedPnlPct: realizedPnlPct,
-		OpenDate:      c.lots[0].OpenDate,
-		IsClosed:      isClosed,
+		OpenDate:       c.lots[0].OpenDate,
+		IsClosed:       isClosed,
 	}
 
 	if isClosed {
