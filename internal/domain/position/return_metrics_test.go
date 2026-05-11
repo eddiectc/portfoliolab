@@ -358,6 +358,182 @@ func TestDeduplicateBreakpoints(t *testing.T) {
 	}
 }
 
+// TestComputePeriodReturn_SubPeriodFromPreCashFlow validates the TWR formula
+// with multiple cash flows and known market returns. Each sub-period measures
+// market performance between cash flow events:
+//   sub-period i: post-cash-flow[i-1] → pre-cash-flow[i]
+//   ratio = pre[i] / post[i-1]
+func TestComputePeriodReturn_SubPeriodFromPreCashFlow(t *testing.T) {
+	// Scenario: initial deposit, then two more cash flows with market growth between
+	//
+	// Timeline:
+	//   1/1:  initial deposit of $1000, portfolio = $1000
+	//   3/1:  market grew 10% → $1100, then deposit $1000 → $2100
+	//   6/1:  market grew 20% → $2520, then deposit $500 → $3020
+	//   12/31: market grew 5% → $3171
+	//
+	// Breakpoints (pre-cash-flow values, deduplicated):
+	//   3/1:  1100 (value before the $1000 deposit)
+	//   6/1:  2520 (value before the $500 deposit)
+	//
+	// Equity curve (post-cash-flow values on breakpoint dates):
+	//   3/1:  2100 (1100 + 1000 deposit)
+	//   6/1:  3020 (2520 + 500 deposit)
+	//
+	// Correct TWR (using pre-cash-flow → pre-cash-flow):
+	//   sub-period 1: post-deposit(1/1)=1000 → pre-cf(3/1)=1100 → ratio = 1.10
+	//   sub-period 2: pre-cf(3/1)=1100 → pre-cf(6/1)=2520 → ratio = 2520/1100 = 2.2909
+	//   Wait, that includes the deposit effect. That's wrong.
+	//
+	// Actually the correct TWR formula:
+	//   sub-period 1: post-cf(1/1) → pre-cf(3/1) = 1000 → 1100, ratio = 1.10
+	//   sub-period 2: post-cf(3/1) → pre-cf(6/1) = 2100 → 2520, ratio = 1.20
+	//   sub-period 3: post-cf(6/1) → last = 3020 → 3171, ratio = 1.05
+	//   TWR = 1.10 × 1.20 × 1.05 - 1 = 1.386 - 1 = 38.6%
+	//
+	// BUGGY code (using equity curve as "from" for middle sub-periods):
+	//   sub-period 1: post-cf(1/1)=1000 → pre-cf(3/1)=1100, ratio = 1.10 ✓
+	//   sub-period 2: equity(3/1)=2100 → pre-cf(6/1)=2520, ratio = 1.20 ✓
+	//   Wait, that's the same! Because equity curve on 3/1 IS the post-cf value.
+	//
+	// OK so the issue only manifests when the equity curve value on bp[i-1].date
+	// is DIFFERENT from the post-cash-flow value. This happens when there are
+	// multiple transactions on the same date and the equity curve captures a
+	// different point than the breakpoint.
+	//
+	// Let me construct a case where this matters.
+	//
+	// Actually, re-reading the code more carefully:
+	//
+	// Middle sub-periods loop:
+	//   postPrev := lookupCurveValue(curveMap, breakpoints[i-1].date)
+	//   preCurr := breakpoints[i].value
+	//   r := ratioFloat(*postPrev, preCurr)
+	//
+	// This uses the EQUITY CURVE value at bp[i-1]'s date as "from".
+	// The equity curve value is the POST-cash-flow value on that date.
+	// And the breakpoint value is the PRE-cash-flow value.
+	//
+	// So for sub-period bp[i-1] → bp[i]:
+	//   from = post-cash-flow on bp[i-1].date (from equity curve)
+	//   to = pre-cash-flow on bp[i].date (from breakpoint)
+	//
+	// This is actually the CORRECT TWR formula! The sub-period return is:
+	//   (value before next cash flow) / (value after previous cash flow)
+	//
+	// So where is the bug? Let me look at the actual debug output again.
+	//
+	// From the debug:
+	//   from=2024-03-20 fromValue=40000 to=2024-04-30 toValue=38656 ratio=0.9664
+	//
+	// The fromValue=40000 is the equity curve value on 3/20.
+	// The breakpoint (pre-cash-flow) on 3/20 is 31000 (first deduped for that date).
+	// But wait, 3/20 IS a breakpoint date. So the equity curve on 3/20 is the
+	// post-cash-flow value (40000), and the breakpoint is pre-cash-flow (31000).
+	//
+	// The sub-period is from bp[3] (3/20) to bp[4] (4/30).
+	// from = equity curve on 3/20 = 40000 (post-cash-flow) ✓
+	// to = breakpoint on 4/30 = 38656 (pre-cash-flow) ✓
+	// ratio = 38656/40000 = 0.9664
+	//
+	// But the CORRECT sub-period should be:
+	// from = post-cash-flow on 3/20 = 40000
+	// to = pre-cash-flow on 4/30 = 38656
+	// ratio = 38656/40000 = 0.9664
+	//
+	// That's the same! So the formula seems correct...
+	//
+	// Wait. Let me look at the PREVIOUS sub-period:
+	//   from=2024-03-19 fromValue=31000 to=2024-03-20 toValue=31000 ratio=1
+	//
+	// from = equity curve on 3/19 = 31000 (post-cash-flow on 3/19)
+	// to = breakpoint on 3/20 = 31000 (pre-cash-flow on 3/20)
+	// ratio = 31000/31000 = 1.0
+	//
+	// This is correct! The portfolio went from 31000 (after 3/19 deposit) to
+	// 31000 (before 3/20 deposit). No market change.
+	//
+	// And the NEXT sub-period:
+	//   from=2024-03-20 fromValue=40000 to=2024-04-30 toValue=38656 ratio=0.9664
+	//
+	// from = equity curve on 3/20 = 40000 (post-cash-flow on 3/20, after deposit)
+	// to = breakpoint on 4/30 = 38656 (pre-cash-flow on 4/30)
+	// ratio = 38656/40000 = 0.9664
+	//
+	// This means: after depositing on 3/20 (portfolio = 40000), by 4/30
+	// (before any cash flow that day), the portfolio was worth 38656.
+	// That's a -3.36% loss over ~41 days.
+	//
+	// Hmm, but looking at the snapshots:
+	//   3/22: posValue=39777, cashValue=48, portfolioValue=39825
+	//   4/3:  posValue=39568, cashValue=53, portfolioValue=39621
+	//   4/30: posValue=38602, cashValue=835, portfolioValue=39437
+	//
+	// The portfolio on 3/22 was 39825, on 4/30 was 39437.
+	// From 40000 (3/20) to 39437 (4/30 post-cf) is -1.4%.
+	// From 40000 (3/20) to 38656 (4/30 pre-cf) is -3.4%.
+	//
+	// The pre-cash-flow value on 4/30 (38656) is less than the equity curve
+	// value on 4/30 (39437) because there was a cash flow (deposit) on 4/30.
+	// The cash flow amount is 39437 - 38656 = 781.
+	//
+	// So the sub-period return of -3.4% is measuring:
+	//   from 40000 (post-deposit 3/20) to 38656 (pre-deposit 4/30)
+	// This correctly isolates market performance.
+	//
+	// OK so the formula IS correct. Then why is the total TWR only 1.58%?
+	//
+	// Let me look at ALL sub-periods more carefully...
+	//
+	// Actually, I think the issue might be that the TWR is genuinely ~1.58%.
+	// Let me verify with a simpler manual calculation.
+	//
+	// Portfolio: started at ~40k (after initial deposits), ended at ~490k
+	// Net deposits: ~453k
+	// If there were zero return, ending would be 40k + 453k = 493k
+	// Actual ending: 490k
+	// So the portfolio slightly underperformed flat → small negative return
+	// But TWR of 1.58% is slightly positive...
+	//
+	// Let me just verify the formula is correct by constructing a clear test case.
+
+	// Timeline:
+	//   1/1:   deposit $1000 → portfolio = $1000
+	//   3/1:   market +10% → $1100, deposit $1000 → $2100
+	//   6/1:   market +20% → $2520, withdrawal $500 → $2020
+	//  12/31:  market +5% → $2121
+	//
+	// TWR = (1100/1000) × (2520/2100) × (2121/2020) - 1
+	//     = 1.10 × 1.20 × 1.05 - 1 = 38.6%
+
+	equityCurve := []EquityCurvePoint{
+		{Date: mustTime("2023-01-01"), PortfolioValue: dec(100000, 2), NetDeposit: dec(100000, 2)},
+		{Date: mustTime("2023-03-01"), PortfolioValue: dec(210000, 2), NetDeposit: dec(210000, 2)},
+		{Date: mustTime("2023-06-01"), PortfolioValue: dec(202000, 2), NetDeposit: dec(160000, 2)},
+		{Date: mustTime("2023-12-31"), PortfolioValue: dec(212100, 2), NetDeposit: dec(160000, 2)},
+	}
+
+	breakpoints := []twrBreakpoint{
+		{date: mustTime("2023-03-01"), value: dec(110000, 2)}, // pre-cash-flow: $1100
+		{date: mustTime("2023-06-01"), value: dec(252000, 2)}, // pre-cash-flow: $2520
+	}
+
+	result := ComputePeriodReturn(equityCurve, breakpoints, "USD")
+
+	if result.TWRPct == nil {
+		t.Fatal("TWRPct is nil")
+	}
+
+	// TWR = 1.10 × 1.20 × 1.05 - 1 = 38.6%
+	wantTWR := decimal.MustParse("38.60")
+	diff, _ := result.TWRPct.Sub(wantTWR)
+	diff = diff.Abs()
+	threshold := decimal.MustParse("0.50")
+	if diff.Cmp(threshold) > 0 {
+		t.Errorf("TWRPct: got %s, want approx %s (diff %s)", result.TWRPct.String(), wantTWR.String(), diff.String())
+	}
+}
+
 func TestComputePeriodReturn_MultipleBreakpointsSameDate(t *testing.T) {
 	// Regression test: when there are multiple cash flows on the same date,
 	// TWR should only use the first pre-cash-flow snapshot per date.
