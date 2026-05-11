@@ -40,14 +40,14 @@ WHERE date = ''
 
 -- name: GetHistoricalPricesBySymbolAndRange :many
 -- Historical prices for one symbol within [date_from, date_to], sorted by date ASC.
--- Excludes current (date='') entries. Returns only 'stock' data_type.
+-- Excludes current (date='') entries. Returns 'stock' and 'fx' data_type.
 SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
 FROM market_data
 WHERE symbol = ?
   AND date >= ?
   AND date <= ?
   AND date != ''
-  AND data_type = 'stock'
+  AND data_type IN ('stock', 'fx')
 ORDER BY date ASC;
 
 -- name: GetLatestQuote :one

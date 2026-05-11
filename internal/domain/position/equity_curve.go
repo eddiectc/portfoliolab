@@ -447,7 +447,14 @@ func buildEquityCurvePoints(
 			value, _ := qty.Mul(price.Close)
 			// Convert from price currency to base currency.
 			if price.Currency != baseCurrency {
-				value = convertWithFxLookup(fxLookup, price.Currency, baseCurrency, value, snap.date)
+				var ok bool
+				value, ok = convertWithFxLookup(fxLookup, price.Currency, baseCurrency, value, snap.date)
+				if !ok && logger != nil {
+					logger.Warn("missing FX rate, using unconverted value",
+						"pair", market.FormatFxPair(price.Currency, baseCurrency),
+						"symbol", symbol, "date", dateKey,
+					)
+				}
 			}
 			posValue, _ = posValue.Add(value)
 			portfolioValue, _ = portfolioValue.Add(value)
@@ -457,7 +464,14 @@ func buildEquityCurvePoints(
 		var cashValue decimal.Decimal
 		for currency, balance := range snap.cashBalance {
 			if currency != baseCurrency {
-				balance = convertWithFxLookup(fxLookup, currency, baseCurrency, balance, snap.date)
+				var ok bool
+				balance, ok = convertWithFxLookup(fxLookup, currency, baseCurrency, balance, snap.date)
+				if !ok && logger != nil {
+					logger.Warn("missing FX rate, using unconverted cash",
+						"pair", market.FormatFxPair(currency, baseCurrency),
+						"date", snap.date.Format("2006-01-02"),
+					)
+				}
 			}
 			cashValue, _ = cashValue.Add(balance)
 			portfolioValue, _ = portfolioValue.Add(balance)
@@ -467,7 +481,14 @@ func buildEquityCurvePoints(
 		var netDepositBase decimal.Decimal
 		for currency, deposit := range snap.netDeposit {
 			if currency != baseCurrency {
-				deposit = convertWithFxLookup(fxLookup, currency, baseCurrency, deposit, snap.date)
+				var ok bool
+				deposit, ok = convertWithFxLookup(fxLookup, currency, baseCurrency, deposit, snap.date)
+				if !ok && logger != nil {
+					logger.Warn("missing FX rate, using unconverted net deposit",
+						"pair", market.FormatFxPair(currency, baseCurrency),
+						"date", snap.date.Format("2006-01-02"),
+					)
+				}
 			}
 			netDepositBase, _ = netDepositBase.Add(deposit)
 		}
@@ -617,20 +638,21 @@ func buildFxLookupFF(
 }
 
 // convertWithFxLookup converts a value using the forward-fill FX rate lookup.
-// If no rate is found (even with forward-fill), returns the unconverted value.
+// Returns (converted_value, true) if a rate was found (exact or forward-filled).
+// Returns (unconverted_value, false) if no FX data is available — caller should warn.
 func convertWithFxLookup(
 	lookup map[string]*fxLookupFF,
 	fromCurrency, toCurrency string,
 	value decimal.Decimal,
 	date time.Time,
-) decimal.Decimal {
+) (decimal.Decimal, bool) {
 	if fromCurrency == toCurrency {
-		return value
+		return value, true
 	}
 	pair := market.FormatFxPair(fromCurrency, toCurrency)
 	ff, ok := lookup[pair]
 	if !ok || len(ff.dates) == 0 {
-		return value // no FX data available
+		return value, false // no FX data available
 	}
 	dateKey := date.Format("2006-01-02")
 	idx := sort.SearchStrings(ff.dates, dateKey)
@@ -638,15 +660,15 @@ func convertWithFxLookup(
 	if idx < len(ff.dates) && ff.dates[idx] == dateKey {
 		rate := ff.rates[dateKey]
 		converted, _ := value.Mul(rate)
-		return converted
+		return converted, true
 	}
 	// Forward-fill from previous date.
 	if idx > 0 {
 		rate := ff.rates[ff.dates[idx-1]]
 		converted, _ := value.Mul(rate)
-		return converted
+		return converted, true
 	}
-	return value // no prior rate found
+	return value, false // no prior rate found
 }
 
 // convertToBase converts a value from one currency to another using the
@@ -762,7 +784,7 @@ func computePortfolioValue(
 	// Cash balance.
 	for currency, val := range cashBalance {
 		if currency != baseCurrency {
-			val = convertWithFxLookup(fxLookup, currency, baseCurrency, val, date)
+			val, _ = convertWithFxLookup(fxLookup, currency, baseCurrency, val, date)
 		}
 		portfolioValue, _ = portfolioValue.Add(val)
 	}
@@ -778,7 +800,7 @@ func computePortfolioValue(
 		}
 		value, _ := qty.Mul(price.Close)
 		if positionCurrency[symbol] != baseCurrency {
-			value = convertWithFxLookup(fxLookup, positionCurrency[symbol], baseCurrency, value, date)
+			value, _ = convertWithFxLookup(fxLookup, positionCurrency[symbol], baseCurrency, value, date)
 		}
 		portfolioValue, _ = portfolioValue.Add(value)
 	}
