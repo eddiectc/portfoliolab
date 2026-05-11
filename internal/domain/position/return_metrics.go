@@ -54,6 +54,12 @@ func ComputePeriodReturn(
 	// Build a date → portfolio value map from the equity curve for O(1) lookup.
 	curveMap := buildCurveMap(equityCurve)
 
+	// Deduplicate breakpoints: when there are multiple cash flows on the same
+	// date, only the first pre-cash-flow snapshot (before any cash flow that
+	// day) is needed for TWR. Subsequent snapshots on the same date would
+	// create bogus sub-periods using the same post-value as the "from" point.
+	preCashFlowValues = deduplicateBreakpoints(preCashFlowValues)
+
 	// --- TWR ---
 	twr := computeTWR(first, last, preCashFlowValues, curveMap)
 
@@ -77,6 +83,27 @@ func ComputePeriodReturn(
 
 // curveDateMap maps date string (YYYY-MM-DD) → portfolio value.
 type curveDateMap map[string]decimal.Decimal
+
+// deduplicateBreakpoints keeps only the first breakpoint per date.
+// When there are multiple cash flows on the same date, each creates a
+// pre-cash-flow snapshot, but for TWR we only need the first one (before
+// any cash flow that day). The post-cash-flow value on that date (from
+// the equity curve) captures the total effect of all cash flows.
+func deduplicateBreakpoints(bps []twrBreakpoint) []twrBreakpoint {
+	if len(bps) <= 1 {
+		return bps
+	}
+	result := make([]twrBreakpoint, 0, len(bps))
+	seen := make(map[string]bool, len(bps))
+	for _, bp := range bps {
+		key := bp.date.Format("2006-01-02")
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, bp)
+		}
+	}
+	return result
+}
 
 // buildCurveMap builds a date → portfolio value map from the equity curve.
 func buildCurveMap(curve []EquityCurvePoint) curveDateMap {
