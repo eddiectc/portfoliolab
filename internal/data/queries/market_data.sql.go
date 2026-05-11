@@ -97,7 +97,7 @@ WHERE symbol = ?
   AND date >= ?
   AND date <= ?
   AND date != ''
-  AND data_type = 'stock'
+  AND data_type IN ('stock', 'fx')
 ORDER BY date ASC
 `
 
@@ -108,7 +108,7 @@ type GetHistoricalPricesBySymbolAndRangeParams struct {
 }
 
 // Historical prices for one symbol within [date_from, date_to], sorted by date ASC.
-// Excludes current (date=”) entries. Returns only 'stock' data_type.
+// Excludes current (date=”) entries. Returns 'stock' and 'fx' data_type.
 func (q *Queries) GetHistoricalPricesBySymbolAndRange(ctx context.Context, db DBTX, arg GetHistoricalPricesBySymbolAndRangeParams) ([]MarketDatum, error) {
 	rows, err := db.QueryContext(ctx, getHistoricalPricesBySymbolAndRange, arg.Symbol, arg.Date, arg.Date_2)
 	if err != nil {

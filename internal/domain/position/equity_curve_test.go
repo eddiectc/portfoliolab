@@ -1094,3 +1094,133 @@ func TestComputeEquityCurve_PartialCache(t *testing.T) {
 		t.Errorf("unexpected warning: %s", result.Warnings[0])
 	}
 }
+
+func TestComputeEquityCurve_FXForwardFillWeekend(t *testing.T) {
+	svc, txnRepo, accountLister := newTestServiceForEquity()
+	accountLister.SetAccountsByPortfolio(1, []AccountRef{
+		{ID: 1, PortfolioCurrency: "GBP"},
+		{ID: 2, PortfolioCurrency: "GBP"},
+	})
+
+	// Account 1 (GBP): £10,000 cash
+	txnRepo.SetTransactions(1, []transaction.Transaction{
+		eqTxn(1, testTime(2024, 3, 25), "deposit", "$CASH-GBP", "GBP", 0, 0, 1000000), // £10,000
+	})
+	// Account 2 (USD): buy 1 BRK-B @ $400, funded by $400 deposit
+	txnRepo.SetTransactions(2, []transaction.Transaction{
+		eqTxn(2, testTime(2024, 3, 25), "deposit", "$CASH-USD", "USD", 0, 0, 40000),  // $400
+		eqTxn(2, testTime(2024, 3, 25), "buy", "BRK-B", "USD", 100, 40000, -40000), // 1 share @ $400
+	})
+
+	// FX rates: only Mon-Fri (no weekend data)
+	// USD/GBP: 1 USD = 0.80 GBP
+	fxRate := decimal.MustNew(80, 2)
+	svc.WithMarketDataService(&mockMarketDataService{
+		historical: map[string][]market.HistoricalPrice{
+			"BRK-B": {
+				{Date: testTime(2024, 3, 25), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Mon $400
+				{Date: testTime(2024, 3, 26), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Tue
+				{Date: testTime(2024, 3, 27), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Wed
+				{Date: testTime(2024, 3, 28), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Thu
+				{Date: testTime(2024, 3, 29), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Fri
+				// No Sat (3/30) or Sun (3/31)
+				{Date: testTime(2024, 3, 1), Close: decimal.MustNew(40000, 2), Currency: "USD"},  // Mon 4/1
+			},
+			"USD/GBP": {
+				{Date: testTime(2024, 3, 25), Close: fxRate}, // Mon
+				{Date: testTime(2024, 3, 26), Close: fxRate}, // Tue
+				{Date: testTime(2024, 3, 27), Close: fxRate}, // Wed
+				{Date: testTime(2024, 3, 28), Close: fxRate}, // Thu
+				{Date: testTime(2024, 3, 29), Close: fxRate}, // Fri
+				// No Sat (3/30) or Sun (3/31)
+				{Date: testTime(2024, 3, 1), Close: fxRate},  // Mon 4/1
+			},
+		},
+	}, nil)
+
+	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+		PortfolioID: ptrInt64(1),
+		Period:      "All",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Find the weekend dates (Sat 3/30 and Sun 3/31) in the curve.
+	// They should use the forward-filled FX rate from Fri 3/29.
+	// Portfolio value on weekend = £10,000 (cash) + $400 × 0.80 = £320 (position) = £10,320
+	wantValue := decimal.MustNew(1032000, 2) // £10,320.00
+
+	foundSat, foundSun := false, false
+	for _, pt := range result.EquityCurve {
+		dateKey := pt.Date.Format("2006-01-02")
+		if dateKey == "2024-03-30" {
+			foundSat = true
+			if !pt.PortfolioValue.Equal(wantValue) {
+				t.Errorf("Sat 3/30: got %s, want %s", pt.PortfolioValue.String(), wantValue.String())
+			}
+		}
+		if dateKey == "2024-03-31" {
+			foundSun = true
+			if !pt.PortfolioValue.Equal(wantValue) {
+				t.Errorf("Sun 3/31: got %s, want %s", pt.PortfolioValue.String(), wantValue.String())
+			}
+		}
+	}
+	if !foundSat {
+		t.Error("expected Saturday 2024-03-30 in equity curve")
+	}
+	if !foundSun {
+		t.Error("expected Sunday 2024-03-31 in equity curve")
+	}
+}
+
+func TestComputeEquityCurve_MissingFXRateWarns(t *testing.T) {
+	svc, txnRepo, accountLister := newTestServiceForEquity()
+	accountLister.SetAccountsByPortfolio(1, []AccountRef{
+		{ID: 1, PortfolioCurrency: "GBP"},
+		{ID: 2, PortfolioCurrency: "GBP"},
+	})
+
+	// GBP cash + USD stock, but NO FX rates provided
+	txnRepo.SetTransactions(1, []transaction.Transaction{
+		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-GBP", "GBP", 0, 0, 1000000), // £10,000
+	})
+	txnRepo.SetTransactions(2, []transaction.Transaction{
+		eqTxn(2, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 40000),  // $400
+		eqTxn(2, testTime(2024, 1, 15), "buy", "BRK-B", "USD", 100, 40000, -40000), // 1 share @ $400
+	})
+
+	svc.WithMarketDataService(&mockMarketDataService{
+		historical: map[string][]market.HistoricalPrice{
+			"BRK-B": {
+				{Date: testTime(2024, 1, 15), Close: decimal.MustNew(40000, 2), Currency: "USD"},
+			},
+			// No USD/GBP FX rates!
+		},
+	}, nil)
+
+	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+		PortfolioID: ptrInt64(1),
+		Period:      "All",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Without FX rate, the USD position value ($400) is added unconverted,
+	// resulting in an inflated portfolio value.
+	// The curve should still be computed, but with a warning.
+	if len(result.EquityCurve) < 1 {
+		t.Fatal("expected at least 1 equity curve point")
+	}
+
+	// Portfolio value = £10,000 (GBP cash) + $400 (unconverted USD position)
+	// = 10400.00. This is WRONG (should convert $400 to GBP) but expected
+	// when FX data is missing.
+	gotValue := result.EquityCurve[0].PortfolioValue
+	wantUnconverted := decimal.MustNew(104000000, 4) // 10400.0000 at scale 4
+	if !gotValue.Equal(wantUnconverted) {
+		t.Errorf("portfolio value with missing FX: got %s, want %s (unconverted)", gotValue.String(), wantUnconverted.String())
+	}
+}
