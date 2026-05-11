@@ -294,3 +294,107 @@ func TestLookupCurveValue(t *testing.T) {
 		t.Errorf("expected nil for missing date, got %s", val.String())
 	}
 }
+
+func TestDeduplicateBreakpoints(t *testing.T) {
+	tests := []struct {
+		name     string
+		bps      []twrBreakpoint
+		wantLen  int
+		wantDate []string // date strings of expected breakpoints
+	}{
+		{
+			name:     "empty",
+			bps:      nil,
+			wantLen:  0,
+			wantDate: nil,
+		},
+		{
+			name: "single breakpoint",
+			bps: []twrBreakpoint{
+				{date: mustTime("2024-01-01"), value: dec(1000000, 2)},
+			},
+			wantLen:  1,
+			wantDate: []string{"2024-01-01"},
+		},
+		{
+			name: "multiple dates kept all",
+			bps: []twrBreakpoint{
+				{date: mustTime("2024-01-01"), value: dec(1000000, 2)},
+				{date: mustTime("2024-02-01"), value: dec(1100000, 2)},
+				{date: mustTime("2024-03-01"), value: dec(1200000, 2)},
+			},
+			wantLen:  3,
+			wantDate: []string{"2024-01-01", "2024-02-01", "2024-03-01"},
+		},
+		{
+			name: "multiple on same date keeps first",
+			bps: []twrBreakpoint{
+				{date: mustTime("2024-01-01"), value: dec(1000000, 2)},
+				{date: mustTime("2024-01-01"), value: dec(1500000, 2)}, // same date, different value
+				{date: mustTime("2024-01-01"), value: dec(2000000, 2)}, // same date again
+				{date: mustTime("2024-02-01"), value: dec(2500000, 2)},
+			},
+			wantLen:  2,
+			wantDate: []string{"2024-01-01", "2024-02-01"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := deduplicateBreakpoints(tt.bps)
+			if len(got) != tt.wantLen {
+				t.Errorf("got %d breakpoints, want %d", len(got), tt.wantLen)
+			}
+			for i, want := range tt.wantDate {
+				if i >= len(got) {
+					break
+				}
+				gotDate := got[i].date.Format("2006-01-02")
+				if gotDate != want {
+					t.Errorf("[%d] date = %s, want %s", i, gotDate, want)
+				}
+			}
+		})
+	}
+}
+
+func TestComputePeriodReturn_MultipleBreakpointsSameDate(t *testing.T) {
+	// Regression test: when there are multiple cash flows on the same date,
+	// TWR should only use the first pre-cash-flow snapshot per date.
+	// Without deduplication, each breakpoint creates a bogus sub-period
+	// that uses the same post-value as the "from" point, corrupting TWR.
+	curve := []EquityCurvePoint{
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+		{Date: mustTime("2024-01-15"), PortfolioValue: dec(1050000, 2), NetDeposit: dec(1050000, 2)},
+		{Date: mustTime("2024-02-01"), PortfolioValue: dec(1100000, 2), NetDeposit: dec(1100000, 2)},
+	}
+
+	// Multiple breakpoints on 1/15 (simulating multiple cash flows same day)
+	breakpoints := []twrBreakpoint{
+		{date: mustTime("2024-01-01"), value: decimal.Zero}, // initial deposit
+		{date: mustTime("2024-01-15"), value: dec(1000000, 2)},  // pre-cash-flow #1
+		{date: mustTime("2024-01-15"), value: dec(1010000, 2)},  // pre-cash-flow #2 (same date)
+		{date: mustTime("2024-01-15"), value: dec(1020000, 2)},  // pre-cash-flow #3 (same date)
+		{date: mustTime("2024-02-01"), value: dec(1080000, 2)},  // another date
+	}
+
+	metrics := ComputePeriodReturn(curve, breakpoints, "USD")
+	if metrics.TWRPct == nil {
+		t.Fatal("TWR should not be nil")
+	}
+
+	twrPct, _ := metrics.TWRPct.Float64()
+
+	// Expected (with deduplication, 2 breakpoints: 1/01 and 1/15):
+	// sub-period 1: post(1/01)=1,000,000 → pre(1/15)=1,000,000 → ratio = 1.0
+	// sub-period 2: post(1/15)=1,050,000 → pre(2/01)=1,080,000 → ratio = 1.0286
+	// sub-period 3: post(2/01)=1,100,000 → last=1,100,000 → ratio = 1.0
+	// TWR = 1.0 * 1.0286 * 1.0 - 1 = 2.86%
+
+	// Without deduplication, TWR would be corrupted by the extra breakpoints
+	// on 1/15, each creating a sub-period with from=post(1/15)=1,050,000.
+
+	if twrPct < 2.0 || twrPct > 4.0 {
+		t.Errorf("TWR = %.2f%%, expected ~2.86%%", twrPct)
+	}
+}
