@@ -62,15 +62,15 @@
 {{/* Summary metrics cards */}}
 <div class="position-summary">
     <div class="summary-card">
-        <span class="summary-label">Period Return</span>
-        <span class="summary-value pnl {{if .Result.ReturnMetrics.PeriodReturnPct}}{{sign .Result.ReturnMetrics.PeriodReturnPct.String}}{{end}}">
-            {{if .Result.ReturnMetrics.PeriodReturnPct}}{{formatPct .Result.ReturnMetrics.PeriodReturnPct}}%{{else}}—{{end}}
+        <span class="summary-label">Time-Weighted Return</span>
+        <span class="summary-value pnl {{if .Result.ReturnMetrics.TWRPct}}{{sign .Result.ReturnMetrics.TWRPct.String}}{{end}}">
+            {{if .Result.ReturnMetrics.TWRPct}}{{formatPct .Result.ReturnMetrics.TWRPct}}%{{else}}—{{end}}
         </span>
     </div>
     <div class="summary-card">
-        <span class="summary-label">Annualized Return (CAGR)</span>
-        <span class="summary-value pnl {{if .Result.ReturnMetrics.AnnualizedReturnPct}}{{sign .Result.ReturnMetrics.AnnualizedReturnPct.String}}{{end}}">
-            {{if .Result.ReturnMetrics.AnnualizedReturnPct}}{{formatPct .Result.ReturnMetrics.AnnualizedReturnPct}}%{{else if .Result.ReturnMetrics.HasInsufficientData}}Insufficient data{{else}}—{{end}}
+        <span class="summary-label">Annualized TWR</span>
+        <span class="summary-value pnl {{if .Result.ReturnMetrics.AnnualizedTWRPct}}{{sign .Result.ReturnMetrics.AnnualizedTWRPct.String}}{{end}}">
+            {{if .Result.ReturnMetrics.AnnualizedTWRPct}}{{formatPct .Result.ReturnMetrics.AnnualizedTWRPct}}%{{else if .Result.ReturnMetrics.HasInsufficientData}}Insufficient data{{else}}—{{end}}
         </span>
     </div>
     <div class="summary-card">
