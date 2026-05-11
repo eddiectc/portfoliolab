@@ -74,6 +74,18 @@
         </span>
     </div>
     <div class="summary-card">
+        <span class="summary-label">Money-Weighted Return</span>
+        <span class="summary-value pnl {{if .Result.ReturnMetrics.MWRPct}}{{sign .Result.ReturnMetrics.MWRPct.String}}{{end}}">
+            {{if .Result.ReturnMetrics.MWRPct}}{{formatPct .Result.ReturnMetrics.MWRPct}}%{{else}}—{{end}}
+        </span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Period Return (MWR)</span>
+        <span class="summary-value pnl {{if .Result.ReturnMetrics.HoldingPeriodMWRPct}}{{sign .Result.ReturnMetrics.HoldingPeriodMWRPct.String}}{{end}}">
+            {{if .Result.ReturnMetrics.HoldingPeriodMWRPct}}{{formatPct .Result.ReturnMetrics.HoldingPeriodMWRPct}}%{{else}}—{{end}}
+        </span>
+    </div>
+    <div class="summary-card">
         <span class="summary-label">Current Value ({{.Result.BaseCurrency}})</span>
         <span class="summary-value">{{if .CurrentValue}}{{formatMoney .CurrentValue}}{{else}}—{{end}}</span>
     </div>

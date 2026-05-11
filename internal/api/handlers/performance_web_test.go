@@ -183,11 +183,15 @@ func TestPerformanceTemplate_WithData(t *testing.T) {
 	}
 	twr := decimal.MustNew(2000, 2)
 	annTWR := decimal.MustNew(1900, 2)
+	mwr := decimal.MustNew(1800, 2)
+	hpMwr := decimal.MustNew(1750, 2)
 	result := &position.PerformanceResult{
 		EquityCurve: curve,
 		ReturnMetrics: position.ReturnMetrics{
-			TWRPct:             &twr,
-			AnnualizedTWRPct:   &annTWR,
+			TWRPct:              &twr,
+			AnnualizedTWRPct:    &annTWR,
+			MWRPct:              &mwr,
+			HoldingPeriodMWRPct: &hpMwr,
 		},
 		BaseCurrency: "USD",
 	}
