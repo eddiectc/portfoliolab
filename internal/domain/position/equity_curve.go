@@ -514,11 +514,14 @@ func buildEquityCurvePoints(
 			if price.Currency != baseCurrency {
 				var ok bool
 				value, ok = convertWithFxLookup(fxLookup, price.Currency, baseCurrency, value, snap.date)
-				if !ok && logger != nil {
-					logger.Warn("missing FX rate, using unconverted value",
-						"pair", market.FormatFxPair(price.Currency, baseCurrency),
-						"symbol", symbol, "date", dateKey,
-					)
+				if !ok {
+					if logger != nil {
+						logger.Warn("missing FX rate, skipping position value",
+							"pair", market.FormatFxPair(price.Currency, baseCurrency),
+							"symbol", symbol, "date", dateKey,
+						)
+					}
+					continue // skip — can't include unconverted value
 				}
 			}
 			posValue, _ = posValue.Add(value)
@@ -531,11 +534,14 @@ func buildEquityCurvePoints(
 			if currency != baseCurrency {
 				var ok bool
 				balance, ok = convertWithFxLookup(fxLookup, currency, baseCurrency, balance, snap.date)
-				if !ok && logger != nil {
-					logger.Warn("missing FX rate, using unconverted cash",
-						"pair", market.FormatFxPair(currency, baseCurrency),
-						"date", snap.date.Format("2006-01-02"),
-					)
+				if !ok {
+					if logger != nil {
+						logger.Warn("missing FX rate, skipping cash balance",
+							"pair", market.FormatFxPair(currency, baseCurrency),
+							"date", snap.date.Format("2006-01-02"),
+						)
+					}
+					continue // skip — can't include unconverted value
 				}
 			}
 			cashValue, _ = cashValue.Add(balance)
@@ -548,11 +554,14 @@ func buildEquityCurvePoints(
 			if currency != baseCurrency {
 				var ok bool
 				deposit, ok = convertWithFxLookup(fxLookup, currency, baseCurrency, deposit, snap.date)
-				if !ok && logger != nil {
-					logger.Warn("missing FX rate, using unconverted net deposit",
-						"pair", market.FormatFxPair(currency, baseCurrency),
-						"date", snap.date.Format("2006-01-02"),
-					)
+				if !ok {
+					if logger != nil {
+						logger.Warn("missing FX rate, skipping net deposit",
+							"pair", market.FormatFxPair(currency, baseCurrency),
+							"date", snap.date.Format("2006-01-02"),
+						)
+					}
+					continue // skip — can't include unconverted value
 				}
 			}
 			netDepositBase, _ = netDepositBase.Add(deposit)
@@ -702,9 +711,12 @@ func buildFxLookupFF(
 	return lookup
 }
 
-// convertWithFxLookup converts a value using the forward-fill FX rate lookup.
-// Returns (converted_value, true) if a rate was found (exact or forward-filled).
-// Returns (unconverted_value, false) if no FX data is available — caller should warn.
+// convertWithFxLookup converts a value using the FX rate lookup.
+// Uses exact match when available, forward-fill (last known rate) for dates
+// after the data, and backward-fill (first known rate) for dates before it.
+// Returns (0, false) if no FX data exists — never returns the unconverted
+// value, so callers who blindly add the result won't pollute totals with
+// numerically wrong figures (e.g. USD treated as GBP).
 func convertWithFxLookup(
 	lookup map[string]*fxLookupFF,
 	fromCurrency, toCurrency string,
@@ -717,7 +729,7 @@ func convertWithFxLookup(
 	pair := market.FormatFxPair(fromCurrency, toCurrency)
 	ff, ok := lookup[pair]
 	if !ok || len(ff.dates) == 0 {
-		return value, false // no FX data available
+		return decimal.Zero, false // no FX data — return 0, NOT unconverted value
 	}
 	dateKey := date.Format("2006-01-02")
 	idx := sort.SearchStrings(ff.dates, dateKey)
@@ -727,18 +739,23 @@ func convertWithFxLookup(
 		converted, _ := value.Mul(rate)
 		return converted, true
 	}
-	// Forward-fill from previous date.
+	// Forward-fill from previous date (target is after known data).
 	if idx > 0 {
 		rate := ff.rates[ff.dates[idx-1]]
 		converted, _ := value.Mul(rate)
 		return converted, true
 	}
-	return value, false // no prior rate found
+	// Backward-fill from first known date (target is before known data).
+	// This handles dates before the first cached FX rate. Better than
+	// using the raw unconverted value, which would be numerically wrong.
+	rate := ff.rates[ff.dates[0]]
+	converted, _ := value.Mul(rate)
+	return converted, true
 }
 
 // convertToBase converts a value from one currency to another using the
 // market data service. If currencies match, returns the value unchanged.
-// If no FX rate is available, returns the original value with found=false.
+// If no FX rate is available, returns (0, false) — never the unconverted value.
 func convertToBase(
 	ctx context.Context,
 	marketService MarketDataService,
@@ -751,12 +768,12 @@ func convertToBase(
 	}
 
 	if marketService == nil {
-		return value, false
+		return decimal.Zero, false
 	}
 
 	rate, _ := marketService.GetHistoricalFxRate(ctx, fromCurrency, toCurrency, date)
 	if rate == nil {
-		return value, false
+		return decimal.Zero, false
 	}
 
 	converted, _ := value.Mul(rate.Rate)
@@ -849,7 +866,11 @@ func computePortfolioValue(
 	// Cash balance.
 	for currency, val := range cashBalance {
 		if currency != baseCurrency {
-			val, _ = convertWithFxLookup(fxLookup, currency, baseCurrency, val, date)
+			converted, ok := convertWithFxLookup(fxLookup, currency, baseCurrency, val, date)
+			if !ok {
+				continue // skip — can't include unconverted value
+			}
+			val = converted
 		}
 		portfolioValue, _ = portfolioValue.Add(val)
 	}
@@ -865,7 +886,11 @@ func computePortfolioValue(
 		}
 		value, _ := qty.Mul(price.Close)
 		if positionCurrency[symbol] != baseCurrency {
-			value, _ = convertWithFxLookup(fxLookup, positionCurrency[symbol], baseCurrency, value, date)
+			converted, ok := convertWithFxLookup(fxLookup, positionCurrency[symbol], baseCurrency, value, date)
+			if !ok {
+				continue // skip — can't include unconverted value
+			}
+			value = converted
 		}
 		portfolioValue, _ = portfolioValue.Add(value)
 	}
@@ -1112,10 +1137,13 @@ func computePreCashFlowPortfolioValue(
 		if price.Currency != baseCurrency {
 			var ok bool
 			value, ok = convertWithFxLookup(fxLookup, price.Currency, baseCurrency, value, pre.date)
-			if !ok && logger != nil {
-				logger.Warn("missing FX rate for pre-cash-flow position",
-					"pair", market.FormatFxPair(price.Currency, baseCurrency),
-					"symbol", symbol, "date", dateKey)
+			if !ok {
+				if logger != nil {
+					logger.Warn("missing FX rate, skipping pre-cash-flow position",
+						"pair", market.FormatFxPair(price.Currency, baseCurrency),
+						"symbol", symbol, "date", dateKey)
+				}
+				continue // skip — can't include unconverted value
 			}
 		}
 		portfolioValue, _ = portfolioValue.Add(value)
@@ -1126,10 +1154,13 @@ func computePreCashFlowPortfolioValue(
 		if currency != baseCurrency {
 			var ok bool
 			balance, ok = convertWithFxLookup(fxLookup, currency, baseCurrency, balance, pre.date)
-			if !ok && logger != nil {
-				logger.Warn("missing FX rate for pre-cash-flow cash",
-					"pair", market.FormatFxPair(currency, baseCurrency),
-					"date", pre.date.Format("2006-01-02"))
+			if !ok {
+				if logger != nil {
+					logger.Warn("missing FX rate, skipping pre-cash-flow cash",
+						"pair", market.FormatFxPair(currency, baseCurrency),
+						"date", pre.date.Format("2006-01-02"))
+				}
+				continue // skip — can't include unconverted value
 			}
 		}
 		portfolioValue, _ = portfolioValue.Add(balance)
