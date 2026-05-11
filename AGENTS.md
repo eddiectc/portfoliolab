@@ -159,6 +159,15 @@ Feature index: `features/README.md`.
 - For integration tests, use `file::memory:?cache=shared` for in-memory SQLite
 - **sqlc workflow**: Add SQL to `internal/data/queries/*.sql`, run `sqlc generate` from that dir. Repos delegate to `queries.Queries` and handle domain ↔ sqlc type mapping (timestamps are `string` in sqlc models — convert with `parseTime()` / `.Format(time.RFC3339)` in the repo layer)
 
+### Cross-Layer Data Audit
+
+When storing data with a new filterable field (e.g., a new `data_type`, `source`, or status value), verify all read paths are updated before declaring the task done:
+
+1. **SQL queries** — every `SELECT` that filters on the field must include the new value (e.g., `data_type IN ('stock', 'fx')` not `data_type = 'stock'`)
+2. **Repository methods** — confirm the repo returns the new data type to callers
+3. **Service layer** — verify consumers handle the new data type (no silent drops)
+4. **Tests** — add a test case with the new value exercising the full path (repo → service → output)
+
 ### Web UI
 - Keep templates simple — no complex logic in templates
 - Use partials for reusable components (nav, footer, table rows)
