@@ -5,7 +5,7 @@
 - **Comprehensive test coverage**: 50+ tests across 6 test files covering domain logic, API handlers, web handlers, and model serialization. Table-driven tests for return metrics and equity curve helpers are thorough and readable.
 - **All 11 spec scenarios implemented**: Every scenario from SPEC.md has corresponding implementation and test coverage, including all edge cases (empty state, negative net deposit, mismatched currencies, missing market data, FX rate gaps).
 - **Clean separation of concerns**: Equity curve computation (`equity_curve.go`), return metrics (`return_metrics.go`), and refresh (`refresh.go`) are well-separated with clear responsibilities. Pure functions (`ComputeReturnMetrics`, `walkTransactions`, `interpolateDaily`) are easily testable.
-- **Pragmatic technical decisions**: Using `math.Pow` for CAGR exponentiation (instead of implementing ln/exp for decimal) was the right call for a display-only metric. The `multi.NewTickers` + per-ticker `History()` approach correctly addressed the currency metadata gap in `multi.Download`.
+- **Pragmatic technical decisions**: Using `math.Pow` for TWR annualization (instead of implementing ln/exp for decimal) was the right call for a display-only metric. Choosing Time-Weighted Return (TWR) over simple dollar-return isolated investment performance from deposit/withdrawal timing. The `multi.NewTickers` + per-ticker `History()` approach correctly addressed the currency metadata gap in `multi.Download`.
 - **Graceful degradation**: Missing market data, FX rate gaps, and fetch failures are all handled with warnings rather than hard errors. The equity curve still renders with partial data.
 - **Web UI completeness**: Template includes portfolio selector, period buttons (all 8 periods), ECharts integration, summary metric cards, refresh button, empty state, error state, and warning display — all matching the spec.
 
@@ -22,7 +22,7 @@
 | Spec Item | Status | Notes |
 |---|---|---|
 | Equity curve with portfolio value + net deposit | ✅ Implemented | Daily interpolation, FX conversion, all covered |
-| Summary return metrics (total return %, CAGR) | ✅ Implemented | Pure function, comprehensive edge case handling |
+| Summary return metrics (TWR %, annualized TWR) | ✅ Implemented | Pure function, geometrically links sub-period returns between cash flows, comprehensive edge case handling |
 | Multi-currency FX conversion | ✅ Implemented | Historical rates with spot rate fallback |
 | Period selector (1W/1M/3M/1Y/3Y/5Y/YTD/All) | ✅ Implemented | All 8 periods supported; label is "All" not "All Time" |
 | Single portfolio view | ✅ Implemented | Portfolio filter via `portfolio_id` param |
@@ -54,7 +54,7 @@
 - **Go `html/template` URL expression limitation is a recurring gotcha**: Pre-building URLs in the handler (instead of inline template expressions) is the right pattern. This lesson from NOTES.md should be added to CONVENTIONS.md.
 - **Shadowing bugs in variable declarations are easy to miss**: The `pricesBySymbol` shadowing bug in `ComputeEquityCurve` was caught by tests but could have been caught earlier with `staticcheck` or similar linter.
 - **Equity curve computation is naturally complex**: Walking transactions, tracking positions/cash/net deposit, fetching prices, FX conversion, and interpolation all in one flow. Consider extracting `walkTransactions` into its own package if this logic grows further.
-- **`decimal.Decimal` pointer fields for optional values work well**: Using `*decimal.Decimal` for `TotalReturnPct` and `AnnualizedReturnPct` with `omitempty` cleanly handles the N/A cases in JSON serialization.
+- **`decimal.Decimal` pointer fields for optional values work well**: Using `*decimal.Decimal` for `TWRPct` and `AnnualizedTWRPct` with `omitempty` cleanly handles the N/A cases in JSON serialization.
 
 ## Action Items
 

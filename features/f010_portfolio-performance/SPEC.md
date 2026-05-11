@@ -9,7 +9,7 @@ This feature answers the core question: *"How much money did I make beyond what 
 ## User Stories
 
 - As an investor, I want to see my portfolio's equity curve over time alongside my net deposits, so I can visually track how much value I've created beyond what I put in.
-- As an investor, I want to see summary return metrics (total return, annualized return, CAGR), so I can quickly assess overall performance at a glance.
+- As an investor, I want to see summary return metrics (time-weighted return, annualized TWR), so I can quickly assess investment performance independent of deposit/withdrawal timing.
 - As an investor with multi-currency accounts, I want all performance metrics expressed in my portfolio's base currency, so I have a consistent view without manual conversion.
 - As an investor, I want to manually trigger a refresh of historical market data, so that cached prices and FX rates are re-fetched and the performance view reflects the latest available data.
 
@@ -38,9 +38,10 @@ This feature answers the core question: *"How much money did I make beyond what 
 ### Scenario: View summary return metrics
 **Given** a portfolio with transactions spanning at least 30 days
 **When** the investor views the performance page
-**Then** they see total return as a percentage (current value minus net deposit, divided by net deposit)
-**And** they see annualized return (CAGR) calculated from the first transaction date to today using the formula `(End Value / Begin Value)^(365 / days) - 1`
-**And** if the portfolio has less than one year of history, CAGR is still shown using the same formula annualized over the actual number of days
+**Then** they see the time-weighted return (TWR) as a percentage, computed by geometrically linking sub-period returns between cash flow events (deposits/withdrawals)
+**And** they see the annualized TWR using the formula `(1 + TWR)^(365 / days) - 1`
+**And** if the portfolio has no cash flows, TWR degenerates to the simple return: `(End Value / Begin Value) - 1`
+**And** if the portfolio has less than one year of history, annualized TWR is still shown using the same formula annualized over the actual number of days
 
 ### Scenario: Multi-currency portfolio performance
 **Given** a portfolio with base currency USD that contains accounts in GBP and EUR
@@ -64,7 +65,7 @@ This feature answers the core question: *"How much money did I make beyond what 
 **Given** a portfolio that has only deposit transactions and no buys/sells
 **When** the investor views the performance page
 **Then** the equity curve shows only the net deposit line (portfolio value equals net deposit)
-**And** return metrics show 0% return
+**And** return metrics show 0% TWR
 
 ### Scenario: Portfolio with negative net deposit (withdrawals exceed deposits)
 **Given** a portfolio where total withdrawals exceed total deposits (net deposit is negative)
