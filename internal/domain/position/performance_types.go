@@ -18,13 +18,16 @@ type EquityCurvePoint struct {
 }
 
 // ReturnMetrics holds summary return calculations derived from the equity curve.
-// PeriodReturnPct is (end_value - begin_value) / begin_value × 100 for the
-// selected period. Nil when begin_value is zero or non-positive.
-// AnnualizedReturnPct is the CAGR: (end_value / begin_value)^(365 / days) - 1.
+// TWRPct is the Time-Weighted Return: geometrically links sub-period returns
+// between cash flow events, isolating investment performance from deposit/
+// withdrawal timing. Nil when insufficient data or all sub-period values are
+// non-positive. Expressed as a percentage (e.g. 12.50 = 12.50%).
+// AnnualizedTWRPct is the annualized TWR: (1 + TWR)^(365 / days) - 1.
+// Nil when fewer than 2 data points or zero days elapsed.
 // HasInsufficientData is true when fewer than 2 data points are available.
 type ReturnMetrics struct {
-	PeriodReturnPct     *decimal.Decimal `json:"period_return_pct,omitempty"`
-	AnnualizedReturnPct *decimal.Decimal `json:"annualized_return_pct,omitempty"`
+	TWRPct              *decimal.Decimal `json:"twr_pct,omitempty"`
+	AnnualizedTWRPct    *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
 	HasInsufficientData bool             `json:"has_insufficient_data"`
 }
 

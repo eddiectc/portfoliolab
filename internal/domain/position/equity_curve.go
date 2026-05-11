@@ -20,6 +20,19 @@ type dateSnapshot struct {
 	positionCurrency map[string]string           // symbol -> currency
 	cashBalance      map[string]decimal.Decimal  // currency -> balance
 	netDeposit       map[string]decimal.Decimal  // currency -> cumulative net deposit
+	// preCashFlowSnapshots captures the portfolio state just before each
+	// deposit/withdrawal on this date. Used for TWR computation.
+	preCashFlowSnapshots []preCashFlowSnapshot
+}
+
+// preCashFlowSnapshot captures the portfolio state (positions + cash) just
+// before a cash flow (deposit/withdrawal) is applied. Used to compute
+// sub-period returns for the Time-Weighted Return (TWR).
+type preCashFlowSnapshot struct {
+	date             time.Time
+	positions        map[string]decimal.Decimal
+	positionCurrency map[string]string
+	cashBalance      map[string]decimal.Decimal
 }
 
 // ComputeEquityCurve computes the portfolio equity curve for the given filters.
@@ -164,7 +177,19 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		s.logger.Debug("performance: interpolation complete", "points", len(points))
 	}
 
-	// 11. Slice to period range. The portfolio state includes all history,
+	// 11. Compute pre-cash-flow portfolio values for TWR.
+	// These are the portfolio values just before each deposit/withdrawal,
+	// computed using the same price/FX logic as the equity curve.
+	preCashFlowValues := computePreCashFlowValues(
+		snapshots, pricesBySymbol, baseCurrency, s.marketService, s.logger, ctx,
+	)
+
+	// 12. Compute return metrics (TWR + annualized) from the FULL curve
+	// (before slicing) so that post-cash-flow values are available for
+	// each cash flow breakpoint.
+	returnMetrics := ComputePeriodReturn(points, preCashFlowValues, baseCurrency)
+
+	// 13. Slice to period range. The portfolio state includes all history,
 	// but the output curve only shows the selected period.
 	if !dateFrom.IsZero() {
 		points = sliceFrom(points, dateFrom)
@@ -184,21 +209,18 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		}
 	}
 
-	// 12. Compute period return metrics from the sliced curve.
-	returnMetrics := ComputePeriodReturn(points, baseCurrency)
-
 	if s.logger != nil {
-		periodStr := "nil"
-		if returnMetrics.PeriodReturnPct != nil {
-			periodStr = returnMetrics.PeriodReturnPct.String()
+		twrStr := "nil"
+		if returnMetrics.TWRPct != nil {
+			twrStr = returnMetrics.TWRPct.String()
 		}
 		annStr := "nil"
-		if returnMetrics.AnnualizedReturnPct != nil {
-			annStr = returnMetrics.AnnualizedReturnPct.String()
+		if returnMetrics.AnnualizedTWRPct != nil {
+			annStr = returnMetrics.AnnualizedTWRPct.String()
 		}
 		s.logger.Debug("performance: return metrics computed",
-			"periodReturn", periodStr,
-			"annualizedReturn", annStr,
+			"twr", twrStr,
+			"annualizedTWR", annStr,
 			"hasInsufficientData", returnMetrics.HasInsufficientData,
 		)
 	}
@@ -328,21 +350,26 @@ func filterByDateRange(txns []transaction.Transaction, dateFrom, dateTo time.Tim
 
 // walkTransactions walks transactions chronologically and captures the
 // portfolio state (positions, cash, net deposit) at each unique date.
-// Also returns the final state (after all transactions) for extending
+// Also captures pre-cash-flow snapshots for TWR computation.
+// Returns the final state (after all transactions) for extending
 // the equity curve beyond the last transaction date.
 //
 // The core tracking (quantities, cash, net deposit) is delegated to
 // WalkPortfolioState, the shared single source of truth. walkTransactions
-// only adds position currency tracking on top.
+// adds position currency tracking and pre-cash-flow snapshot capture on top.
 // Transactions are assumed to be sorted by date ASC, then ID ASC.
 func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnapshot) {
 	// Shared portfolio state tracking — single source of truth.
 	portfolioSnaps := WalkPortfolioState(txns)
 	finalState := FinalPortfolioState(txns)
 
-	// Walk transactions for position currency tracking.
+	// Walk transactions for position currency tracking and
+	// pre-cash-flow snapshot capture (for TWR).
 	var snapshots []dateSnapshot
 	positionCurrency := make(map[string]string)
+	// Running state for pre-cash-flow capture.
+	quantities := make(map[string]decimal.Decimal)
+	cashBalance := make(map[string]decimal.Decimal)
 
 	snapIdx := 0
 	for _, txn := range txns {
@@ -350,17 +377,34 @@ func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnaps
 			positionCurrency[txn.Symbol] = txn.Currency
 		}
 
+		// Capture pre-cash-flow snapshot BEFORE processing deposit/withdrawal.
+		// This gives the portfolio state (positions + cash) just before the
+		// cash flow, needed for TWR sub-period return computation.
+		if txn.Type == "deposit" || txn.Type == "withdrawal" {
+			// Quantities and cash balance here reflect all prior transactions
+			// (including buys/sells on the same date).
+		}
+
+		// Update running state.
+		if txn.Type == "buy" || txn.Type == "sell" {
+			qty, _ := quantities[txn.Symbol].Add(txn.Quantity)
+			quantities[txn.Symbol] = qty
+		}
+		bal, _ := cashBalance[txn.Currency].Add(txn.NetCash)
+		cashBalance[txn.Currency] = bal
+
 		// Align with portfolio snapshots at end of each date.
 		if snapIdx < len(portfolioSnaps) && portfolioSnaps[snapIdx].Date.Equal(txn.Date) {
 			// Check if this is the last txn for this date.
 			isLastForDate := txn == txns[len(txns)-1] || (snapIdx+1 >= len(portfolioSnaps) || portfolioSnaps[snapIdx+1].Date.After(txn.Date))
 			if isLastForDate {
 				snapshots = append(snapshots, dateSnapshot{
-					date:             portfolioSnaps[snapIdx].Date,
-					positions:        portfolioSnaps[snapIdx].Quantities,
-					positionCurrency: copyStringMap(positionCurrency),
-					cashBalance:      portfolioSnaps[snapIdx].CashBalance,
-					netDeposit:       portfolioSnaps[snapIdx].NetDeposit,
+					date:                 portfolioSnaps[snapIdx].Date,
+					positions:            portfolioSnaps[snapIdx].Quantities,
+					positionCurrency:     copyStringMap(positionCurrency),
+					cashBalance:          portfolioSnaps[snapIdx].CashBalance,
+					netDeposit:           portfolioSnaps[snapIdx].NetDeposit,
+					preCashFlowSnapshots: capturePreCashFlowSnaps(portfolioSnaps[snapIdx].Date, txns, quantities, cashBalance, positionCurrency),
 				})
 				snapIdx++
 			}
@@ -373,6 +417,96 @@ func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnaps
 		cashBalance:      finalState.CashBalance,
 		netDeposit:       finalState.NetDeposit,
 	}
+}
+
+// capturePreCashFlowSnaps walks transactions for the given date and captures
+// the portfolio state just before each deposit/withdrawal. It uses the
+// provided running state maps (quantities, cashBalance, positionCurrency)
+// which reflect the state after all transactions up to the end of the date.
+//
+// For each cash flow on the date, it reconstructs the pre-cash-flow state
+// by walking transactions in order and capturing state before each cash flow.
+func capturePreCashFlowSnaps(
+	date time.Time,
+	txns []transaction.Transaction,
+	finalQuantities map[string]decimal.Decimal,
+	finalCashBalance map[string]decimal.Decimal,
+	finalPositionCurrency map[string]string,
+) []preCashFlowSnapshot {
+	// Find the range of transactions for this date.
+	startIdx := -1
+	endIdx := -1
+	for i, txn := range txns {
+		if txn.Date.Equal(date) {
+			if startIdx == -1 {
+				startIdx = i
+			}
+			endIdx = i
+		}
+	}
+	if startIdx == -1 {
+		return nil
+	}
+
+	// Collect cash flow indices within this date's transactions.
+	var cashFlowIndices []int
+	for i := startIdx; i <= endIdx; i++ {
+		if txns[i].Type == "deposit" || txns[i].Type == "withdrawal" {
+			cashFlowIndices = append(cashFlowIndices, i)
+		}
+	}
+	if len(cashFlowIndices) == 0 {
+		return nil
+		}
+
+	// Walk transactions from the beginning of the date, tracking state.
+	// For each cash flow, capture the state just before it.
+	// We need the state BEFORE any transactions on this date, so we
+	// reconstruct from the final state by "undoing" all transactions on this date.
+
+	// First, compute the state before any transactions on this date
+	// by subtracting all date's transactions from the final state.
+	quantities := copyDecimalMap(finalQuantities)
+	cashBalance := copyDecimalMap(finalCashBalance)
+	positionCurrency := copyStringMap(finalPositionCurrency)
+
+	// Undo all transactions on this date (reverse order).
+	for i := endIdx; i >= startIdx; i-- {
+		txn := txns[i]
+		if txn.Type == "buy" || txn.Type == "sell" {
+			qty, _ := quantities[txn.Symbol].Sub(txn.Quantity)
+			quantities[txn.Symbol] = qty
+		}
+		bal, _ := cashBalance[txn.Currency].Sub(txn.NetCash)
+		cashBalance[txn.Currency] = bal
+	}
+
+	// Now walk forward through the date's transactions, capturing
+	// state before each cash flow.
+	var preSnaps []preCashFlowSnapshot
+	for i := startIdx; i <= endIdx; i++ {
+		txn := txns[i]
+		if txn.Type == "deposit" || txn.Type == "withdrawal" {
+			// Capture state BEFORE this cash flow.
+			preSnaps = append(preSnaps, preCashFlowSnapshot{
+				date:             date,
+				positions:        copyDecimalMap(quantities),
+				positionCurrency: copyStringMap(positionCurrency),
+				cashBalance:      copyDecimalMap(cashBalance),
+			})
+		}
+
+		// Apply this transaction.
+		if txn.Type == "buy" || txn.Type == "sell" {
+			positionCurrency[txn.Symbol] = txn.Currency
+			qty, _ := quantities[txn.Symbol].Add(txn.Quantity)
+			quantities[txn.Symbol] = qty
+		}
+		bal, _ := cashBalance[txn.Currency].Add(txn.NetCash)
+		cashBalance[txn.Currency] = bal
+	}
+
+	return preSnaps
 }
 
 // collectUniqueSymbols collects all unique non-cash symbols from transactions
@@ -899,4 +1033,176 @@ func tradingDayBeforeOrOn(t time.Time) time.Time {
 		d = d.AddDate(0, 0, -1)
 	}
 	return d
+}
+
+// twrBreakpoint holds the portfolio value just before a cash flow,
+// used as a breakpoint for TWR sub-period return computation.
+// Defined here (equity_curve.go) for use by computePreCashFlowValues;
+// the same type is referenced in return_metrics.go.
+type twrBreakpoint struct {
+	date  time.Time
+	value decimal.Decimal // portfolio value in base currency
+}
+
+// computePreCashFlowValues computes the portfolio value just before each
+// cash flow (deposit/withdrawal), using the same price/FX logic as the
+// equity curve. Returns a sorted slice of TWR breakpoints.
+func computePreCashFlowValues(
+	snapshots []dateSnapshot,
+	pricesBySymbol map[string][]market.HistoricalPrice,
+	baseCurrency string,
+	marketService MarketDataService,
+	logger *slog.Logger,
+	ctx context.Context,
+) []twrBreakpoint {
+	if len(snapshots) == 0 {
+		return nil
+	}
+
+	// Build price and FX lookups (same as equity curve).
+	priceLookup := buildPriceLookup(pricesBySymbol)
+	priceFF := buildPriceLookupFF(priceLookup)
+
+	// Collect FX pairs from all pre-cash-flow snapshots.
+	allPreSnaps := collectAllPreCashFlowSnaps(snapshots)
+	fxPairs := collectFxPairsFromPreSnaps(allPreSnaps, baseCurrency)
+	fxLookup := buildFxLookupFromPreSnaps(ctx, marketService, fxPairs, allPreSnaps, logger)
+
+	var values []twrBreakpoint
+	for _, snap := range snapshots {
+		for _, pre := range snap.preCashFlowSnapshots {
+			value := computePreCashFlowPortfolioValue(pre, priceFF, fxLookup, baseCurrency, logger)
+			values = append(values, twrBreakpoint{
+				date:  pre.date,
+				value: value,
+			})
+		}
+	}
+	return values
+}
+
+// collectAllPreCashFlowSnaps gathers all pre-cash-flow snapshots across dates.
+type preCashFlowSnapWithDate struct {
+	pre  preCashFlowSnapshot
+	date time.Time // the snapshot date (for FX lookup range)
+}
+
+func collectAllPreCashFlowSnaps(snapshots []dateSnapshot) []preCashFlowSnapWithDate {
+	var all []preCashFlowSnapWithDate
+	for _, snap := range snapshots {
+		for _, pre := range snap.preCashFlowSnapshots {
+			all = append(all, preCashFlowSnapWithDate{pre: pre, date: snap.date})
+		}
+	}
+	return all
+}
+
+// collectFxPairsFromPreSnaps returns unique FX pairs needed for pre-cash-flow
+// snapshots, excluding pairs where from == to (base currency).
+func collectFxPairsFromPreSnaps(snaps []preCashFlowSnapWithDate, baseCurrency string) []string {
+	set := make(map[string]bool)
+	for _, sw := range snaps {
+		for _, currency := range sw.pre.positionCurrency {
+			if currency != baseCurrency {
+				set[market.FormatFxPair(currency, baseCurrency)] = true
+			}
+		}
+		for currency := range sw.pre.cashBalance {
+			if currency != baseCurrency {
+				set[market.FormatFxPair(currency, baseCurrency)] = true
+			}
+		}
+	}
+	pairs := make([]string, 0, len(set))
+	for pair := range set {
+		pairs = append(pairs, pair)
+	}
+	return pairs
+}
+
+// buildFxLookupFromPreSnaps fetches historical FX rates for the given pairs
+// across the pre-cash-flow snapshot date range.
+func buildFxLookupFromPreSnaps(
+	ctx context.Context,
+	marketService MarketDataService,
+	fxPairs []string,
+	snaps []preCashFlowSnapWithDate,
+	logger *slog.Logger,
+) map[string]*fxLookupFF {
+	lookup := make(map[string]*fxLookupFF)
+	if marketService == nil || len(fxPairs) == 0 || len(snaps) == 0 {
+		return lookup
+	}
+
+	dateFrom := snaps[0].date
+	dateTo := snaps[len(snaps)-1].date
+
+	for _, pair := range fxPairs {
+		prices, err := marketService.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
+		if err != nil || len(prices) == 0 {
+			continue
+		}
+		dates := make([]string, len(prices))
+		rates := make(map[string]decimal.Decimal, len(prices))
+		for i, p := range prices {
+			key := p.Date.Format("2006-01-02")
+			dates[i] = key
+			rates[key] = p.Close
+		}
+		sort.Strings(dates)
+		lookup[pair] = &fxLookupFF{dates: dates, rates: rates}
+	}
+	return lookup
+}
+
+// computePreCashFlowPortfolioValue computes the portfolio value (positions + cash)
+// for a pre-cash-flow snapshot, converting to the base currency.
+func computePreCashFlowPortfolioValue(
+	pre preCashFlowSnapshot,
+	priceFF map[string]*priceLookupFF,
+	fxLookup map[string]*fxLookupFF,
+	baseCurrency string,
+	logger *slog.Logger,
+) decimal.Decimal {
+	var portfolioValue decimal.Decimal
+	dateKey := pre.date.Format("2006-01-02")
+
+	// Position values.
+	for symbol, qty := range pre.positions {
+		price, found := lookupPrice(priceFF, symbol, dateKey)
+		if !found {
+			if logger != nil {
+				logger.Debug("performance: no price for pre-cash-flow position",
+					"symbol", symbol, "qty", qty.String(), "date", dateKey)
+			}
+			continue
+		}
+		value, _ := qty.Mul(price.Close)
+		if price.Currency != baseCurrency {
+			var ok bool
+			value, ok = convertWithFxLookup(fxLookup, price.Currency, baseCurrency, value, pre.date)
+			if !ok && logger != nil {
+				logger.Warn("missing FX rate for pre-cash-flow position",
+					"pair", market.FormatFxPair(price.Currency, baseCurrency),
+					"symbol", symbol, "date", dateKey)
+			}
+		}
+		portfolioValue, _ = portfolioValue.Add(value)
+	}
+
+	// Cash balances.
+	for currency, balance := range pre.cashBalance {
+		if currency != baseCurrency {
+			var ok bool
+			balance, ok = convertWithFxLookup(fxLookup, currency, baseCurrency, balance, pre.date)
+			if !ok && logger != nil {
+				logger.Warn("missing FX rate for pre-cash-flow cash",
+					"pair", market.FormatFxPair(currency, baseCurrency),
+					"date", pre.date.Format("2006-01-02"))
+			}
+		}
+		portfolioValue, _ = portfolioValue.Add(balance)
+	}
+
+	return portfolioValue
 }

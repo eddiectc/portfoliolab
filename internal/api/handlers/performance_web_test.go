@@ -181,13 +181,13 @@ func TestPerformanceTemplate_WithData(t *testing.T) {
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 		{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	totalReturn := decimal.MustNew(2000, 2)
-	cagr := decimal.MustNew(1900, 2)
+	twr := decimal.MustNew(2000, 2)
+	annTWR := decimal.MustNew(1900, 2)
 	result := &position.PerformanceResult{
 		EquityCurve: curve,
 		ReturnMetrics: position.ReturnMetrics{
-			PeriodReturnPct:      &totalReturn,
-			AnnualizedReturnPct: &cagr,
+			TWRPct:             &twr,
+			AnnualizedTWRPct:   &annTWR,
 		},
 		BaseCurrency: "USD",
 	}
