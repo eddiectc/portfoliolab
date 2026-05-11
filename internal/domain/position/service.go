@@ -266,8 +266,30 @@ func (s *Service) scheduleCacheFetches(ctx context.Context, result *CalculateRes
 		}
 	}
 
-	// Schedule symbol fetches.
+	// Check cache status to avoid scheduling fetches for symbols that are
+	// already up-to-date. The MarketCache's concurrent protection handles
+	// deduplication, but this avoids unnecessary channel messages.
+	now := time.Now().UTC()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+	cachedDates := make(map[string]time.Time)
+	if s.marketService != nil && len(symbolDates) > 0 {
+		symbols := make([]string, 0, len(symbolDates))
+		for sym := range symbolDates {
+			symbols = append(symbols, sym)
+		}
+		if latest := s.marketService.GetLatestPriceDatePerSymbol(ctx, symbols); latest != nil {
+			for sym, t := range latest {
+				cachedDates[sym] = *t
+			}
+		}
+	}
+
+	// Schedule symbol fetches (skip if cache is current — latest date is today).
 	for sym, fromDate := range symbolDates {
+		if latest, ok := cachedDates[sym]; ok && !latest.Before(today) {
+			continue
+		}
 		s.ScheduleSymbolFetch(sym, fromDate)
 	}
 
