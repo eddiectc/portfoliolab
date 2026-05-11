@@ -76,6 +76,20 @@
 - `walkTransactions` delegates to it, only adds position currency tracking
 - Old `WalkPositionQuantities` kept as thin wrapper for backward compat
 
+### FX forward-fill SQL filter bug (CRITICAL)
+- `GetHistoricalPricesBySymbolAndRange` filtered `data_type = 'stock'` only
+- FX rates stored with `data_type = 'fx'` were never returned
+- FX forward-fill lookup was always empty → non-base-currency values passed through unconverted
+- USD values added directly to GBP portfolio, inflating by ~30%
+- Fix: SQL changed to `data_type IN ('stock', 'fx')`
+- `convertWithFxLookup` now returns `(value, bool)` — callers log WARN on missing rates
+- Added tests: `TestComputeEquityCurve_FXForwardFillWeekend`, `TestComputeEquityCurve_MissingFXRateWarns`
+
+### Period filter slices output curve, not transactions
+- Period filter was filtering transactions, causing missing positions from buys before the period
+- Fix: always walk ALL transactions for correct portfolio state; period only slices final output curve
+- Renamed `TotalReturnPct` to `PeriodReturnPct` — uses `(end-begin)/begin` instead of net deposit
+
 ## Future Improvements
 - Recalculate hooks schedule fetches for ALL open position symbols regardless of whether cache already exists. The market cache's concurrent protection (queued + in-progress sets) deduplicates, but this means extra channel messages. Could optimize by checking cache first, but the trade-off is an extra DB query per recalc.
 

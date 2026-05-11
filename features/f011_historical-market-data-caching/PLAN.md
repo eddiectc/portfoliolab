@@ -349,6 +349,9 @@ Tasks 4, 5, 6 are independent after Task 3. Task 5.5 consolidates the cache acce
 - [x] **Refactor: extract shared WalkPortfolioState**: Position quantity tracking was duplicated in `walkTransactions` (equity curve) and the calculator. Extracted `WalkPortfolioState` as the single source of truth for portfolio state (quantities, cash, net deposit) tracking. `walkTransactions` delegates to it and only adds position currency tracking on top.
 - [x] Add `TestWalkTransactions_NegativeSellQuantity` to enforce the signed-quantity convention
 - [x] Add comprehensive tests for `WalkPortfolioState` / `WalkPositionQuantities`
+- [x] **Fix FX forward-fill for equity curve**: FX rates were fetched via `GetHistoricalPrices` but the SQL query filtered `data_type = 'stock'` only, excluding FX data (`data_type = 'fx'`). The FX forward-fill lookup was always empty, causing non-base-currency values to pass through unconverted — inflating GBP portfolios with USD assets by ~30%. Fixed SQL to `data_type IN ('stock', 'fx')`. `convertWithFxLookup` now returns `(value, bool)` so callers log WARN when FX conversion fails instead of silently using unconverted values.
+- [x] Add `TestComputeEquityCurve_FXForwardFillWeekend` — verifies FX rates forward-fill on Sat/Sun
+- [x] Add `TestComputeEquityCurve_MissingFXRateWarns` — verifies unconverted value when FX data is absent
 
 **Verification:** `go build ./...` and `go test ./...` pass; equity curve shows correct values after sells; curve extends to today with real prices.
 
