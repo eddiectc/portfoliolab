@@ -387,7 +387,7 @@ func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnaps
 	preCashFlowByDate := make(map[string][]preCashFlowSnapshot)
 
 	snapIdx := 0
-	for _, txn := range txns {
+	for i, txn := range txns {
 		if txn.Type == "buy" || txn.Type == "sell" {
 			positionCurrency[txn.Symbol] = txn.Currency
 		}
@@ -413,22 +413,24 @@ func walkTransactions(txns []transaction.Transaction) ([]dateSnapshot, dateSnaps
 		bal, _ := cashBalance[txn.Currency].Add(txn.NetCash)
 		cashBalance[txn.Currency] = bal
 
+		// Check if this is the last transaction for this date.
+		// Must check the next transaction's date, NOT the next portfolio snapshot,
+		// because pre-cash-flow snapshots for deposits/withdrawals on this date
+		// may not have been captured yet (e.g., buy before deposit on same date).
+		isLastForDate := i == len(txns)-1 || txns[i+1].Date.After(txn.Date)
+
 		// Align with portfolio snapshots at end of each date.
-		if snapIdx < len(portfolioSnaps) && portfolioSnaps[snapIdx].Date.Equal(txn.Date) {
-			// Check if this is the last txn for this date.
-			isLastForDate := txn == txns[len(txns)-1] || (snapIdx+1 >= len(portfolioSnaps) || portfolioSnaps[snapIdx+1].Date.After(txn.Date))
-			if isLastForDate {
-				dateKey := portfolioSnaps[snapIdx].Date.Format(time.RFC3339)
-				snapshots = append(snapshots, dateSnapshot{
-					date:                 portfolioSnaps[snapIdx].Date,
-					positions:            portfolioSnaps[snapIdx].Quantities,
-					positionCurrency:     copyStringMap(positionCurrency),
-					cashBalance:          portfolioSnaps[snapIdx].CashBalance,
-					netDeposit:           portfolioSnaps[snapIdx].NetDeposit,
-					preCashFlowSnapshots: preCashFlowByDate[dateKey],
-				})
-				snapIdx++
-			}
+		if isLastForDate && snapIdx < len(portfolioSnaps) && portfolioSnaps[snapIdx].Date.Equal(txn.Date) {
+			dateKey := portfolioSnaps[snapIdx].Date.Format(time.RFC3339)
+			snapshots = append(snapshots, dateSnapshot{
+				date:                 portfolioSnaps[snapIdx].Date,
+				positions:            portfolioSnaps[snapIdx].Quantities,
+				positionCurrency:     copyStringMap(positionCurrency),
+				cashBalance:          portfolioSnaps[snapIdx].CashBalance,
+				netDeposit:           portfolioSnaps[snapIdx].NetDeposit,
+				preCashFlowSnapshots: preCashFlowByDate[dateKey],
+			})
+			snapIdx++
 		}
 	}
 

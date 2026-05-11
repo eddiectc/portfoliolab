@@ -1251,3 +1251,117 @@ func TestWalkTransactions_CapturesPreCashFlow(t *testing.T) {
 		t.Errorf("Mar 15: expected 1 pre-cash-flow snapshot, got %d", len(snapshots[2].preCashFlowSnapshots))
 	}
 }
+
+// TestWalkTransactions_DepositSharesDateWithBuy verifies that pre-cash-flow
+// snapshots are captured even when a deposit shares a date with other
+// transactions (buy/sell). This covers both orderings: deposit-first and
+// buy-first within the same date.
+func TestWalkTransactions_DepositSharesDateWithBuy(t *testing.T) {
+	tests := []struct {
+		name string
+		txns []transaction.Transaction
+	}{
+		{
+			name: "deposit then buy on same date",
+			txns: []transaction.Transaction{
+				eqTxn(1, testTime(2024, 6, 26), "deposit", "$CASH-GBP", "GBP", 0, 0, 1000000), // £10k
+				eqTxn(1, testTime(2024, 7, 2), "deposit", "$CASH-GBP", "GBP", 0, 0, 500000),  // £5k deposit
+				eqTxn(1, testTime(2024, 7, 2), "buy", "VT", "GBP", 1000, 10000, -1000000),    // buy on same date
+				eqTxn(1, testTime(2024, 7, 22), "sell", "VT", "GBP", 500, 10500, 525000),     // sell
+			},
+		},
+		{
+			name: "buy then deposit on same date",
+			txns: []transaction.Transaction{
+				eqTxn(1, testTime(2024, 6, 26), "deposit", "$CASH-GBP", "GBP", 0, 0, 1000000), // £10k
+				eqTxn(1, testTime(2024, 7, 2), "buy", "VT", "GBP", 1000, 10000, -1000000),    // buy first
+				eqTxn(1, testTime(2024, 7, 2), "deposit", "$CASH-GBP", "GBP", 0, 0, 500000),  // deposit second
+				eqTxn(1, testTime(2024, 7, 22), "sell", "VT", "GBP", 500, 10500, 525000),     // sell
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snapshots, _ := walkTransactions(tt.txns)
+
+			// Should have 3 date-snapshots: 6/26, 7/2, 7/22
+			if len(snapshots) != 3 {
+				t.Fatalf("expected 3 snapshots, got %d", len(snapshots))
+			}
+
+			// 6/26: 1 pre-cash-flow (initial deposit)
+			if len(snapshots[0].preCashFlowSnapshots) != 1 {
+				t.Errorf("6/26: expected 1 pre-cash-flow, got %d", len(snapshots[0].preCashFlowSnapshots))
+			}
+
+			// 7/2: 1 pre-cash-flow (the deposit on this date)
+			if len(snapshots[1].preCashFlowSnapshots) != 1 {
+				t.Errorf("7/2: expected 1 pre-cash-flow snapshot (the deposit), got %d", len(snapshots[1].preCashFlowSnapshots))
+				if len(snapshots[1].preCashFlowSnapshots) == 0 {
+					t.Error("BUG: deposit on 7/2 did not create a pre-cash-flow snapshot attached to the dateSnapshot")
+				}
+			}
+
+			// 7/22: no cash flows, so no pre-cash-flow
+			if len(snapshots[2].preCashFlowSnapshots) != 0 {
+				t.Errorf("7/22: expected 0 pre-cash-flow, got %d", len(snapshots[2].preCashFlowSnapshots))
+			}
+		})
+	}
+}
+
+// TestComputeTWR_DepositOnSameDateAsBuy verifies that TWR correctly
+// isolates the deposit effect when a deposit shares a date with a buy.
+// This is a regression test for the bug where missing breakpoints caused
+// deposit amounts to be absorbed into sub-period returns, inflating TWR.
+func TestComputeTWR_DepositOnSameDateAsBuy(t *testing.T) {
+	// Scenario mimicking real data:
+	// 6/26: deposit £511k → portfolio £511k (all cash)
+	// 7/2:   deposit £73k + buy positions → portfolio £586k (pos £297k + cash £289k)
+	// 7/22:  sell some → portfolio £582k (pos £460k + cash £122k)
+	//
+	// Without the 7/2 breakpoint: TWR = 582/511 - 1 = 13.9% (WRONG — includes deposit)
+	// With the 7/2 breakpoint:
+	//   sub-period 6/26→7/2: pre(7/2) ≈ 513k / post(6/26) 511k ≈ 1.004 (+0.4%)
+	//   sub-period 7/2→7/22: post(7/22) ≈ 582k / post(7/2) 586k ≈ 0.993 (-0.7%)
+	//   TWR ≈ 1.004 * 0.993 - 1 ≈ -0.3% (correct — isolates market performance)
+
+	// Build equity curve points (simulating interpolated daily values)
+	points := []EquityCurvePoint{
+		{Date: testTime(2024, 6, 26), PortfolioValue: decimal.MustNew(51156800, 2), NetDeposit: decimal.MustNew(50788500, 2)},
+		{Date: testTime(2024, 7, 2), PortfolioValue: decimal.MustNew(58646200, 2), NetDeposit: decimal.MustNew(58077800, 2)},
+		{Date: testTime(2024, 7, 22), PortfolioValue: decimal.MustNew(58208900, 2), NetDeposit: decimal.MustNew(58035900, 2)},
+	}
+
+	// Breakpoints: pre-cash-flow values
+	// 6/26: 0 (initial deposit, no prior portfolio)
+	// 7/2: ~513,569 (portfolio before £73k deposit, i.e., ~6/26 value + small market gain)
+	breakpoints := []twrBreakpoint{
+		{date: testTime(2024, 6, 26), value: decimal.Zero},
+		{date: testTime(2024, 7, 2), value: decimal.MustNew(51356900, 2)},
+	}
+
+	metrics := ComputePeriodReturn(points, breakpoints, "GBP")
+	if metrics.TWRPct == nil {
+		t.Fatal("TWR should not be nil")
+	}
+
+	twrPct, _ := metrics.TWRPct.Float64()
+
+	// Expected TWR:
+	// sub-period 1: post(6/26)=511,568 → pre(7/2)=513,569 → ratio = 1.0039
+	// sub-period 2: post(7/2)=586,462 → last=582,089 → ratio = 0.9926
+	// TWR = 1.0039 * 0.9926 - 1 = -0.077% ≈ -0.08%
+	// (small negative because portfolio declined slightly after the deposit)
+
+	// The key assertion: TWR should be close to 0%, NOT 13.9%
+	// If the 7/2 breakpoint were missing, TWR would be ~13.9%
+	if twrPct > 5.0 {
+		t.Errorf("TWR = %.2f%%, expected near 0%% (got inflated by missing breakpoint?)", twrPct)
+	}
+	if twrPct < -5.0 {
+		t.Errorf("TWR = %.2f%%, expected near 0%% (unexpectedly negative?)", twrPct)
+	}
+}
+
