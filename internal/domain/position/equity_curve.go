@@ -184,15 +184,26 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		snapshots, pricesBySymbol, baseCurrency, s.marketService, s.logger, ctx,
 	)
 
-	// 12. Compute return metrics (TWR + annualized) from the FULL curve
-	// (before slicing) so that post-cash-flow values are available for
-	// each cash flow breakpoint.
+	// 12. Slice to period range. The portfolio state includes all history,
+	// but the output curve only shows the selected period.
+	if !dateFrom.IsZero() {
+		points = sliceFrom(points, dateFrom)
+	}
+
+	// 13. Filter breakpoints to the visible period so that TWR reflects
+	// only the selected window. Exclude breakpoints on or before the first
+	// curve point — that point is the starting value, and any cash flow
+	// on that date already happened before (or at) the window start.
+	visibleBreakpoints := filterBreakpointsForPeriod(preCashFlowValues, points, dateTo)
+
+	// 14. Compute return metrics (TWR + annualized) from the sliced curve
+	// and filtered breakpoints.
 	if s.logger != nil {
 		s.logger.Debug("performance: TWR breakpoints",
-			"count", len(preCashFlowValues),
+			"count", len(visibleBreakpoints),
 			"baseCurrency", baseCurrency,
 		)
-		for i, bp := range preCashFlowValues {
+		for i, bp := range visibleBreakpoints {
 			s.logger.Debug("performance: TWR breakpoint",
 				"idx", i,
 				"date", bp.date.Format("2006-01-02"),
@@ -200,13 +211,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 			)
 		}
 	}
-	returnMetrics := ComputePeriodReturn(points, preCashFlowValues, baseCurrency)
-
-	// 13. Slice to period range. The portfolio state includes all history,
-	// but the output curve only shows the selected period.
-	if !dateFrom.IsZero() {
-		points = sliceFrom(points, dateFrom)
-	}
+	returnMetrics := ComputePeriodReturn(points, visibleBreakpoints, baseCurrency)
 
 	if s.logger != nil {
 		if len(points) > 0 {
@@ -343,6 +348,30 @@ func sliceFrom(points []EquityCurvePoint, dateFrom time.Time) []EquityCurvePoint
 		return []EquityCurvePoint{}
 	}
 	return points[idx:]
+}
+
+// filterBreakpointsForPeriod keeps only breakpoints that fall strictly after
+// the first curve point and within the date range. Breakpoints on or before
+// the first point are excluded because that point is the starting value for
+// the period, and any cash flow on that date is already reflected in it.
+func filterBreakpointsForPeriod(bps []twrBreakpoint, points []EquityCurvePoint, dateTo time.Time) []twrBreakpoint {
+	if len(points) == 0 {
+		return nil
+	}
+	firstDate := points[0].Date
+	var result []twrBreakpoint
+	for _, bp := range bps {
+		// Exclude breakpoints on or before the first curve point.
+		if !bp.date.After(firstDate) {
+			continue
+		}
+		// Exclude breakpoints after the window end.
+		if !dateTo.IsZero() && bp.date.After(dateTo) {
+			continue
+		}
+		result = append(result, bp)
+	}
+	return result
 }
 
 // filterByDateRange filters transactions to the given date range.

@@ -914,6 +914,89 @@ func TestComputeEquityCurve_PeriodFiltering(t *testing.T) {
 	}
 }
 
+// TestComputeEquityCurve_ReturnMetricsRespectPeriod verifies that return
+// metrics (TWR) are computed over the selected period, not the full history.
+func TestComputeEquityCurve_ReturnMetricsRespectPeriod(t *testing.T) {
+	svc, txnRepo, accountLister := newTestServiceForEquity()
+	accountLister.SetAccountsByPortfolio(1, []AccountRef{
+		{ID: 1, PortfolioCurrency: "USD"},
+	})
+
+	// Scenario: all market gains happen before the deposit, flat after.
+	// Jan 15: deposit $10,000
+	// Feb 15: buy 10 AAPL at $100 (cost $1,000)
+	// Mar 15: deposit $5,000 (AAPL is now $130, +30% on shares)
+	// Apr 1: start of short window
+	// Dec 31: AAPL flat at $130
+	//
+	// Pre-deposit Mar 15: 10×$130 + $9,000 cash = $10,300
+	// Post-deposit Mar 15: $10,300 + $5,000 = $15,300
+	// Dec 31: 10×$130 + $14,000 cash = $15,300
+	txnRepo.SetTransactions(1, []transaction.Transaction{
+		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
+		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 10000, -100000),
+		eqTxn(1, testTime(2024, 3, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
+	})
+
+	repo := newMockHistoricalRepo()
+	repo.SetCachedPrices("AAPL", []market.HistoricalPrice{
+		histPrice(testTime(2024, 1, 15), 10000, "USD"),
+		histPrice(testTime(2024, 2, 15), 10000, "USD"),
+		histPrice(testTime(2024, 3, 15), 13000, "USD"),
+		histPrice(testTime(2024, 12, 31), 13000, "USD"),
+	})
+	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
+
+	// "All" period: full history.
+	// Sub-period 1: Jan 15 ($10,000) → Mar 15 pre-deposit ($10,300) = +3%
+	// Sub-period 2: Mar 15 post-deposit ($15,300) → last ($15,300) = 0%
+	// TWR ≈ 3%
+	resultAll, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+		PortfolioID: ptrInt64(1),
+		Period:      "All",
+	})
+	if err != nil {
+		t.Fatalf("All: unexpected error: %v", err)
+	}
+
+	// Short period (Apr-Dec): after the deposit, flat market.
+	// No breakpoints inside this window.
+	// Simple return: $15,300 → $15,300 = 0%
+	from := testTime(2024, 4, 1)
+	to := testTime(2024, 12, 31)
+	resultShort, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+		PortfolioID: ptrInt64(1),
+		DateFrom:    &from,
+		DateTo:      &to,
+	})
+	if err != nil {
+		t.Fatalf("Short: unexpected error: %v", err)
+	}
+
+	// Both should have non-nil TWR.
+	if resultAll.ReturnMetrics.TWRPct == nil {
+		t.Error("All: TWRPct is nil")
+	}
+	if resultShort.ReturnMetrics.TWRPct == nil {
+		t.Error("Short: TWRPct is nil")
+	}
+
+	allTWR, _ := resultAll.ReturnMetrics.TWRPct.Float64()
+	shortTWR, _ := resultShort.ReturnMetrics.TWRPct.Float64()
+
+	// "All" should be positive (AAPL gains in Feb-Mar).
+	if allTWR < 1 {
+		t.Errorf("All TWR=%.2f%%, expected > 1%%", allTWR)
+	}
+	// "Short" should be near zero (flat market, no breakpoints).
+	if shortTWR > 1 {
+		t.Errorf("Short TWR=%.2f%%, expected ~0%%", shortTWR)
+	}
+	if allTWR == shortTWR {
+		t.Errorf("TWR identical for both periods (%.2f%%) — period filter not affecting return metrics", allTWR)
+	}
+}
+
 func TestComputeEquityCurve_AllPortfoliosMatchingCurrencies(t *testing.T) {
 	svc, txnRepo, accountLister := newTestServiceForEquity()
 	accountLister.SetAllAccounts([]AccountRef{
