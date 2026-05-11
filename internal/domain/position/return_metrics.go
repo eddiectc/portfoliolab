@@ -15,9 +15,7 @@ import (
 // by breaking the period into sub-periods between cash flow events and
 // geometrically linking the sub-period returns:
 //
-//
 // TWR = (V_pre[0] / V_first) × (V_pre[1] / V_post[0]) × ... × (V_last / V_post[n-1]) - 1
-//
 //
 // where V_pre[i] is the portfolio value just before cash flow i,
 // V_post[i] is the portfolio value on the same date (from the equity curve),
@@ -92,6 +90,19 @@ func buildCurveMap(curve []EquityCurvePoint) curveDateMap {
 
 // computeTWR computes the Time-Weighted Return as a percentage.
 // Returns nil if computation is not possible.
+//
+// TWR breaks the period at each cash flow and geometrically links
+// sub-period returns:
+//
+// TWR = ∏(V_post[i] / V_pre[i]) - 1
+//
+// where V_pre[i] is the portfolio value just before cash flow i,
+// V_post[i] is the value on the same date after the cash flow,
+// V_pre[0] = first equity curve point, V_post[n] = last equity curve point.
+//
+// When the first breakpoint has value=0 (initial deposit, no prior
+// portfolio), the pre-deposit sub-period is skipped and the first
+// sub-period starts from the post-deposit value.
 func computeTWR(
 	first, last EquityCurvePoint,
 	breakpoints []twrBreakpoint,
@@ -109,28 +120,59 @@ func computeTWR(
 	// We use float64 for the product to avoid precision issues with many sub-periods.
 	var product float64 = 1.0
 
-	// Sub-period 0: first point → pre-cash-flow[0]
-	pre0 := breakpoints[0]
-	if !pre0.value.IsPos() {
-		return nil
-	}
-	ratio0 := ratioFloat(first.PortfolioValue, pre0.value)
-	if ratio0 <= 0 {
-		return nil
-	}
-	product *= ratio0
+	// --- First sub-period ---
+	// If the first breakpoint has value=0 (initial deposit with no prior
+	// portfolio), skip the pre-deposit sub-period and start from the
+	// post-cash-flow value on that date.
+	firstPre := breakpoints[0]
+	handledUpTo := 0 // index of the last breakpoint handled in the first sub-period
+	if !firstPre.value.IsPos() {
+		// Use post-cash-flow value on the first breakpoint's date as the
+		// starting point for the first measurable sub-period.
+		postFirst := lookupCurveValue(curveMap, firstPre.date)
+		if postFirst == nil || !postFirst.IsPos() {
+			return nil
+		}
 
-	// Sub-periods 1..n-1: post-cash-flow[i-1] → pre-cash-flow[i]
-	// V_post[i-1] is the equity curve value on the same date as breakpoints[i-1].
-	for i := 1; i < len(breakpoints); i++ {
+		if len(breakpoints) == 1 {
+			// Single breakpoint (initial deposit only): return from post-deposit to end.
+			r := ratioFloat(*postFirst, endValue)
+			if r <= 0 {
+				return nil
+			}
+			product *= r
+			handledUpTo = 1 // past the last breakpoint, so skip final sub-period
+		} else {
+			// Return from post-deposit to next pre-cash-flow.
+			nextPre := breakpoints[1].value
+			r := ratioFloat(*postFirst, nextPre)
+			if r <= 0 {
+				return nil
+			}
+			product *= r
+			handledUpTo = 1 // breakpoint[1] was the endpoint, so middle starts from there
+		}
+	} else {
+		// Normal case: return from first equity curve point to first pre-cash-flow.
+		r := ratioFloat(first.PortfolioValue, firstPre.value)
+		if r <= 0 {
+			return nil
+		}
+		product *= r
+	}
+
+	// --- Middle sub-periods ---
+	// post-cash-flow[i-1] → pre-cash-flow[i]
+	startIdx := handledUpTo
+	if startIdx == 0 && !firstPre.value.IsPos() {
+		startIdx = 1 // skip the first breakpoint (already handled above)
+	}
+	for i := startIdx + 1; i < len(breakpoints); i++ {
 		postPrev := lookupCurveValue(curveMap, breakpoints[i-1].date)
 		if postPrev == nil || !postPrev.IsPos() {
 			return nil
 		}
 		preCurr := breakpoints[i].value
-		if !preCurr.IsPos() {
-			return nil
-		}
 		r := ratioFloat(*postPrev, preCurr)
 		if r <= 0 {
 			return nil
@@ -138,17 +180,21 @@ func computeTWR(
 		product *= r
 	}
 
-	// Final sub-period: post-cash-flow[n-1] → last point
-	lastPre := breakpoints[len(breakpoints)-1]
-	postLast := lookupCurveValue(curveMap, lastPre.date)
-	if postLast == nil || !postLast.IsPos() {
-		return nil
+	// --- Final sub-period ---
+	// post-cash-flow[n-1] → last equity curve point
+	// Skip if the first sub-period already covered to the end (single breakpoint case).
+	if handledUpTo < len(breakpoints) {
+		lastPre := breakpoints[len(breakpoints)-1]
+		postLast := lookupCurveValue(curveMap, lastPre.date)
+		if postLast == nil || !postLast.IsPos() {
+			return nil
+		}
+		ratioLast := ratioFloat(*postLast, endValue)
+		if ratioLast <= 0 {
+			return nil
+		}
+		product *= ratioLast
 	}
-	ratioLast := ratioFloat(*postLast, endValue)
-	if ratioLast <= 0 {
-		return nil
-	}
-	product *= ratioLast
 
 	// TWR = product - 1, expressed as percentage.
 	twr := product - 1.0
@@ -168,7 +214,7 @@ func computeSimpleReturn(first, last EquityCurvePoint) *decimal.Decimal {
 		return nil
 	}
 	ratio := endF / beginF
-	twrPct, _ := decimal.NewFromFloat64((ratio-1.0) * 100.0)
+	twrPct, _ := decimal.NewFromFloat64((ratio - 1.0) * 100.0)
 	return ptrDec(twrPct.Round(2))
 }
 
