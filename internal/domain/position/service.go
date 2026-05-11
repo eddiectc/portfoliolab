@@ -214,15 +214,15 @@ func (s *Service) RecalculateAccount(ctx context.Context, accountID int64) error
 	}
 
 	// Schedule background market data fetches for open positions.
-	s.scheduleCacheFetches(ctx, result, accountID, baseCurrency)
+	s.scheduleCacheFetches(ctx, result, txns, accountID, baseCurrency)
 
 	return nil
 }
 
 // scheduleCacheFetches schedules background fetches for symbols and FX pairs
-// found in the open positions of the calculate result. It skips cash symbols
-// and uses the position's open date as the fetch start date.
-func (s *Service) scheduleCacheFetches(ctx context.Context, result *CalculateResult, accountID int64, baseCurrency string) {
+// found in the open positions and cash transactions of the account. It skips
+// cash symbols and uses the earliest relevant date as the fetch start date.
+func (s *Service) scheduleCacheFetches(ctx context.Context, result *CalculateResult, txns []transaction.Transaction, accountID int64, baseCurrency string) {
 	if s.cacheScheduler == nil {
 		return
 	}
@@ -247,6 +247,21 @@ func (s *Service) scheduleCacheFetches(ctx context.Context, result *CalculateRes
 			pairKey := p.Currency + "/" + baseCurrency
 			if existing, ok := pairDates[pairKey]; !ok || p.OpenDate.Before(existing) {
 				pairDates[pairKey] = p.OpenDate
+			}
+		}
+	}
+
+	// Also collect FX pairs from cash transactions (deposits/withdrawals).
+	// This ensures historical FX rates are fetched for currencies that
+	// appear in cash flows before any positions in that currency.
+	for _, txn := range txns {
+		if txn.Type != "deposit" && txn.Type != "withdrawal" {
+			continue
+		}
+		if baseCurrency != "" && txn.Currency != baseCurrency {
+			pairKey := txn.Currency + "/" + baseCurrency
+			if existing, ok := pairDates[pairKey]; !ok || txn.Date.Before(existing) {
+				pairDates[pairKey] = txn.Date
 			}
 		}
 	}

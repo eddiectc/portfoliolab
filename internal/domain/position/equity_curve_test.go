@@ -533,9 +533,9 @@ func TestConvertToBase_NoRate(t *testing.T) {
 	if found {
 		t.Error("expected found=false when no rate available")
 	}
-	// Returns original value unchanged when no rate.
-	if !result.Equal(value) {
-		t.Errorf("expected original value, got %s", result.String())
+	// Returns 0 (not unconverted value) when no rate.
+	if !result.Equal(decimal.Zero) {
+		t.Errorf("expected zero, got %s", result.String())
 	}
 }
 
@@ -1208,20 +1208,18 @@ func TestComputeEquityCurve_MissingFXRateWarns(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Without FX rate, the USD position value ($400) is added unconverted,
-	// resulting in an inflated portfolio value.
+	// Without FX rate, the USD position value ($400) is SKIPPED entirely.
 	// The curve should still be computed, but with a warning.
 	if len(result.EquityCurve) < 1 {
 		t.Fatal("expected at least 1 equity curve point")
 	}
 
-	// Portfolio value = £10,000 (GBP cash) + $400 (unconverted USD position)
-	// = 10400.00. This is WRONG (should convert $400 to GBP) but expected
-	// when FX data is missing.
+	// Portfolio value = £10,000 (GBP cash) only; USD position skipped due to missing FX.
+	// This is correct — better to understate than to mix currencies silently.
 	gotValue := result.EquityCurve[0].PortfolioValue
-	wantUnconverted := decimal.MustNew(104000000, 4) // 10400.0000 at scale 4
-	if !gotValue.Equal(wantUnconverted) {
-		t.Errorf("portfolio value with missing FX: got %s, want %s (unconverted)", gotValue.String(), wantUnconverted.String())
+	wantGBP := decimal.MustNew(1000000, 2) // £10,000
+	if !gotValue.Equal(wantGBP) {
+		t.Errorf("portfolio value with missing FX: got %s, want %s (GBP only)", gotValue.String(), wantGBP.String())
 	}
 }
 

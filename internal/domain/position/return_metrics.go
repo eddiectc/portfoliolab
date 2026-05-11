@@ -150,7 +150,7 @@ func computeTWR(
 				return nil
 			}
 			product *= r
-			handledUpTo = 1 // breakpoint[1] was the endpoint, so middle starts from there
+				handledUpTo = 1
 		}
 	} else {
 		// Normal case: return from first equity curve point to first pre-cash-flow.
