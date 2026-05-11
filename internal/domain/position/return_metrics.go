@@ -8,7 +8,7 @@ import (
 )
 
 // ComputePeriodReturn computes summary return metrics from an equity curve
-// using the Time-Weighted Return (TWR) method.
+// using the Time-Weighted Return (TWR) and Money-Weighted Return (MWR) methods.
 // It is a pure function with no external dependencies.
 //
 // TWR isolates investment performance from the timing of deposits/withdrawals
@@ -24,8 +24,15 @@ import (
 // When there are no cash flows, TWR degenerates to the simple return:
 // (V_last / V_first) - 1.
 //
+// MWR (Internal Rate of Return) finds the discount rate r that makes the
+// net present value of all cash flows plus the terminal portfolio value
+// equal to zero. Unlike TWR, MWR is affected by the timing and magnitude
+// of deposits/withdrawals.
+//
 // TWRPct is nil when fewer than 2 data points or begin_value is non-positive.
 // AnnualizedTWRPct is the annualized TWR: (1 + TWR)^(365/days) - 1.
+// MWRPct is nil when fewer than 2 data points or begin_value is non-positive.
+// HoldingPeriodMWRPct is the MWR expressed as a holding-period return.
 // HasInsufficientData is true when fewer than 2 data points are available.
 func ComputePeriodReturn(
 	equityCurve []EquityCurvePoint,
@@ -36,6 +43,8 @@ func ComputePeriodReturn(
 		return ReturnMetrics{
 			TWRPct:              nil,
 			AnnualizedTWRPct:    nil,
+			MWRPct:              nil,
+			HoldingPeriodMWRPct: nil,
 			HasInsufficientData: true,
 		}
 	}
@@ -46,8 +55,10 @@ func ComputePeriodReturn(
 
 	if !beginValue.IsPos() {
 		return ReturnMetrics{
-			TWRPct:           nil,
-			AnnualizedTWRPct: nil,
+			TWRPct:              nil,
+			AnnualizedTWRPct:    nil,
+			MWRPct:              nil,
+			HoldingPeriodMWRPct: nil,
 		}
 	}
 
@@ -63,19 +74,33 @@ func ComputePeriodReturn(
 	// --- TWR ---
 	twr := computeTWR(first, last, preCashFlowValues, curveMap)
 
+	// --- MWR ---
+	mwr := computeMWR(equityCurve)
+
+	// --- Annualized ---
+	days := last.Date.Sub(first.Date).Hours() / 24.0
+
 	var metrics ReturnMetrics
 	if twr != nil {
 		metrics.TWRPct = twr
 	}
-
-	// --- Annualized TWR ---
-	days := last.Date.Sub(first.Date).Hours() / 24.0
 	if days > 0 && twr != nil {
 		twrF, _ := twr.Float64()
 		twrF /= 100.0 // convert from percentage to ratio
 		annualized := math.Pow(1.0+twrF, 365.0/days) - 1.0
 		annPct, _ := decimal.NewFromFloat64(annualized * 100.0)
 		metrics.AnnualizedTWRPct = ptrDec(annPct.Round(2))
+	}
+	if mwr != nil {
+		metrics.MWRPct = mwr
+		// Holding-period MWR: (1 + MWR)^(days/365) - 1
+		if days >= 0 {
+			mwrF, _ := mwr.Float64()
+			mwrF /= 100.0 // convert from percentage to ratio
+			hpr := math.Pow(1.0+mwrF, days/365.0) - 1.0
+			hprPct, _ := decimal.NewFromFloat64(hpr * 100.0)
+			metrics.HoldingPeriodMWRPct = ptrDec(hprPct.Round(2))
+		}
 	}
 
 	return metrics
@@ -268,4 +293,128 @@ func ratioFloat(a, b decimal.Decimal) float64 {
 // ptrDec returns a pointer to the given decimal.Decimal.
 func ptrDec(d decimal.Decimal) *decimal.Decimal {
 	return &d
+}
+
+// mwrCashFlow represents a single cash flow for MWR computation.
+type mwrCashFlow struct {
+	timeYears float64
+	amount    float64
+}
+
+// computeMWR computes the Money-Weighted Return (Internal Rate of Return)
+// from the equity curve. It finds the annualized discount rate r that makes
+// the net present value of all cash flows plus the terminal portfolio value
+// equal to zero.
+//
+// Cash flows are derived from the NetDeposit column of the equity curve:
+//   - Initial portfolio value (negative, at t=0)
+//   - Incremental net deposits between consecutive points (negative = deposit,
+//     positive = withdrawal, at their respective times)
+//   - Final portfolio value (positive, at t=T)
+//
+// The equation solved is:
+//
+//   -PV_0 + Σ(CF_i / (1+r)^t_i) + PV_T / (1+r)^T = 0
+//
+// where t_i is the time in years from the start date.
+//
+// Returns nil if computation is not possible (fewer than 2 points, zero
+// begin value, or no solution found within bounds).
+func computeMWR(curve []EquityCurvePoint) *decimal.Decimal {
+	if len(curve) < 2 {
+		return nil
+	}
+
+	first := curve[0]
+	last := curve[len(curve)-1]
+
+	beginF, _ := first.PortfolioValue.Float64()
+	if beginF <= 0 {
+		return nil
+	}
+
+	endF, _ := last.PortfolioValue.Float64()
+
+	// Build cash flows: (time in years, amount)
+	// CF_0 = -beginValue at t=0
+	// CF_i = -(NetDeposit[i] - NetDeposit[i-1]) at t_i (negative = deposit)
+	// CF_T = +endValue at t=T
+	var cfs []mwrCashFlow
+	cfs = append(cfs, mwrCashFlow{timeYears: 0, amount: -beginF})
+
+	// Initialize prevNetDeposit to the first point's value so we only capture
+	// incremental cash flows within the period, not the initial deposit.
+	prevNetDeposit, _ := first.NetDeposit.Float64()
+	for i := 1; i < len(curve); i++ {
+		nd, _ := curve[i].NetDeposit.Float64()
+		daysFromStart := curve[i].Date.Sub(first.Date).Hours() / 24.0
+		timeYears := daysFromStart / 365.0
+
+		// Incremental net deposit: positive = deposit (money in),
+		// negative = withdrawal (money out).
+		// For MWR: deposit is a cash outflow (negative), withdrawal is inflow (positive).
+		incremental := nd - prevNetDeposit
+		if incremental != 0 {
+			cfs = append(cfs, mwrCashFlow{timeYears: timeYears, amount: -incremental})
+		}
+		prevNetDeposit = nd
+	}
+
+	// Terminal value (positive = money back).
+	totalDays := last.Date.Sub(first.Date).Hours() / 24.0
+	cfs = append(cfs, mwrCashFlow{timeYears: totalDays / 365.0, amount: endF})
+
+	// Solve for r using bisection.
+	r := solveIRR(cfs)
+	if r == nil {
+		return nil
+	}
+
+	mwrPct, _ := decimal.NewFromFloat64(*r * 100.0)
+	return ptrDec(mwrPct.Round(2))
+}
+
+// solveIRR finds the internal rate of return using bisection.
+// It searches for r in (-0.99, maxRate) such that NPV(r) ≈ 0.
+// Returns nil if no solution is found within the search bounds.
+func solveIRR(cfs []mwrCashFlow) *float64 {
+	const maxRate = 10.0 // up to 1000%
+	const iterations = 100
+
+	lo, hi := -0.99, maxRate
+	fLo := npv(cfs, lo)
+
+	// Quick check: if NPV at max rate is negative, return is beyond our bounds.
+	// This means the portfolio lost so much that no positive rate explains it.
+	fHi := npv(cfs, hi)
+	if fLo*fHi > 0 {
+		// Both same sign — no root in range.
+		return nil
+	}
+
+	for i := 0; i < iterations; i++ {
+		mid := (lo + hi) / 2.0
+		fMid := npv(cfs, mid)
+		if math.Abs(fMid) < 1e-9 {
+			return &mid
+		}
+		if fLo*fMid < 0 {
+			hi = mid
+		} else {
+			lo = mid
+			fLo = fMid
+		}
+	}
+
+	mid := (lo + hi) / 2.0
+	return &mid
+}
+
+// npv computes the net present value of cash flows at the given discount rate.
+func npv(cfs []mwrCashFlow, r float64) float64 {
+	var sum float64
+	for _, cf := range cfs {
+		sum += cf.amount / math.Pow(1.0+r, cf.timeYears)
+	}
+	return sum
 }

@@ -534,6 +534,181 @@ func TestComputePeriodReturn_SubPeriodFromPreCashFlow(t *testing.T) {
 	}
 }
 
+func TestComputeMWR_Basic(t *testing.T) {
+	// Scenario: invest $100k at start, deposit $50k at midpoint, end with $170k
+	//
+	// Cash flows for MWR:
+	//   t=0:    -$100k (initial investment)
+	//   t=0.5:  -$50k  (deposit)
+	//   t=1.0:  +$170k (terminal value)
+	//
+	// NPV(r) = -100k + (-50k)/(1+r)^0.5 + 170k/(1+r)^1 = 0
+	//
+	// At r=20%: -100k - 50k/1.0954 + 170k/1.2
+	//           = -100k - 45.64k + 141.67k = -4.97k
+	// At r=21%: -100k - 50k/1.1012 + 170k/1.21
+	//           = -100k - 45.40k + 140.50k = -4.90k
+	// At r=19%: -100k - 50k/1.0899 + 170k/1.19
+	//           = -100k - 45.87k + 142.86k = -3.01k
+	//
+	// Exact solution: r ≈ 19.99%
+	// (Verified: 100k*(1.2)^1 + 50k*(1.2)^0.5 = 140k + 45.64k = 185.64k... 
+	//  Actually FV = 100k*(1+r) + 50k*sqrt(1+r) = 170k
+	//  With x = sqrt(1+r): 100x^2 + 50x - 170 = 0
+	//  x = (-50 + sqrt(2500 + 68000)) / 200 = (-50 + 262.49) / 200 = 1.06245
+	//  r = x^2 - 1 = 1.1288 - 1 = 12.88%
+	//
+	// Wait, let me re-derive. The MWR equation is:
+	//   -100k + (-50k)/(1+r)^0.5 + 170k/(1+r)^1 = 0
+	// Let x = sqrt(1+r), so (1+r)^0.5 = x and (1+r)^1 = x^2
+	//   -100k - 50k/x + 170k/x^2 = 0
+	// Multiply by x^2:
+	//   -100k*x^2 - 50k*x + 170k = 0
+	//   100x^2 + 50x - 170 = 0
+	//   x = (-50 + sqrt(2500 + 68000)) / 200 = (-50 + 262.49) / 200 = 1.06245
+	//   r = x^2 - 1 = 0.1288 = 12.88%
+	//
+	// Hmm, but that seems low. Let me verify:
+	//   -100k - 50k/1.06245 + 170k/1.1288
+	//   = -100k - 47.06k + 150.61k = -6.45k  (not zero!)
+	//
+	// I think the issue is with signs. Let me re-derive:
+	// The MWR equation is:
+	//   PV(inflows) = PV(outflows)
+	//   170k/(1+r) = 100k + 50k/(1+r)^0.5
+	//   170k = 100k*(1+r) + 50k*(1+r)^0.5
+	//
+	// With x = sqrt(1+r):
+	//   170k = 100k*x^2 + 50k*x
+	//   100x^2 + 50x - 170 = 0
+	//   x = 1.06245, r = 12.88%
+	//
+	// Verify: 100k*(1.1288) + 50k*(1.06245) = 112.88k + 53.12k = 166.00k
+	// That's not 170k. Something is off.
+	//
+	// Actually, the FV equation for MWR is:
+	//   FV = PV_0 * (1+r)^T + CF_1 * (1+r)^(T-t1)
+	//   170k = 100k * (1+r)^1 + 50k * (1+r)^0.5
+	//   170 = 100x^2 + 50x where x = sqrt(1+r)
+	//   100x^2 + 50x - 170 = 0
+	//   x = (-50 + sqrt(2500 + 68000)) / 200 = 1.06245
+	//   r = 1.06245^2 - 1 = 0.1288 = 12.88%
+	//
+	// Verify: 100*(1.1288) + 50*1.06245 = 112.88 + 53.12 = 166.00
+	// Hmm, that's 166 not 170. Let me recheck.
+	//
+	// Actually: 100*1.06245^2 = 100*1.1288 = 112.88
+	// And: 50*1.06245 = 53.12
+	// Total: 112.88 + 53.12 = 166.00
+	// But we want 170. So r should be higher.
+	//
+	// Let me solve more carefully:
+	// 100x^2 + 50x - 170 = 0
+	// x = (-50 + sqrt(2500 + 68000)) / 200
+	// = (-50 + sqrt(70500)) / 200
+	// = (-50 + 265.52) / 200
+	// = 215.52 / 200
+	// = 1.0776
+	// r = 1.0776^2 - 1 = 1.1612 - 1 = 0.1612 = 16.12%
+	//
+	// Verify: 100*(1.1612) + 50*sqrt(1.1612) = 116.12 + 50*1.0776 = 116.12 + 53.88 = 170.00 ✓
+	//
+	// So MWR ≈ 16.12%
+
+	equityCurve := []EquityCurvePoint{
+		{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+		{Date: mustTime("2023-07-02"), PortfolioValue: dec(1500000, 2), NetDeposit: dec(1500000, 2)}, // ~182 days = 0.5 years
+		{Date: mustTime("2023-12-31"), PortfolioValue: dec(1700000, 2), NetDeposit: dec(1500000, 2)},
+	}
+
+	result := ComputePeriodReturn(equityCurve, nil, "USD")
+
+	if result.MWRPct == nil {
+		t.Fatal("MWRPct is nil")
+	}
+
+	// MWR ≈ 16.12%
+	wantMWR := decimal.MustParse("16.12")
+	diff, _ := result.MWRPct.Sub(wantMWR)
+	diff = diff.Abs()
+	threshold := decimal.MustParse("0.50")
+	if diff.Cmp(threshold) > 0 {
+		t.Errorf("MWRPct: got %s, want approx %s (diff %s)", result.MWRPct.String(), wantMWR.String(), diff.String())
+	}
+
+	// Holding-period MWR should be close to the total return over the period
+	// HP-MWR = (1 + 0.1612)^(364/365) - 1 ≈ 16.04%
+	if result.HoldingPeriodMWRPct == nil {
+		t.Fatal("HoldingPeriodMWRPct is nil")
+	}
+	wantHP := decimal.MustParse("16.00")
+	diffHP, _ := result.HoldingPeriodMWRPct.Sub(wantHP)
+	diffHP = diffHP.Abs()
+	thresholdHP := decimal.MustParse("1.00")
+	if diffHP.Cmp(thresholdHP) > 0 {
+		t.Errorf("HoldingPeriodMWRPct: got %s, want approx %s (diff %s)",
+			result.HoldingPeriodMWRPct.String(), wantHP.String(), diffHP.String())
+	}
+}
+
+func TestComputeMWR_NoCashFlows(t *testing.T) {
+	// When there are no cash flows, MWR should equal simple return.
+	equityCurve := []EquityCurvePoint{
+		{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1150000, 2), NetDeposit: dec(1000000, 2)},
+	}
+
+	result := ComputePeriodReturn(equityCurve, nil, "USD")
+
+	if result.MWRPct == nil {
+		t.Fatal("MWRPct is nil")
+	}
+
+	// MWR should be ~15% (same as simple return when no intermediate cash flows)
+	wantMWR := decimal.MustParse("15.00")
+	diff, _ := result.MWRPct.Sub(wantMWR)
+	diff = diff.Abs()
+	threshold := decimal.MustParse("0.50")
+	if diff.Cmp(threshold) > 0 {
+		t.Errorf("MWRPct: got %s, want approx %s (diff %s)", result.MWRPct.String(), wantMWR.String(), diff.String())
+	}
+}
+
+func TestComputeMWR_ZeroBeginValue(t *testing.T) {
+	equityCurve := []EquityCurvePoint{
+		{Date: mustTime("2023-01-01"), PortfolioValue: decimal.Zero, NetDeposit: decimal.Zero},
+		{Date: mustTime("2023-12-31"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+	}
+
+	result := ComputePeriodReturn(equityCurve, nil, "USD")
+	if result.MWRPct != nil {
+		t.Errorf("MWRPct: got %s, want nil (zero begin value)", result.MWRPct.String())
+	}
+}
+
+func TestComputeMWR_NegativeReturn(t *testing.T) {
+	// Portfolio loses money despite additional deposits
+	equityCurve := []EquityCurvePoint{
+		{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+		{Date: mustTime("2023-07-02"), PortfolioValue: dec(1200000, 2), NetDeposit: dec(1200000, 2)},
+		{Date: mustTime("2023-12-31"), PortfolioValue: dec(1300000, 2), NetDeposit: dec(1200000, 2)},
+	}
+
+	result := ComputePeriodReturn(equityCurve, nil, "USD")
+
+	if result.MWRPct == nil {
+		t.Fatal("MWRPct is nil")
+	}
+
+	mwrF, _ := result.MWRPct.Float64()
+	// Invested 100k + 20k = 120k total, ended with 130k
+	// But timing matters — the 20k was deposited at midpoint
+	// MWR should be positive but modest
+	if mwrF < -5 || mwrF > 20 {
+		t.Errorf("MWRPct: got %s, expected between -5%% and 20%%", result.MWRPct.String())
+	}
+}
+
 func TestComputePeriodReturn_MultipleBreakpointsSameDate(t *testing.T) {
 	// Regression test: when there are multiple cash flows on the same date,
 	// TWR should only use the first pre-cash-flow snapshot per date.

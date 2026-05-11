@@ -24,11 +24,20 @@ type EquityCurvePoint struct {
 // non-positive. Expressed as a percentage (e.g. 12.50 = 12.50%).
 // AnnualizedTWRPct is the annualized TWR: (1 + TWR)^(365 / days) - 1.
 // Nil when fewer than 2 data points or zero days elapsed.
+// MWRPct is the Money-Weighted Return (Internal Rate of Return): finds the
+// discount rate that makes the net present value of all cash flows plus the
+// terminal portfolio value equal to zero. Unlike TWR, MWR is affected by the
+// timing and magnitude of deposits/withdrawals. Nil when insufficient data
+// or begin value is non-positive. Expressed as an annualized percentage.
+// HoldingPeriodMWRPct is the MWR expressed as a holding-period return
+// (not annualized): (1 + MWR)^(days/365) - 1. Nil when MWR is nil.
 // HasInsufficientData is true when fewer than 2 data points are available.
 type ReturnMetrics struct {
-	TWRPct              *decimal.Decimal `json:"twr_pct,omitempty"`
-	AnnualizedTWRPct    *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
-	HasInsufficientData bool             `json:"has_insufficient_data"`
+	TWRPct               *decimal.Decimal `json:"twr_pct,omitempty"`
+	AnnualizedTWRPct     *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
+	MWRPct               *decimal.Decimal `json:"mwr_pct,omitempty"`
+	HoldingPeriodMWRPct  *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
+	HasInsufficientData  bool             `json:"has_insufficient_data"`
 }
 
 // PerformanceResult is the complete output of a performance computation.
