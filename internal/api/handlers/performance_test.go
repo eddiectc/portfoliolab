@@ -220,11 +220,15 @@ func (m *mockMarketFetcherForPerf) FetchHistoricalPricesBatch(_ context.Context,
 }
 
 type mockMarketDataRepoForPerf struct {
-	upserted map[string][]market.HistoricalPrice
+	upserted       map[string][]market.HistoricalPrice
+	historicalData map[string][]market.HistoricalPrice
 }
 
 func newMockMarketDataRepoForPerf() *mockMarketDataRepoForPerf {
-	return &mockMarketDataRepoForPerf{upserted: make(map[string][]market.HistoricalPrice)}
+	return &mockMarketDataRepoForPerf{
+		upserted:       make(map[string][]market.HistoricalPrice),
+		historicalData: make(map[string][]market.HistoricalPrice),
+	}
 }
 
 func (m *mockMarketDataRepoForPerf) GetLatest(context.Context, string) (*market.MarketData, error)   { return nil, nil }
@@ -240,8 +244,18 @@ func (m *mockMarketDataRepoForPerf) UpsertHistoricalPrices(_ context.Context, sy
 	return nil
 }
 
-func (m *mockMarketDataRepoForPerf) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
+func (m *mockMarketDataRepoForPerf) GetHistoricalPricesBySymbol(_ context.Context, symbol string, _, _ time.Time) ([]market.HistoricalPrice, error) {
+	if prices, ok := m.historicalData[symbol]; ok {
+		result := make([]market.HistoricalPrice, len(prices))
+		copy(result, prices)
+		return result, nil
+	}
 	return nil, nil
+}
+
+// SetHistoricalData stores prices for a symbol to be returned by GetHistoricalPricesBySymbol.
+func (m *mockMarketDataRepoForPerf) SetHistoricalData(symbol string, prices []market.HistoricalPrice) {
+	m.historicalData[symbol] = prices
 }
 
 func (m *mockMarketDataRepoForPerf) GetLatestQuotesBatch(context.Context, []string) map[string]*market.MarketData {
@@ -256,6 +270,11 @@ func (m *mockMarketDataRepoForPerf) GetLatestPriceDatePerSymbol(context.Context,
 type mockPerfMarketService struct {
 	fetcher *mockMarketFetcherForPerf
 	repo    *mockMarketDataRepoForPerf
+}
+
+// GetRepo returns the underlying repo for test setup.
+func (m *mockPerfMarketService) GetRepo() *mockMarketDataRepoForPerf {
+	return m.repo
 }
 
 func (m *mockPerfMarketService) GetQuotes(_ context.Context, symbols []string) map[string]*market.MarketData {
@@ -331,11 +350,13 @@ func perfHistPrice(date time.Time, closeVal int64, currency string) market.Histo
 func ptrInt64(v int64) *int64 { return &v }
 
 // newPerfService creates a position.Service wired with mock deps for handler tests.
-func newPerfService(accountIDs []int64, portfolioIDs []int64) (*position.Service, *mockTxnRepoForPerf, *mockAccountListerForPerf, *mockMarketFetcherForPerf, *mockMarketDataRepoForPerf) {
+func newPerfService(accountIDs []int64, portfolioIDs []int64) (*position.Service, *mockTxnRepoForPerf, *mockAccountListerForPerf, *mockMarketFetcherForPerf, *mockMarketDataRepoForPerf, position.MarketDataService) {
 	txnRepo := newMockTxnRepoForPerf()
 	accountLister := newMockAccountListerForPerf()
 	fetcher := &mockMarketFetcherForPerf{prices: make(map[string][]market.HistoricalPrice), quotes: make(map[string]*market.MarketData)}
 	repo := newMockMarketDataRepoForPerf()
+
+	marketSvc := &mockPerfMarketService{fetcher: fetcher, repo: repo}
 
 	svc := position.NewService(
 		newMockPosRepoForPerf(),
@@ -345,15 +366,15 @@ func newPerfService(accountIDs []int64, portfolioIDs []int64) (*position.Service
 		accountLister,
 		nil, // no portfolio currency checker
 	)
-	svc.WithMarketDataService(&mockPerfMarketService{fetcher: fetcher, repo: repo}, nil)
+	svc.WithMarketDataService(marketSvc, nil)
 
-	return svc, txnRepo, accountLister, fetcher, repo
+	return svc, txnRepo, accountLister, fetcher, repo, marketSvc
 }
 
 // --- HandlePerformance Tests ---
 
 func TestPerfHandlePerformance_Success(t *testing.T) {
-	svc, txnRepo, accountLister, fetcher, _ := newPerfService([]int64{1}, []int64{})
+	svc, txnRepo, accountLister, fetcher, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	_ = svc // used via handler
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test Account", PortfolioID: 1, PortfolioCurrency: "USD"},
@@ -368,7 +389,7 @@ func TestPerfHandlePerformance_Success(t *testing.T) {
 		perfHistPrice(perfTime(2024, 2, 1), 15000, "USD"),
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1", nil)
 	w := httptest.NewRecorder()
@@ -392,12 +413,12 @@ func TestPerfHandlePerformance_Success(t *testing.T) {
 }
 
 func TestPerfHandlePerformance_EmptyState(t *testing.T) {
-	svc, _, accountLister, _, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test Account", PortfolioID: 1, PortfolioCurrency: "EUR"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1", nil)
 	w := httptest.NewRecorder()
@@ -417,13 +438,13 @@ func TestPerfHandlePerformance_EmptyState(t *testing.T) {
 
 func TestPerfHandlePerformance_MismatchedCurrencies(t *testing.T) {
 	// No portfolio filter → all accounts → mismatched currencies
-	svc, _, accountLister, _, _ := newPerfService([]int64{1, 2}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1, 2}, []int64{})
 	accountLister.allAccounts = []position.AccountRef{
 		{ID: 1, Name: "USD Account", PortfolioID: 1, PortfolioCurrency: "USD"},
 		{ID: 2, Name: "GBP Account", PortfolioID: 2, PortfolioCurrency: "GBP"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance", nil)
 	w := httptest.NewRecorder()
@@ -443,12 +464,12 @@ func TestPerfHandlePerformance_MismatchedCurrencies(t *testing.T) {
 
 func TestPerfHandlePerformance_InternalError(t *testing.T) {
 	// Simulate internal error by setting up a scenario that causes a generic error
-	svc, _, accountLister, _, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	// No transactions → returns empty result (not an error), so test with valid request
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1", nil)
@@ -465,7 +486,7 @@ func TestPerfHandlePerformance_InternalError(t *testing.T) {
 // --- HandleRefresh Tests ---
 
 func TestPerfHandleRefresh_Success(t *testing.T) {
-	svc, _, accountLister, fetcher, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, fetcher, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test Account", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
@@ -475,7 +496,7 @@ func TestPerfHandleRefresh_Success(t *testing.T) {
 		Currency: "USD",
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/performance/refresh?portfolio_id=1", nil)
 	w := httptest.NewRecorder()
@@ -495,7 +516,7 @@ func TestPerfHandleRefresh_Success(t *testing.T) {
 }
 
 func TestPerfHandleRefresh_WithPositions(t *testing.T) {
-	svc, _, accountLister, fetcher, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, fetcher, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test Account", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
@@ -510,7 +531,7 @@ func TestPerfHandleRefresh_WithPositions(t *testing.T) {
 		Currency: "USD",
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/performance/refresh?portfolio_id=1", nil)
 	w := httptest.NewRecorder()
@@ -532,12 +553,12 @@ func TestPerfHandleRefresh_WithPositions(t *testing.T) {
 // --- Filter Parsing Tests ---
 
 func TestPerfParseFilters_PortfolioID(t *testing.T) {
-	svc, _, accountLister, _, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[42] = []position.AccountRef{
 		{ID: 1, Name: "Test", PortfolioID: 42, PortfolioCurrency: "USD"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=42", nil)
 	w := httptest.NewRecorder()
@@ -550,12 +571,12 @@ func TestPerfParseFilters_PortfolioID(t *testing.T) {
 }
 
 func TestPerfParseFilters_Period(t *testing.T) {
-	svc, _, accountLister, _, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?period=1Y", nil)
 	w := httptest.NewRecorder()
@@ -568,12 +589,12 @@ func TestPerfParseFilters_Period(t *testing.T) {
 }
 
 func TestPerfParseFilters_BothParams(t *testing.T) {
-	svc, _, accountLister, _, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[7] = []position.AccountRef{
 		{ID: 1, Name: "Test", PortfolioID: 7, PortfolioCurrency: "USD"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=7&period=3M", nil)
 	w := httptest.NewRecorder()
@@ -586,12 +607,12 @@ func TestPerfParseFilters_BothParams(t *testing.T) {
 }
 
 func TestPerfParseFilters_NoParams(t *testing.T) {
-	svc, _, accountLister, _, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.allAccounts = []position.AccountRef{
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance", nil)
 	w := httptest.NewRecorder()
@@ -606,13 +627,13 @@ func TestPerfParseFilters_NoParams(t *testing.T) {
 // --- Route Registration Tests ---
 
 func TestPerfRoutesRegistered(t *testing.T) {
-	svc, _, accountLister, _, _ := newPerfService([]int64{1}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
 	r := chi.NewRouter()
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 	handler.RegisterRoutes(r)
 
 	tests := []struct {
@@ -635,13 +656,13 @@ func TestPerfRoutesRegistered(t *testing.T) {
 // --- Error Response Format ---
 
 func TestPerfErrorResponseFormat(t *testing.T) {
-	svc, _, accountLister, _, _ := newPerfService([]int64{1, 2}, []int64{})
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1, 2}, []int64{})
 	accountLister.allAccounts = []position.AccountRef{
 		{ID: 1, Name: "USD", PortfolioID: 1, PortfolioCurrency: "USD"},
 		{ID: 2, Name: "GBP", PortfolioID: 2, PortfolioCurrency: "GBP"},
 	}
 
-	handler := NewPerformanceHandler(svc)
+	handler := NewPerformanceHandler(svc, marketSvc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance", nil)
 	w := httptest.NewRecorder()
@@ -655,5 +676,206 @@ func TestPerfErrorResponseFormat(t *testing.T) {
 	}
 	if errResp.Error == "" {
 		t.Error("expected non-empty error message")
+	}
+}
+
+// --- Benchmark Tests ---
+
+func TestPerfHandlePerformance_NoBenchmark(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result position.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.BenchmarkTicker != "" {
+		t.Errorf("expected empty benchmark ticker, got %q", result.BenchmarkTicker)
+	}
+	if result.BenchmarkMWRPct != nil {
+		t.Error("expected nil benchmark MWR when no benchmark selected")
+	}
+	if result.BenchmarkWarning != "" {
+		t.Errorf("expected empty benchmark warning, got %q", result.BenchmarkWarning)
+	}
+}
+
+func TestPerfHandlePerformance_InvalidBenchmark(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=AAPL", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "INVALID_BENCHMARK" {
+		t.Errorf("expected INVALID_BENCHMARK, got %q", errResp.Code)
+	}
+}
+
+func TestPerfHandlePerformance_ValidBenchmarkNoData(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^GSPC", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result position.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.BenchmarkTicker != "^GSPC" {
+		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
+	}
+	if result.BenchmarkWarning == "" {
+		t.Error("expected benchmark warning when no data available")
+	}
+}
+
+func TestPerfHandlePerformance_ValidBenchmarkWithData(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	// Set up benchmark prices in the mock repo.
+	mockRepo := marketSvc.(*mockPerfMarketService).GetRepo()
+	mockRepo.SetHistoricalData("^GSPC", []market.HistoricalPrice{
+		perfHistPrice(perfTime(2024, 1, 2), 47000, "USD"),
+		perfHistPrice(perfTime(2024, 6, 1), 52000, "USD"),
+		perfHistPrice(perfTime(2025, 1, 2), 58000, "USD"),
+	})
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^GSPC", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result position.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.BenchmarkTicker != "^GSPC" {
+		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
+	}
+	if result.BenchmarkWarning != "" {
+		t.Errorf("expected no warning when data is available, got %q", result.BenchmarkWarning)
+	}
+	if result.BenchmarkMWRPct == nil {
+		t.Error("expected non-nil benchmark MWR")
+	} else {
+		// (58000/47000 - 1) * 100 = 23.40%
+		expected := decimal.MustParse("23.40")
+		if !result.BenchmarkMWRPct.Equal(expected) {
+			t.Errorf("expected MWR ~23.40, got %s", result.BenchmarkMWRPct.String())
+		}
+	}
+	if result.BenchmarkCurrency != "USD" {
+		t.Errorf("expected benchmark currency USD, got %q", result.BenchmarkCurrency)
+	}
+	if len(result.BenchmarkPrices) != 3 {
+		t.Errorf("expected 3 benchmark prices, got %d", len(result.BenchmarkPrices))
+	}
+}
+
+func TestPerfHandlePerformance_BenchmarkWithPeriod(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^GSPC&period=1Y", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result position.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.BenchmarkTicker != "^GSPC" {
+		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
+	}
+}
+
+func TestPerfParseFilters_Benchmark(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^IXIC", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result position.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.BenchmarkTicker != "^IXIC" {
+		t.Errorf("expected benchmark ticker ^IXIC, got %q", result.BenchmarkTicker)
+	}
+}
+
+func TestPerfHandlePerformance_AllPredefinedBenchmarks(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	// All 5 predefined tickers should be accepted (200, not 400)
+	benchmarks := []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"}
+	for _, bm := range benchmarks {
+		req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark="+bm, nil)
+		w := httptest.NewRecorder()
+		handler.HandlePerformance(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200 for benchmark %s, got %d", bm, w.Code)
+		}
 	}
 }
