@@ -9,6 +9,12 @@
 ## Deviations from Plan
 - None.
 
+## Template Escaping Notes (Task 5)
+- Go's `html/template` encodes `^` differently in `value` vs `data-*` attributes: `value` keeps `^` as-is, `data-url` URL-encodes it to `%5e`. Tests must match the actual encoding used.
+- `&` in URLs is always HTML-escaped to `&amp;` in attribute values.
+- The `value` attribute on `<option>` elements is treated specially by html/template — it may clear the attribute and fall back to text content. The browser handles this correctly (uses text as the option value), so the `onchange` handler works as expected.
+- Benchmark names JS object is built inline via `{{range .BenchmarkNames}}` rather than JSON-encoding the map (no `json:` template function available).
+
 ## Future Improvements
 - Consider extracting `determineDateRange` to a shared package if it grows in callers.
 
