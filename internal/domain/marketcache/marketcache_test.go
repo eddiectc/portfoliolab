@@ -930,3 +930,162 @@ func TestPeriodicTicker_FxQuotes(t *testing.T) {
 		t.Errorf("expected GBP/USD in upserted symbols from periodic ticker, got %v", upserted)
 	}
 }
+
+func TestRefreshPredefinedBenchmarks_AllFetched(t *testing.T) {
+	now := time.Now().UTC()
+	prices := []market.HistoricalPrice{
+		{Date: now.AddDate(0, 0, -30), Close: decimal.MustNew(50000, 2), Currency: "USD"},
+		{Date: now, Close: decimal.MustNew(52000, 2), Currency: "USD"},
+	}
+
+	// Pre-populate fetcher with prices for all 5 benchmark tickers.
+	historical := map[string][]market.HistoricalPrice{
+		"^GSPC":  prices,
+		"^IXIC":  prices,
+		"VWRP.L": prices,
+		"VUSA.L": prices,
+		"XNAQ.L": prices,
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: historical,
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	cache.RefreshPredefinedBenchmarks(ctx)
+
+	// All 5 benchmarks should be cached.
+	for _, ticker := range []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"} {
+		if !repo.HasHistorical(ticker) {
+			t.Errorf("expected %s to be cached", ticker)
+		}
+	}
+
+	// No failed symbols.
+	status := cache.GetStatus()
+	if len(status.FailedSymbols) != 0 {
+		t.Errorf("expected no failed symbols, got %v", status.FailedSymbols)
+	}
+}
+
+func TestRefreshPredefinedBenchmarks_PartialFailure(t *testing.T) {
+	now := time.Now().UTC()
+	prices := []market.HistoricalPrice{
+		{Date: now.AddDate(0, 0, -30), Close: decimal.MustNew(50000, 2), Currency: "USD"},
+		{Date: now, Close: decimal.MustNew(52000, 2), Currency: "USD"},
+	}
+
+	// Only some tickers succeed; ^IXIC and VWRP.L fail.
+	historical := map[string][]market.HistoricalPrice{
+		"^GSPC":  prices,
+		"VUSA.L": prices,
+		"XNAQ.L": prices,
+	}
+	historicalFail := map[string]bool{
+		"^IXIC":  true,
+		"VWRP.L": true,
+	}
+
+	fetcher := &mockFetcher{
+		quotes:         map[string]*market.MarketData{},
+		historical:     historical,
+		historicalFail: historicalFail,
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	cache.RefreshPredefinedBenchmarks(ctx)
+
+	// Successful tickers should be cached.
+	for _, ticker := range []string{"^GSPC", "VUSA.L", "XNAQ.L"} {
+		if !repo.HasHistorical(ticker) {
+			t.Errorf("expected %s to be cached", ticker)
+		}
+	}
+
+	// Failed tickers should appear in failed symbols.
+	status := cache.GetStatus()
+	if len(status.FailedSymbols) != 2 {
+		t.Errorf("expected 2 failed symbols, got %d: %v", len(status.FailedSymbols), status.FailedSymbols)
+	}
+	failedSet := make(map[string]bool)
+	for _, s := range status.FailedSymbols {
+		failedSet[s] = true
+	}
+	if !failedSet["^IXIC"] {
+		t.Error("expected ^IXIC in failed symbols")
+	}
+	if !failedSet["VWRP.L"] {
+		t.Error("expected VWRP.L in failed symbols")
+	}
+}
+
+func TestRefreshAll_IncludesBenchmarks(t *testing.T) {
+	now := time.Now().UTC()
+	prices := []market.HistoricalPrice{
+		{Date: now.AddDate(0, 0, -30), Close: decimal.MustNew(50000, 2), Currency: "USD"},
+		{Date: now, Close: decimal.MustNew(52000, 2), Currency: "USD"},
+	}
+
+	// Portfolio symbol + all benchmark tickers.
+	historical := map[string][]market.HistoricalPrice{
+		"AAPL":   prices,
+		"^GSPC":  prices,
+		"^IXIC":  prices,
+		"VWRP.L": prices,
+		"VUSA.L": prices,
+		"XNAQ.L": prices,
+	}
+
+	fetcher := &mockFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17500, 2), Currency: "USD"},
+		},
+		historical: historical,
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	discoverer.SetAllSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
+	discoverer.SetActiveSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	cache.RefreshAll(ctx)
+	waitBackground(t, 100*time.Millisecond)
+
+	// Portfolio symbol should be cached.
+	if !repo.HasHistorical("AAPL") {
+		t.Error("expected AAPL to be cached")
+	}
+
+	// All 5 benchmarks should be cached.
+	for _, ticker := range []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"} {
+		if !repo.HasHistorical(ticker) {
+			t.Errorf("expected %s to be cached after RefreshAll", ticker)
+		}
+	}
+
+	// RefreshAll should have called FetchHistoricalPricesBatch multiple times:
+	// 1 for AAPL + 5 for benchmarks = at least 6 calls.
+	calls := fetcher.HistoricalCalls()
+	if calls < 6 {
+		t.Errorf("expected at least 6 historical fetch calls (1 portfolio + 5 benchmarks), got %d", calls)
+	}
+
+	status := cache.GetStatus()
+	if status.Refreshing {
+		t.Error("expected Refreshing=false after RefreshAll completes")
+	}
+}
