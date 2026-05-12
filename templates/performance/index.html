@@ -35,6 +35,17 @@
             </div>
         </div>
 
+        <div class="filter-group">
+            <label for="benchmark">Benchmark</label>
+            <select id="benchmark" name="benchmark" onchange="if(this.value) window.location=this.value">
+                <option value="" {{if not .SelectedBenchmark}}selected{{end}}>{{index .BenchmarkURLs "None"}}</option>
+                {{range $ticker, $name := .BenchmarkNames}}
+                {{ $label := printf "%s (%s)" $name $ticker }}
+                <option value="{{index $.BenchmarkURLs $label}}" data-url="{{index $.BenchmarkURLs $label}}" {{if eq $.SelectedBenchmark $ticker}}selected{{end}}>{{ $label }}</option>
+                {{end}}
+            </select>
+        </div>
+
         <div class="filter-group filter-actions">
             <button type="submit" class="btn btn-sm">Apply</button>
             {{if .HasCacheStatus}}
@@ -79,6 +90,14 @@
             {{if .Result.ReturnMetrics.MWRPct}}{{formatPct .Result.ReturnMetrics.MWRPct}}%{{else}}—{{end}}
         </span>
     </div>
+    {{if .BenchmarkTicker}}
+    <div class="summary-card">
+        <span class="summary-label">Benchmark MWR ({{.BenchmarkCurrency}})</span>
+        <span class="summary-value pnl {{if .BenchmarkMWRPct}}{{sign .BenchmarkMWRPct.String}}{{end}}">
+            {{if .BenchmarkMWRPct}}{{formatPct .BenchmarkMWRPct}}%{{else}}—{{end}}
+        </span>
+    </div>
+    {{end}}
     <div class="summary-card">
         <span class="summary-label">Period Return (MWR)</span>
         <span class="summary-value pnl {{if .Result.ReturnMetrics.HoldingPeriodMWRPct}}{{sign .Result.ReturnMetrics.HoldingPeriodMWRPct.String}}{{end}}">
@@ -104,6 +123,13 @@
 </div>
 {{end}}
 
+{{/* Benchmark warning */}}
+{{if .BenchmarkWarning}}
+<div class="benchmark-warning">
+    ⚠ {{.BenchmarkWarning}}
+</div>
+{{end}}
+
 {{/* Equity curve chart */}}
 <div class="chart-container">
     <div id="equity-chart" style="width:100%;height:400px;"></div>
@@ -121,6 +147,61 @@
         deposits.push(parseFloat(rawData[i].net_deposit));
     }
 
+    // Benchmark data (may be empty).
+    var benchRaw = [];
+    {{if .BenchmarkChartData}}
+    try { benchRaw = JSON.parse('{{.BenchmarkChartData}}'); } catch(e) { benchRaw = []; }
+    {{end}}
+    var benchDates = [], benchPrices = [];
+    for (var i = 0; i < benchRaw.length; i++) {
+        benchDates.push(benchRaw[i].date);
+        benchPrices.push(parseFloat(benchRaw[i].price));
+    }
+    var hasBenchmark = benchDates.length > 0;
+    var benchCurrency = '{{.BenchmarkCurrency}}';
+
+    // Build legend and series dynamically.
+    var legendData = ['Portfolio Value', 'Net Deposit'];
+    var series = [
+        {
+            name: 'Portfolio Value',
+            type: 'line',
+            data: values,
+            smooth: false,
+            symbol: 'none',
+            lineStyle: { width: 2 }
+        },
+        {
+            name: 'Net Deposit',
+            type: 'line',
+            data: deposits,
+            smooth: false,
+            symbol: 'none',
+            lineStyle: { width: 1, type: 'dashed' }
+        }
+    ];
+
+    // Benchmark series on right Y-axis.
+    if (hasBenchmark) {
+        // Build benchmark name lookup from predefined map.
+        var benchNames = {};
+        {{range $ticker, $name := .BenchmarkNames}}
+        benchNames['{{ $ticker }}'] = '{{ $name }}';
+        {{end}}
+        var benchName = benchNames['{{.SelectedBenchmark}}'] || '{{.SelectedBenchmark}}';
+        legendData.push(benchName);
+        series.push({
+            name: benchName,
+            type: 'line',
+            xAxisIndex: 0,
+            yAxisIndex: 1,
+            data: benchPrices,
+            smooth: false,
+            symbol: 'none',
+            lineStyle: { width: 2, type: 'dashed', color: '#888' }
+        });
+    }
+
     var chart = echarts.init(document.getElementById('equity-chart'));
     chart.setOption({
         tooltip: {
@@ -129,20 +210,24 @@
                 var date = params[0].axisValue;
                 var html = '<strong>' + date + '</strong><br/>';
                 for (var i = 0; i < params.length; i++) {
-                    html += params[i].marker + params[i].seriesName + ': '
-                        + params[i].value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})
-                        + ' {{.Result.BaseCurrency}}<br/>';
+                    var val = params[i].value;
+                    var formatted = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    var currency = ' {{.Result.BaseCurrency}}';
+                    if (params[i].seriesName !== 'Portfolio Value' && params[i].seriesName !== 'Net Deposit' && benchCurrency) {
+                        currency = ' ' + benchCurrency;
+                    }
+                    html += params[i].marker + params[i].seriesName + ': ' + formatted + currency + '<br/>';
                 }
                 return html;
             }
         },
         legend: {
-            data: ['Portfolio Value', 'Net Deposit'],
+            data: legendData,
             bottom: 0
         },
         grid: {
             left: '3%',
-            right: '4%',
+            right: hasBenchmark ? '8%' : '4%',
             bottom: '12%',
             top: '8%',
             containLabel: true
@@ -155,33 +240,38 @@
                 interval: 'auto'
             }
         },
-        yAxis: {
-            type: 'value',
-            axisLabel: {
-                formatter: function(value) {
-                    return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        yAxis: [
+            {
+                type: 'value',
+                name: 'Portfolio Value',
+                axisLabel: {
+                    formatter: function(value) {
+                        return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    }
                 }
             }
-        },
-        series: [
-            {
-                name: 'Portfolio Value',
-                type: 'line',
-                data: values,
-                smooth: false,
-                symbol: 'none',
-                lineStyle: { width: 2 }
-            },
-            {
-                name: 'Net Deposit',
-                type: 'line',
-                data: deposits,
-                smooth: false,
-                symbol: 'none',
-                lineStyle: { width: 1, type: 'dashed' }
-            }
-        ]
+        ],
+        series: series
     });
+
+    // Add right Y-axis for benchmark if present.
+    if (hasBenchmark) {
+        chart.setOption({
+            yAxis: [
+                chart.getOption().yAxis[0],
+                {
+                    type: 'value',
+                    name: 'Benchmark Price',
+                    position: 'right',
+                    axisLabel: {
+                        formatter: function(value) {
+                            return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                        }
+                    }
+                }
+            ]
+        });
+    }
 
     window.addEventListener('resize', function() { chart.resize(); });
 })();
