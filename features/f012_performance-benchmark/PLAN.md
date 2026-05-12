@@ -178,22 +178,22 @@ Tasks 1–2 are backend foundation. Tasks 3–6 add user-facing layers increment
 **Corresponds to:** Scenario "Monthly heatmap without benchmark", "Monthly heatmap with benchmark comparison", "Heatmap updates when benchmark changes", "Heatmap updates when date range changes"
 **Description:** Add a monthly return heatmap section below the equity chart. Without benchmark: color by absolute return. With benchmark: color by relative performance (outperformed/underperformed).
 
-- [ ] Compute monthly returns from equity curve in the web handler:
+- [x] Compute monthly returns from equity curve in the web handler:
   - Group equity curve points by year-month
   - For each month: return = `(end_value / start_value - 1) * 100`
   - Produce `[]monthlyReturnData` struct: `Year int, Month int, PortfolioReturn string, BenchmarkReturn string, Diff string`
-- [ ] Compute benchmark monthly returns using `comparison.ComputeMonthlyReturns(prices)` (group by month, same formula)
-- [ ] Add `Diff` field: portfolio return − benchmark return (for relative coloring)
-- [ ] Extend `performancePageData` with `MonthlyReturns []monthlyReturnData` (struct field added in Task 4)
-- [ ] Add heatmap section to template (below equity chart, above footer):
+- [x] Compute benchmark monthly returns using `comparison.ComputeMonthlyReturns(prices)` (group by month, same formula)
+- [x] Add `Diff` field: portfolio return − benchmark return (for relative coloring)
+- [x] Extend `performancePageData` with `MonthlyReturns []monthlyReturnData` (struct field added in Task 4)
+- [x] Add heatmap section to template (below equity chart, above footer):
   - HTML table: months as columns (Jan–Dec), years as rows
   - Without benchmark: cells colored by absolute return (green positive, red negative)
   - With benchmark: cells colored by diff (warmer = outperformed, cooler = underperformed)
   - Cell text: portfolio return % (with benchmark: shows "portfolio% vs benchmark%" or diff)
   - Toggle: when benchmark selected, show relative coloring; "None" shows absolute
   - Uses CSS classes for color coding (add to style.css)
-- [ ] Handle edge cases: months with no data (empty/gray cell), partial months
-- [ ] Write template render tests:
+- [x] Handle edge cases: months with no data (empty/gray cell), partial months
+- [x] Write template render tests:
   - Heatmap without benchmark: absolute return coloring
   - Heatmap with benchmark: relative coloring
   - Empty data: empty state message

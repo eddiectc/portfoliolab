@@ -875,3 +875,297 @@ func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
 		t.Error("expected empty value for None option")
 	}
 }
+
+// --- computeMonthlyReturnsFromCurve tests ---
+
+func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
+	tests := []struct {
+		name          string
+		curve         []position.EquityCurvePoint
+		benchPrices   []market.HistoricalPrice
+		benchmark     string
+		wantLen       int
+		wantFirstYear int
+		wantFirstMon  int
+		wantFirstRet  string // portfolio return of first row
+		wantFirstDiff string // diff of first row (empty if no benchmark)
+	}{
+		{
+			name:          "empty curve",
+			curve:         nil,
+			benchPrices:   nil,
+			benchmark:     "",
+			wantLen:       0,
+			wantFirstRet:  "",
+			wantFirstDiff: "",
+		},
+		{
+			name: "single point — no monthly return",
+			curve: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+			},
+			wantLen:       1,
+			wantFirstYear: 2024,
+			wantFirstMon:  1,
+			wantFirstRet:  "0", // same first and last → 0% (Round(2) on zero → "0")
+			wantFirstDiff: "",
+		},
+		{
+			name: "two months positive returns",
+			curve: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10200000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+			},
+			wantLen:       2,
+			wantFirstYear: 2024,
+			wantFirstMon:  1,
+			wantFirstRet:  "5.00", // (10500000/10000000 - 1) * 100 = 5%
+			wantFirstDiff: "",
+		},
+		{
+			name: "with benchmark — diff computed",
+			curve: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+			},
+			benchPrices: []market.HistoricalPrice{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(470000, 2), Currency: "USD"},
+				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(480000, 2), Currency: "USD"},
+			},
+			benchmark:     "^GSPC",
+			wantLen:       1,
+			wantFirstYear: 2024,
+			wantFirstMon:  1,
+			wantFirstRet:  "5.00",
+			wantFirstDiff: "2.87", // bench: (480000/470000-1)*100 = 2.13%, diff = 5.00 - 2.13 = 2.87
+		},
+		{
+			name: "negative return",
+			curve: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 3, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(9500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+			},
+			wantLen:       1,
+			wantFirstYear: 2024,
+			wantFirstMon:  3,
+			wantFirstRet:  "-5.00",
+			wantFirstDiff: "",
+		},
+		{
+			name: "benchmark only month (no portfolio data)",
+			curve: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+			},
+			benchPrices: []market.HistoricalPrice{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(470000, 2), Currency: "USD"},
+				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(480000, 2), Currency: "USD"},
+				{Date: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(480000, 2), Currency: "USD"},
+				{Date: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(490000, 2), Currency: "USD"},
+			},
+			benchmark:     "^GSPC",
+			wantLen:       2, // Jan (portfolio data) + Feb (benchmark only)
+			wantFirstYear: 2024,
+			wantFirstMon:  1,
+			wantFirstRet:  "0", // same first and last → 0
+			wantFirstDiff: "-2.13", // bench 2.13%, portfolio 0, diff = -2.13
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := computeMonthlyReturnsFromCurve(tt.curve, tt.benchPrices, tt.benchmark)
+			if len(got) != tt.wantLen {
+				t.Errorf("got %d rows, want %d", len(got), tt.wantLen)
+				return
+			}
+			if tt.wantLen == 0 {
+				return
+			}
+			first := got[0]
+			if first.Year != tt.wantFirstYear {
+				t.Errorf("first row year = %d, want %d", first.Year, tt.wantFirstYear)
+			}
+			if first.Month != tt.wantFirstMon {
+				t.Errorf("first row month = %d, want %d", first.Month, tt.wantFirstMon)
+			}
+			if first.PortfolioReturn != tt.wantFirstRet {
+				t.Errorf("first row portfolio return = %q, want %q", first.PortfolioReturn, tt.wantFirstRet)
+			}
+			if first.Diff != tt.wantFirstDiff {
+				t.Errorf("first row diff = %q, want %q", first.Diff, tt.wantFirstDiff)
+			}
+		})
+	}
+}
+
+// --- Heatmap template tests ---
+
+func TestPerformanceTemplate_HeatmapWithoutBenchmark(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+		{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+		{Date: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+		{Date: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10200000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	monthlyReturns := computeMonthlyReturnsFromCurve(curve, nil, "")
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Result:              result,
+		ChartData:           serializeChartData(curve),
+		CurrentValue:        "102000.00",
+		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod:      "All",
+		SelectedPortfolioID: "1",
+		SelectedBenchmark:   "",
+		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500"},
+		BenchmarkURLs:       map[string]string{"None": "/performance?portfolio_id=1"},
+		PeriodURLs:          map[string]string{"All": "/performance?portfolio_id=1"},
+		MonthlyReturns:      monthlyReturns,
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	// Heatmap container present.
+	if !strings.Contains(body, "heatmap-container") {
+		t.Error("expected heatmap-container")
+	}
+	// Heatmap table present.
+	if !strings.Contains(body, "heatmap-table") {
+		t.Error("expected heatmap-table")
+	}
+	// Month headers present.
+	if !strings.Contains(body, "<th>Jan</th>") {
+		t.Error("expected Jan header")
+	}
+	if !strings.Contains(body, "<th>Dec</th>") {
+		t.Error("expected Dec header")
+	}
+	// Year row header.
+	if !strings.Contains(body, "<td>2024</td>") {
+		t.Error("expected 2024 year cell")
+	}
+	// Positive return cell with absolute coloring.
+	if !strings.Contains(body, "heat-positive") {
+		t.Error("expected heat-positive class for positive return")
+	}
+	// Absolute legend.
+	if !strings.Contains(body, "Positive") {
+		t.Error("expected 'Positive' in legend")
+	}
+	if !strings.Contains(body, "Negative") {
+		t.Error("expected 'Negative' in legend")
+	}
+	// Should NOT show relative legend items.
+	if strings.Contains(body, "Outperformed") {
+		t.Error("should not show 'Outperformed' in legend without benchmark")
+	}
+}
+
+func TestPerformanceTemplate_HeatmapWithBenchmark(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+		{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	benchPrices := []market.HistoricalPrice{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(470000, 2), Currency: "USD"},
+		{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(480000, 2), Currency: "USD"},
+	}
+
+	monthlyReturns := computeMonthlyReturnsFromCurve(curve, benchPrices, "^GSPC")
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Result:              result,
+		ChartData:           serializeChartData(curve),
+		CurrentValue:        "105000.00",
+		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod:      "All",
+		SelectedPortfolioID: "1",
+		SelectedBenchmark:   "^GSPC",
+		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500"},
+		BenchmarkURLs:       map[string]string{"None": "/performance?portfolio_id=1"},
+		PeriodURLs:          map[string]string{"All": "/performance?portfolio_id=1"},
+		MonthlyReturns:      monthlyReturns,
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	// Heatmap title includes benchmark name (& is HTML-escaped to &amp;).
+	if !strings.Contains(body, "vs S&amp;P 500") {
+		t.Error("expected 'vs S&amp;P 500' in heatmap title")
+	}
+	// Relative legend.
+	if !strings.Contains(body, "Outperformed") {
+		t.Error("expected 'Outperformed' in legend")
+	}
+	if !strings.Contains(body, "Underperformed") {
+		t.Error("expected 'Underperformed' in legend")
+	}
+	// Diff value shown in cells.
+	if !strings.Contains(body, "<small>") {
+		t.Error("expected diff value in <small> tag")
+	}
+	// Relative coloring class.
+	if !strings.Contains(body, "heat-outperform") && !strings.Contains(body, "heat-underperform") && !strings.Contains(body, "heat-even") {
+		t.Error("expected relative coloring class in heatmap cells")
+	}
+}
+
+func TestPerformanceTemplate_HeatmapEmptyData(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod:      "All",
+		SelectedPortfolioID: "1",
+		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500"},
+		BenchmarkURLs:       map[string]string{"None": "/performance?portfolio_id=1"},
+		PeriodURLs:          map[string]string{"All": "/performance?portfolio_id=1"},
+		MonthlyReturns:      nil, // No data.
+		Result:              nil, // No result.
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	// Empty state — no heatmap table, no heatmap container with data.
+	if strings.Contains(body, "heatmap-table") {
+		t.Error("should not render heatmap table with no data")
+	}
+	// Since Result is nil and Error is empty, shows "No performance data available".
+	if !strings.Contains(body, "No performance data available") {
+		t.Error("expected empty state message")
+	}
+}
