@@ -642,3 +642,236 @@ func TestPerformanceTemplate_NoCacheStatus(t *testing.T) {
 		t.Error("expected no cache status indicator when HasCacheStatus is false")
 	}
 }
+
+// --- Benchmark template tests ---
+
+func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+		{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+	benchMWR := decimal.MustNew(1500, 2)
+
+	benchPrices := []market.HistoricalPrice{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(470000, 2), Currency: "USD"},
+		{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(540000, 2), Currency: "USD"},
+	}
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Result:              result,
+		ChartData:           serializeChartData(curve),
+		CurrentValue:        "120000.00",
+		CurrentNetDeposit:   "100000.00",
+		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod:      "1Y",
+		SelectedPortfolioID: "1",
+		RefreshURL:          "/performance/refresh?portfolio_id=1&benchmark=^GSPC",
+		PeriodURLs: map[string]string{
+			"1Y": "/performance?portfolio_id=1&period=1Y&benchmark=^GSPC",
+			"All": "/performance?portfolio_id=1&benchmark=^GSPC",
+		},
+		// Benchmark fields.
+		SelectedBenchmark:  "^GSPC",
+		BenchmarkNames:     map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
+		BenchmarkTicker:    "^GSPC",
+		BenchmarkChartData: serializeBenchmarkChartData(benchPrices),
+		BenchmarkMWRPct:    &benchMWR,
+		BenchmarkCurrency:  "USD",
+		BenchmarkWarning:   "",
+		BenchmarkURLs: map[string]string{
+			"None":               "/performance?portfolio_id=1&period=1Y",
+			"S&P 500 (^GSPC)":    "/performance?portfolio_id=1&period=1Y&benchmark=^GSPC",
+			"NASDAQ Composite (^IXIC)": "/performance?portfolio_id=1&period=1Y&benchmark=^IXIC",
+		},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	checkContains := func(label, text string) {
+		t.Helper()
+		if !strings.Contains(body, text) {
+			t.Errorf("page missing %s: %q", label, text)
+		}
+	}
+	checkNotContains := func(label, text string) {
+		t.Helper()
+		if strings.Contains(body, text) {
+			t.Errorf("page should not contain %s: %q", label, text)
+		}
+	}
+
+	// Benchmark selector present.
+	checkContains("benchmark selector", `id="benchmark"`)
+
+	// Benchmark MWR card visible.
+	checkContains("benchmark MWR label", "Benchmark MWR")
+	checkContains("benchmark MWR value", "15.00%")
+	checkContains("benchmark MWR currency", "USD")
+
+	// Benchmark chart data present in script.
+	checkContains("benchmark chart data", `benchRaw`)
+
+	// Dual Y-axis indicators.
+	checkContains("hasBenchmark check", "hasBenchmark")
+	checkContains("right axis config", "yAxisIndex: 1")
+	checkContains("benchmark line style", `type: 'dashed'`)
+
+	// No warning shown.
+	checkNotContains("benchmark warning", "benchmark-warning")
+}
+
+func TestPerformanceTemplate_WithoutBenchmark(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Result:              result,
+		ChartData:           serializeChartData(curve),
+		CurrentValue:        "100000.00",
+		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod:      "All",
+		SelectedPortfolioID: "1",
+		SelectedBenchmark:   "", // No benchmark selected.
+		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500"},
+		BenchmarkURLs: map[string]string{
+			"None":          "/performance?portfolio_id=1",
+			"S&P 500 (^GSPC)": "/performance?portfolio_id=1&benchmark=^GSPC",
+		},
+		PeriodURLs: map[string]string{"All": "/performance?portfolio_id=1"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	// Benchmark selector present but "None" selected (empty SelectedBenchmark).
+	if !strings.Contains(body, `id="benchmark"`) {
+		t.Error("expected benchmark selector")
+	}
+
+	// Benchmark MWR card hidden (no BenchmarkTicker).
+	if strings.Contains(body, "Benchmark MWR") {
+		t.Error("benchmark MWR card should be hidden when no benchmark")
+	}
+
+	// Benchmark chart data block should be empty (no BenchmarkChartData).
+	if strings.Contains(body, `benchRaw = JSON.parse`) {
+		t.Error("benchmark chart data parse should not appear when no benchmark")
+	}
+}
+
+func TestPerformanceTemplate_WithBenchmarkWarning(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Result:              result,
+		ChartData:           serializeChartData(curve),
+		CurrentValue:        "100000.00",
+		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedBenchmark:   "^GSPC",
+		BenchmarkTicker:     "^GSPC",
+		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500"},
+		BenchmarkWarning:    "no cached data available for benchmark",
+		BenchmarkURLs: map[string]string{
+			"None":          "/performance",
+			"S&P 500 (^GSPC)": "/performance?benchmark=^GSPC",
+		},
+		PeriodURLs: map[string]string{"All": "/performance?benchmark=^GSPC"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	if !strings.Contains(body, "benchmark-warning") {
+		t.Error("expected benchmark-warning class")
+	}
+	if !strings.Contains(body, "no cached data available for benchmark") {
+		t.Error("expected benchmark warning text")
+	}
+}
+
+func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []position.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &position.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Result:              result,
+		ChartData:           serializeChartData(curve),
+		CurrentValue:        "100000.00",
+		Portfolios:          []portfolio.Portfolio{},
+		SelectedBenchmark:   "^IXIC",
+		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
+		BenchmarkURLs: map[string]string{
+			"None":                 "/performance?period=1Y",
+			"S&P 500 (^GSPC)":      "/performance?period=1Y&benchmark=^GSPC",
+			"NASDAQ Composite (^IXIC)": "/performance?period=1Y&benchmark=^IXIC",
+		},
+		PeriodURLs: map[string]string{"1Y": "/performance?period=1Y&benchmark=^IXIC"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	// NASDAQ should be selected (data-url uses %5e for ^, value keeps ^ as-is).
+	if !strings.Contains(body, `data-url="/performance?period=1Y&amp;benchmark=%5eIXIC"`) {
+		t.Error("expected NASDAQ benchmark URL in data-url attribute")
+	}
+
+	// Switching to S&P 500 should have correct URL.
+	if !strings.Contains(body, `data-url="/performance?period=1Y&amp;benchmark=%5eGSPC"`) {
+		t.Error("expected S&P 500 benchmark URL in data-url attribute")
+	}
+
+	// None option should clear benchmark.
+	if !strings.Contains(body, `value=""`) {
+		t.Error("expected empty value for None option")
+	}
+}

@@ -147,23 +147,23 @@ Tasks 1–2 are backend foundation. Tasks 3–6 add user-facing layers increment
 **Corresponds to:** Scenario "Overlay a benchmark on the performance chart", "View MWR comparison on the performance page", "Clear the benchmark selection", "Switch between different benchmarks", "Benchmark changes with date range"
 **Description:** Add benchmark selector to filter bar, overlay benchmark line on equity chart with dual Y-axes, show benchmark MWR alongside portfolio MWR.
 
-- [ ] Add benchmark selector dropdown to the filter bar (after period buttons, before apply button):
+- [x] Add benchmark selector dropdown to the filter bar (after period buttons, before apply button):
   - Options: "None" + 5 benchmarks (display name + ticker, e.g. "S&P 500 (^GSPC)")
   - Uses pre-built URLs from `BenchmarkURLs` map
   - Selected state highlighted via active class
-- [ ] Update ECharts config for dual Y-axes:
+- [x] Update ECharts config for dual Y-axes:
   - Left Y-axis: portfolio value (absolute, existing behavior)
   - Right Y-axis: benchmark price (absolute value) — shown only when benchmark selected
   - Portfolio line on left axis, benchmark line on right axis
   - Legend includes benchmark name when selected
   - Tooltip shows portfolio value and benchmark price
   - Benchmark line uses a distinct color (e.g. gray/dashed)
-- [ ] Add benchmark MWR card next to portfolio MWR card:
+- [x] Add benchmark MWR card next to portfolio MWR card:
   - Label: "Benchmark MWR"
   - Value: benchmark MWR percentage with positive/negative coloring
   - Hidden when no benchmark selected
-- [ ] Show benchmark warning (e.g. badge or small text) when data is stale/unavailable
-- [ ] Write template render tests:
+- [x] Show benchmark warning (e.g. badge or small text) when data is stale/unavailable
+- [x] Write template render tests:
   - With benchmark: selector shows selected, chart has dual axes + benchmark series, MWR card visible
   - Without benchmark: selector shows "None", single Y-axis, MWR card hidden
   - With benchmark warning: warning visible

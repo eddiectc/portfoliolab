@@ -954,3 +954,14 @@ legend {
     color: #0066cc;
     font-style: italic;
 }
+
+/* Benchmark warning badge */
+.benchmark-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+}
