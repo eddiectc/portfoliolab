@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
@@ -537,10 +538,79 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 	}
 }
 
+// RefreshPredefinedBenchmarks fetches historical prices for all predefined
+// benchmark tickers and upserts them into the cache. Benchmarks are treated
+// as regular stock symbols (data_type = 'stock').
+func (m *MarketCache) RefreshPredefinedBenchmarks(ctx context.Context) {
+	predefined := comparison.GetPredefined()
+	if m.logger != nil {
+		m.logger.Info("refreshing predefined benchmarks", "count", len(predefined))
+	}
+
+	// Fetch from a date far enough back to cover any benchmark history.
+	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
+
+	for ticker := range predefined {
+		m.mu.Lock()
+		m.inProgress[ticker] = true
+		m.mu.Unlock()
+
+		m.fetchBenchmarkDirect(ctx, ticker, fromDate, now)
+
+		m.mu.Lock()
+		delete(m.inProgress, ticker)
+		m.mu.Unlock()
+	}
+
+	if m.logger != nil {
+		m.logger.Info("benchmark refresh completed", "count", len(predefined))
+	}
+}
+
+// fetchBenchmarkDirect fetches historical prices for a benchmark ticker and
+// upserts them. Uses the provided context (called from RefreshAll).
+func (m *MarketCache) fetchBenchmarkDirect(ctx context.Context, ticker string, fromDate, toDate time.Time) {
+	if m.logger != nil {
+		m.logger.Debug("fetching benchmark prices", "ticker", ticker, "fromDate", fromDate.Format("2006-01-02"), "toDate", toDate.Format("2006-01-02"))
+	}
+	prices, failed := m.fetcher.FetchHistoricalPricesBatch(ctx, []string{ticker}, fromDate, toDate)
+
+	if len(failed) > 0 {
+		m.mu.Lock()
+		m.failedSymbols[ticker] = "fetch failed"
+		m.mu.Unlock()
+		if m.logger != nil {
+			m.logger.Warn("failed to fetch benchmark prices", "ticker", ticker)
+		}
+		return
+	}
+
+	if p, ok := prices[ticker]; ok && len(p) > 0 {
+		if err := m.repo.UpsertHistoricalPrices(ctx, ticker, p, "stock"); err != nil {
+			m.mu.Lock()
+			m.failedSymbols[ticker] = err.Error()
+			m.mu.Unlock()
+			if m.logger != nil {
+				m.logger.Warn("failed to upsert benchmark prices", "ticker", ticker, "error", err)
+			}
+		} else {
+			m.mu.Lock()
+			delete(m.failedSymbols, ticker)
+			m.mu.Unlock()
+			if m.logger != nil {
+				m.logger.Info("cached benchmark prices", "ticker", ticker, "count", len(p), "dateRange", fmt.Sprintf("%s to %s", p[0].Date.Format("2006-01-02"), p[len(p)-1].Date.Format("2006-01-02")))
+			}
+		}
+	} else if m.logger != nil {
+		m.logger.Debug("benchmark fetch returned no prices", "ticker", ticker)
+	}
+}
+
 // --- RefreshAll ---
 
-// doRefreshAll performs a full refresh of all symbols and FX pairs: current
-// quotes plus historical from the earliest transaction date.
+// doRefreshAll performs a full refresh of all symbols, FX pairs, and benchmarks:
+// current quotes plus historical from the earliest transaction date.
 func (m *MarketCache) doRefreshAll(ctx context.Context) {
 	allSymbols, _ := m.discoverer.AllSymbols(ctx)
 	activeSymbols, _ := m.discoverer.ActiveSymbols(ctx)
@@ -594,6 +664,9 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 		delete(m.inProgress, pair)
 		m.mu.Unlock()
 	}
+
+	// Fetch historical for predefined benchmarks.
+	m.RefreshPredefinedBenchmarks(ctx)
 
 	if m.logger != nil {
 		m.logger.Info("refresh-all: completed")

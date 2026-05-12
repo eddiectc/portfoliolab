@@ -61,13 +61,13 @@ Tasks 1–2 are backend foundation. Tasks 3–6 add user-facing layers increment
 **Corresponds to:** Scenario "Select a benchmark for the first time" (data availability)
 **Description:** When the user clicks "Refresh All" on the performance page, also fetch historical data for all 5 predefined benchmark tickers. Benchmarks are treated like any other symbol.
 
-- [ ] Add `func (m *MarketCache) RefreshPredefinedBenchmarks(ctx context.Context)` to `marketcache.go`:
+- [x] Add `func (m *MarketCache) RefreshPredefinedBenchmarks(ctx context.Context)` to `marketcache.go`:
   - Iterates over the 5 predefined benchmark tickers from `comparison.Predefined`
   - For each ticker: fetches historical prices from earliest available to now via `fetchHistoricalDirect`
   - Upserts via `repo.UpsertHistoricalPrices(ctx, ticker, prices, "stock")`
   - Logs fetch success/failure per ticker
-- [ ] Modify `func (m *MarketCache) RefreshAll(ctx context.Context)` to also call `RefreshPredefinedBenchmarks` after refreshing portfolio symbols
-- [ ] Write tests:
+- [x] Modify `func (m *MarketCache) RefreshAll(ctx context.Context)` to also call `RefreshPredefinedBenchmarks` after refreshing portfolio symbols
+- [x] Write tests:
   - `RefreshPredefinedBenchmarks` with mock fetcher: all 5 tickers fetched and upserted
   - `RefreshPredefinedBenchmarks` with partial fetch failure: failed tickers logged, others succeed
   - `RefreshAll` includes benchmarks (verifies call order via mock)
