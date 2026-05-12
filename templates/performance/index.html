@@ -277,6 +277,77 @@
 })();
 </script>
 
+{{/* Monthly return heatmap */}}
+{{if .MonthlyReturns}}
+<div class="heatmap-container">
+    <h2>Monthly Returns{{if .SelectedBenchmark}} vs {{index .BenchmarkNames .SelectedBenchmark}}{{end}}</h2>
+    <table class="heatmap-table">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+                <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $row := .MonthlyReturns}}
+            <tr>
+                <td>{{$row.Year}}</td>
+                {{/* Build a map of month -> data for easy lookup */}}
+                {{range $m := slice 1 2 3 4 5 6 7 8 9 10 11 12}}
+                {{ $cell := "" }}
+                {{ $cellClass := "heat-empty" }}
+                {{range $other := $.MonthlyReturns}}
+                {{if and (eq $other.Year $row.Year) (eq $other.Month $m)}}
+                {{ $cell = $other }}
+                {{end}}
+                {{end}}
+                {{if $cell}}
+                {{if and $cell.PortfolioReturn (not $.SelectedBenchmark)}}
+                {{/* Absolute mode: color by portfolio return */}}
+                {{ $cellClass = getHeatClassAbsolute $cell.PortfolioReturn }}
+                <td class="{{$cellClass}}">{{$cell.PortfolioReturn}}%</td>
+                {{else if and $cell.PortfolioReturn $.SelectedBenchmark}}
+                {{/* Relative mode: color by diff */}}
+                {{if $cell.Diff}}
+                {{ $cellClass = getHeatClassDiff $cell.Diff }}
+                <td class="{{$cellClass}}">{{$cell.PortfolioReturn}}%<br><small>{{$cell.Diff}}%</small></td>
+                {{else}}
+                <td class="heat-empty">{{$cell.PortfolioReturn}}%</td>
+                {{end}}
+                {{else if $cell.BenchmarkReturn}}
+                <td class="heat-empty">—</td>
+                {{else}}
+                <td class="heat-empty"></td>
+                {{end}}
+                {{else}}
+                <td class="heat-empty"></td>
+                {{end}}
+                {{end}}
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <div class="heatmap-legend">
+        {{if .SelectedBenchmark}}
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#28a745"></span> Outperformed</span>
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#0066cc"></span> Underperformed</span>
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#e8e8e8"></span> No data</span>
+        {{else}}
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#28a745"></span> Positive</span>
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#dc3545"></span> Negative</span>
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#e8e8e8"></span> Near zero / No data</span>
+        {{end}}
+    </div>
+</div>
+{{else}}
+{{if and .Result (not .Error)}}
+<div class="heatmap-container">
+    <p class="empty-state">Insufficient data for monthly returns heatmap. Add more transactions to see monthly performance.</p>
+</div>
+{{end}}
+{{end}}
+
 {{end}}
 {{end}}
 

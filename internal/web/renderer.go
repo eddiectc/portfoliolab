@@ -115,6 +115,9 @@ func (r *Renderer) parseTemplates() error {
 		"add": func(a, b int) int {
 			return a + b
 		},
+		"slice": func(elements ...interface{}) []interface{} {
+			return elements
+		},
 		"contains": func(substr, s string) bool {
 			return strings.Contains(s, substr)
 		},
@@ -127,6 +130,49 @@ func (r *Renderer) parseTemplates() error {
 				return "negative"
 			}
 			return "positive"
+		},
+		"getHeatClassAbsolute": func(s string) string {
+			// Returns a CSS class for absolute return coloring.
+			// Positive ≥ 1% → heat-positive-strong, 0 < x < 1% → heat-positive
+			// Negative ≤ -1% → heat-negative-strong, -1% < x < 0 → heat-negative
+			// Near zero → heat-neutral
+			if s == "" {
+				return "heat-empty"
+			}
+			// Parse as float for comparison.
+			var val float64
+			fmt.Sscanf(s, "%f", &val)
+			if val >= 1.0 {
+				return "heat-positive-strong"
+			} else if val > 0 {
+				return "heat-positive"
+			} else if val <= -1.0 {
+				return "heat-negative-strong"
+			} else if val < 0 {
+				return "heat-negative"
+			}
+			return "heat-neutral"
+		},
+		"getHeatClassDiff": func(s string) string {
+			// Returns a CSS class for diff (relative) coloring.
+			// Positive (outperformed) ≥ 1% → heat-outperform-strong, 0 < x < 1% → heat-outperform
+			// Negative (underperformed) ≤ -1% → heat-underperform-strong, -1% < x < 0 → heat-underperform
+			// Near zero → heat-even
+			if s == "" {
+				return "heat-empty"
+			}
+			var val float64
+			fmt.Sscanf(s, "%f", &val)
+			if val >= 1.0 {
+				return "heat-outperform-strong"
+			} else if val > 0 {
+				return "heat-outperform"
+			} else if val <= -1.0 {
+				return "heat-underperform-strong"
+			} else if val < 0 {
+				return "heat-underperform"
+			}
+			return "heat-even"
 		},
 		"queryPreserve": func(filter interface{}) template.HTMLAttr { 
 			// Returns filter query params preserved for pagination links.

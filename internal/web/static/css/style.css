@@ -965,3 +965,132 @@ legend {
     font-size: 0.8125rem;
     margin-bottom: 1rem;
 }
+
+/* Monthly return heatmap */
+.heatmap-container {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-top: 1rem;
+    overflow-x: auto;
+}
+
+.heatmap-container h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #333;
+}
+
+.heatmap-table {
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    width: 100%;
+}
+
+.heatmap-table th,
+.heatmap-table td {
+    border: 1px solid #e0e0e0;
+    padding: 4px 6px;
+    text-align: center;
+    min-width: 60px;
+}
+
+.heatmap-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #666;
+}
+
+.heatmap-table th:first-child,
+.heatmap-table td:first-child {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+    min-width: 50px;
+    text-align: left;
+}
+
+.heatmap-table td:first-child {
+    background: #f5f5f5;
+}
+
+/* Heatmap cell colors — absolute mode */
+.heat-positive {
+    background: #d4edda;
+    color: #155724;
+}
+
+.heat-positive-strong {
+    background: #28a745;
+    color: #fff;
+}
+
+.heat-negative {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.heat-negative-strong {
+    background: #dc3545;
+    color: #fff;
+}
+
+.heat-neutral {
+    background: #e8e8e8;
+    color: #666;
+}
+
+/* Heatmap cell colors — relative (diff) mode */
+.heat-outperform {
+    background: #d4edda;
+    color: #155724;
+}
+
+.heat-outperform-strong {
+    background: #28a745;
+    color: #fff;
+}
+
+.heat-underperform {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.heat-underperform-strong {
+    background: #0066cc;
+    color: #fff;
+}
+
+.heat-even {
+    background: #e8e8e8;
+    color: #666;
+}
+
+.heat-empty {
+    background: #f0f0f0;
+    color: #bbb;
+}
+
+.heatmap-legend {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #666;
+    flex-wrap: wrap;
+}
+
+.heatmap-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.heatmap-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    border: 1px solid #ddd;
+}
