@@ -10,10 +10,13 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
@@ -21,6 +24,15 @@ import (
 type cacheStatusProvider interface {
 	GetStatus() marketcache.CacheStatus
 	RefreshAll(ctx context.Context)
+}
+
+// monthlyReturnData holds one row for the monthly return heatmap.
+type monthlyReturnData struct {
+	Year            int
+	Month           int
+	PortfolioReturn string
+	BenchmarkReturn string
+	Diff            string
 }
 
 // performancePageData is the data struct for the performance page template.
@@ -42,23 +54,35 @@ type performancePageData struct {
 	// Pre-built URLs for template safety (Go html/template is strict about expressions in URLs).
 	RefreshURL  string
 	PeriodURLs  map[string]string // period label -> full URL
+	// Benchmark fields.
+	SelectedBenchmark   string
+	BenchmarkNames      map[string]string // ticker -> display name for dropdown
+	BenchmarkTicker     string
+	BenchmarkChartData  string // JSON-serialized benchmark prices for ECharts
+	BenchmarkMWRPct     *decimal.Decimal
+	BenchmarkCurrency   string
+	BenchmarkWarning    string
+	BenchmarkURLs       map[string]string // option label -> full URL
+	MonthlyReturns      []monthlyReturnData
 }
 
 // PerformanceWebHandler handles server-rendered performance pages.
 type PerformanceWebHandler struct {
-	positionSvc  *position.Service
-	portfolioSvc *portfolio.Service
-	marketCache  cacheStatusProvider
-	renderer     *web.Renderer
+	positionSvc   *position.Service
+	portfolioSvc  *portfolio.Service
+	marketCache   cacheStatusProvider
+	marketService position.MarketDataService
+	renderer      *web.Renderer
 }
 
 // NewPerformanceWebHandler creates a new performance web handler.
-func NewPerformanceWebHandler(positionSvc *position.Service, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, renderer *web.Renderer) *PerformanceWebHandler {
+func NewPerformanceWebHandler(positionSvc *position.Service, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, marketService position.MarketDataService, renderer *web.Renderer) *PerformanceWebHandler {
 	return &PerformanceWebHandler{
-		positionSvc:  positionSvc,
-		portfolioSvc: portfolioSvc,
-		marketCache:  marketCache,
-		renderer:     renderer,
+		positionSvc:   positionSvc,
+		portfolioSvc:  portfolioSvc,
+		marketCache:   marketCache,
+		marketService: marketService,
+		renderer:      renderer,
 	}
 }
 
@@ -71,6 +95,13 @@ func (h *PerformanceWebHandler) RegisterRoutes(r *chi.Mux) {
 // HandlePerformance renders GET /performance (equity curve chart + return metrics).
 func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http.Request) {
 	filters := parsePerformanceFilters(r.URL.Query())
+
+	// Validate benchmark if provided.
+	benchmark := filters.Benchmark
+	if benchmark != "" && !comparison.IsValidPredefined(benchmark) {
+		// Silently drop invalid benchmark — just show no benchmark.
+		benchmark = ""
+	}
 
 	// Resolve selected portfolio ID for UI state.
 	var selectedPortfolioID string
@@ -97,12 +128,15 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 			Portfolios:          h.fetchPortfolios(r.Context()),
 			SelectedPeriod:      filters.Period,
 			SelectedPortfolioID: selectedPortfolioID,
+			SelectedBenchmark:   benchmark,
+			BenchmarkNames:      comparison.GetPredefined(),
 			Error:               userFriendlyPerformanceError(err),
 			CacheStatus:         cacheStatus,
 			HasCacheStatus:      hasCacheStatus,
 			LastRefreshText:     lastRefreshText,
-			RefreshURL:          buildRefreshURL(selectedPortfolioID),
-			PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period),
+			RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark),
+			PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark),
+			BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period),
 		}
 		if err := h.renderer.Render(w, "performance/index", data); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -132,6 +166,14 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		staleSymbols = extractStaleSymbols(result.Warnings)
 	}
 
+	// Fetch benchmark data if selected.
+	var benchmarkChartData string
+	var benchmarkMWRPct *decimal.Decimal
+	var benchmarkCurrency, benchmarkWarning string
+	if benchmark != "" && h.marketService != nil {
+		benchmarkChartData, benchmarkMWRPct, benchmarkCurrency, benchmarkWarning = h.fetchBenchmarkData(r.Context(), benchmark, filters)
+	}
+
 	data := performancePageData{
 		PageData:            web.PageData{Title: "Performance", Flash: getFlash(w, r)},
 		Result:              result,
@@ -145,13 +187,76 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		HasCacheStatus:      hasCacheStatus,
 		LastRefreshText:     lastRefreshText,
 		StaleSymbols:        staleSymbols,
-		RefreshURL:          buildRefreshURL(selectedPortfolioID),
-		PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period),
+		RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark),
+		PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark),
+		// Benchmark fields.
+		SelectedBenchmark:   benchmark,
+		BenchmarkNames:      comparison.GetPredefined(),
+		BenchmarkTicker:     benchmark,
+		BenchmarkChartData:  benchmarkChartData,
+		BenchmarkMWRPct:     benchmarkMWRPct,
+		BenchmarkCurrency:   benchmarkCurrency,
+		BenchmarkWarning:    benchmarkWarning,
+		BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period),
 	}
 
 	if err := h.renderer.Render(w, "performance/index", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
+}
+
+// fetchBenchmarkData fetches cached benchmark prices, computes MWR, and
+// serializes chart data for the template.
+func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters position.PerformanceFilters) (chartData string, mwrPct *decimal.Decimal, currency, warning string) {
+	dateFrom, dateTo := determineDateRange(filters)
+	if dateFrom.IsZero() {
+		dateFrom = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+	if dateTo.IsZero() {
+		dateTo = time.Now().UTC()
+	}
+
+	prices, err := h.marketService.GetHistoricalPrices(ctx, ticker, dateFrom, dateTo)
+	if err != nil {
+		return "[]", nil, "", "failed to fetch benchmark data"
+	}
+
+	if len(prices) == 0 {
+		return "[]", nil, "", "no cached data available for benchmark"
+	}
+
+	currency = prices[0].Currency
+
+	mwrPct = comparison.ComputeMWRForPeriod(prices, dateFrom, dateTo)
+
+	chartData = serializeBenchmarkChartData(prices)
+
+	return chartData, mwrPct, currency, ""
+}
+
+// benchmarkChartDataPoint is the JSON-serializable format for ECharts benchmark series.
+type benchmarkChartDataPoint struct {
+	Date  string `json:"date"`
+	Price string `json:"price"`
+}
+
+// serializeBenchmarkChartData converts benchmark historical prices to JSON for ECharts.
+func serializeBenchmarkChartData(prices []market.HistoricalPrice) string {
+	if len(prices) == 0 {
+		return "[]"
+	}
+	data := make([]benchmarkChartDataPoint, len(prices))
+	for i, p := range prices {
+		data[i] = benchmarkChartDataPoint{
+			Date:  p.Date.Format("2006-01-02"),
+			Price: p.Close.String(),
+		}
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
 }
 
 // HandleRefresh handles POST /performance/refresh (manual full market data refresh).
@@ -220,10 +325,19 @@ func serializeChartData(points []position.EquityCurvePoint) string {
 }
 
 // buildRefreshURL constructs the POST target for the refresh button.
-func buildRefreshURL(portfolioID string) string {
+func buildRefreshURL(portfolioID, benchmark string) string {
 	url := "/performance/refresh"
+	hasQuery := false
 	if portfolioID != "" {
 		url += "?portfolio_id=" + portfolioID
+		hasQuery = true
+	}
+	if benchmark != "" {
+		if hasQuery {
+			url += "&benchmark=" + benchmark
+		} else {
+			url += "?benchmark=" + benchmark
+		}
 	}
 	return url
 }
@@ -268,21 +382,86 @@ func formatLastRefresh(t time.Time) string {
 	return "Updated " + strconv.Itoa(days) + "d ago"
 }
 
-// buildPeriodURLs pre-builds the URL for each period button.
-func buildPeriodURLs(portfolioID, selectedPeriod string) map[string]string {
+// buildPeriodURLs pre-builds the URL for each period button, preserving
+// portfolio_id and benchmark params.
+func buildPeriodURLs(portfolioID, selectedPeriod, benchmark string) map[string]string {
 	urls := make(map[string]string)
 	for _, p := range []string{"1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"} {
 		url := "/performance"
+		hasQuery := false
 		if portfolioID != "" {
 			url += "?portfolio_id=" + portfolioID
-			if p != "All" {
+			hasQuery = true
+		}
+		if p != "All" {
+			if hasQuery {
 				url += "&period=" + p
+			} else {
+				url += "?period=" + p
+				hasQuery = true
 			}
-		} else if p != "All" {
-			url += "?period=" + p
+		}
+		if benchmark != "" {
+			if hasQuery {
+				url += "&benchmark=" + benchmark
+			} else {
+				url += "?benchmark=" + benchmark
+			}
 		}
 		urls[p] = url
 	}
 	_ = selectedPeriod // used by template for active state
+	return urls
+}
+
+// buildBenchmarkURLs pre-builds the URL for each benchmark option in the
+// dropdown, preserving portfolio_id and period params.
+func buildBenchmarkURLs(selectedBenchmark, portfolioID, period string) map[string]string {
+	urls := make(map[string]string)
+	predefined := comparison.GetPredefined()
+
+	// "None" option — no benchmark param.
+	url := "/performance"
+	hasQuery := false
+	if portfolioID != "" {
+		url += "?portfolio_id=" + portfolioID
+		hasQuery = true
+	}
+	if period != "" && period != "All" {
+		if hasQuery {
+			url += "&period=" + period
+		} else {
+			url += "?period=" + period
+			hasQuery = true
+		}
+	}
+	urls["None"] = url
+
+	// Each predefined benchmark.
+	for ticker, name := range predefined {
+		url := "/performance"
+		hasQuery := false
+		if portfolioID != "" {
+			url += "?portfolio_id=" + portfolioID
+			hasQuery = true
+		}
+		if period != "" && period != "All" {
+			if hasQuery {
+				url += "&period=" + period
+			} else {
+				url += "?period=" + period
+				hasQuery = true
+			}
+		}
+		if hasQuery {
+			url += "&benchmark=" + ticker
+		} else {
+			url += "?benchmark=" + ticker
+		}
+		labels := name + " (" + ticker + ")"
+		urls[labels] = url
+	}
+
+	_ = selectedBenchmark // used by template for active state
 	return urls
 }

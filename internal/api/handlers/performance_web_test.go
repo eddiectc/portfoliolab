@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http/httptest"
 	"strings"
@@ -10,9 +11,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
@@ -77,23 +80,26 @@ func TestBuildRefreshURL(t *testing.T) {
 	tests := []struct {
 		name        string
 		portfolioID string
+		benchmark   string
 		want        string
 	}{
-		{"no filter", "", "/performance/refresh"},
-		{"portfolio only", "3", "/performance/refresh?portfolio_id=3"},
+		{"no filter", "", "", "/performance/refresh"},
+		{"portfolio only", "3", "", "/performance/refresh?portfolio_id=3"},
+		{"benchmark only", "", "^GSPC", "/performance/refresh?benchmark=^GSPC"},
+		{"portfolio + benchmark", "3", "^GSPC", "/performance/refresh?portfolio_id=3&benchmark=^GSPC"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildRefreshURL(tt.portfolioID)
+			got := buildRefreshURL(tt.portfolioID, tt.benchmark)
 			if got != tt.want {
-				t.Errorf("buildRefreshURL(%q) = %q, want %q", tt.portfolioID, got, tt.want)
+				t.Errorf("buildRefreshURL(%q, %q) = %q, want %q", tt.portfolioID, tt.benchmark, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestBuildPeriodURLs(t *testing.T) {
-	urls := buildPeriodURLs("", "")
+	urls := buildPeriodURLs("", "", "")
 	if urls["All"] != "/performance" {
 		t.Errorf("All = %q, want /performance", urls["All"])
 	}
@@ -101,12 +107,33 @@ func TestBuildPeriodURLs(t *testing.T) {
 		t.Errorf("1W = %q, want /performance?period=1W", urls["1W"])
 	}
 
-	urls2 := buildPeriodURLs("5", "1Y")
+	urls2 := buildPeriodURLs("5", "1Y", "")
 	if urls2["All"] != "/performance?portfolio_id=5" {
 		t.Errorf("All = %q, want /performance?portfolio_id=5", urls2["All"])
 	}
 	if urls2["1M"] != "/performance?portfolio_id=5&period=1M" {
 		t.Errorf("1M = %q, want /performance?portfolio_id=5&period=1M", urls2["1M"])
+	}
+
+	// With benchmark — should be preserved in all period URLs.
+	urls3 := buildPeriodURLs("5", "1Y", "^GSPC")
+	if urls3["All"] != "/performance?portfolio_id=5&benchmark=^GSPC" {
+		t.Errorf("All = %q, want /performance?portfolio_id=5&benchmark=^GSPC", urls3["All"])
+	}
+	if urls3["1M"] != "/performance?portfolio_id=5&period=1M&benchmark=^GSPC" {
+		t.Errorf("1M = %q, want /performance?portfolio_id=5&period=1M&benchmark=^GSPC", urls3["1M"])
+	}
+	if urls3["3Y"] != "/performance?portfolio_id=5&period=3Y&benchmark=^GSPC" {
+		t.Errorf("3Y = %q, want /performance?portfolio_id=5&period=3Y&benchmark=^GSPC", urls3["3Y"])
+	}
+
+	// Benchmark only, no portfolio.
+	urls4 := buildPeriodURLs("", "", "^IXIC")
+	if urls4["All"] != "/performance?benchmark=^IXIC" {
+		t.Errorf("All = %q, want /performance?benchmark=^IXIC", urls4["All"])
+	}
+	if urls4["1W"] != "/performance?period=1W&benchmark=^IXIC" {
+		t.Errorf("1W = %q, want /performance?period=1W&benchmark=^IXIC", urls4["1W"])
 	}
 }
 
@@ -268,6 +295,116 @@ func TestPerformanceTemplate_ErrorState(t *testing.T) {
 		t.Error("expected error message in page")
 	}
 }
+
+// --- buildBenchmarkURLs tests ---
+
+func TestBuildBenchmarkURLs(t *testing.T) {
+	// No portfolio, no period.
+	urls := buildBenchmarkURLs("", "", "")
+	if urls["None"] != "/performance" {
+		t.Errorf("None = %q, want /performance", urls["None"])
+	}
+	if urls["S&P 500 (^GSPC)"] != "/performance?benchmark=^GSPC" {
+		t.Errorf("S&P 500 = %q, want /performance?benchmark=^GSPC", urls["S&P 500 (^GSPC)"])
+	}
+
+	// With portfolio and period — preserved.
+	urls2 := buildBenchmarkURLs("^GSPC", "5", "1Y")
+	if urls2["None"] != "/performance?portfolio_id=5&period=1Y" {
+		t.Errorf("None = %q, want /performance?portfolio_id=5&period=1Y", urls2["None"])
+	}
+	if urls2["S&P 500 (^GSPC)"] != "/performance?portfolio_id=5&period=1Y&benchmark=^GSPC" {
+		t.Errorf("S&P 500 = %q, want /performance?portfolio_id=5&period=1Y&benchmark=^GSPC", urls2["S&P 500 (^GSPC)"])
+	}
+	if urls2["NASDAQ Composite (^IXIC)"] != "/performance?portfolio_id=5&period=1Y&benchmark=^IXIC" {
+		t.Errorf("NASDAQ = %q, want /performance?portfolio_id=5&period=1Y&benchmark=^IXIC", urls2["NASDAQ Composite (^IXIC)"])
+	}
+
+	// With "All" period (no period param).
+	urls3 := buildBenchmarkURLs("", "5", "All")
+	if urls3["None"] != "/performance?portfolio_id=5" {
+		t.Errorf("None = %q, want /performance?portfolio_id=5", urls3["None"])
+	}
+	if urls3["S&P 500 (^GSPC)"] != "/performance?portfolio_id=5&benchmark=^GSPC" {
+		t.Errorf("S&P 500 = %q, want /performance?portfolio_id=5&benchmark=^GSPC", urls3["S&P 500 (^GSPC)"])
+	}
+
+	// All 5 benchmarks present.
+	urls4 := buildBenchmarkURLs("", "", "")
+	expectedLabels := []string{"None", "S&P 500 (^GSPC)", "NASDAQ Composite (^IXIC)", "Vanguard FTSE All-World UCITS (VWRP.L)", "Vanguard S&P 500 UCITS (VUSA.L)", "iShares NASDAQ 100 UCITS (XNAQ.L)"}
+	for _, label := range expectedLabels {
+		if _, ok := urls4[label]; !ok {
+			t.Errorf("missing benchmark URL for %q", label)
+		}
+	}
+}
+
+// --- serializeBenchmarkChartData tests ---
+
+func TestSerializeBenchmarkChartData(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []market.HistoricalPrice
+		want string
+	}{
+		{
+			name: "empty nil",
+			in:   nil,
+			want: "[]",
+		},
+		{
+			name: "empty slice",
+			in:   []market.HistoricalPrice{},
+			want: "[]",
+		},
+		{
+			name: "single price",
+			in: []market.HistoricalPrice{
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(470000, 2), Currency: "USD"},
+			},
+			want: `[{"date":"2024-01-15","price":"4700.00"}]`,
+		},
+		{
+			name: "multiple prices",
+			in: []market.HistoricalPrice{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(470000, 2), Currency: "USD"},
+				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(520000, 2), Currency: "USD"},
+			},
+			want: `[{"date":"2024-01-01","price":"4700.00"},{"date":"2024-06-01","price":"5200.00"}]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := serializeBenchmarkChartData(tt.in)
+			if got != tt.want {
+				t.Errorf("serializeBenchmarkChartData() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- Handler integration tests for benchmark ---
+
+// mockMarketDataServiceForWeb implements position.MarketDataService for web handler tests.
+type mockMarketDataServiceForWeb struct {
+	historical map[string][]market.HistoricalPrice
+}
+
+func (m *mockMarketDataServiceForWeb) GetQuotes(_ context.Context, _ []string) map[string]*market.MarketData { return nil }
+func (m *mockMarketDataServiceForWeb) GetHistoricalPrices(_ context.Context, symbol string, _, _ time.Time) ([]market.HistoricalPrice, error) {
+	if prices, ok := m.historical[symbol]; ok {
+		result := make([]market.HistoricalPrice, len(prices))
+		copy(result, prices)
+		return result, nil
+	}
+	return nil, nil
+}
+func (m *mockMarketDataServiceForWeb) GetLatestPriceDatePerSymbol(_ context.Context, _ []string) map[string]*time.Time { return nil }
+func (m *mockMarketDataServiceForWeb) RefreshQuotes(_ context.Context, _ []string) marketservice.RefreshResult { return marketservice.RefreshResult{} }
+func (m *mockMarketDataServiceForWeb) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) { return nil, nil }
+func (m *mockMarketDataServiceForWeb) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) { return nil, nil }
+func (m *mockMarketDataServiceForWeb) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult { return marketservice.FxRefreshResult{} }
 
 // --- extractStaleSymbols tests ---
 

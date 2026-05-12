@@ -184,7 +184,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		t212WebHandler.RegisterRoutes(r)
 
 		// Performance web pages
-		performanceWebHandler := handlers.NewPerformanceWebHandler(positionSvc, portfolioSvc, marketCache, renderer)
+		performanceWebHandler := handlers.NewPerformanceWebHandler(positionSvc, portfolioSvc, marketCache, marketSvc, renderer)
 		performanceWebHandler.RegisterRoutes(r)
 
 		// Root redirect
