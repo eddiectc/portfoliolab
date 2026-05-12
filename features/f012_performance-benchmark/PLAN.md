@@ -113,12 +113,12 @@ Tasks 1–2 are backend foundation. Tasks 3–6 add user-facing layers increment
 **Corresponds to:** Scenario "Select a benchmark for the first time", "Benchmark selection is shared across views"
 **Description:** Wire benchmark data through the web handler to the template. No benchmark service needed — the handler reads cached prices directly via the existing MarketDataService.
 
-- [ ] Modify `HandlePerformance` in `performance_web.go`:
+- [x] Modify `HandlePerformance` in `performance_web.go`:
   - Parse `benchmark` from query params
   - Pass benchmark ticker through `PerformanceFilters` to `ComputeEquityCurve` (benchmark data already included in the API result)
   - If benchmark data exists, serialize benchmark prices for chart JSON
   - Compute benchmark monthly returns for heatmap
-- [ ] Extend `performancePageData` struct with:
+- [x] Extend `performancePageData` struct with:
   - `SelectedBenchmark string` — ticker of selected benchmark
   - `BenchmarkNames map[string]string` — available benchmarks for dropdown
   - `BenchmarkTicker string` — same as SelectedBenchmark (for template clarity)
@@ -128,10 +128,10 @@ Tasks 1–2 are backend foundation. Tasks 3–6 add user-facing layers increment
   - `BenchmarkWarning string` — data availability warning
   - `BenchmarkURLs map[string]string` — pre-built URLs for each benchmark option
   - `MonthlyReturns []monthlyReturnData` — monthly return data for heatmap (added in Task 6, but struct field added here)
-- [ ] Add `buildBenchmarkURLs(selectedTicker, portfolioID, period string) map[string]string` — pre-built URLs preserving portfolio_id, period, and setting/changing benchmark
-- [ ] Modify `buildPeriodURLs` to preserve `benchmark` param in URLs
-- [ ] Wire in `router.go`: no new dependency needed (comparison is just a package import for constants + compute)
-- [ ] Write tests:
+- [x] Add `buildBenchmarkURLs(selectedTicker, portfolioID, period string) map[string]string` — pre-built URLs preserving portfolio_id, period, and setting/changing benchmark
+- [x] Modify `buildPeriodURLs` to preserve `benchmark` param in URLs
+- [x] Wire in `router.go`: added `marketService` (position.MarketDataService) as a new dependency to `PerformanceWebHandler`
+- [x] Write tests:
   - Handler with no benchmark: benchmark fields empty, page renders as before
   - Handler with benchmark: benchmark data populated in page data
   - Handler with benchmark, no data: warning populated
