@@ -81,23 +81,23 @@ Tasks 1–2 are backend foundation. Tasks 3–6 add user-facing layers increment
 **Corresponds to:** Scenario "Select a benchmark for the first time", "Switch between different benchmarks", "Clear the benchmark selection", "Benchmark changes with date range"
 **Description:** Extend `GET /api/performance` to accept an optional `benchmark` query parameter. When present, fetch cached prices for the ticker, compute MWR, and include in the response. The computation functions work with any ticker — the predefined constraint is enforced at the validation layer.
 
-- [ ] Modify `parsePerformanceFilters` in `performance.go` to extract `benchmark` query param (ticker string, empty = no benchmark)
-- [ ] Validate against `comparison.IsValidPredefined` — reject non-predefined tickers with 400
-- [ ] Extend `PerformanceFilters` in `position/performance_types.go` with `Benchmark string` field
-- [ ] Extend `PerformanceResult` in `position/performance_types.go` with:
+- [x] Modify `parsePerformanceFilters` in `performance.go` to extract `benchmark` query param (ticker string, empty = no benchmark)
+- [x] Validate against `comparison.IsValidPredefined` — reject non-predefined tickers with 400
+- [x] Extend `PerformanceFilters` in `position/performance_types.go` with `Benchmark string` field
+- [x] Extend `PerformanceResult` in `position/performance_types.go` with:
   - `BenchmarkTicker string` — selected benchmark ticker (empty if none)
   - `BenchmarkPrices []market.HistoricalPrice` — cached benchmark prices for the period
   - `BenchmarkMWRPct *decimal.Decimal` — benchmark MWR for the period
   - `BenchmarkCurrency string` — benchmark currency (from price data)
   - `BenchmarkWarning string` — data availability warning (empty if OK)
-- [ ] Modify `HandlePerformance` in `performance.go`:
+- [x] Modify `HandlePerformance` in `performance.go`:
   - After computing portfolio result, if `filters.Benchmark` is set and valid:
     - Read cached prices via `marketService.GetHistoricalPrices(ctx, ticker, dateFrom, dateTo)`
     - Compute MWR via `comparison.ComputeMWRForPeriod(prices, dateFrom, dateTo)`
     - Populate benchmark fields on the result
     - Set warning if no data available
   - If invalid ticker, return 400 error
-- [ ] Write tests (table-driven, using hand-written mock for MarketDataService):
+- [x] Write tests (table-driven, using hand-written mock for MarketDataService):
   - No benchmark: response unchanged (benchmark fields empty/nil)
   - Valid benchmark with data: prices, MWR, currency populated
   - Valid benchmark, no cached data: warning set, prices empty

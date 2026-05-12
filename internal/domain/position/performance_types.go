@@ -3,6 +3,7 @@ package position
 import (
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
 
@@ -45,11 +46,21 @@ type ReturnMetrics struct {
 // ReturnMetrics are the summary return calculations.
 // BaseCurrency is the currency all values are expressed in.
 // Warnings lists any non-fatal issues encountered during computation.
+// BenchmarkTicker is the ticker of the selected benchmark (empty if none).
+// BenchmarkPrices are the cached benchmark prices for the period.
+// BenchmarkMWRPct is the benchmark money-weighted return for the period.
+// BenchmarkCurrency is the currency of the benchmark price data.
+// BenchmarkWarning is a data availability warning (empty if OK).
 type PerformanceResult struct {
-	EquityCurve   []EquityCurvePoint `json:"equity_curve"`
-	ReturnMetrics ReturnMetrics      `json:"return_metrics"`
-	BaseCurrency  string             `json:"base_currency"`
-	Warnings      []string           `json:"warnings,omitempty"`
+	EquityCurve        []EquityCurvePoint `json:"equity_curve"`
+	ReturnMetrics      ReturnMetrics      `json:"return_metrics"`
+	BaseCurrency       string             `json:"base_currency"`
+	Warnings           []string           `json:"warnings,omitempty"`
+	BenchmarkTicker    string             `json:"benchmark_ticker,omitempty"`
+	BenchmarkPrices    []market.HistoricalPrice `json:"benchmark_prices,omitempty"`
+	BenchmarkMWRPct    *decimal.Decimal   `json:"benchmark_mwr_pct,omitempty"`
+	BenchmarkCurrency  string             `json:"benchmark_currency,omitempty"`
+	BenchmarkWarning   string             `json:"benchmark_warning,omitempty"`
 }
 
 // RefreshResult summarizes the outcome of a market data refresh.
@@ -65,9 +76,11 @@ type RefreshResult struct {
 // PerformanceFilters holds optional filter criteria for performance queries.
 // Nil PortfolioID means "all portfolios". Empty Period defaults to "All".
 // Nil DateFrom/DateTo means the full available range.
+// Benchmark is an optional benchmark ticker for comparison (empty = none).
 type PerformanceFilters struct {
 	PortfolioID *int64
 	Period      string // "1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"
 	DateFrom    *time.Time
 	DateTo      *time.Time
+	Benchmark   string
 }

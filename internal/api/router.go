@@ -126,7 +126,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	positionHandler.RegisterRoutes(r)
 
 	// Performance API
-	performanceHandler := handlers.NewPerformanceHandler(positionSvc)
+	performanceHandler := handlers.NewPerformanceHandler(positionSvc, marketSvc)
 	performanceHandler.RegisterRoutes(r)
 
 	// Market data cache API
