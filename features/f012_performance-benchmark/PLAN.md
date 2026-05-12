@@ -35,19 +35,19 @@ Tasks 1–2 are backend foundation. Tasks 3–6 add user-facing layers increment
 **Corresponds to:** All scenarios (foundational data and math)
 **Description:** Define the five predefined benchmark tickers with display names and provide pure computation functions for MWR and monthly returns from historical prices. The computation functions work on any ticker's price data — they are not benchmark-specific.
 
-- [ ] Create `internal/domain/comparison/comparison.go` with:
+- [x] Create `internal/domain/comparison/comparison.go` with:
   - `var Predefined = map[string]string{...}` — ticker → display name (e.g. `"^GSPC": "S&P 500"`) for the 5 predefined benchmarks
   - `func IsValidPredefined(ticker string) bool` — checks if ticker is one of the predefined benchmarks (used by handler to validate dropdown selection)
   - `func GetPredefined() map[string]string` — returns the map (for dropdown options)
-- [ ] Create `internal/domain/comparison/compute.go` with:
+- [x] Create `internal/domain/comparison/compute.go` with:
   - `func ComputeMWR(prices []market.HistoricalPrice) *decimal.Decimal` — simple holding-period return: `(end/start - 1) * 100`. Returns nil if fewer than 2 prices or start ≤ 0.
   - `func ComputeMWRForPeriod(prices []market.HistoricalPrice, from, to time.Time) *decimal.Decimal` — filters prices to [from, to] then computes MWR
   - `func ComputeMonthlyReturns(prices []market.HistoricalPrice) map[string]*decimal.Decimal` — groups prices by year-month, returns monthly return % as map of `"YYYY-MM" -> return`. Used by heatmap (Task 6) and future analytics.
-- [ ] Write tests for `comparison.go`:
+- [x] Write tests for `comparison.go`:
   - `IsValidPredefined` returns true for each of the 5 tickers
   - `IsValidPredefined` returns false for random/unknown tickers
   - `GetPredefined` returns all 5 entries
-- [ ] Write tests for `compute.go` (table-driven):
+- [x] Write tests for `compute.go` (table-driven):
   - `ComputeMWR`: normal case (5+ prices up/down), single price → nil, empty → nil, declining → negative, flat → zero, start = 0 → nil
   - `ComputeMWRForPeriod`: filters correctly and computes MWR for the window
   - `ComputeMonthlyReturns`: multiple months with varying returns, single month, empty prices, partial month data
