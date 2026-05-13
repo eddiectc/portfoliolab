@@ -166,13 +166,7 @@
     {{end}}
     var benchName = benchNames['{{.SelectedBenchmark}}'] || '{{.SelectedBenchmark}}';
 
-    // When comparing with benchmark, use percentage change so both series
-    // share the same scale and starting point. Without benchmark, show raw values.
-    var usePercentage = hasBenchmark;
-
-    // Compute percentage data: each point is { date, value, pct }
-    // Use first non-zero portfolio value as baseline (portfolio may start at 0
-    // if the period begins before the first transaction).
+    // Clip portfolio data to inception (remove pre-inception zeros).
     var portfolioFirstIdx = -1;
     for (var i = 0; i < portfolioData.length; i++) {
         if (portfolioData[i][1] !== 0) {
@@ -180,104 +174,205 @@
             break;
         }
     }
-    var portfolioStart = portfolioFirstIdx >= 0 ? portfolioData[portfolioFirstIdx][1] : 1;
+    var clippedPortfolio = portfolioData;
+    var clippedDeposit = depositData;
+    if (portfolioFirstIdx >= 0) {
+        clippedPortfolio = portfolioData.slice(portfolioFirstIdx);
+        clippedDeposit = depositData.slice(portfolioFirstIdx);
+    }
 
-    // Benchmark baseline: use the benchmark price at the same date as
-    // the portfolio's first non-zero value, so both start from 0%.
+    // ---- No benchmark: absolute value chart with return area ----
+    if (!hasBenchmark) {
+        // Compute return data (portfolio value - net deposit).
+        var returnData = [];
+        for (var i = 0; i < clippedPortfolio.length; i++) {
+            var ret = clippedPortfolio[i][1] - clippedDeposit[i][1];
+            var deposit = clippedDeposit[i][1];
+            var pct = deposit !== 0 ? (ret / deposit) * 100 : 0;
+            returnData.push([clippedPortfolio[i][0], ret, clippedPortfolio[i][1], pct]);
+        }
+
+        // Compute Y-axis range from portfolio values.
+        var axisMin = Infinity, axisMax = -Infinity;
+        for (var i = 0; i < clippedPortfolio.length; i++) {
+            if (clippedPortfolio[i][1] < axisMin) axisMin = clippedPortfolio[i][1];
+            if (clippedPortfolio[i][1] > axisMax) axisMax = clippedPortfolio[i][1];
+            if (clippedDeposit[i][1] < axisMin) axisMin = clippedDeposit[i][1];
+            if (clippedDeposit[i][1] > axisMax) axisMax = clippedDeposit[i][1];
+        }
+        var vPadding = (axisMax - axisMin) * 0.1;
+        axisMin = Math.max(0, axisMin - vPadding);
+        axisMax = axisMax + vPadding;
+
+        var legendData = ['Portfolio Value', 'Return', 'Net Deposit'];
+        var series = [
+            {
+                name: 'Portfolio Value',
+                type: 'line',
+                data: clippedPortfolio,
+                smooth: false,
+                symbol: 'none',
+                lineStyle: { width: 2 },
+                z: 3
+            },
+            {
+                name: 'Return',
+                type: 'bar',
+                data: returnData.map(function(d) { return [d[0], d[1]]; }),
+                barWidth: '60%',
+                itemStyle: {
+                    color: function(params) {
+                        return params.value[1] >= 0 ? 'rgba(40,167,69,0.25)' : 'rgba(220,53,69,0.25)';
+                    }
+                },
+                z: 1
+            },
+            {
+                name: 'Net Deposit',
+                type: 'line',
+                data: clippedDeposit,
+                smooth: false,
+                symbol: 'none',
+                lineStyle: { width: 1, type: 'dashed' },
+                z: 2
+            }
+        ];
+
+        var chart = echarts.init(document.getElementById('equity-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    var date = new Date(params[0].axisValue);
+                    var dateStr = date.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'});
+                    var html = '<strong>' + dateStr + '</strong><br/>';
+                    // Find the return data point for this date to show %.
+                    var retPct = 0, retVal = 0, portVal = 0, depVal = 0;
+                    for (var i = 0; i < params.length; i++) {
+                        var name = params[i].seriesName;
+                        if (name === 'Portfolio Value') {
+                            portVal = params[i].value[1];
+                        } else if (name === 'Net Deposit') {
+                            depVal = params[i].value[1];
+                        } else if (name === 'Return') {
+                            retVal = params[i].value[1];
+                        }
+                    }
+                    retPct = depVal !== 0 ? (retVal / depVal) * 100 : 0;
+                    var portStr = portVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    var depStr = depVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    var retStr = retVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    var pctStr = (retPct >= 0 ? '+' : '') + retPct.toFixed(2) + '%';
+                    html += '● Portfolio Value: ' + portStr + ' {{.Result.BaseCurrency}}<br/>';
+                    html += '● Net Deposit: ' + depStr + ' {{.Result.BaseCurrency}}<br/>';
+                    html += '▮ Return: ' + retStr + ' {{.Result.BaseCurrency}} (' + pctStr + ')<br/>';
+                    return html;
+                }
+            },
+            legend: {
+                data: legendData,
+                bottom: 0
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '12%',
+                top: '8%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'time',
+                axisLabel: { rotate: 0, interval: 'auto' }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Value',
+                min: axisMin,
+                max: axisMax,
+                axisLabel: {
+                    formatter: function(value) {
+                        return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    }
+                }
+            },
+            series: series
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+        return; // Done — skip benchmark chart below.
+    }
+
+    // ---- With benchmark: percentage comparison (placeholder, will be replaced by NAV/unitization) ----
+    var portfolioStart = clippedPortfolio.length > 0 ? clippedPortfolio[0][1] : 1;
+    var portfolioStartDate = clippedPortfolio.length > 0 ? clippedPortfolio[0][0] : null;
+
+    // Clip benchmark to portfolio inception date.
+    var clippedBench = benchData;
     var benchStart = 1;
-    if (hasBenchmark && benchData.length > 0 && portfolioFirstIdx >= 0) {
-        var portfolioFirstDate = portfolioData[portfolioFirstIdx][0];
-        // Find benchmark point closest to portfolio's first date.
+    if (benchData.length > 0 && portfolioStartDate) {
+        var portfolioStartTs = new Date(portfolioStartDate).getTime();
+        var benchStartIdx = -1;
         var bestDiff = Infinity;
         for (var i = 0; i < benchData.length; i++) {
-            var diff = Math.abs(new Date(benchData[i][0]) - new Date(portfolioFirstDate));
-            if (diff < bestDiff) {
-                bestDiff = diff;
-                benchStart = benchData[i][1];
+            var benchTs = new Date(benchData[i][0]).getTime();
+            if (Math.abs(benchTs - portfolioStartTs) < bestDiff) {
+                bestDiff = Math.abs(benchTs - portfolioStartTs);
+                benchStartIdx = i;
             }
         }
-    } else if (hasBenchmark && benchData.length > 0) {
+        if (benchStartIdx >= 0) {
+            clippedBench = benchData.slice(benchStartIdx);
+            benchStart = clippedBench[0][1];
+        }
+    } else if (benchData.length > 0) {
         benchStart = benchData[0][1];
     }
 
     var portfolioPctData = [];
-    for (var i = 0; i < portfolioData.length; i++) {
-        var val = portfolioData[i][1];
+    for (var i = 0; i < clippedPortfolio.length; i++) {
+        var val = clippedPortfolio[i][1];
         var pct = portfolioStart !== 0 ? ((val - portfolioStart) / portfolioStart) * 100 : 0;
-        portfolioPctData.push([portfolioData[i][0], pct, val]);
+        portfolioPctData.push([clippedPortfolio[i][0], pct, val]);
     }
 
     var benchPctData = [];
-    if (hasBenchmark) {
-        for (var i = 0; i < benchData.length; i++) {
-            var val = benchData[i][1];
-            var pct = benchStart !== 0 ? ((val - benchStart) / benchStart) * 100 : 0;
-            benchPctData.push([benchData[i][0], pct, val]);
-        }
+    for (var i = 0; i < clippedBench.length; i++) {
+        var val = clippedBench[i][1];
+        var pct = benchStart !== 0 ? ((val - benchStart) / benchStart) * 100 : 0;
+        benchPctData.push([clippedBench[i][0], pct, val]);
     }
 
-    // Build legend and series dynamically.
-    var legendData = ['Portfolio Value', 'Net Deposit'];
+    // Compute Y-axis range from percentages.
+    var allPcts = [];
+    for (var i = 0; i < portfolioPctData.length; i++) allPcts.push(portfolioPctData[i][1]);
+    for (var i = 0; i < benchPctData.length; i++) allPcts.push(benchPctData[i][1]);
+    var axisMin = Math.min.apply(null, allPcts);
+    var axisMax = Math.max.apply(null, allPcts);
+    if (axisMin > 0) axisMin = 0;
+    if (axisMax < 0) axisMax = 0;
+    var pctPadding = (axisMax - axisMin) * 0.1;
+    axisMin = axisMin - pctPadding;
+    axisMax = axisMax + pctPadding;
+
+    var legendData = ['Portfolio Value', benchName];
     var series = [
         {
             name: 'Portfolio Value',
             type: 'line',
-            data: usePercentage ? portfolioPctData : portfolioData,
+            data: portfolioPctData,
             smooth: false,
             symbol: 'none',
             lineStyle: { width: 2 }
         },
         {
-            name: 'Net Deposit',
-            type: 'line',
-            data: depositData,
-            smooth: false,
-            symbol: 'none',
-            lineStyle: { width: 1, type: 'dashed' }
-        }
-    ];
-
-    if (hasBenchmark) {
-        legendData.push(benchName);
-        series.push({
             name: benchName,
             type: 'line',
-            xAxisIndex: 0,
-            yAxisIndex: 0,
             data: benchPctData,
             smooth: false,
             symbol: 'none',
             lineStyle: { width: 2, type: 'dashed', color: '#888' }
-        });
-    }
-
-    // Compute Y-axis range.
-    var axisMin, axisMax;
-    if (usePercentage) {
-        // Find min/max across both portfolio and benchmark percentages.
-        var allPcts = [];
-        for (var i = 0; i < portfolioPctData.length; i++) allPcts.push(portfolioPctData[i][1]);
-        for (var i = 0; i < benchPctData.length; i++) allPcts.push(benchPctData[i][1]);
-        axisMin = Math.min.apply(null, allPcts);
-        axisMax = Math.max.apply(null, allPcts);
-        // Ensure 0% is included if data is all positive or all negative.
-        if (axisMin > 0) axisMin = 0;
-        if (axisMax < 0) axisMax = 0;
-        var pctPadding = (axisMax - axisMin) * 0.1;
-        axisMin = axisMin - pctPadding;
-        axisMax = axisMax + pctPadding;
-    } else {
-        // Raw value mode: just use portfolio range.
-        axisMin = Infinity;
-        axisMax = -Infinity;
-        for (var i = 0; i < portfolioData.length; i++) {
-            if (portfolioData[i][1] < axisMin) axisMin = portfolioData[i][1];
-            if (portfolioData[i][1] > axisMax) axisMax = portfolioData[i][1];
         }
-        var vPadding = (axisMax - axisMin) * 0.1;
-        axisMin = Math.max(0, axisMin - vPadding);
-        axisMax = axisMax + vPadding;
-    }
+    ];
 
     var chart = echarts.init(document.getElementById('equity-chart'));
     chart.setOption({
@@ -289,31 +384,16 @@
                 var html = '<strong>' + dateStr + '</strong><br/>';
                 for (var i = 0; i < params.length; i++) {
                     var name = params[i].seriesName;
-                    var val = params[i].value[1];
-                    if (name === 'Net Deposit') {
-                        var formatted = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        html += params[i].marker + name + ': ' + formatted + ' {{.Result.BaseCurrency}}<br/>';
-                        continue;
+                    // data is [date, pct, raw_value]
+                    var pct = params[i].value[1];
+                    var raw = params[i].value[2];
+                    var pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+                    var rawStr = raw.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    var currency = ' {{.Result.BaseCurrency}}';
+                    if (name !== 'Portfolio Value' && benchCurrency) {
+                        currency = ' ' + benchCurrency;
                     }
-                    if (usePercentage) {
-                        // data is [date, pct, raw_value]
-                        var pct = params[i].value[1];
-                        var raw = params[i].value[2];
-                        var pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-                        var rawStr = raw.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        var currency = ' {{.Result.BaseCurrency}}';
-                        if (name !== 'Portfolio Value' && benchCurrency) {
-                            currency = ' ' + benchCurrency;
-                        }
-                        html += params[i].marker + name + ': ' + pctStr + ' (' + rawStr + currency + ')<br/>';
-                    } else {
-                        var formatted = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        var currency = ' {{.Result.BaseCurrency}}';
-                        if (name !== 'Portfolio Value' && benchCurrency) {
-                            currency = ' ' + benchCurrency;
-                        }
-                        html += params[i].marker + name + ': ' + formatted + currency + '<br/>';
-                    }
+                    html += params[i].marker + name + ': ' + pctStr + ' (' + rawStr + currency + ')<br/>';
                 }
                 return html;
             }
@@ -324,29 +404,23 @@
         },
         grid: {
             left: '3%',
-            right: hasBenchmark ? '8%' : '4%',
+            right: '8%',
             bottom: '12%',
             top: '8%',
             containLabel: true
         },
         xAxis: {
             type: 'time',
-            axisLabel: {
-                rotate: 0,
-                interval: 'auto'
-            }
+            axisLabel: { rotate: 0, interval: 'auto' }
         },
         yAxis: {
             type: 'value',
-            name: usePercentage ? 'Return' : 'Portfolio Value',
+            name: 'Return',
             min: axisMin,
             max: axisMax,
             axisLabel: {
                 formatter: function(value) {
-                    if (usePercentage) {
-                        return (value >= 0 ? '+' : '') + value.toFixed(1) + '%';
-                    }
-                    return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    return (value >= 0 ? '+' : '') + value.toFixed(1) + '%';
                 }
             }
         },
