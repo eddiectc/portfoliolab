@@ -241,7 +241,27 @@
                 interval: 'auto'
             }
         },
-        yAxis: [
+        yAxis: hasBenchmark ? [
+            {
+                type: 'value',
+                name: 'Portfolio Value',
+                axisLabel: {
+                    formatter: function(value) {
+                        return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    }
+                }
+            },
+            {
+                type: 'value',
+                name: 'Benchmark Price',
+                position: 'right',
+                axisLabel: {
+                    formatter: function(value) {
+                        return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    }
+                }
+            }
+        ] : [
             {
                 type: 'value',
                 name: 'Portfolio Value',
@@ -254,33 +274,6 @@
         ],
         series: series
     });
-
-    // Add right Y-axis for benchmark if present.
-    if (hasBenchmark) {
-        chart.setOption({
-            yAxis: [
-                {
-                    type: 'value',
-                    name: 'Portfolio Value',
-                    axisLabel: {
-                        formatter: function(value) {
-                            return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                        }
-                    }
-                },
-                {
-                    type: 'value',
-                    name: 'Benchmark Price',
-                    position: 'right',
-                    axisLabel: {
-                        formatter: function(value) {
-                            return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                        }
-                    }
-                }
-            ]
-        });
-    }
 
     window.addEventListener('resize', function() { chart.resize(); });
     } catch(e) {
