@@ -176,15 +176,13 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 	var benchmarkCurrency, benchmarkWarning string
 	var benchmarkPrices []market.HistoricalPrice
 	if benchmark != "" && h.marketService != nil {
-		// Determine portfolio date range and starting value from equity curve.
+		// Determine portfolio date range from equity curve for alignment.
 		var portfolioDateFrom, portfolioDateTo time.Time
-		var portfolioStartValue decimal.Decimal
 		if len(result.EquityCurve) > 0 {
 			portfolioDateFrom = result.EquityCurve[0].Date
 			portfolioDateTo = result.EquityCurve[len(result.EquityCurve)-1].Date
-			portfolioStartValue = result.EquityCurve[0].PortfolioValue
 		}
-		benchmarkChartData, benchmarkMWRPct, benchmarkCurrency, benchmarkWarning, benchmarkPrices = h.fetchBenchmarkData(r.Context(), benchmark, filters, portfolioDateFrom, portfolioDateTo, portfolioStartValue)
+		benchmarkChartData, benchmarkMWRPct, benchmarkCurrency, benchmarkWarning, benchmarkPrices = h.fetchBenchmarkData(r.Context(), benchmark, filters, portfolioDateFrom, portfolioDateTo)
 	}
 
 	// Compute monthly returns for heatmap.
@@ -232,9 +230,9 @@ type benchmarkResult struct {
 }
 
 // computeBenchmarkResult computes chart data and MWR from benchmark prices.
-// Chart data is clipped to the portfolio date range and normalized so the
-// benchmark starts at the same Y-axis value as the portfolio (right axis).
-func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo time.Time, portfolioStartValue decimal.Decimal) benchmarkResult {
+// Chart data is clipped to the portfolio date range so both chart lines
+// start and end at the same dates for easy comparison.
+func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo time.Time) benchmarkResult {
 	if len(prices) == 0 {
 		return benchmarkResult{chartData: "[]", warning: "no cached data available for benchmark"}
 	}
@@ -276,7 +274,7 @@ func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, p
 	}
 	mwrPct := comparison.ComputeMWRForPeriod(prices, mwrFrom, mwrTo)
 
-	chartData := serializeBenchmarkChartData(prices, portfolioStartValue)
+	chartData := serializeBenchmarkChartData(prices)
 
 	return benchmarkResult{
 		chartData: chartData,
@@ -289,7 +287,7 @@ func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, p
 // fetchBenchmarkData fetches cached benchmark prices, computes MWR, and
 // serializes chart data for the template. Also returns raw prices for
 // monthly return computation.
-func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters position.PerformanceFilters, portfolioDateFrom, portfolioDateTo time.Time, portfolioStartValue decimal.Decimal) (chartData string, mwrPct *decimal.Decimal, currency, warning string, prices []market.HistoricalPrice) {
+func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters position.PerformanceFilters, portfolioDateFrom, portfolioDateTo time.Time) (chartData string, mwrPct *decimal.Decimal, currency, warning string, prices []market.HistoricalPrice) {
 	dateFrom, dateTo := determineDateRange(filters)
 	if dateFrom.IsZero() {
 		dateFrom = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -303,7 +301,7 @@ func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker s
 		return "[]", nil, "", "failed to fetch benchmark data", nil
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo, portfolioStartValue)
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo)
 	return result.chartData, result.mwrPct, result.currency, result.warning, result.prices
 }
 
@@ -314,32 +312,15 @@ type benchmarkChartDataPoint struct {
 }
 
 // serializeBenchmarkChartData converts benchmark historical prices to JSON for ECharts.
-// If portfolioStartValue is positive, the benchmark is normalized so its first
-// point matches the portfolio's starting value on the right Y-axis.
-func serializeBenchmarkChartData(prices []market.HistoricalPrice, portfolioStartValue decimal.Decimal) string {
+func serializeBenchmarkChartData(prices []market.HistoricalPrice) string {
 	if len(prices) == 0 {
 		return "[]"
 	}
 	data := make([]benchmarkChartDataPoint, len(prices))
-
-	var basePrice, normBase decimal.Decimal
-	if portfolioStartValue.IsPos() {
-		basePrice = prices[0].Close
-		normBase = portfolioStartValue
-	}
-
 	for i, p := range prices {
-		var displayPrice decimal.Decimal
-		if basePrice.IsPos() {
-			ratio, _ := p.Close.Quo(basePrice)
-			displayPrice, _ = ratio.Mul(normBase)
-			displayPrice = displayPrice.Floor(2)
-		} else {
-			displayPrice = p.Close
-		}
 		data[i] = benchmarkChartDataPoint{
 			Date:  p.Date.Format("2006-01-02"),
-			Price: displayPrice.String(),
+			Price: p.Close.String(),
 		}
 	}
 	b, err := json.Marshal(data)
