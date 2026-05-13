@@ -37,6 +37,22 @@ func (m *mockFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[
 	return result
 }
 
+// benchPricesToday returns a slice of HistoricalPrice for all 5 predefined
+// benchmarks with today's date, so gap-fill sees current cache and skips.
+func benchPricesToday() map[string][]market.HistoricalPrice {
+	nowDate := time.Date(time.Now().UTC().Year(), time.Now().UTC().Month(), time.Now().UTC().Day(), 0, 0, 0, 0, time.UTC)
+	prices := []market.HistoricalPrice{
+		{Date: nowDate, Close: decimal.MustNew(500000, 2), Currency: "USD"},
+	}
+	return map[string][]market.HistoricalPrice{
+		"^GSPC":  prices,
+		"^IXIC":  prices,
+		"VWRP.L": prices,
+		"VUSA.L": prices,
+		"XNAQ.L": prices,
+	}
+}
+
 func (m *mockFetcher) FetchHistoricalPricesBatch(_ context.Context, symbols []string, start, end time.Time) (map[string][]market.HistoricalPrice, []string) {
 	m.mu.Lock()
 	m.fetchHistoricalCalls++
@@ -1087,5 +1103,95 @@ func TestRefreshAll_IncludesBenchmarks(t *testing.T) {
 	status := cache.GetStatus()
 	if status.Refreshing {
 		t.Error("expected Refreshing=false after RefreshAll completes")
+	}
+}
+
+func TestGapFillBenchmarks_CurrentCacheSkips(t *testing.T) {
+	now := time.Now().UTC()
+	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+	// Pre-seed the mock fetcher with benchmark data so gap-fill can fetch.
+	benchPrices := []market.HistoricalPrice{
+		{Date: nowDate, Close: decimal.MustNew(500000, 2), Currency: "USD"},
+	}
+	fetcher := &mockFetcher{
+		quotes: map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{
+			"^GSPC":  benchPrices,
+			"^IXIC":  benchPrices,
+			"VWRP.L": benchPrices,
+			"VUSA.L": benchPrices,
+			"XNAQ.L": benchPrices,
+		},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	// First gap-fill: no cache → fetches all 5 benchmarks.
+	cache.gapFillBenchmarks(ctx)
+
+	// Verify all 5 benchmarks were fetched and stored.
+	latestDates := repo.GetLatestPriceDatePerSymbol(ctx, []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"})
+	if len(latestDates) != 5 {
+		t.Fatalf("expected 5 benchmarks cached, got %d", len(latestDates))
+	}
+
+	callsAfterFirst := fetcher.HistoricalCalls()
+
+	// Second gap-fill: cache is current (today) → should skip all.
+	cache.gapFillBenchmarks(ctx)
+
+	callsAfterSecond := fetcher.HistoricalCalls()
+	if callsAfterSecond != callsAfterFirst {
+		t.Errorf("expected no additional fetch calls on second gap-fill, got %d (was %d, now %d)", callsAfterSecond-callsAfterFirst, callsAfterFirst, callsAfterSecond)
+	}
+}
+
+func TestGapFillBenchmarks_StaleCacheFetchesGap(t *testing.T) {
+	now := time.Now().UTC()
+	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	oldDate := nowDate.AddDate(0, 0, -30) // 30 days ago
+	newDate := nowDate.AddDate(0, 0, -1)  // yesterday
+
+	// Old benchmark data (30 days ago).
+	oldPrices := []market.HistoricalPrice{
+		{Date: oldDate, Close: decimal.MustNew(490000, 2), Currency: "USD"},
+	}
+	// New benchmark data (yesterday).
+	newPrices := []market.HistoricalPrice{
+		{Date: newDate, Close: decimal.MustNew(500000, 2), Currency: "USD"},
+	}
+
+	fetcher := &mockFetcher{
+		quotes: map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{
+			"^GSPC": newPrices,
+		},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	// Pre-seed repo with old data for ^GSPC so gap-fill detects it as stale.
+	repo.UpsertHistoricalPrices(ctx, "^GSPC", oldPrices, "stock")
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	// Gap-fill: ^GSPC is stale (30 days ago) → fetches gap.
+	// Other 4 benchmarks have no cache → fetches from 2000.
+	cache.gapFillBenchmarks(ctx)
+
+	// Verify ^GSPC has both old and new data.
+	gspcDates := repo.historicalPrices["^GSPC"]
+	if _, ok := gspcDates[oldDate.Format("2006-01-02")]; !ok {
+		t.Error("expected old ^GSPC date still in cache")
+	}
+	if _, ok := gspcDates[newDate.Format("2006-01-02")]; !ok {
+		t.Error("expected new ^GSPC date added to cache")
 	}
 }

@@ -141,11 +141,10 @@
 (function() {
     try {
     var rawData = JSON.parse('{{.ChartData}}');
-    var dates = [], values = [], deposits = [];
+    var portfolioData = [], depositData = [];
     for (var i = 0; i < rawData.length; i++) {
-        dates.push(rawData[i].date);
-        values.push(parseFloat(rawData[i].portfolio_value));
-        deposits.push(parseFloat(rawData[i].net_deposit));
+        portfolioData.push([rawData[i].date, parseFloat(rawData[i].portfolio_value)]);
+        depositData.push([rawData[i].date, parseFloat(rawData[i].net_deposit)]);
     }
 
     // Benchmark data (may be empty).
@@ -153,12 +152,11 @@
     {{if .BenchmarkChartData}}
     try { benchRaw = JSON.parse('{{.BenchmarkChartData}}'); } catch(e) { benchRaw = []; }
     {{end}}
-    var benchDates = [], benchPrices = [];
+    var benchData = [];
     for (var i = 0; i < benchRaw.length; i++) {
-        benchDates.push(benchRaw[i].date);
-        benchPrices.push(parseFloat(benchRaw[i].price));
+        benchData.push([benchRaw[i].date, parseFloat(benchRaw[i].price)]);
     }
-    var hasBenchmark = benchDates.length > 0;
+    var hasBenchmark = benchData.length > 0;
     var benchCurrency = '{{.BenchmarkCurrency}}';
 
     // Build legend and series dynamically.
@@ -167,7 +165,7 @@
         {
             name: 'Portfolio Value',
             type: 'line',
-            data: values,
+            data: portfolioData,
             smooth: false,
             symbol: 'none',
             lineStyle: { width: 2 }
@@ -175,7 +173,7 @@
         {
             name: 'Net Deposit',
             type: 'line',
-            data: deposits,
+            data: depositData,
             smooth: false,
             symbol: 'none',
             lineStyle: { width: 1, type: 'dashed' }
@@ -196,7 +194,7 @@
             type: 'line',
             xAxisIndex: 0,
             yAxisIndex: 1,
-            data: benchPrices,
+            data: benchData,
             smooth: false,
             symbol: 'none',
             lineStyle: { width: 2, type: 'dashed', color: '#888' }
@@ -208,10 +206,11 @@
         tooltip: {
             trigger: 'axis',
             formatter: function(params) {
-                var date = params[0].axisValue;
-                var html = '<strong>' + date + '</strong><br/>';
+                var date = new Date(params[0].axisValue);
+                var dateStr = date.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'});
+                var html = '<strong>' + dateStr + '</strong><br/>';
                 for (var i = 0; i < params.length; i++) {
-                    var val = params[i].value;
+                    var val = params[i].value[1];
                     var formatted = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     var currency = ' {{.Result.BaseCurrency}}';
                     if (params[i].seriesName !== 'Portfolio Value' && params[i].seriesName !== 'Net Deposit' && benchCurrency) {
@@ -234,8 +233,7 @@
             containLabel: true
         },
         xAxis: {
-            type: 'category',
-            data: dates,
+            type: 'time',
             axisLabel: {
                 rotate: 0,
                 interval: 'auto'

@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -1220,5 +1222,128 @@ func TestPerformanceTemplate_HeatmapEmptyData(t *testing.T) {
 	// Since Result is nil and Error is empty, shows "No performance data available".
 	if !strings.Contains(body, "No performance data available") {
 		t.Error("expected empty state message")
+	}
+}
+
+// --- computeBenchmarkResult tests ---
+
+func TestComputeBenchmarkResult_ChartCoversFullPeriod(t *testing.T) {
+	// Verify that chart data covers the full filter period (not truncated
+	// to the portfolio date range), while MWR uses the portfolio-aligned period.
+
+	// Portfolio dates: 2024-06-01 to 2024-12-31
+	portfolioFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	portfolioTo := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+
+	// Filter period: "All" → 2000-01-01 to now
+	dateFrom := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	dateTo := time.Now().UTC()
+
+	// Generate benchmark prices spanning 2000-now
+	var prices []market.HistoricalPrice
+	for d := time.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC); !d.After(dateTo); d = d.AddDate(0, 0, 1) {
+		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+			continue
+		}
+		// Price increases ~10% per year
+		years := d.Sub(time.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC)).Hours() / (365.25 * 24)
+		closeVal := 1000 * (1 + 0.10*years)
+		prices = append(prices, market.HistoricalPrice{
+			Date: d, Close: decimal.MustParse(fmt.Sprintf("%.2f", closeVal)), Currency: "USD",
+		})
+	}
+
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+
+	// Parse chart data JSON
+	var chartData []struct{ Date string }
+	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
+		t.Fatalf("failed to parse chart data: %v", err)
+	}
+
+	if len(chartData) == 0 {
+		t.Fatal("chart data should not be empty")
+	}
+
+	// First point should be near 2000-01-03 (first trading day after 2000-01-01)
+	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
+	if firstDate.Year() != 2000 {
+		t.Errorf("first chart point year: want 2000, got %d (date=%s)", firstDate.Year(), chartData[0].Date)
+	}
+
+	// Last point should be near now (2026), not near portfolio end (2024-12-31)
+	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
+	if lastDate.Year() < 2024 {
+		t.Errorf("last chart point year: want >= 2024, got %d (date=%s)", lastDate.Year(), chartData[len(chartData)-1].Date)
+	}
+
+	// MWR should be calculated over portfolio period (2024-06-01 to 2024-12-31)
+	if result.mwrPct == nil {
+		t.Error("MWR should not be nil")
+	}
+}
+
+func TestComputeBenchmarkResult_1YPeriod(t *testing.T) {
+	// Verify that chart data covers the full 1Y filter period,
+	// not truncated to portfolio dates.
+
+	now := time.Now().UTC()
+	dateFrom := now.AddDate(-1, 0, 0)
+	dateTo := now
+
+	// Portfolio dates: 2024-06-01 to 2024-12-31 (earlier than filter period)
+	portfolioFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	portfolioTo := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+
+	// Generate prices for 1Y period
+	var prices []market.HistoricalPrice
+	for d := dateFrom; !d.After(dateTo); d = d.AddDate(0, 0, 1) {
+		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+			continue
+		}
+		daysSinceStart := int(d.Sub(dateFrom).Hours() / 24)
+		closeVal := 5000.0 + float64(daysSinceStart)*2
+		prices = append(prices, market.HistoricalPrice{
+			Date: d, Close: decimal.MustParse(fmt.Sprintf("%.2f", closeVal)), Currency: "USD",
+		})
+	}
+
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+
+	var chartData []struct{ Date string }
+	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
+		t.Fatalf("failed to parse chart data: %v", err)
+	}
+
+	if len(chartData) == 0 {
+		t.Fatal("chart data should not be empty")
+	}
+
+	// First point should be near 1 year ago, not near portfolio start
+	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
+	firstDiff := int(firstDate.Sub(dateFrom).Hours() / 24)
+	if firstDiff < -3 || firstDiff > 3 {
+		t.Errorf("first chart point should be near dateFrom; got %s (diff=%d days)", chartData[0].Date, firstDiff)
+	}
+
+	// Last point should be near now, not near portfolio end
+	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
+	lastDiff := int(lastDate.Sub(dateTo).Hours() / 24)
+	if lastDiff < -3 || lastDiff > 3 {
+		t.Errorf("last chart point should be near dateTo; got %s (diff=%d days)", chartData[len(chartData)-1].Date, lastDiff)
+	}
+}
+
+func TestComputeBenchmarkResult_EmptyPrices(t *testing.T) {
+	result := computeBenchmarkResult(nil, time.Time{}, time.Time{}, time.Time{}, time.Time{})
+
+	if result.chartData != "[]" {
+		t.Errorf("expected empty chart data, got %s", result.chartData)
+	}
+	if result.warning == "" {
+		t.Error("expected warning for empty prices")
+	}
+	if result.prices != nil {
+		t.Error("expected nil prices")
 	}
 }
