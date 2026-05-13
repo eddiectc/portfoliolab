@@ -113,6 +113,12 @@ func (m *MarketCache) Start(ctx context.Context) {
 	m.wg.Add(2)
 	go m.backgroundWorker()
 	go m.periodicTicker()
+
+	// Fetch benchmark data on startup so it's available without
+	// requiring a manual "Refresh All" click.
+	go func() {
+		m.RefreshPredefinedBenchmarks(ctx)
+	}()
 }
 
 // Stop gracefully shuts down background goroutines.

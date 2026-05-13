@@ -297,10 +297,10 @@ func TestScheduleSymbolFetch_ConcurrentProtection(t *testing.T) {
 
 	waitBackground(t, 100*time.Millisecond)
 
-	// Only one fetch should have been processed.
+	// Only one scheduled fetch should have been processed (plus 5 benchmark fetches on startup).
 	calls := fetcher.HistoricalCalls()
-	if calls != 1 {
-		t.Errorf("expected 1 historical fetch call, got %d", calls)
+	if calls != 6 {
+		t.Errorf("expected 6 historical fetch calls (1 scheduled + 5 benchmarks), got %d", calls)
 	}
 }
 
@@ -408,8 +408,8 @@ func TestScheduleFxPairFetch_ConcurrentProtection(t *testing.T) {
 	waitBackground(t, 100*time.Millisecond)
 
 	calls := fetcher.HistoricalCalls()
-	if calls != 1 {
-		t.Errorf("expected 1 historical fetch call, got %d", calls)
+	if calls != 6 {
+		t.Errorf("expected 6 historical fetch calls (1 FX + 5 benchmarks), got %d", calls)
 	}
 }
 
@@ -634,10 +634,10 @@ func TestPeriodicTicker_EmptyPortfolio(t *testing.T) {
 	// Wait for a periodic tick.
 	waitBackground(t, 150*time.Millisecond)
 
-	// No fetches should have been made.
+	// Only benchmark fetches (5) should have been made.
 	calls := fetcher.HistoricalCalls()
-	if calls != 0 {
-		t.Errorf("expected 0 historical fetch calls for empty portfolio, got %d", calls)
+	if calls != 5 {
+		t.Errorf("expected 5 historical fetch calls (benchmarks only), got %d", calls)
 	}
 
 	status := cache.GetStatus()
@@ -866,10 +866,10 @@ func TestGapFill_FullCache_SkipsFetch(t *testing.T) {
 	// Wait for periodic tick.
 	waitBackground(t, 150*time.Millisecond)
 
-	// No historical fetches should have been made (cache is current).
+	// No gap-fill fetches (only 5 benchmark fetches on startup).
 	calls := fetcher.HistoricalCalls()
-	if calls != 0 {
-		t.Errorf("expected 0 historical fetch calls when cache is current, got %d", calls)
+	if calls != 5 {
+		t.Errorf("expected 5 historical fetch calls (benchmarks only), got %d", calls)
 	}
 }
 
