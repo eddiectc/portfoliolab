@@ -246,7 +246,7 @@ func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, p
 			clipped = append(clipped, p)
 		}
 	}
-	slog.Debug("benchmark clip", "total", len(prices), "clipped", len(clipped), "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"),
+	slog.Info("benchmark clip", "total", len(prices), "clipped", len(clipped), "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"),
 		"firstPrice", prices[0].Date.Format("2006-01-02"), "lastPrice", prices[len(prices)-1].Date.Format("2006-01-02"))
 	if len(clipped) == 0 {
 		return benchmarkResult{chartData: "[]", warning: "no benchmark data in selected period"}
@@ -269,7 +269,7 @@ func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, p
 
 	chartData := serializeBenchmarkChartData(prices)
 
-	slog.Debug("benchmark chart serialized", "points", len(prices), "firstDate", prices[0].Date.Format("2006-01-02"), "lastDate", prices[len(prices)-1].Date.Format("2006-01-02"))
+	slog.Info("benchmark chart serialized", "points", len(prices), "firstDate", prices[0].Date.Format("2006-01-02"), "lastDate", prices[len(prices)-1].Date.Format("2006-01-02"))
 
 	return benchmarkResult{
 		chartData: chartData,
@@ -291,7 +291,7 @@ func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker s
 		dateTo = time.Now().UTC()
 	}
 
-	slog.Debug("benchmark fetch", "ticker", ticker, "period", filters.Period, "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
+	slog.Info("benchmark fetch", "ticker", ticker, "period", filters.Period, "dateFrom", dateFrom.Format("2006-01-02"), "dateTo", dateTo.Format("2006-01-02"))
 
 	prices, err := h.marketService.GetHistoricalPrices(ctx, ticker, dateFrom, dateTo)
 	if err != nil {
