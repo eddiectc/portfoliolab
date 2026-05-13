@@ -193,7 +193,7 @@
             name: benchName,
             type: 'line',
             xAxisIndex: 0,
-            yAxisIndex: 0,
+            yAxisIndex: 1,
             data: benchData,
             smooth: false,
             symbol: 'none',
@@ -227,7 +227,7 @@
         },
         grid: {
             left: '3%',
-            right: '4%',
+            right: hasBenchmark ? '8%' : '4%',
             bottom: '12%',
             top: '8%',
             containLabel: true
@@ -243,6 +243,16 @@
             {
                 type: 'value',
                 name: 'Portfolio Value',
+                axisLabel: {
+                    formatter: function(value) {
+                        return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    }
+                }
+            },
+            {
+                type: 'value',
+                name: 'Benchmark (normalized)',
+                position: 'right',
                 axisLabel: {
                     formatter: function(value) {
                         return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});

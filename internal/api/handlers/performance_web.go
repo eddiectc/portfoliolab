@@ -233,7 +233,7 @@ type benchmarkResult struct {
 
 // computeBenchmarkResult computes chart data and MWR from benchmark prices.
 // Chart data is clipped to the portfolio date range and normalized so the
-// benchmark starts at the same Y-axis value as the portfolio for easy comparison.
+// benchmark starts at the same Y-axis value as the portfolio (right axis).
 func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo time.Time, portfolioStartValue decimal.Decimal) benchmarkResult {
 	if len(prices) == 0 {
 		return benchmarkResult{chartData: "[]", warning: "no cached data available for benchmark"}
@@ -315,14 +315,13 @@ type benchmarkChartDataPoint struct {
 
 // serializeBenchmarkChartData converts benchmark historical prices to JSON for ECharts.
 // If portfolioStartValue is positive, the benchmark is normalized so its first
-// point aligns with the portfolio's starting value on the Y-axis for easy comparison.
+// point matches the portfolio's starting value on the right Y-axis.
 func serializeBenchmarkChartData(prices []market.HistoricalPrice, portfolioStartValue decimal.Decimal) string {
 	if len(prices) == 0 {
 		return "[]"
 	}
 	data := make([]benchmarkChartDataPoint, len(prices))
 
-	// Normalize benchmark to start at portfolio's first value.
 	var basePrice, normBase decimal.Decimal
 	if portfolioStartValue.IsPos() {
 		basePrice = prices[0].Close
@@ -332,7 +331,6 @@ func serializeBenchmarkChartData(prices []market.HistoricalPrice, portfolioStart
 	for i, p := range prices {
 		var displayPrice decimal.Decimal
 		if basePrice.IsPos() {
-			// normalized = (price / firstPrice) * portfolioStartValue
 			ratio, _ := p.Close.Quo(basePrice)
 			displayPrice, _ = ratio.Mul(normBase)
 			displayPrice = displayPrice.Floor(2)
