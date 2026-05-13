@@ -220,7 +220,10 @@
         chart.setOption({
             tooltip: {
                 trigger: 'axis',
-                axisPointer: { type: 'cross' },
+                axisPointer: {
+                    type: 'cross',
+                    link: [{ xAxisIndex: 'all' }]
+                },
                 formatter: function(params) {
                     var date = new Date(params[0].axisValue);
                     var dateStr = date.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'});
