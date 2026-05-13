@@ -725,11 +725,11 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 	// Benchmark chart data present in script.
 	checkContains("benchmark chart data", `benchRaw`)
 
-	// Dual Y-axis indicators.
+	// Benchmark chart indicators.
 	checkContains("hasBenchmark check", "hasBenchmark")
-	checkContains("shared axis config", "yAxisIndex: 0")
 	checkContains("benchmark line style", `type: 'dashed'`)
-	checkContains("percentage mode", "usePercentage")
+	checkContains("percentage tooltip", "pctStr")
+	checkContains("return label", "'Return'")
 
 	// No warning shown.
 	checkNotContains("benchmark warning", "benchmark-warning")
