@@ -860,7 +860,7 @@ func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
 
 	body := w.Body.String()
 
-	// NASDAQ should be selected (data-url uses %5e for ^, value keeps ^ as-is).
+	// data-url attributes use %5e for ^ (URL-encoded in attribute values).
 	if !strings.Contains(body, `data-url="/performance?period=1Y&amp;benchmark=%5eIXIC"`) {
 		t.Error("expected NASDAQ benchmark URL in data-url attribute")
 	}
@@ -870,9 +870,17 @@ func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
 		t.Error("expected S&P 500 benchmark URL in data-url attribute")
 	}
 
-	// None option should clear benchmark.
+	// None option should have empty value (clears benchmark on form submit).
 	if !strings.Contains(body, `value=""`) {
 		t.Error("expected empty value for None option")
+	}
+
+	// Benchmark options use ticker as value (for form submit path), URL in data-url (for onchange).
+	if !strings.Contains(body, `value="^IXIC"`) {
+		t.Error("expected ticker value ^IXIC for NASDAQ option")
+	}
+	if !strings.Contains(body, `value="^GSPC"`) {
+		t.Error("expected ticker value ^GSPC for S&P 500 option")
 	}
 }
 
@@ -907,7 +915,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 			wantLen:       1,
 			wantFirstYear: 2024,
 			wantFirstMon:  1,
-			wantFirstRet:  "0", // same first and last → 0% (Round(2) on zero → "0")
+			wantFirstRet:  "", // single point → no return computable (need ≥ 2 points for TWR)
 			wantFirstDiff: "",
 		},
 		{
@@ -918,7 +926,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 				{Date: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				{Date: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10200000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 			},
-			wantLen:       2,
+			wantLen:       1, // 1 year row (2024), months are in the Months map
 			wantFirstYear: 2024,
 			wantFirstMon:  1,
 			wantFirstRet:  "5.00", // (10500000/10000000 - 1) * 100 = 5%
@@ -957,6 +965,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 			name: "benchmark only month (no portfolio data)",
 			curve: []position.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 			},
 			benchPrices: []market.HistoricalPrice{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(470000, 2), Currency: "USD"},
@@ -965,11 +974,50 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 				{Date: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(490000, 2), Currency: "USD"},
 			},
 			benchmark:     "^GSPC",
-			wantLen:       2, // Jan (portfolio data) + Feb (benchmark only)
+			wantLen:       1, // 1 year row (2024), Jan + Feb in Months map
 			wantFirstYear: 2024,
 			wantFirstMon:  1,
-			wantFirstRet:  "0", // same first and last → 0
+			wantFirstRet:  "0", // no change, no cash flow → 0%
 			wantFirstDiff: "-2.13", // bench 2.13%, portfolio 0, diff = -2.13
+		},
+		{
+			name: "multi-year — groups by year not month",
+			curve: []position.EquityCurvePoint{
+				// 2024: Jan, Feb, Mar
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10200000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10200000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 3, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				// 2025: Jan, Feb
+				{Date: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11200000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+			},
+			wantLen:       2, // 2 year rows (2024, 2025)
+			wantFirstYear: 2024,
+			wantFirstMon:  1,
+			wantFirstRet:  "5.00",
+			wantFirstDiff: "",
+		},
+		{
+			name: "mid-month deposit — TWR isolates cash flow",
+			curve: []position.EquityCurvePoint{
+				// Jan 1: start with 100k, ND=100k
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+				// Jan 15: deposited 100k more, PV jumped to 200k (no market gain yet), ND=200k
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(20000000, 2), NetDeposit: decimal.MustNew(20000000, 2)},
+				// Jan 31: both 100k positions gained 5% each → PV=210k, ND=200k
+				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(21000000, 2), NetDeposit: decimal.MustNew(20000000, 2)},
+			},
+			wantLen:       1,
+			wantFirstYear: 2024,
+			wantFirstMon:  1,
+			wantFirstRet:  "5.00", // TWR: sub-period1 (100→100)=0%, sub-period2 (100→105)=5% → linked=5%
+			// Simple return would be (210-100)/100 = 110% — wrong!
+			wantFirstDiff: "",
 		},
 	}
 
@@ -987,14 +1035,16 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 			if first.Year != tt.wantFirstYear {
 				t.Errorf("first row year = %d, want %d", first.Year, tt.wantFirstYear)
 			}
-			if first.Month != tt.wantFirstMon {
-				t.Errorf("first row month = %d, want %d", first.Month, tt.wantFirstMon)
+			cell, ok := first.Months[tt.wantFirstMon]
+			if !ok {
+				t.Errorf("month %d not found in first row", tt.wantFirstMon)
+				return
 			}
-			if first.PortfolioReturn != tt.wantFirstRet {
-				t.Errorf("first row portfolio return = %q, want %q", first.PortfolioReturn, tt.wantFirstRet)
+			if cell.PortfolioReturn != tt.wantFirstRet {
+				t.Errorf("first row portfolio return = %q, want %q", cell.PortfolioReturn, tt.wantFirstRet)
 			}
-			if first.Diff != tt.wantFirstDiff {
-				t.Errorf("first row diff = %q, want %q", first.Diff, tt.wantFirstDiff)
+			if cell.Diff != tt.wantFirstDiff {
+				t.Errorf("first row diff = %q, want %q", cell.Diff, tt.wantFirstDiff)
 			}
 		})
 	}
