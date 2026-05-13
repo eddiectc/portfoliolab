@@ -378,7 +378,7 @@ func TestSerializeBenchmarkChartData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := serializeBenchmarkChartData(tt.in, decimal.Decimal{})
+			got := serializeBenchmarkChartData(tt.in)
 			if got != tt.want {
 				t.Errorf("serializeBenchmarkChartData() = %q, want %q", got, tt.want)
 			}
@@ -683,7 +683,7 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 		SelectedBenchmark:  "^GSPC",
 		BenchmarkNames:     map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
 		BenchmarkTicker:    "^GSPC",
-		BenchmarkChartData: serializeBenchmarkChartData(benchPrices, decimal.Decimal{}),
+		BenchmarkChartData: serializeBenchmarkChartData(benchPrices),
 		BenchmarkMWRPct:    &benchMWR,
 		BenchmarkCurrency:  "USD",
 		BenchmarkWarning:   "",
@@ -1254,7 +1254,7 @@ func TestComputeBenchmarkResult_ChartClippedToPortfolioRange(t *testing.T) {
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo, decimal.MustParse("1000000.00"))
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
 
 	// Parse chart data JSON
 	var chartData []struct{ Date string; Price string }
@@ -1274,11 +1274,6 @@ func TestComputeBenchmarkResult_ChartClippedToPortfolioRange(t *testing.T) {
 	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
 	if lastDate.After(portfolioTo) {
 		t.Errorf("last chart point %s is after portfolio end %s", chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
-	}
-
-	// First price should be normalized to portfolio start value (1000000.00)
-	if chartData[0].Price != "1000000.00" {
-		t.Errorf("first price %s should be normalized to 1000000.00", chartData[0].Price)
 	}
 
 	// MWR should be calculated over portfolio period (2024-06-01 to 2024-12-31)
@@ -1311,7 +1306,7 @@ func TestComputeBenchmarkResult_1YPeriod(t *testing.T) {
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo, decimal.MustParse("500000.00"))
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
 
 	var chartData []struct{ Date string; Price string }
 	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
@@ -1332,14 +1327,10 @@ func TestComputeBenchmarkResult_1YPeriod(t *testing.T) {
 		t.Errorf("last chart point %s is after portfolio end %s", chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
 	}
 
-	// First price normalized to portfolio start
-	if chartData[0].Price != "500000.00" {
-		t.Errorf("first price %s should be 500000.00", chartData[0].Price)
-	}
 }
 
 func TestComputeBenchmarkResult_EmptyPrices(t *testing.T) {
-	result := computeBenchmarkResult(nil, time.Time{}, time.Time{}, time.Time{}, time.Time{}, decimal.Decimal{})
+	result := computeBenchmarkResult(nil, time.Time{}, time.Time{}, time.Time{}, time.Time{})
 
 	if result.chartData != "[]" {
 		t.Errorf("expected empty chart data, got %s", result.chartData)
@@ -1379,7 +1370,7 @@ func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo, decimal.MustParse("1000000.00"))
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
 
 	var chartData []struct{ Date string; Price string }
 	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
@@ -1403,8 +1394,4 @@ func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
 			chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
 	}
 
-	// First price normalized to portfolio start
-	if chartData[0].Price != "1000000.00" {
-		t.Errorf("first price %s should be 1000000.00", chartData[0].Price)
-	}
 }
