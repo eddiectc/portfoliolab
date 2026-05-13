@@ -573,3 +573,101 @@ func TestBenchmarkChartRespectsPeriod(t *testing.T) {
 	t.Logf("benchmark chart: %d points, first=%s, last=%s, 5Y cutoff=%s",
 		len(benchData), benchData[0].Date, benchData[len(benchData)-1].Date, fiveYearsAgo.Format("2006-01-02"))
 }
+
+// TestBenchmarkChartPeriodLongerThanPortfolio verifies that when the selected
+// period (e.g. 5Y) is longer than the portfolio's actual date range (e.g. 1Y),
+// the benchmark chart is clipped to the selected period, not extended to 2000.
+func TestBenchmarkChartPeriodLongerThanPortfolio(t *testing.T) {
+	db, router, portfolioID, _ := setupPerf(t, "USD", "USD")
+
+	// Portfolio only has 1 year of data (2025)
+	createTx(t, router, portfolioID, "2025-01-15", "buy", "USDSTK", "USD", 100, 10000, 1000000)
+
+	// Benchmark data spans 2000-now
+	var benchPrices []market.HistoricalPrice
+	for y := 2000; y <= 2026; y++ {
+		for m := 1; m <= 12; m++ {
+			d := time.Date(y, time.Month(m), 15, 0, 0, 0, 0, time.UTC)
+			if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+				continue
+			}
+			price := 1000 + (y-2000)*200
+			benchPrices = append(benchPrices, histPrice(d.Format("2006-01-02"), int64(price*100), "USD"))
+		}
+	}
+	insertMarketData(t, db,
+		map[string][]market.HistoricalPrice{
+			"USDSTK": {
+				histPrice("2025-01-15", 10000, "USD"),
+				histPrice("2025-12-31", 11000, "USD"),
+			},
+			"^GSPC": benchPrices,
+		},
+		map[string][]market.HistoricalPrice{},
+	)
+
+	// Test with "All" period — should show from 2000 (that's the filter)
+	req := httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=All&benchmark=^GSPC", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("performance All: %d %s", w.Code, w.Body.String())
+	}
+	benchData := extractBenchmarkData(t, w.Body.String())
+	if len(benchData) == 0 {
+		t.Fatal("benchmark chart data is empty for All period")
+	}
+	// "All" should include 2000 data
+	firstDate, _ := time.Parse("2006-01-02", benchData[0].Date)
+	if firstDate.Year() >= 2010 {
+		t.Errorf("All period: first point %s should be near 2000, got year %d", benchData[0].Date, firstDate.Year())
+	}
+	t.Logf("All period: %d points, first=%s", len(benchData), benchData[0].Date)
+
+	// Test with "1Y" period — should NOT show from 2000
+	req = httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=1Y&benchmark=^GSPC", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("performance 1Y: %d %s", w.Code, w.Body.String())
+	}
+	benchData = extractBenchmarkData(t, w.Body.String())
+	if len(benchData) == 0 {
+		t.Fatal("benchmark chart data is empty for 1Y period")
+	}
+	oneYearAgo := time.Now().UTC().AddDate(-1, 0, 0)
+	firstDate, _ = time.Parse("2006-01-02", benchData[0].Date)
+	if firstDate.Before(oneYearAgo) {
+		t.Errorf("1Y period: first point %s is before 1Y cutoff %s", benchData[0].Date, oneYearAgo.Format("2006-01-02"))
+	}
+	t.Logf("1Y period: %d points, first=%s, cutoff=%s", len(benchData), benchData[0].Date, oneYearAgo.Format("2006-01-02"))
+}
+
+func extractBenchmarkData(t *testing.T, body string) []struct {
+	Date  string
+	Price string
+} {
+	t.Helper()
+	const startMarker = "benchRaw = JSON.parse('"
+	startIdx := bytes.Index([]byte(body), []byte(startMarker))
+	if startIdx == -1 {
+		t.Fatal("could not find benchmark chart data in page")
+	}
+	jsonStart := startIdx + len(startMarker)
+	jsonEnd := bytes.IndexByte([]byte(body)[jsonStart:], 0x27)
+	if jsonEnd == -1 {
+		t.Fatal("could not find end of benchmark JSON")
+	}
+	benchmarkJSON := body[jsonStart : jsonStart+jsonEnd]
+	benchmarkJSON = strings.ReplaceAll(benchmarkJSON, `\u0022`, `"`)
+	benchmarkJSON = strings.ReplaceAll(benchmarkJSON, `\u0027`, `'`)
+
+	var benchData []struct {
+		Date  string
+		Price string
+	}
+	if err := json.Unmarshal([]byte(benchmarkJSON), &benchData); err != nil {
+		t.Fatalf("parse benchmark JSON: %v (json: %s)", err, benchmarkJSON[:min(200, len(benchmarkJSON))])
+	}
+	return benchData
+}
