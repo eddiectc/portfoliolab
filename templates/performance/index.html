@@ -139,6 +139,7 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <script>
 (function() {
+    try {
     var rawData = JSON.parse('{{.ChartData}}');
     var dates = [], values = [], deposits = [];
     for (var i = 0; i < rawData.length; i++) {
@@ -274,6 +275,10 @@
     }
 
     window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Chart init failed:', e);
+        document.getElementById('equity-chart').innerHTML = '<p style="color:#999;padding:2rem;text-align:center;">Chart failed to load: ' + e.message + '</p>';
+    }
 })();
 </script>
 
@@ -301,12 +306,16 @@
                 {{ $cellClass := getHeatClassAbsolute $cell.PortfolioReturn }}
                 <td class="{{$cellClass}}">{{$cell.PortfolioReturn}}%</td>
                 {{else if and $cell.PortfolioReturn $.SelectedBenchmark}}
-                {{/* Relative mode: color by diff */}}
+                {{/* Relative mode: portfolio return + alpha indicator, color by diff */}}
                 {{if $cell.Diff}}
                 {{ $cellClass := getHeatClassDiff $cell.Diff }}
-                <td class="{{$cellClass}}">{{$cell.PortfolioReturn}}%<br><small>{{$cell.Diff}}%</small></td>
+                {{ $arrow := "" }}
+                {{ $diffSign := "" }}
+                {{ if gt (getSign $cell.Diff) 0 }}{{ $arrow = "▲" }}{{ $diffSign = "+" }}{{ end }}
+                {{ if lt (getSign $cell.Diff) 0 }}{{ $arrow = "▼" }}{{ end }}
+                <td class="{{$cellClass}}"><span class="heat-main">{{$cell.PortfolioReturn}}%</span><br><small class="heat-alpha">{{$arrow}} {{$diffSign}}{{$cell.Diff}}%</small></td>
                 {{else}}
-                <td class="heat-empty">{{$cell.PortfolioReturn}}%</td>
+                <td class="heat-neutral"><span class="heat-main">{{$cell.PortfolioReturn}}%</span></td>
                 {{end}}
                 {{else if $cell.BenchmarkReturn}}
                 <td class="heat-empty">—</td>
@@ -323,9 +332,9 @@
     </table>
     <div class="heatmap-legend">
         {{if .SelectedBenchmark}}
-        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#28a745"></span> Outperformed</span>
-        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#0066cc"></span> Underperformed</span>
-        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#e8e8e8"></span> No data</span>
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#28a745"></span> Outperformed (▲)</span>
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#dc3545"></span> Underperformed (▼)</span>
+        <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#e8e8e8"></span> No data / Even</span>
         {{else}}
         <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#28a745"></span> Positive</span>
         <span class="heatmap-legend-item"><span class="heatmap-legend-swatch" style="background:#dc3545"></span> Negative</span>

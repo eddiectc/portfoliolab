@@ -1178,9 +1178,12 @@ func TestPerformanceTemplate_HeatmapWithBenchmark(t *testing.T) {
 	if !strings.Contains(body, "Underperformed") {
 		t.Error("expected 'Underperformed' in legend")
 	}
-	// Diff value shown in cells.
-	if !strings.Contains(body, "<small>") {
-		t.Error("expected diff value in <small> tag")
+	// Diff value shown in cells with alpha indicator.
+	if !strings.Contains(body, "heat-alpha") {
+		t.Error("expected heat-alpha class in benchmark comparison cells")
+	}
+	if !strings.Contains(body, "heat-main") {
+		t.Error("expected heat-main class in benchmark comparison cells")
 	}
 	// Relative coloring class.
 	if !strings.Contains(body, "heat-outperform") && !strings.Contains(body, "heat-underperform") && !strings.Contains(body, "heat-even") {

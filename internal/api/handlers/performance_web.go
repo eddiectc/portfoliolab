@@ -594,12 +594,10 @@ func computeMonthlyReturnsFromCurve(curve []position.EquityCurvePoint, benchPric
 		benchMonthly = comparison.ComputeMonthlyReturns(benchPrices)
 	}
 
-	// Collect all month keys from both sources.
+	// Only include months that have portfolio data.
+	// Benchmark-only months (before portfolio started) are excluded.
 	monthSet := make(map[string]bool)
 	for key := range portfolioMonths {
-		monthSet[key] = true
-	}
-	for key := range benchMonthly {
 		monthSet[key] = true
 	}
 
