@@ -378,7 +378,7 @@ func TestSerializeBenchmarkChartData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := serializeBenchmarkChartData(tt.in)
+			got := serializeBenchmarkChartData(tt.in, decimal.Decimal{})
 			if got != tt.want {
 				t.Errorf("serializeBenchmarkChartData() = %q, want %q", got, tt.want)
 			}
@@ -683,7 +683,7 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 		SelectedBenchmark:  "^GSPC",
 		BenchmarkNames:     map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
 		BenchmarkTicker:    "^GSPC",
-		BenchmarkChartData: serializeBenchmarkChartData(benchPrices),
+		BenchmarkChartData: serializeBenchmarkChartData(benchPrices, decimal.Decimal{}),
 		BenchmarkMWRPct:    &benchMWR,
 		BenchmarkCurrency:  "USD",
 		BenchmarkWarning:   "",
@@ -727,7 +727,7 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 
 	// Dual Y-axis indicators.
 	checkContains("hasBenchmark check", "hasBenchmark")
-	checkContains("right axis config", "yAxisIndex: 1")
+	checkContains("same axis config", "yAxisIndex: 0")
 	checkContains("benchmark line style", `type: 'dashed'`)
 
 	// No warning shown.
@@ -1227,10 +1227,10 @@ func TestPerformanceTemplate_HeatmapEmptyData(t *testing.T) {
 
 // --- computeBenchmarkResult tests ---
 
-func TestComputeBenchmarkResult_ChartRespectsFilterPeriod(t *testing.T) {
-	// Verify that chart data is clipped to the filter period (not truncated
-	// to portfolio dates, and not showing data outside the filter period).
-	// MWR uses the portfolio-aligned period.
+func TestComputeBenchmarkResult_ChartClippedToPortfolioRange(t *testing.T) {
+	// Verify that chart data is clipped to the portfolio date range so the
+	// benchmark aligns with the portfolio for easy comparison.
+	// MWR also uses the portfolio-aligned period.
 
 	// Portfolio dates: 2024-06-01 to 2024-12-31
 	portfolioFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -1254,10 +1254,10 @@ func TestComputeBenchmarkResult_ChartRespectsFilterPeriod(t *testing.T) {
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo, decimal.MustParse("1000000.00"))
 
 	// Parse chart data JSON
-	var chartData []struct{ Date string }
+	var chartData []struct{ Date string; Price string }
 	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
 		t.Fatalf("failed to parse chart data: %v", err)
 	}
@@ -1266,17 +1266,19 @@ func TestComputeBenchmarkResult_ChartRespectsFilterPeriod(t *testing.T) {
 		t.Fatal("chart data should not be empty")
 	}
 
-	// First point should be near 2000-01-03 (within the "All" filter period)
+	// Chart should be clipped to portfolio range
 	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
-	if firstDate.Before(dateFrom) {
-		t.Errorf("first chart point %s is before dateFrom %s", chartData[0].Date, dateFrom.Format("2006-01-02"))
+	if firstDate.Before(portfolioFrom) {
+		t.Errorf("first chart point %s is before portfolio start %s", chartData[0].Date, portfolioFrom.Format("2006-01-02"))
+	}
+	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
+	if lastDate.After(portfolioTo) {
+		t.Errorf("last chart point %s is after portfolio end %s", chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
 	}
 
-	// Last point should be near now, not truncated to portfolio end
-	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
-	if lastDate.Before(portfolioTo) {
-		t.Errorf("last chart point %s is before portfolio end %s (chart was truncated to portfolio dates)",
-			chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
+	// First price should be normalized to portfolio start value (1000000.00)
+	if chartData[0].Price != "1000000.00" {
+		t.Errorf("first price %s should be normalized to 1000000.00", chartData[0].Price)
 	}
 
 	// MWR should be calculated over portfolio period (2024-06-01 to 2024-12-31)
@@ -1286,18 +1288,17 @@ func TestComputeBenchmarkResult_ChartRespectsFilterPeriod(t *testing.T) {
 }
 
 func TestComputeBenchmarkResult_1YPeriod(t *testing.T) {
-	// Verify that chart data covers the full 1Y filter period,
-	// not truncated to portfolio dates.
+	// Verify that chart data is clipped to portfolio range even when
+	// the filter period (1Y) is wider than the portfolio dates.
 
-	now := time.Now().UTC()
-	dateFrom := now.AddDate(-1, 0, 0)
-	dateTo := now
+	dateFrom := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	dateTo := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
 
-	// Portfolio dates: 2024-06-01 to 2024-12-31 (earlier than filter period)
+	// Portfolio dates: 2024-06-01 to 2024-12-31 (within filter period)
 	portfolioFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
 	portfolioTo := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
 
-	// Generate prices for 1Y period
+	// Generate prices spanning the full filter period
 	var prices []market.HistoricalPrice
 	for d := dateFrom; !d.After(dateTo); d = d.AddDate(0, 0, 1) {
 		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
@@ -1310,9 +1311,9 @@ func TestComputeBenchmarkResult_1YPeriod(t *testing.T) {
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo, decimal.MustParse("500000.00"))
 
-	var chartData []struct{ Date string }
+	var chartData []struct{ Date string; Price string }
 	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
 		t.Fatalf("failed to parse chart data: %v", err)
 	}
@@ -1321,23 +1322,24 @@ func TestComputeBenchmarkResult_1YPeriod(t *testing.T) {
 		t.Fatal("chart data should not be empty")
 	}
 
-	// First point should be near 1 year ago, not near portfolio start
+	// Chart clipped to portfolio range
 	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
-	firstDiff := int(firstDate.Sub(dateFrom).Hours() / 24)
-	if firstDiff < -3 || firstDiff > 3 {
-		t.Errorf("first chart point should be near dateFrom; got %s (diff=%d days)", chartData[0].Date, firstDiff)
+	if firstDate.Before(portfolioFrom) {
+		t.Errorf("first chart point %s is before portfolio start %s", chartData[0].Date, portfolioFrom.Format("2006-01-02"))
+	}
+	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
+	if lastDate.After(portfolioTo) {
+		t.Errorf("last chart point %s is after portfolio end %s", chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
 	}
 
-	// Last point should be near now, not near portfolio end
-	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
-	lastDiff := int(lastDate.Sub(dateTo).Hours() / 24)
-	if lastDiff < -3 || lastDiff > 3 {
-		t.Errorf("last chart point should be near dateTo; got %s (diff=%d days)", chartData[len(chartData)-1].Date, lastDiff)
+	// First price normalized to portfolio start
+	if chartData[0].Price != "500000.00" {
+		t.Errorf("first price %s should be 500000.00", chartData[0].Price)
 	}
 }
 
 func TestComputeBenchmarkResult_EmptyPrices(t *testing.T) {
-	result := computeBenchmarkResult(nil, time.Time{}, time.Time{}, time.Time{}, time.Time{})
+	result := computeBenchmarkResult(nil, time.Time{}, time.Time{}, time.Time{}, time.Time{}, decimal.Decimal{})
 
 	if result.chartData != "[]" {
 		t.Errorf("expected empty chart data, got %s", result.chartData)
@@ -1377,9 +1379,9 @@ func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo, decimal.MustParse("1000000.00"))
 
-	var chartData []struct{ Date string }
+	var chartData []struct{ Date string; Price string }
 	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
 		t.Fatalf("failed to parse chart data: %v", err)
 	}
@@ -1388,17 +1390,21 @@ func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
 		t.Fatal("chart data should not be empty")
 	}
 
-	// First point should be >= dateFrom (2021-05-13), not 2000
+	// Chart clipped to portfolio range (2023-01-01 to now), not filter period (5Y)
 	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
-	if firstDate.Before(dateFrom) {
-		t.Errorf("first chart point %s is before dateFrom %s (chart shows data outside the 5Y period)",
-			chartData[0].Date, dateFrom.Format("2006-01-02"))
+	if firstDate.Before(portfolioFrom) {
+		t.Errorf("first chart point %s is before portfolio start %s",
+			chartData[0].Date, portfolioFrom.Format("2006-01-02"))
 	}
 
-	// Last point should be <= dateTo
 	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
-	if lastDate.After(dateTo) {
-		t.Errorf("last chart point %s is after dateTo %s",
-			chartData[len(chartData)-1].Date, dateTo.Format("2006-01-02"))
+	if lastDate.After(portfolioTo) {
+		t.Errorf("last chart point %s is after portfolio end %s",
+			chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
+	}
+
+	// First price normalized to portfolio start
+	if chartData[0].Price != "1000000.00" {
+		t.Errorf("first price %s should be 1000000.00", chartData[0].Price)
 	}
 }
