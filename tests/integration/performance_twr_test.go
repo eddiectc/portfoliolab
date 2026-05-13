@@ -576,11 +576,11 @@ func TestBenchmarkChartRespectsPeriod(t *testing.T) {
 
 // TestBenchmarkChartPeriodLongerThanPortfolio verifies that when the selected
 // period (e.g. 5Y) is longer than the portfolio's actual date range (e.g. 1Y),
-// the benchmark chart is clipped to the selected period, not extended to 2000.
+// the benchmark chart is clipped to the portfolio's date range for easy comparison.
 func TestBenchmarkChartPeriodLongerThanPortfolio(t *testing.T) {
 	db, router, portfolioID, _ := setupPerf(t, "USD", "USD")
 
-	// Portfolio only has 1 year of data (2025)
+	// Portfolio only has data from 2025-01-15
 	createTx(t, router, portfolioID, "2025-01-15", "buy", "USDSTK", "USD", 100, 10000, 1000000)
 
 	// Benchmark data spans 2000-now
@@ -606,25 +606,27 @@ func TestBenchmarkChartPeriodLongerThanPortfolio(t *testing.T) {
 		map[string][]market.HistoricalPrice{},
 	)
 
-	// Test with "All" period — should show from 2000 (that's the filter)
-	req := httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=All&benchmark=^GSPC", nil)
+	// 5Y period is longer than portfolio (started 2025-01-15).
+	// Benchmark should clip to portfolio start, not 5Y ago.
+	req := httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=5Y&benchmark=^GSPC", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
-		t.Fatalf("performance All: %d %s", w.Code, w.Body.String())
+		t.Fatalf("performance 5Y: %d %s", w.Code, w.Body.String())
 	}
 	benchData := extractBenchmarkData(t, w.Body.String())
 	if len(benchData) == 0 {
-		t.Fatal("benchmark chart data is empty for All period")
+		t.Fatal("benchmark chart data is empty for 5Y period")
 	}
-	// "All" should include 2000 data
 	firstDate, _ := time.Parse("2006-01-02", benchData[0].Date)
-	if firstDate.Year() >= 2010 {
-		t.Errorf("All period: first point %s should be near 2000, got year %d", benchData[0].Date, firstDate.Year())
+	// Portfolio started 2025-01-15, benchmark should start at or after that
+	portfolioStart, _ := time.Parse("2006-01-02", "2025-01-15")
+	if firstDate.Before(portfolioStart) {
+		t.Errorf("5Y period: benchmark first point %s is before portfolio start %s", benchData[0].Date, portfolioStart.Format("2006-01-02"))
 	}
-	t.Logf("All period: %d points, first=%s", len(benchData), benchData[0].Date)
+	t.Logf("5Y period: %d points, first=%s, portfolioStart=%s", len(benchData), benchData[0].Date, portfolioStart.Format("2006-01-02"))
 
-	// Test with "1Y" period — should NOT show from 2000
+	// 1Y period: portfolio (2025-01-15) is within 1Y, benchmark should still clip to portfolio start
 	req = httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=1Y&benchmark=^GSPC", nil)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -635,12 +637,28 @@ func TestBenchmarkChartPeriodLongerThanPortfolio(t *testing.T) {
 	if len(benchData) == 0 {
 		t.Fatal("benchmark chart data is empty for 1Y period")
 	}
-	oneYearAgo := time.Now().UTC().AddDate(-1, 0, 0)
 	firstDate, _ = time.Parse("2006-01-02", benchData[0].Date)
-	if firstDate.Before(oneYearAgo) {
-		t.Errorf("1Y period: first point %s is before 1Y cutoff %s", benchData[0].Date, oneYearAgo.Format("2006-01-02"))
+	if firstDate.Before(portfolioStart) {
+		t.Errorf("1Y period: benchmark first point %s is before portfolio start %s", benchData[0].Date, portfolioStart.Format("2006-01-02"))
 	}
-	t.Logf("1Y period: %d points, first=%s, cutoff=%s", len(benchData), benchData[0].Date, oneYearAgo.Format("2006-01-02"))
+	t.Logf("1Y period: %d points, first=%s, portfolioStart=%s", len(benchData), benchData[0].Date, portfolioStart.Format("2006-01-02"))
+
+	// "All" period: benchmark should still clip to portfolio start
+	req = httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=All&benchmark=^GSPC", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("performance All: %d %s", w.Code, w.Body.String())
+	}
+	benchData = extractBenchmarkData(t, w.Body.String())
+	if len(benchData) == 0 {
+		t.Fatal("benchmark chart data is empty for All period")
+	}
+	firstDate, _ = time.Parse("2006-01-02", benchData[0].Date)
+	if firstDate.Before(portfolioStart) {
+		t.Errorf("All period: benchmark first point %s is before portfolio start %s", benchData[0].Date, portfolioStart.Format("2006-01-02"))
+	}
+	t.Logf("All period: %d points, first=%s, portfolioStart=%s", len(benchData), benchData[0].Date, portfolioStart.Format("2006-01-02"))
 }
 
 // TestBenchmarkChartAllPeriods verifies that every period filter clips the
@@ -652,6 +670,7 @@ func TestBenchmarkChartAllPeriods(t *testing.T) {
 
 	// Portfolio has transactions from 2024
 	createTx(t, router, portfolioID, "2024-03-15", "buy", "USDSTK", "USD", 100, 10000, 1000000)
+	portfolioStart, _ := time.Parse("2006-01-02", "2024-03-15")
 
 	// Benchmark data spans 2000-2026 (simulating go-yfinance cache)
 	var benchPrices []market.HistoricalPrice
@@ -730,8 +749,9 @@ func TestBenchmarkChartAllPeriods(t *testing.T) {
 			t.Fatal("All: benchmark chart data is empty")
 		}
 		firstDate, _ := time.Parse("2006-01-02", benchData[0].Date)
-		if firstDate.Year() >= 2010 {
-			t.Errorf("All: first point %s should be near 2000, got year %d", benchData[0].Date, firstDate.Year())
+		// Even "All" clips to portfolio start for easy comparison
+		if firstDate.Before(portfolioStart) {
+			t.Errorf("All: first point %s is before portfolio start %s", benchData[0].Date, portfolioStart.Format("2006-01-02"))
 		}
 		t.Logf("All: %d points, first=%s", len(benchData), benchData[0].Date)
 	})
