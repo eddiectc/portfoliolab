@@ -39,5 +39,11 @@
 - **Root cause:** `RefreshPredefinedBenchmarks` was only called by `doRefreshAll`, which was only triggered by the manual "Refresh All" button. The periodic `doRefresh` cycle only handled portfolio symbols and FX pairs.
 - **Fix:** Added `go m.RefreshPredefinedBenchmarks(ctx)` in `MarketCache.Start()` so benchmarks are fetched in the background on server startup.
 
+### Heatmap UX improvements (2026-05-13)
+- **Cell display:** Two values in one cell (portfolio return + diff) was confusing. Changed to portfolio return as main value + `▲ +X%` / `▼ −X%` alpha indicator below.
+- **Color scale:** Underperform used blue (inconsistent with absolute mode's green/red). Changed to red.
+- **Empty cells:** Benchmark comparison showed empty cells for months before the portfolio existed (benchmark data goes back to 2000). Fixed to only include months with portfolio data.
+- **Chart error handling:** Added try-catch around chart JS init so errors show a message instead of silently disappearing.
+
 ## Known Issues
 - None.
