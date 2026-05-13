@@ -131,6 +131,16 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return "positive"
 		},
+		"getSign": func(s string) int {
+			// Returns 1 (positive), -1 (negative), or 0 (zero/empty) for a decimal string.
+			if s == "" || s == "0" || s == "0.00" {
+				return 0
+			}
+			if len(s) > 0 && s[0] == '-' {
+				return -1
+			}
+			return 1
+		},
 		"getHeatClassAbsolute": func(s string) string {
 			// Returns a CSS class for absolute return coloring.
 			// Positive ≥ 1% → heat-positive-strong, 0 < x < 1% → heat-positive

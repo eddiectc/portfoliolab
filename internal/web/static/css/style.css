@@ -1054,12 +1054,12 @@ legend {
 }
 
 .heat-underperform {
-    background: #cce5ff;
-    color: #004085;
+    background: #f8d7da;
+    color: #721c24;
 }
 
 .heat-underperform-strong {
-    background: #0066cc;
+    background: #dc3545;
     color: #fff;
 }
 
@@ -1071,6 +1071,15 @@ legend {
 .heat-empty {
     background: #f0f0f0;
     color: #bbb;
+}
+
+.heat-main {
+    font-weight: 600;
+}
+
+.heat-alpha {
+    opacity: 0.8;
+    margin-top: 2px;
 }
 
 .heatmap-legend {
