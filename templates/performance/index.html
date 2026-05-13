@@ -201,6 +201,30 @@
         });
     }
 
+    // Compute Y-axis ranges with ~10% padding so both axes show
+    // the same relative scale and starting points align visually.
+    var portfolioMin = Infinity, portfolioMax = -Infinity;
+    for (var i = 0; i < portfolioData.length; i++) {
+        if (portfolioData[i][1] < portfolioMin) portfolioMin = portfolioData[i][1];
+        if (portfolioData[i][1] > portfolioMax) portfolioMax = portfolioData[i][1];
+    }
+    var pPadding = (portfolioMax - portfolioMin) * 0.1;
+    portfolioMin = Math.max(0, portfolioMin - pPadding);
+    portfolioMax = portfolioMax + pPadding;
+
+    var benchMin = null, benchMax = null;
+    if (hasBenchmark) {
+        benchMin = Infinity;
+        benchMax = -Infinity;
+        for (var i = 0; i < benchData.length; i++) {
+            if (benchData[i][1] < benchMin) benchMin = benchData[i][1];
+            if (benchData[i][1] > benchMax) benchMax = benchData[i][1];
+        }
+        var bPadding = (benchMax - benchMin) * 0.1;
+        benchMin = Math.max(0, benchMin - bPadding);
+        benchMax = benchMax + bPadding;
+    }
+
     var chart = echarts.init(document.getElementById('equity-chart'));
     chart.setOption({
         tooltip: {
@@ -239,27 +263,34 @@
                 interval: 'auto'
             }
         },
-        yAxis: [
-            {
+        yAxis: (function() {
+            var axes = [{
                 type: 'value',
                 name: 'Portfolio Value',
+                min: portfolioMin,
+                max: portfolioMax,
                 axisLabel: {
                     formatter: function(value) {
                         return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
                     }
                 }
-            },
-            {
-                type: 'value',
-                name: 'Benchmark Price',
-                position: 'right',
-                axisLabel: {
-                    formatter: function(value) {
-                        return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            }];
+            if (hasBenchmark) {
+                axes.push({
+                    type: 'value',
+                    name: 'Benchmark Price',
+                    position: 'right',
+                    min: benchMin,
+                    max: benchMax,
+                    axisLabel: {
+                        formatter: function(value) {
+                            return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                        }
                     }
-                }
+                });
             }
-        ],
+            return axes;
+        })(),
         series: series
     });
 
