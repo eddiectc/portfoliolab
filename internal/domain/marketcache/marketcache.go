@@ -114,10 +114,10 @@ func (m *MarketCache) Start(ctx context.Context) {
 	go m.backgroundWorker()
 	go m.periodicTicker()
 
-	// Fetch benchmark data on startup so it's available without
-	// requiring a manual "Refresh All" click.
+	// Fetch benchmark data on startup (gap-fill only) so it's available
+	// without requiring a manual "Refresh All" click.
 	go func() {
-		m.RefreshPredefinedBenchmarks(ctx)
+		m.gapFillBenchmarks(ctx)
 	}()
 }
 
@@ -545,15 +545,13 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 }
 
 // RefreshPredefinedBenchmarks fetches historical prices for all predefined
-// benchmark tickers and upserts them into the cache. Benchmarks are treated
-// as regular stock symbols (data_type = 'stock').
+// benchmark tickers from 2000 to now. Used by RefreshAll (manual full refresh).
 func (m *MarketCache) RefreshPredefinedBenchmarks(ctx context.Context) {
 	predefined := comparison.GetPredefined()
 	if m.logger != nil {
-		m.logger.Info("refreshing predefined benchmarks", "count", len(predefined))
+		m.logger.Info("refreshing predefined benchmarks (full)", "count", len(predefined))
 	}
 
-	// Fetch from a date far enough back to cover any benchmark history.
 	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	now := time.Now().UTC()
 
@@ -571,6 +569,64 @@ func (m *MarketCache) RefreshPredefinedBenchmarks(ctx context.Context) {
 
 	if m.logger != nil {
 		m.logger.Info("benchmark refresh completed", "count", len(predefined))
+	}
+}
+
+// gapFillBenchmarks fetches missing or stale benchmark data only.
+// Used on startup to avoid fetching everything when cache is current.
+func (m *MarketCache) gapFillBenchmarks(ctx context.Context) {
+	predefined := comparison.GetPredefined()
+	if m.logger != nil {
+		m.logger.Info("gap-fill benchmarks", "count", len(predefined))
+	}
+
+	now := time.Now().UTC()
+	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// Check latest cached dates for all benchmarks.
+	tickers := make([]string, 0, len(predefined))
+	for ticker := range predefined {
+		tickers = append(tickers, ticker)
+	}
+	latestDates := m.repo.GetLatestPriceDatePerSymbol(ctx, tickers)
+
+	for ticker := range predefined {
+		latestDate, hasCache := latestDates[ticker]
+
+		var fetchStart time.Time
+		if !hasCache {
+			// No cache at all — fetch from 2000.
+			fetchStart = fromDate
+		} else if latestDate.Before(tradingDayBeforeOrOn(nowDate)) {
+			// Cache exists but not current — fetch gap.
+			fetchStart = nextTradingDay(*latestDate)
+		} else {
+			// Fully covered — skip.
+			if m.logger != nil {
+				m.logger.Debug("benchmark cache current, skipping", "ticker", ticker, "latestCached", latestDate.Format("2006-01-02"))
+			}
+			continue
+		}
+
+		// Skip if fetchStart is in the future.
+		if fetchStart.After(nowDate) {
+			continue
+		}
+
+		m.mu.Lock()
+		m.inProgress[ticker] = true
+		m.mu.Unlock()
+
+		m.fetchBenchmarkDirect(ctx, ticker, fetchStart, now)
+
+		m.mu.Lock()
+		delete(m.inProgress, ticker)
+		m.mu.Unlock()
+	}
+
+	if m.logger != nil {
+		m.logger.Info("benchmark gap-fill completed", "count", len(predefined))
 	}
 }
 
