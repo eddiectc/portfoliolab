@@ -230,12 +230,25 @@ type benchmarkResult struct {
 }
 
 // computeBenchmarkResult computes chart data and MWR from benchmark prices.
-// Chart data covers the full filter period; MWR is aligned to the portfolio
+// Chart data is clipped to the filter period; MWR is aligned to the portfolio
 // date range for comparability.
 func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo time.Time) benchmarkResult {
 	if len(prices) == 0 {
 		return benchmarkResult{chartData: "[]", warning: "no cached data available for benchmark"}
 	}
+
+	// Clip prices to the filter period so the chart doesn't show data
+	// outside the selected range (e.g., "5Y" shouldn't show from 2000).
+	var clipped []market.HistoricalPrice
+	for _, p := range prices {
+		if !p.Date.Before(dateFrom) && !p.Date.After(dateTo) {
+			clipped = append(clipped, p)
+		}
+	}
+	if len(clipped) == 0 {
+		return benchmarkResult{chartData: "[]", warning: "no benchmark data in selected period"}
+	}
+	prices = clipped
 
 	currency := prices[0].Currency
 

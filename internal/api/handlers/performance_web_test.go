@@ -1227,9 +1227,10 @@ func TestPerformanceTemplate_HeatmapEmptyData(t *testing.T) {
 
 // --- computeBenchmarkResult tests ---
 
-func TestComputeBenchmarkResult_ChartCoversFullPeriod(t *testing.T) {
-	// Verify that chart data covers the full filter period (not truncated
-	// to the portfolio date range), while MWR uses the portfolio-aligned period.
+func TestComputeBenchmarkResult_ChartRespectsFilterPeriod(t *testing.T) {
+	// Verify that chart data is clipped to the filter period (not truncated
+	// to portfolio dates, and not showing data outside the filter period).
+	// MWR uses the portfolio-aligned period.
 
 	// Portfolio dates: 2024-06-01 to 2024-12-31
 	portfolioFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -1265,16 +1266,17 @@ func TestComputeBenchmarkResult_ChartCoversFullPeriod(t *testing.T) {
 		t.Fatal("chart data should not be empty")
 	}
 
-	// First point should be near 2000-01-03 (first trading day after 2000-01-01)
+	// First point should be near 2000-01-03 (within the "All" filter period)
 	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
-	if firstDate.Year() != 2000 {
-		t.Errorf("first chart point year: want 2000, got %d (date=%s)", firstDate.Year(), chartData[0].Date)
+	if firstDate.Before(dateFrom) {
+		t.Errorf("first chart point %s is before dateFrom %s", chartData[0].Date, dateFrom.Format("2006-01-02"))
 	}
 
-	// Last point should be near now (2026), not near portfolio end (2024-12-31)
+	// Last point should be near now, not truncated to portfolio end
 	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
-	if lastDate.Year() < 2024 {
-		t.Errorf("last chart point year: want >= 2024, got %d (date=%s)", lastDate.Year(), chartData[len(chartData)-1].Date)
+	if lastDate.Before(portfolioTo) {
+		t.Errorf("last chart point %s is before portfolio end %s (chart was truncated to portfolio dates)",
+			chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
 	}
 
 	// MWR should be calculated over portfolio period (2024-06-01 to 2024-12-31)
@@ -1345,5 +1347,58 @@ func TestComputeBenchmarkResult_EmptyPrices(t *testing.T) {
 	}
 	if result.prices != nil {
 		t.Error("expected nil prices")
+	}
+}
+
+func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
+	// Verify that chart data is clipped to the filter period, not
+	// showing prices outside the selected range.
+	// This is the bug: when period is "5Y" but prices span 2000-now,
+	// the chart should only show the 5Y window.
+
+	now := time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC)
+	dateFrom := now.AddDate(-5, 0, 0) // 2021-05-13
+	dateTo := now
+
+	// Portfolio dates within the 5Y window
+	portfolioFrom := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	portfolioTo := now
+
+	// Generate prices spanning 2000-now (wider than the 5Y filter)
+	var prices []market.HistoricalPrice
+	for d := time.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC); !d.After(now); d = d.AddDate(0, 0, 1) {
+		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+			continue
+		}
+		years := d.Sub(time.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC)).Hours() / (365.25 * 24)
+		closeVal := 1000 * (1 + 0.10*years)
+		prices = append(prices, market.HistoricalPrice{
+			Date: d, Close: decimal.MustParse(fmt.Sprintf("%.2f", closeVal)), Currency: "USD",
+		})
+	}
+
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+
+	var chartData []struct{ Date string }
+	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
+		t.Fatalf("failed to parse chart data: %v", err)
+	}
+
+	if len(chartData) == 0 {
+		t.Fatal("chart data should not be empty")
+	}
+
+	// First point should be >= dateFrom (2021-05-13), not 2000
+	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
+	if firstDate.Before(dateFrom) {
+		t.Errorf("first chart point %s is before dateFrom %s (chart shows data outside the 5Y period)",
+			chartData[0].Date, dateFrom.Format("2006-01-02"))
+	}
+
+	// Last point should be <= dateTo
+	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
+	if lastDate.After(dateTo) {
+		t.Errorf("last chart point %s is after dateTo %s",
+			chartData[len(chartData)-1].Date, dateTo.Format("2006-01-02"))
 	}
 }
