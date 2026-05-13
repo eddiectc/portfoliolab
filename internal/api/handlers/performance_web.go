@@ -176,7 +176,13 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 	var benchmarkCurrency, benchmarkWarning string
 	var benchmarkPrices []market.HistoricalPrice
 	if benchmark != "" && h.marketService != nil {
-		benchmarkChartData, benchmarkMWRPct, benchmarkCurrency, benchmarkWarning, benchmarkPrices = h.fetchBenchmarkData(r.Context(), benchmark, filters)
+		// Determine portfolio date range from equity curve for MWR alignment.
+		var portfolioDateFrom, portfolioDateTo time.Time
+		if len(result.EquityCurve) > 0 {
+			portfolioDateFrom = result.EquityCurve[0].Date
+			portfolioDateTo = result.EquityCurve[len(result.EquityCurve)-1].Date
+		}
+		benchmarkChartData, benchmarkMWRPct, benchmarkCurrency, benchmarkWarning, benchmarkPrices = h.fetchBenchmarkData(r.Context(), benchmark, filters, portfolioDateFrom, portfolioDateTo)
 	}
 
 	// Compute monthly returns for heatmap.
@@ -217,7 +223,7 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 // fetchBenchmarkData fetches cached benchmark prices, computes MWR, and
 // serializes chart data for the template. Also returns raw prices for
 // monthly return computation.
-func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters position.PerformanceFilters) (chartData string, mwrPct *decimal.Decimal, currency, warning string, prices []market.HistoricalPrice) {
+func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters position.PerformanceFilters, portfolioDateFrom, portfolioDateTo time.Time) (chartData string, mwrPct *decimal.Decimal, currency, warning string, prices []market.HistoricalPrice) {
 	dateFrom, dateTo := determineDateRange(filters)
 	if dateFrom.IsZero() {
 		dateFrom = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -237,7 +243,17 @@ func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker s
 
 	currency = prices[0].Currency
 
-	mwrPct = comparison.ComputeMWRForPeriod(prices, dateFrom, dateTo)
+	// Align MWR period with the portfolio's actual date range so the
+	// figure is comparable. Chart data still covers the full filter period.
+	mwrFrom := dateFrom
+	mwrTo := dateTo
+	if !portfolioDateFrom.IsZero() && portfolioDateFrom.After(mwrFrom) {
+		mwrFrom = portfolioDateFrom
+	}
+	if !portfolioDateTo.IsZero() && portfolioDateTo.Before(mwrTo) {
+		mwrTo = portfolioDateTo
+	}
+	mwrPct = comparison.ComputeMWRForPeriod(prices, mwrFrom, mwrTo)
 
 	chartData = serializeBenchmarkChartData(prices)
 
