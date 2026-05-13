@@ -727,8 +727,9 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 
 	// Dual Y-axis indicators.
 	checkContains("hasBenchmark check", "hasBenchmark")
-	checkContains("right axis config", "yAxisIndex: 1")
+	checkContains("shared axis config", "yAxisIndex: 0")
 	checkContains("benchmark line style", `type: 'dashed'`)
+	checkContains("percentage mode", "usePercentage")
 
 	// No warning shown.
 	checkNotContains("benchmark warning", "benchmark-warning")
