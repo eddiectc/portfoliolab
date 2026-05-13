@@ -335,6 +335,7 @@ func serializeBenchmarkChartData(prices []market.HistoricalPrice, portfolioStart
 			// normalized = (price / firstPrice) * portfolioStartValue
 			ratio, _ := p.Close.Quo(basePrice)
 			displayPrice, _ = ratio.Mul(normBase)
+			displayPrice = displayPrice.Floor(2)
 		} else {
 			displayPrice = p.Close
 		}
