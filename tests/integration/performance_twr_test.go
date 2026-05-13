@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -473,4 +474,102 @@ func TestPerformance_TWR_MultiCurrencyCashAndStock(t *testing.T) {
 		t.Fatal("equity curve is empty")
 	}
 	t.Logf("TWR=%s%%, points=%d", result.ReturnMetrics.TWRPct.String(), len(result.EquityCurve))
+}
+
+// TestBenchmarkChartRespectsPeriod verifies that the benchmark chart data
+// in the web response is clipped to the selected period, not showing data
+// from before the period start (e.g., "5Y" shouldn't show from 2000).
+func TestBenchmarkChartRespectsPeriod(t *testing.T) {
+	db, router, portfolioID, _ := setupPerf(t, "USD", "USD")
+
+	// Create a buy transaction in 2024 (within the 5Y window)
+	createTx(t, router, portfolioID, "2024-06-15", "buy", "USDSTK", "USD", 100, 10000, 1000000)
+
+	// Insert benchmark data spanning 2000-now (wider than 5Y)
+	var benchPrices []market.HistoricalPrice
+	for y := 2000; y <= 2026; y++ {
+		for m := 1; m <= 12; m++ {
+			d := time.Date(y, time.Month(m), 15, 0, 0, 0, 0, time.UTC)
+			if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+				continue
+			}
+			price := 1000 + (y-2000)*200 // increases over time
+			benchPrices = append(benchPrices, histPrice(d.Format("2006-01-02"), int64(price*100), "USD"))
+		}
+	}
+	insertMarketData(t, db,
+		map[string][]market.HistoricalPrice{
+			"USDSTK": {
+				histPrice("2024-06-15", 10000, "USD"),
+				histPrice("2024-12-31", 11000, "USD"),
+			},
+			"^GSPC": benchPrices,
+		},
+		map[string][]market.HistoricalPrice{},
+	)
+
+	// Hit /performance with period=5Y and benchmark
+	req := httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=5Y&benchmark=^GSPC", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("performance page: %d %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+
+	// Extract benchmark chart data from the page (it's embedded as JSON in a script tag)
+	// Look for benchRaw = JSON.parse('...') pattern
+	const startMarker = "benchRaw = JSON.parse('"
+	startIdx := bytes.Index([]byte(body), []byte(startMarker))
+	if startIdx == -1 {
+		t.Fatal("could not find benchmark chart data in page")
+	}
+
+	// Find the closing single-quote
+	jsonStart := startIdx + len(startMarker)
+	jsonEnd := bytes.IndexByte([]byte(body)[jsonStart:], 0x27)
+	if jsonEnd == -1 {
+		t.Fatal("could not find end of benchmark JSON")
+	}
+	benchmarkJSON := body[jsonStart : jsonStart+jsonEnd]
+
+	// Template escapes JSON for HTML embedding (e.g., \u0022 for "), unescape it
+	benchmarkJSON = strings.ReplaceAll(benchmarkJSON, `\u0022`, `"`)
+	benchmarkJSON = strings.ReplaceAll(benchmarkJSON, `\u0027`, `'`)
+
+	// Parse and check dates
+	var benchData []struct{ Date string }
+	if err := json.Unmarshal([]byte(benchmarkJSON), &benchData); err != nil {
+		t.Fatalf("parse benchmark JSON: %v (json: %s)", err, benchmarkJSON[:min(200, len(benchmarkJSON))])
+	}
+
+	if len(benchData) == 0 {
+		t.Fatal("benchmark chart data is empty")
+	}
+
+	// 5Y from now (2026) should start around 2021
+	fiveYearsAgo := time.Now().UTC().AddDate(-5, 0, 0)
+
+	// First point should be >= 5 years ago
+	firstDate, err := time.Parse("2006-01-02", benchData[0].Date)
+	if err != nil {
+		t.Fatalf("parse first date %s: %v", benchData[0].Date, err)
+	}
+	if firstDate.Before(fiveYearsAgo) {
+		t.Errorf("benchmark chart starts at %s which is before 5Y cutoff %s (chart shows data outside selected period)",
+			benchData[0].Date, fiveYearsAgo.Format("2006-01-02"))
+	}
+
+	// Last point should be <= now
+	lastDate, err := time.Parse("2006-01-02", benchData[len(benchData)-1].Date)
+	if err != nil {
+		t.Fatalf("parse last date %s: %v", benchData[len(benchData)-1].Date, err)
+	}
+	if lastDate.After(time.Now().UTC()) {
+		t.Errorf("benchmark chart ends at %s which is after now", benchData[len(benchData)-1].Date)
+	}
+
+	t.Logf("benchmark chart: %d points, first=%s, last=%s, 5Y cutoff=%s",
+		len(benchData), benchData[0].Date, benchData[len(benchData)-1].Date, fiveYearsAgo.Format("2006-01-02"))
 }
