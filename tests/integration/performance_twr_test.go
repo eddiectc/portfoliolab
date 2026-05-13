@@ -643,6 +643,100 @@ func TestBenchmarkChartPeriodLongerThanPortfolio(t *testing.T) {
 	t.Logf("1Y period: %d points, first=%s, cutoff=%s", len(benchData), benchData[0].Date, oneYearAgo.Format("2006-01-02"))
 }
 
+// TestBenchmarkChartAllPeriods verifies that every period filter clips the
+// benchmark chart correctly, regardless of how much data is in the DB.
+// This is the exact scenario the user reports: DB has data from 2000,
+// but the chart should respect the selected period.
+func TestBenchmarkChartAllPeriods(t *testing.T) {
+	db, router, portfolioID, _ := setupPerf(t, "USD", "USD")
+
+	// Portfolio has transactions from 2024
+	createTx(t, router, portfolioID, "2024-03-15", "buy", "USDSTK", "USD", 100, 10000, 1000000)
+
+	// Benchmark data spans 2000-2026 (simulating go-yfinance cache)
+	var benchPrices []market.HistoricalPrice
+	for y := 2000; y <= 2026; y++ {
+		for m := 1; m <= 12; m++ {
+			d := time.Date(y, time.Month(m), 15, 0, 0, 0, 0, time.UTC)
+			if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+				continue
+			}
+			price := 1000 + (y-2000)*200
+			benchPrices = append(benchPrices, histPrice(d.Format("2006-01-02"), int64(price*100), "USD"))
+		}
+	}
+	insertMarketData(t, db,
+		map[string][]market.HistoricalPrice{
+			"USDSTK": {
+				histPrice("2024-03-15", 10000, "USD"),
+				histPrice("2026-05-13", 11000, "USD"),
+			},
+			"^GSPC": benchPrices,
+		},
+		map[string][]market.HistoricalPrice{},
+	)
+
+	now := time.Now().UTC()
+	periods := []struct {
+		name      string
+		expectMin time.Time
+		expectMax time.Time
+	}{
+		{"1M", now.AddDate(0, -1, 0), now},
+		{"3M", now.AddDate(0, -3, 0), now},
+		{"1Y", now.AddDate(-1, 0, 0), now},
+		{"3Y", now.AddDate(-3, 0, 0), now},
+		{"5Y", now.AddDate(-5, 0, 0), now},
+		{"YTD", time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), now},
+	}
+
+	for _, tc := range periods {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period="+tc.name+"&benchmark=^GSPC", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if w.Code != http.StatusOK {
+				t.Fatalf("%s: %d", tc.name, w.Code)
+			}
+			benchData := extractBenchmarkData(t, w.Body.String())
+			if len(benchData) == 0 {
+				t.Fatalf("%s: benchmark chart data is empty", tc.name)
+			}
+			firstDate, _ := time.Parse("2006-01-02", benchData[0].Date)
+			lastDate, _ := time.Parse("2006-01-02", benchData[len(benchData)-1].Date)
+
+			// Allow 1-day tolerance for data granularity (monthly data)
+			tolerance := 2 * time.Hour
+			if firstDate.Before(tc.expectMin.Add(-tolerance)) {
+				t.Errorf("%s: first point %s is before expected min %s", tc.name, benchData[0].Date, tc.expectMin.Format("2006-01-02"))
+			}
+			if lastDate.After(tc.expectMax.Add(tolerance)) {
+				t.Errorf("%s: last point %s is after expected max %s", tc.name, benchData[len(benchData)-1].Date, tc.expectMax.Format("2006-01-02"))
+			}
+			t.Logf("%s: %d points, first=%s, last=%s, expectedMin=%s", tc.name, len(benchData), benchData[0].Date, benchData[len(benchData)-1].Date, tc.expectMin.Format("2006-01-02"))
+		})
+	}
+
+	// "All" period should show from ~2000
+	t.Run("All", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID)+"&period=All&benchmark=^GSPC", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("All: %d", w.Code)
+		}
+		benchData := extractBenchmarkData(t, w.Body.String())
+		if len(benchData) == 0 {
+			t.Fatal("All: benchmark chart data is empty")
+		}
+		firstDate, _ := time.Parse("2006-01-02", benchData[0].Date)
+		if firstDate.Year() >= 2010 {
+			t.Errorf("All: first point %s should be near 2000, got year %d", benchData[0].Date, firstDate.Year())
+		}
+		t.Logf("All: %d points, first=%s", len(benchData), benchData[0].Date)
+	})
+}
+
 func extractBenchmarkData(t *testing.T, body string) []struct {
 	Date  string
 	Price string
