@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -667,14 +668,7 @@ func computeMonthlyReturnsFromCurve(curve []position.EquityCurvePoint, benchPric
 	for key := range monthSet {
 		months = append(months, key)
 	}
-	// Simple sort: YYYY-MM strings sort lexicographically.
-	for i := 0; i < len(months); i++ {
-		for j := i + 1; j < len(months); j++ {
-			if months[i] > months[j] {
-				months[i], months[j] = months[j], months[i]
-			}
-		}
-	}
+	sort.Strings(months)
 
 	// Group month data by year.
 	type monthCell struct {
@@ -722,13 +716,7 @@ func computeMonthlyReturnsFromCurve(curve []position.EquityCurvePoint, benchPric
 	for y := range yearMonths {
 		years = append(years, y)
 	}
-	for i := 0; i < len(years); i++ {
-		for j := i + 1; j < len(years); j++ {
-			if years[i] > years[j] {
-				years[i], years[j] = years[j], years[i]
-			}
-		}
-	}
+	sort.Ints(years)
 
 	result := make([]yearReturnData, 0, len(years))
 	for _, year := range years {
