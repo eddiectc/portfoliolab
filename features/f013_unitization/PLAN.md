@@ -51,7 +51,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
 
 ### Phase 1: Domain — Unitization core
 
-- [ ] **Task 1.1**: Create `internal/domain/position/unitization.go` with `NavPoint` type and `ComputeNavHistory` pure function
+- [x] **Task 1.1**: Create `internal/domain/position/unitization.go` with `NavPoint` type and `ComputeNavHistory` pure function
   - `NavPoint`: `Date`, `NavPerUnit`, `Units`, `PortfolioValue`
   - `ComputeNavHistory(snapshots, breakpoints, firstDepositIdx) → []NavPoint`
   - Fixed initial units = 10000
