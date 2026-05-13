@@ -26,13 +26,17 @@ type cacheStatusProvider interface {
 	RefreshAll(ctx context.Context)
 }
 
-// monthlyReturnData holds one row for the monthly return heatmap.
-type monthlyReturnData struct {
-	Year            int
-	Month           int
+// monthCellData holds the data for a single month cell in the heatmap.
+type monthCellData struct {
 	PortfolioReturn string
 	BenchmarkReturn string
 	Diff            string
+}
+
+// yearReturnData holds one row (one year) for the monthly return heatmap.
+type yearReturnData struct {
+	Year   int
+	Months map[int]monthCellData // month number (1-12) -> cell data
 }
 
 // performancePageData is the data struct for the performance page template.
@@ -63,7 +67,7 @@ type performancePageData struct {
 	BenchmarkCurrency   string
 	BenchmarkWarning    string
 	BenchmarkURLs       map[string]string // option label -> full URL
-	MonthlyReturns      []monthlyReturnData
+	MonthlyReturns      []yearReturnData
 }
 
 // PerformanceWebHandler handles server-rendered performance pages.
@@ -472,34 +476,116 @@ func buildBenchmarkURLs(selectedBenchmark, portfolioID, period string) map[strin
 	return urls
 }
 
-// computeMonthlyReturnsFromCurve computes monthly returns for the portfolio
-// equity curve and optionally for the benchmark. Produces monthlyReturnData
-// rows for the heatmap template.
+// computeMonthlyTWR computes the Time-Weighted Return for a single month
+// from its equity curve points. It detects cash flow dates by finding
+// changes in NetDeposit between consecutive points, computes the pre-cash-flow
+// portfolio value (PV - incremental_net_deposit), and geometrically links
+// sub-period returns.
 //
-// Portfolio monthly return: (end_value / start_value - 1) * 100 for each month.
+// Sub-periods: start → pre-CF[0], post-CF[0] → pre-CF[1], ..., post-CF[n] → end.
+// The post-CF value on a cash flow date is the PortfolioValue from the equity
+// curve (which includes the cash flow). The pre-CF value is PV - delta_ND.
+//
+// Returns nil if the month has fewer than 2 points or the start value is
+// non-positive.
+func computeMonthlyTWR(points []position.EquityCurvePoint) *decimal.Decimal {
+	if len(points) < 2 {
+		return nil
+	}
+
+	startPV := points[0].PortfolioValue
+	if !startPV.IsPos() {
+		return nil
+	}
+
+	startPVF, _ := startPV.Float64()
+	endPVF, _ := points[len(points)-1].PortfolioValue.Float64()
+
+	// Detect cash flow indices: points where NetDeposit changed from previous.
+	var cfIndices []int
+	prevND, _ := points[0].NetDeposit.Float64()
+	for i := 1; i < len(points); i++ {
+		nd, _ := points[i].NetDeposit.Float64()
+		if nd != prevND {
+			cfIndices = append(cfIndices, i)
+			prevND = nd
+		}
+	}
+
+	// No cash flows: simple return.
+	if len(cfIndices) == 0 {
+		if startPVF <= 0 {
+			return nil
+		}
+		ratio := endPVF / startPVF
+		retPct, _ := decimal.NewFromFloat64((ratio - 1.0) * 100.0)
+		result := retPct.Round(2)
+		return &result
+	}
+
+	// Geometrically link sub-period return ratios.
+	var product float64 = 1.0
+
+	// Previous "from" value for sub-period computation.
+	// Initially the start of the month.
+	var fromVal float64 = startPVF
+
+	for _, cfIdx := range cfIndices {
+		// Pre-cash-flow PV: PV_on_day - incremental_net_deposit.
+		// incremental_ND = ND[cfIdx] - ND[cfIdx-1]
+		// pre_CF_PV = PV[cfIdx] - (ND[cfIdx] - ND[cfIdx-1])
+		cfPV, _ := points[cfIdx].PortfolioValue.Float64()
+		cfND, _ := points[cfIdx].NetDeposit.Float64()
+		var prevCFND float64
+		if cfIdx > 0 {
+			prevCFND, _ = points[cfIdx-1].NetDeposit.Float64()
+		}
+		incrementalND := cfND - prevCFND
+		preCFPV := cfPV - incrementalND
+
+		// Sub-period return: fromVal → preCFPV.
+		if fromVal > 0 && preCFPV > 0 {
+			product *= preCFPV / fromVal
+		} else {
+			return nil
+		}
+
+		// Next sub-period starts from the post-cash-flow PV (includes the CF).
+		fromVal = cfPV
+	}
+
+	// Final sub-period: last post-CF (or start if no CFs reached) → end of month.
+	if fromVal > 0 && endPVF > 0 {
+		product *= endPVF / fromVal
+	} else {
+		return nil
+	}
+
+	// TWR = product - 1, expressed as percentage.
+	twrPct, _ := decimal.NewFromFloat64((product - 1.0) * 100.0)
+	result := twrPct.Round(2)
+	return &result
+}
+
+// computeMonthlyReturnsFromCurve computes monthly returns for the portfolio
+// equity curve and optionally for the benchmark. Produces yearReturnData
+// rows (one per year) for the heatmap template.
+//
+// Portfolio monthly return: Time-Weighted Return (TWR) that isolates
+// investment performance from deposit/withdrawal timing by splitting
+// the month at cash flow dates and geometrically linking sub-period returns.
 // Benchmark monthly return: uses comparison.ComputeMonthlyReturns on benchmark prices.
 // Diff: portfolio return - benchmark return (empty string if no benchmark).
-func computeMonthlyReturnsFromCurve(curve []position.EquityCurvePoint, benchPrices []market.HistoricalPrice, benchmarkTicker string) []monthlyReturnData {
+func computeMonthlyReturnsFromCurve(curve []position.EquityCurvePoint, benchPrices []market.HistoricalPrice, benchmarkTicker string) []yearReturnData {
 	if len(curve) == 0 {
 		return nil
 	}
 
-	// Group equity curve by year-month: collect first and last value per month.
-	type monthRange struct {
-		first decimal.Decimal
-		last  decimal.Decimal
-	}
-	portfolioMonths := make(map[string]*monthRange)
+	// Group equity curve points by year-month for TWR computation.
+	portfolioMonths := make(map[string][]position.EquityCurvePoint)
 	for _, pt := range curve {
 		key := pt.Date.Format("2006-01")
-		if existing, ok := portfolioMonths[key]; ok {
-			existing.last = pt.PortfolioValue
-		} else {
-			portfolioMonths[key] = &monthRange{
-				first: pt.PortfolioValue,
-				last:  pt.PortfolioValue,
-			}
-		}
+		portfolioMonths[key] = append(portfolioMonths[key], pt)
 	}
 
 	// Compute benchmark monthly returns if benchmark selected.
@@ -531,44 +617,74 @@ func computeMonthlyReturnsFromCurve(curve []position.EquityCurvePoint, benchPric
 		}
 	}
 
-	// Build result rows.
-	result := make([]monthlyReturnData, 0, len(months))
+	// Group month data by year.
+	type monthCell struct {
+		portfolioRet string
+		benchRet     string
+		diff         string
+	}
+	yearMonths := make(map[int]map[int]monthCell) // year -> month -> cell
 	for _, key := range months {
 		year, _ := strconv.Atoi(key[:4])
 		month, _ := strconv.Atoi(key[5:7])
 
-		row := monthlyReturnData{
-			Year:  year,
-			Month: month,
+		if yearMonths[year] == nil {
+			yearMonths[year] = make(map[int]monthCell)
 		}
 
-		// Portfolio return.
-		if mr, ok := portfolioMonths[key]; ok {
-			if mr.first.IsPos() {
-				firstF, _ := mr.first.Float64()
-				lastF, _ := mr.last.Float64()
-				ratio := lastF / firstF
-				retPct, _ := decimal.NewFromFloat64((ratio - 1.0) * 100.0)
-				val := retPct.Round(2)
-				row.PortfolioReturn = val.String()
+		cell := monthCell{}
+
+		// Portfolio return — TWR scoped to this month.
+		if pts, ok := portfolioMonths[key]; ok {
+			if twr := computeMonthlyTWR(pts); twr != nil {
+				cell.portfolioRet = twr.String()
 			}
 		}
 
 		// Benchmark return.
 		if benchmarkTicker != "" {
 			if bRet, ok := benchMonthly[key]; ok {
-				row.BenchmarkReturn = bRet.String()
+				cell.benchRet = bRet.String()
 				// Diff = portfolio - benchmark.
-				if row.PortfolioReturn != "" {
-					pRet, _ := decimal.Parse(row.PortfolioReturn)
+				if cell.portfolioRet != "" {
+					pRet, _ := decimal.Parse(cell.portfolioRet)
 					diff, _ := pRet.Sub(*bRet)
 					diffRounded := diff.Round(2)
-					row.Diff = diffRounded.String()
+					cell.diff = diffRounded.String()
 				}
 			}
 		}
 
-		result = append(result, row)
+		yearMonths[year][month] = cell
+	}
+
+	// Build result rows sorted by year.
+	years := make([]int, 0, len(yearMonths))
+	for y := range yearMonths {
+		years = append(years, y)
+	}
+	for i := 0; i < len(years); i++ {
+		for j := i + 1; j < len(years); j++ {
+			if years[i] > years[j] {
+				years[i], years[j] = years[j], years[i]
+			}
+		}
+	}
+
+	result := make([]yearReturnData, 0, len(years))
+	for _, year := range years {
+		monthsMap := make(map[int]monthCellData)
+		for month, cell := range yearMonths[year] {
+			monthsMap[month] = monthCellData{
+				PortfolioReturn: cell.portfolioRet,
+				BenchmarkReturn: cell.benchRet,
+				Diff:            cell.diff,
+			}
+		}
+		result = append(result, yearReturnData{
+			Year:   year,
+			Months: monthsMap,
+		})
 	}
 
 	return result

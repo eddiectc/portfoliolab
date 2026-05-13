@@ -15,8 +15,24 @@
 - The `value` attribute on `<option>` elements is treated specially by html/template — it may clear the attribute and fall back to text content. The browser handles this correctly (uses text as the option value), so the `onchange` handler works as expected.
 - Benchmark names JS object is built inline via `{{range .BenchmarkNames}}` rather than JSON-encoding the map (no `json:` template function available).
 
+## Post-Review Fixes
+- 2026-05-12: Fixed benchmark selector option values — changed from full URLs to ticker symbols so the form submit path (POST with `benchmark=^GSPC`) works correctly alongside the `onchange` JavaScript navigation path. `onchange` now uses `this.dataset.url` instead of `this.value`.
+
 ## Future Improvements
 - Consider extracting `determineDateRange` to a shared package if it grows in callers.
+
+## Bugs Fixed Post-Merge
+
+### Monthly heatmap repeated rows (2026-05-13)
+- **Symptom:** Each year's row was duplicated N times (N = number of months with data that year). E.g., 2024 with 11 months showed 11 identical rows.
+- **Root cause:** `computeMonthlyReturnsFromCurve` returned a flat `[]monthlyReturnData` (one entry per month), but the template iterated each entry as a table row and then did an O(n²) inner loop to look up all 12 months' data. So N months → N identical year rows.
+- **Fix:** Restructured data to `[]yearReturnData` (one per year) with `Months map[int]monthCellData`. Template simplified to `index $row.Months $m` — no nested lookup loop.
+
+### Monthly returns counted deposits as profit (2026-05-13)
+- **Symptom:** A mid-month deposit inflated the monthly return. E.g., depositing 100k on a 100k portfolio mid-month, then 5% market gain, showed 110% return instead of 5%.
+- **Root cause:** Monthly return used simple return `(last_PV / first_PV - 1)` which doesn't account for cash flows within the month. The overall TWR metric was correct (uses pre-cash-flow breakpoints), but the monthly heatmap wasn't.
+- **Fix:** Replaced simple return with `computeMonthlyTWR` — detects cash flow dates from `NetDeposit` changes in the equity curve, computes pre-cash-flow value as `PV - delta_ND`, and geometrically links sub-period returns. Same TWR logic as the overall metric, scoped per-month.
+- **Test added:** `mid-month deposit — TWR isolates cash flow` verifies the 100k→200k→210k scenario yields 5% (not 110%).
 
 ## Known Issues
 - None.
