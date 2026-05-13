@@ -220,6 +220,47 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 	}
 }
 
+// benchmarkResult holds the computed benchmark data for the template.
+type benchmarkResult struct {
+	chartData string
+	mwrPct    *decimal.Decimal
+	currency  string
+	warning   string
+	prices    []market.HistoricalPrice
+}
+
+// computeBenchmarkResult computes chart data and MWR from benchmark prices.
+// Chart data covers the full filter period; MWR is aligned to the portfolio
+// date range for comparability.
+func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo time.Time) benchmarkResult {
+	if len(prices) == 0 {
+		return benchmarkResult{chartData: "[]", warning: "no cached data available for benchmark"}
+	}
+
+	currency := prices[0].Currency
+
+	// Align MWR period with the portfolio's actual date range so the
+	// figure is comparable. Chart data still covers the full filter period.
+	mwrFrom := dateFrom
+	mwrTo := dateTo
+	if !portfolioDateFrom.IsZero() && portfolioDateFrom.After(mwrFrom) {
+		mwrFrom = portfolioDateFrom
+	}
+	if !portfolioDateTo.IsZero() && portfolioDateTo.Before(mwrTo) {
+		mwrTo = portfolioDateTo
+	}
+	mwrPct := comparison.ComputeMWRForPeriod(prices, mwrFrom, mwrTo)
+
+	chartData := serializeBenchmarkChartData(prices)
+
+	return benchmarkResult{
+		chartData: chartData,
+		mwrPct:    mwrPct,
+		currency:  currency,
+		prices:    prices,
+	}
+}
+
 // fetchBenchmarkData fetches cached benchmark prices, computes MWR, and
 // serializes chart data for the template. Also returns raw prices for
 // monthly return computation.
@@ -237,27 +278,8 @@ func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker s
 		return "[]", nil, "", "failed to fetch benchmark data", nil
 	}
 
-	if len(prices) == 0 {
-		return "[]", nil, "", "no cached data available for benchmark", nil
-	}
-
-	currency = prices[0].Currency
-
-	// Align MWR period with the portfolio's actual date range so the
-	// figure is comparable. Chart data still covers the full filter period.
-	mwrFrom := dateFrom
-	mwrTo := dateTo
-	if !portfolioDateFrom.IsZero() && portfolioDateFrom.After(mwrFrom) {
-		mwrFrom = portfolioDateFrom
-	}
-	if !portfolioDateTo.IsZero() && portfolioDateTo.Before(mwrTo) {
-		mwrTo = portfolioDateTo
-	}
-	mwrPct = comparison.ComputeMWRForPeriod(prices, mwrFrom, mwrTo)
-
-	chartData = serializeBenchmarkChartData(prices)
-
-	return chartData, mwrPct, currency, "", prices
+	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo)
+	return result.chartData, result.mwrPct, result.currency, result.warning, result.prices
 }
 
 // benchmarkChartDataPoint is the JSON-serializable format for ECharts benchmark series.
