@@ -132,7 +132,7 @@
 
 {{/* Equity curve chart */}}
 <div class="chart-container">
-    <div id="equity-chart" style="width:100%;height:400px;"></div>
+    <div id="equity-chart" style="width:100%;height:520px;"></div>
 </div>
 
 {{/* Chart data — passed as JSON for ECharts */}}
@@ -181,121 +181,129 @@
         clippedDeposit = depositData.slice(portfolioFirstIdx);
     }
 
-    // ---- No benchmark: absolute value chart with return area ----
+    // ---- No benchmark: two-panel chart (value + return indicator) ----
     if (!hasBenchmark) {
-        // Compute return data (portfolio value - net deposit).
+        // Compute return data.
         var returnData = [];
         for (var i = 0; i < clippedPortfolio.length; i++) {
             var ret = clippedPortfolio[i][1] - clippedDeposit[i][1];
             var deposit = clippedDeposit[i][1];
             var pct = deposit !== 0 ? (ret / deposit) * 100 : 0;
-            returnData.push([clippedPortfolio[i][0], ret, clippedPortfolio[i][1], pct]);
+            returnData.push([clippedPortfolio[i][0], ret, pct]);
         }
 
-        // Compute Y-axis range from portfolio values.
-        var axisMin = Infinity, axisMax = -Infinity;
+        // Compute Y-axis range for top panel (portfolio values).
+        var valMin = Infinity, valMax = -Infinity;
         for (var i = 0; i < clippedPortfolio.length; i++) {
-            if (clippedPortfolio[i][1] < axisMin) axisMin = clippedPortfolio[i][1];
-            if (clippedPortfolio[i][1] > axisMax) axisMax = clippedPortfolio[i][1];
-            if (clippedDeposit[i][1] < axisMin) axisMin = clippedDeposit[i][1];
-            if (clippedDeposit[i][1] > axisMax) axisMax = clippedDeposit[i][1];
+            if (clippedPortfolio[i][1] < valMin) valMin = clippedPortfolio[i][1];
+            if (clippedPortfolio[i][1] > valMax) valMax = clippedPortfolio[i][1];
+            if (clippedDeposit[i][1] < valMin) valMin = clippedDeposit[i][1];
+            if (clippedDeposit[i][1] > valMax) valMax = clippedDeposit[i][1];
         }
-        var vPadding = (axisMax - axisMin) * 0.1;
-        axisMin = Math.max(0, axisMin - vPadding);
-        axisMax = axisMax + vPadding;
+        if (valMin > 0) valMin = 0;
+        var vPad = (valMax - valMin) * 0.1;
+        valMin = Math.max(0, valMin - vPad);
+        valMax = valMax + vPad;
 
-        var legendData = ['Portfolio Value', 'Return', 'Net Deposit'];
-        var series = [
-            {
-                name: 'Portfolio Value',
-                type: 'line',
-                data: clippedPortfolio,
-                smooth: false,
-                symbol: 'none',
-                lineStyle: { width: 2 },
-                z: 3
-            },
-            {
-                name: 'Return',
-                type: 'bar',
-                data: returnData.map(function(d) { return [d[0], d[1]]; }),
-                barWidth: '60%',
-                itemStyle: {
-                    color: function(params) {
-                        return params.value[1] >= 0 ? 'rgba(40,167,69,0.25)' : 'rgba(220,53,69,0.25)';
-                    }
-                },
-                z: 1
-            },
-            {
-                name: 'Net Deposit',
-                type: 'line',
-                data: clippedDeposit,
-                smooth: false,
-                symbol: 'none',
-                lineStyle: { width: 1, type: 'dashed' },
-                z: 2
-            }
-        ];
+        // Compute Y-axis range for bottom panel (return values).
+        var retMin = 0, retMax = 0;
+        for (var i = 0; i < returnData.length; i++) {
+            if (returnData[i][1] < retMin) retMin = returnData[i][1];
+            if (returnData[i][1] > retMax) retMax = returnData[i][1];
+        }
+        var rPad = (retMax - retMin) * 0.1;
+        if (rPad === 0) rPad = 1;
+        retMin = retMin - rPad;
+        retMax = retMax + rPad;
 
         var chart = echarts.init(document.getElementById('equity-chart'));
         chart.setOption({
             tooltip: {
                 trigger: 'axis',
+                axisPointer: { type: 'cross' },
                 formatter: function(params) {
                     var date = new Date(params[0].axisValue);
                     var dateStr = date.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'});
                     var html = '<strong>' + dateStr + '</strong><br/>';
-                    // Find the return data point for this date to show %.
-                    var retPct = 0, retVal = 0, portVal = 0, depVal = 0;
+                    var portVal = 0, depVal = 0, retVal = 0, retPct = 0;
                     for (var i = 0; i < params.length; i++) {
                         var name = params[i].seriesName;
-                        if (name === 'Portfolio Value') {
-                            portVal = params[i].value[1];
-                        } else if (name === 'Net Deposit') {
-                            depVal = params[i].value[1];
-                        } else if (name === 'Return') {
-                            retVal = params[i].value[1];
-                        }
+                        if (name === 'Portfolio Value') portVal = params[i].value[1];
+                        else if (name === 'Net Deposit') depVal = params[i].value[1];
+                        else if (name === 'Return') { retVal = params[i].value[1]; retPct = params[i].value[2]; }
                     }
-                    retPct = depVal !== 0 ? (retVal / depVal) * 100 : 0;
                     var portStr = portVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     var depStr = depVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     var retStr = retVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     var pctStr = (retPct >= 0 ? '+' : '') + retPct.toFixed(2) + '%';
                     html += '● Portfolio Value: ' + portStr + ' {{.Result.BaseCurrency}}<br/>';
                     html += '● Net Deposit: ' + depStr + ' {{.Result.BaseCurrency}}<br/>';
-                    html += '▮ Return: ' + retStr + ' {{.Result.BaseCurrency}} (' + pctStr + ')<br/>';
+                    html += '▮ Return: ' + retStr + ' {{.Result.BaseCurrency}} (' + pctStr + ')';
                     return html;
                 }
             },
             legend: {
-                data: legendData,
+                data: ['Portfolio Value', 'Net Deposit', 'Return'],
                 bottom: 0
             },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '12%',
-                top: '8%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'time',
-                axisLabel: { rotate: 0, interval: 'auto' }
-            },
-            yAxis: {
-                type: 'value',
-                name: 'Value',
-                min: axisMin,
-                max: axisMax,
-                axisLabel: {
-                    formatter: function(value) {
-                        return value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            grid: [
+                { left: '3%', right: '4%', top: '5%', height: '55%', containLabel: true },
+                { left: '3%', right: '4%', top: '68%', height: '22%', containLabel: true }
+            ],
+            xAxis: [
+                { type: 'time', axisLabel: { rotate: 0, interval: 'auto' } },
+                { type: 'time', gridIndex: 1, axisLabel: { rotate: 0, interval: 'auto' }, axisLine: { onZero: false } }
+            ],
+            yAxis: [
+                {
+                    type: 'value',
+                    name: 'Value',
+                    min: valMin,
+                    max: valMax,
+                    axisLabel: { formatter: function(v) { return v.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}); } }
+                },
+                {
+                    type: 'value',
+                    name: 'Return',
+                    gridIndex: 1,
+                    min: retMin,
+                    max: retMax,
+                    axisLabel: { formatter: function(v) { return v.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}); } }
+                }
+            ],
+            series: [
+                {
+                    name: 'Portfolio Value',
+                    type: 'line',
+                    data: clippedPortfolio,
+                    smooth: false,
+                    symbol: 'none',
+                    lineStyle: { width: 2 }
+                },
+                {
+                    name: 'Net Deposit',
+                    type: 'line',
+                    data: clippedDeposit,
+                    smooth: false,
+                    symbol: 'none',
+                    lineStyle: { width: 1, type: 'dashed' }
+                },
+                {
+                    name: 'Return',
+                    type: 'line',
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: returnData,
+                    areaStyle: {},
+                    lineStyle: { width: 0 },
+                    symbol: 'none',
+                    itemStyle: {
+                        color: function(params) {
+                            return params.value[1] >= 0 ? 'rgba(40,167,69,0.35)' : 'rgba(220,53,69,0.35)';
+                        }
                     }
                 }
-            },
-            series: series
+            ]
         });
 
         window.addEventListener('resize', function() { chart.resize(); });
