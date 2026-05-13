@@ -171,8 +171,34 @@
     var usePercentage = hasBenchmark;
 
     // Compute percentage data: each point is { date, value, pct }
-    var portfolioStart = portfolioData.length > 0 ? portfolioData[0][1] : 1;
-    var benchStart = hasBenchmark && benchData.length > 0 ? benchData[0][1] : 1;
+    // Use first non-zero portfolio value as baseline (portfolio may start at 0
+    // if the period begins before the first transaction).
+    var portfolioFirstIdx = -1;
+    for (var i = 0; i < portfolioData.length; i++) {
+        if (portfolioData[i][1] !== 0) {
+            portfolioFirstIdx = i;
+            break;
+        }
+    }
+    var portfolioStart = portfolioFirstIdx >= 0 ? portfolioData[portfolioFirstIdx][1] : 1;
+
+    // Benchmark baseline: use the benchmark price at the same date as
+    // the portfolio's first non-zero value, so both start from 0%.
+    var benchStart = 1;
+    if (hasBenchmark && benchData.length > 0 && portfolioFirstIdx >= 0) {
+        var portfolioFirstDate = portfolioData[portfolioFirstIdx][0];
+        // Find benchmark point closest to portfolio's first date.
+        var bestDiff = Infinity;
+        for (var i = 0; i < benchData.length; i++) {
+            var diff = Math.abs(new Date(benchData[i][0]) - new Date(portfolioFirstDate));
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                benchStart = benchData[i][1];
+            }
+        }
+    } else if (hasBenchmark && benchData.length > 0) {
+        benchStart = benchData[0][1];
+    }
 
     var portfolioPctData = [];
     for (var i = 0; i < portfolioData.length; i++) {
