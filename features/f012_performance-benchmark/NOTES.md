@@ -34,5 +34,10 @@
 - **Fix:** Replaced simple return with `computeMonthlyTWR` — detects cash flow dates from `NetDeposit` changes in the equity curve, computes pre-cash-flow value as `PV - delta_ND`, and geometrically links sub-period returns. Same TWR logic as the overall metric, scoped per-month.
 - **Test added:** `mid-month deposit — TWR isolates cash flow` verifies the 100k→200k→210k scenario yields 5% (not 110%).
 
+### Benchmark data not fetched automatically (2026-05-13)
+- **Symptom:** Benchmark symbols (^GSPC, ^IXIC, VWRP.L, VUSA.L, XNAQ.L) had no market data after initial setup. User had to manually click "Refresh All" to populate benchmark prices.
+- **Root cause:** `RefreshPredefinedBenchmarks` was only called by `doRefreshAll`, which was only triggered by the manual "Refresh All" button. The periodic `doRefresh` cycle only handled portfolio symbols and FX pairs.
+- **Fix:** Added `go m.RefreshPredefinedBenchmarks(ctx)` in `MarketCache.Start()` so benchmarks are fetched in the background on server startup.
+
 ## Known Issues
 - None.
