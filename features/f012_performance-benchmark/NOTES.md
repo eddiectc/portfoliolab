@@ -45,5 +45,24 @@
 - **Empty cells:** Benchmark comparison showed empty cells for months before the portfolio existed (benchmark data goes back to 2000). Fixed to only include months with portfolio data.
 - **Chart error handling:** Added try-catch around chart JS init so errors show a message instead of silently disappearing.
 
+## Chart Improvements (No Benchmark Mode)
+
+### Return area chart (2026-05-13)
+- **User request:** Show absolute return (portfolio value − net deposit) as a filled area, with tooltip showing real value and percentage.
+- **Implementation:** Added a return series computed from `clippedPortfolio − clippedDeposit`, rendered as a filled area with green (positive) / red (negative) coloring. Tooltip shows portfolio value, net deposit, and return with percentage.
+
+### Negative return not visible (2026-05-13)
+- **Symptom:** When return was negative, the area chart showed nothing.
+- **Root cause:** The return bar was plotted against the portfolio value Y-axis (e.g., 450K–550K). Negative values were far outside the visible range.
+- **Fix:** Switched to a stacked area approach so the return fills the gap between portfolio and deposit lines, visible regardless of sign.
+
+### Two-panel technical indicator layout (2026-05-13)
+- **User request:** Treat return like a technical indicator (RSI/MACD style) — separate sub-panel with its own Y-axis.
+- **Implementation:** Split chart into two grids:
+  - **Top panel** (~55%): portfolio value + net deposit lines with value Y-axis
+  - **Bottom panel** (~22%): return area with its own Y-axis centered on zero, green/red fill
+  - Chart height increased from 400px to 520px
+- **Tooltip fix:** ECharts tooltip `params` only includes series from the hovered grid. Fixed by manually looking up all three data arrays (`clippedPortfolio`, `clippedDeposit`, `returnData`) using the axis timestamp to find the closest data point. Crosshair links both panels via `axisPointer.link`.
+
 ## Known Issues
 - None.
