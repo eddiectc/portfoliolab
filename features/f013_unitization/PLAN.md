@@ -60,7 +60,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - NAV = portfolioValue / units (unchanged by deposit/withdrawal themselves)
   - **Tests**: `unitization_test.go` — table-driven tests for initial deposit, subsequent deposits, withdrawals, zero-value portfolio, withdrawal cap, fractional units, multiple transactions same day, non-deposit first transaction
 
-- [ ] **Task 1.2**: Create `internal/domain/position/daily_returns.go` with daily return computation helpers
+- [x] **Task 1.2**: Create `internal/domain/position/daily_returns.go` with daily return computation helpers
   - `ComputeDailyReturns(points) → []DailyReturn` where `DailyReturn = {Date, ReturnPct}`
   - Used by risk metrics, drawdown, and yearly performance
   - **Tests**: `daily_returns_test.go` — basic returns, zero-value handling, single point
