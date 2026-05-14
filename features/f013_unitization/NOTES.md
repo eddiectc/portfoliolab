@@ -6,7 +6,7 @@
 - 2026-05-14: `ComputeRiskMetrics` uses the **daily** risk-free rate (`riskFreeRatio / 252`) for the downside deviation comparison, not the annual rate. The annual rate is used for the excess return numerator. Using the annual rate against daily returns would misclassify nearly every day as "downside" since daily returns (~0.5%) are always below an annual rate expressed as a ratio (0.045).
 
 ## Deviations from Plan
-- None yet.
+- 2026-05-14 (Task 3.3): **Simple return uses value-based, not P&L-based**. The plan specified `ComputeSimpleReturn` (P&L-based: `(endTotalReturn - beginTotalReturn) / beginTotalReturn` where `TotalReturn = PortfolioValue - NetDeposit`). At portfolio inception, `PortfolioValue == NetDeposit` so `TotalReturn = 0` and the function returns nil for every portfolio viewed from inception. Switched to `computeValueReturn` (value-based: `end/begin - 1` on PortfolioValue), which always yields a meaningful percentage and matches what the summary table needs to display.
 
 ## Implementation Notes
 - 2026-05-14 (Task 3.1): `RiskMetrics` and `DrawdownAnalysis` were **not re-declared** in `performance_types.go` — they already exist in `risk_metrics.go` and `drawdown.go` respectively (from Tasks 2.3 and 2.1). `PerformanceResult` references them directly. `YearlyPerformance` is a type alias (`[]YearlyReturn`) rather than a new struct.
@@ -14,6 +14,7 @@
 - 2026-05-14 (Task 3.2): **Deposits-only fallback in `ComputeNavHistory`**: For portfolios with only deposits (no positions), pre-cash-flow snapshots yield zero portfolio value because there are no positions to value and cash hasn't been deposited yet. Added a fallback: when `bp.value` is zero, use the previous equity curve point's `PortfolioValue` as the pre-cash-flow value. This correctly computes NAV for deposits-only portfolios.
 - 2026-05-14 (Task 3.2): **Breakpoint computation moved earlier**: `computePreCashFlowValues` is now called before interpolation (step 10 instead of step 11) so breakpoints are available for NAV history computation. The same breakpoints are reused for both NAV and TWR, avoiding duplicate computation.
 - 2026-05-14 (Task 3.2): **NAV fields in interpolation**: `interpolateDaily` now carries forward `NavPerUnit` and `Units` for non-transaction days, ensuring NAV data is present on all equity curve points.
+- 2026-05-14 (Task 3.3): **Metrics computed on sliced curve**. Risk metrics, drawdown, and yearly performance are computed from the period-filtered (sliced) equity curve, not the full history. This keeps metrics aligned with the selected period — e.g., "1Y" volatility reflects only the last year. A `convertToNavPoints` helper converts `[]EquityCurvePoint` to `[]NavPoint` for the drawdown and yearly functions.
 
 ## Future Improvements
 - None yet.
