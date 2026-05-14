@@ -41,11 +41,12 @@ func ComputePeriodReturn(
 ) ReturnMetrics {
 	if len(equityCurve) < 2 {
 		return ReturnMetrics{
-			TWRPct:              nil,
-			AnnualizedTWRPct:    nil,
-			MWRPct:              nil,
-			HoldingPeriodMWRPct: nil,
-			HasInsufficientData: true,
+			ProfitLoss:            nil,
+			TWRPct:                nil,
+			AnnualizedTWRPct:      nil,
+			MWRPct:                nil,
+			HoldingPeriodMWRPct:   nil,
+			HasInsufficientData:   true,
 		}
 	}
 
@@ -55,10 +56,11 @@ func ComputePeriodReturn(
 
 	if !beginValue.IsPos() {
 		return ReturnMetrics{
-			TWRPct:              nil,
-			AnnualizedTWRPct:    nil,
-			MWRPct:              nil,
-			HoldingPeriodMWRPct: nil,
+			ProfitLoss:            nil,
+			TWRPct:                nil,
+			AnnualizedTWRPct:      nil,
+			MWRPct:                nil,
+			HoldingPeriodMWRPct:   nil,
 		}
 	}
 
@@ -103,11 +105,16 @@ func ComputePeriodReturn(
 		}
 	}
 
+	// --- Profit/Loss ---
+	// Absolute profit or loss: current portfolio value minus total net deposit.
+	// Always available when there are at least 2 data points.
+	profit, _ := last.PortfolioValue.Sub(last.NetDeposit)
+	metrics.ProfitLoss = &profit
+
 	// --- Simple return ---
 	// Total profit (PortfolioValue - NetDeposit) as a percentage of
 	// total NetDeposit. Answers "for every unit of currency deposited,
 	// how much profit was made?" Always defined as long as net deposit > 0.
-	profit, _ := last.PortfolioValue.Sub(last.NetDeposit)
 	if last.NetDeposit.IsPos() {
 		profitF, _ := profit.Float64()
 		ndF, _ := last.NetDeposit.Float64()

@@ -128,6 +128,12 @@
     <div class="metrics-section-header">Returns</div>
     <table class="metrics-table">
         <tr>
+            <td class="metrics-label">Profit / Loss</td>
+            <td class="metrics-value num pnl {{if .Result.ReturnMetrics.ProfitLoss}}{{sign .Result.ReturnMetrics.ProfitLoss.String}}{{end}}">
+                {{if .Result.ReturnMetrics.ProfitLoss}}{{if gt (getSign .Result.ReturnMetrics.ProfitLoss.String) 0}}+{{end}}{{formatMoney .Result.ReturnMetrics.ProfitLoss}} {{.Result.BaseCurrency}}{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
             <td class="metrics-label">Time-Weighted Return</td>
             <td class="metrics-value num pnl {{if .Result.ReturnMetrics.TWRPct}}{{sign .Result.ReturnMetrics.TWRPct.String}}{{end}}">
                 {{if .Result.ReturnMetrics.TWRPct}}{{if gt (getSign .Result.ReturnMetrics.TWRPct.String) 0}}+{{end}}{{formatPct .Result.ReturnMetrics.TWRPct}}%{{else}}—{{end}}
