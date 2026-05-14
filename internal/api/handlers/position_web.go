@@ -108,6 +108,7 @@ type lotDetailPageData struct {
 
 // PositionWebHandler handles server-rendered position pages.
 type PositionWebHandler struct {
+	apiHandler   *PositionHandler
 	positionSvc  *position.Service
 	accountSvc   *account.Service
 	portfolioSvc *portfolio.Service
@@ -116,8 +117,9 @@ type PositionWebHandler struct {
 }
 
 // NewPositionWebHandler creates a new position web handler.
-func NewPositionWebHandler(positionSvc *position.Service, accountSvc *account.Service, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, renderer *web.Renderer) *PositionWebHandler {
+func NewPositionWebHandler(apiHandler *PositionHandler, positionSvc *position.Service, accountSvc *account.Service, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, renderer *web.Renderer) *PositionWebHandler {
 	return &PositionWebHandler{
+		apiHandler:   apiHandler,
 		positionSvc:  positionSvc,
 		accountSvc:   accountSvc,
 		portfolioSvc: portfolioSvc,
@@ -327,47 +329,14 @@ func (h *PositionWebHandler) HandleLotDetail(w http.ResponseWriter, r *http.Requ
 }
 
 // HandleRecalculate handles POST /positions/recalculate (manual recalc trigger with flash message).
-// Accepts optional query params: account_id, portfolio_id.
-// If neither is provided, recalculates all accounts.
+// Delegates to the API handler for the actual recalculation logic.
 func (h *PositionWebHandler) HandleRecalculate(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	var scope string
-
-	if v := query.Get("account_id"); v != "" {
-		id, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			setFlash(w, "Invalid account ID")
-			http.Redirect(w, r, "/positions", http.StatusSeeOther)
-			return
-		}
-		if err := h.positionSvc.RecalculateAccount(r.Context(), id); err != nil {
-			setFlash(w, "Recalculation failed: "+err.Error())
-			http.Redirect(w, r, "/positions", http.StatusSeeOther)
-			return
-		}
-		scope = "account " + v
-	} else if v := query.Get("portfolio_id"); v != "" {
-		id, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			setFlash(w, "Invalid portfolio ID")
-			http.Redirect(w, r, "/positions", http.StatusSeeOther)
-			return
-		}
-		if err := h.positionSvc.RecalculatePortfolio(r.Context(), id); err != nil {
-			setFlash(w, "Recalculation failed: "+err.Error())
-			http.Redirect(w, r, "/positions", http.StatusSeeOther)
-			return
-		}
-		scope = "portfolio " + v
-	} else {
-		if err := h.positionSvc.RecalculateAll(r.Context()); err != nil {
-			setFlash(w, "Recalculation failed: "+err.Error())
-			http.Redirect(w, r, "/positions", http.StatusSeeOther)
-			return
-		}
-		scope = "all accounts"
+	_, scope, err := h.apiHandler.doRecalculate(r)
+	if err != nil {
+		setFlash(w, "Recalculation failed: "+err.Error())
+		http.Redirect(w, r, "/positions", http.StatusSeeOther)
+		return
 	}
-
 	setFlash(w, "Positions recalculated for "+scope)
 	http.Redirect(w, r, "/positions", http.StatusSeeOther)
 }
@@ -395,60 +364,6 @@ func (h *PositionWebHandler) resolveBaseCurrency(ctx context.Context, filters po
 		return ""
 	}
 	return portfolios[0].Currency
-}
-
-// computePositionSummary aggregates position totals for the summary panel.
-func computePositionSummary(positions []position.PositionWithMarket) positionSummary {
-	var (
-		totalCostBasisBase  decimal.Decimal
-		totalMktValueBase   decimal.Decimal
-		totalUnrealizedPnLB decimal.Decimal
-	)
-
-	for _, p := range positions {
-		if !p.MarketDataAvailable {
-			continue
-		}
-		if p.CostBasisBase != nil {
-			totalCostBasisBase, _ = totalCostBasisBase.Add(*p.CostBasisBase)
-		}
-		if p.MarketValueBase != nil {
-			totalMktValueBase, _ = totalMktValueBase.Add(*p.MarketValueBase)
-		}
-		if p.UnrealizedPnLBase != nil {
-			totalUnrealizedPnLB, _ = totalUnrealizedPnLB.Add(*p.UnrealizedPnLBase)
-		}
-	}
-
-	// Compute total unrealized P&L % = total_unrealized_pnl_base / total_cost_basis_base × 100.
-	var pnlPct string
-	if !totalCostBasisBase.Equal(decimal.Zero) {
-		pct, _ := totalUnrealizedPnLB.Quo(totalCostBasisBase)
-		pct, _ = pct.Mul(decimal.MustNew(10000, 2))
-		pnlPct = pct.String()
-	}
-
-	return positionSummary{
-		TotalCostBasisBase:  totalCostBasisBase.String(),
-		TotalMktValueBase:   totalMktValueBase.String(),
-		TotalUnrealizedPnLB: totalUnrealizedPnLB.String(),
-		TotalUnrealizedPnLP: pnlPct,
-	}
-}
-
-// computeClosedSummary aggregates realized P&L in base currency for closed positions.
-func computeClosedSummary(positions []position.Position, baseCurrency string) closedPositionSummary {
-	var totalRealizedPnLB decimal.Decimal
-
-	for _, p := range positions {
-		if p.RealizedPnlBase != nil {
-			totalRealizedPnLB, _ = totalRealizedPnLB.Add(*p.RealizedPnlBase)
-		}
-	}
-
-	return closedPositionSummary{
-		TotalRealizedPnLB: totalRealizedPnLB.String(),
-	}
 }
 
 // toPositionSummary converts a service-level OpenPositionSummary to the

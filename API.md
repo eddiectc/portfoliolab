@@ -236,6 +236,26 @@ Returns positions enriched with current market data (price, market value, unreal
 
 **Response:** `200 OK` — `PositionWithMarket[]`
 
+### Open Positions Summary
+
+```
+GET /api/positions/summary?account_id=&portfolio_id=&account_ids=
+```
+
+Returns aggregated totals across all open positions (not paginated).
+
+**Query params:** Same filters as list open positions.
+
+**Response:** `200 OK` — `OpenPositionSummary`
+
+```json
+{
+  "total_cost_basis_base": 50000,
+  "total_mkt_value_base": 55000,
+  "total_unrealized_pnl_base": 5000
+}
+```
+
 ### List Closed Positions
 
 ```
@@ -245,6 +265,24 @@ GET /api/positions/closed?account_id=&portfolio_id=&account_ids=&limit=&offset=
 **Query params:** Same as open positions.
 
 **Response:** `200 OK` — `Position[]`
+
+### Closed Positions Summary
+
+```
+GET /api/positions/closed/summary?account_id=&portfolio_id=&account_ids=
+```
+
+Returns aggregated totals across all closed positions (not paginated).
+
+**Query params:** Same filters as list closed positions.
+
+**Response:** `200 OK` — `ClosedPositionSummary`
+
+```json
+{
+  "total_realized_pnl_base": 3500
+}
+```
 
 ### Get Lot Details
 
