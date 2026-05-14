@@ -1099,7 +1099,7 @@ func TestFilterPerformanceResult_AllFields(t *testing.T) {
 		Warnings:         []string{"test"},
 		RiskMetrics:      performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
 		DrawdownAnalysis: performance.DrawdownAnalysis{MaxDrawdownPct: &maxDD},
-		YearlyPerformance: performance.YearlyPerformance{{Year: 2024, ReturnPct: decimal.MustParse("10.00")}},
+		YearlyPerformance: performance.YearlyPerformance{{Year: 2024, ReturnPct: ptrDecimal(decimal.MustParse("10.00"))}},
 		MonthlyReturns:    []performance.YearlyMonthlyReturns{{Year: 2024}},
 		BenchmarkTicker:   "^GSPC",
 		BenchmarkMWRPct:   &benchMWR,

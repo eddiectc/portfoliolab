@@ -11,7 +11,7 @@ import (
 // ReturnPct is expressed as a percentage (e.g. 12.50 = 12.50%).
 type YearlyReturn struct {
 	Year      int             `json:"year"`
-	ReturnPct decimal.Decimal `json:"return_pct"`
+	ReturnPct *decimal.Decimal `json:"return_pct,omitempty"`
 }
 
 // ComputeYearlyPerformance computes calendar-year returns from a sequence of
@@ -67,12 +67,16 @@ func ComputeYearlyPerformance(points []NavPoint) []YearlyReturn {
 			continue
 		}
 
-		var returnPct decimal.Decimal
+		var returnPct *decimal.Decimal
 		if bucket.count > 1 {
 			diff, _ := bucket.lastNAV.Sub(bucket.firstNAV)
-			returnPct, _ = diff.Quo(bucket.firstNAV)
-			returnPct, _ = returnPct.Mul(decimal.MustNew(100, 0))
-			returnPct = returnPct.Round(4)
+			r, _ := diff.Quo(bucket.firstNAV)
+			r, _ = r.Mul(decimal.MustNew(100, 0))
+			r = r.Round(4)
+			returnPct = &r
+		} else {
+			zero := decimal.MustParse("0")
+			returnPct = &zero
 		}
 
 		result = append(result, YearlyReturn{

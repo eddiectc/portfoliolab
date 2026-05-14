@@ -248,7 +248,7 @@
             <tr>
                 <td class="metrics-label">{{.Year}}</td>
                 <td class="metrics-value num pnl {{sign .ReturnPct.String}}">
-                    {{if gt (getSign .ReturnPct.String) 0}}+{{end}}{{formatPct .ReturnPct}}%
+                    {{if gt (getSign .ReturnPct.String) 0}}+{{end}}{{formatPct .ReturnPct.String}}%
                 </td>
             </tr>
             {{end}}
@@ -653,23 +653,23 @@
                 {{range $m := slice 1 2 3 4 5 6 7 8 9 10 11 12}}
                 {{ $cell := index $row.Months $m }}
                 {{ if $cell }}
-                {{if and $cell.PortfolioReturn (not $.SelectedBenchmark)}}
+                {{if and $cell.ReturnPct (not $.SelectedBenchmark)}}
                 {{/* Absolute mode: color by portfolio return */}}
-                {{ $cellClass := getHeatClassAbsolute $cell.PortfolioReturn }}
-                <td class="{{$cellClass}}">{{$cell.PortfolioReturn}}%</td>
-                {{else if and $cell.PortfolioReturn $.SelectedBenchmark}}
+                {{ $cellClass := getHeatClassAbsolute $cell.ReturnPct.String }}
+                <td class="{{$cellClass}}">{{$cell.ReturnPct.String}}%</td>
+                {{else if and $cell.ReturnPct $.SelectedBenchmark}}
                 {{/* Relative mode: portfolio return + alpha indicator, color by diff */}}
-                {{if $cell.Diff}}
-                {{ $cellClass := getHeatClassDiff $cell.Diff }}
+                {{if $cell.DiffPct}}
+                {{ $cellClass := getHeatClassDiff $cell.DiffPct.String }}
                 {{ $arrow := "" }}
                 {{ $diffSign := "" }}
-                {{ if gt (getSign $cell.Diff) 0 }}{{ $arrow = "▲" }}{{ $diffSign = "+" }}{{ end }}
-                {{ if lt (getSign $cell.Diff) 0 }}{{ $arrow = "▼" }}{{ end }}
-                <td class="{{$cellClass}}"><span class="heat-main">{{$cell.PortfolioReturn}}%</span><br><small class="heat-alpha">{{$arrow}} {{$diffSign}}{{$cell.Diff}}%</small></td>
+                {{ if gt (getSign $cell.DiffPct.String) 0 }}{{ $arrow = "▲" }}{{ $diffSign = "+" }}{{ end }}
+                {{ if lt (getSign $cell.DiffPct.String) 0 }}{{ $arrow = "▼" }}{{ end }}
+                <td class="{{$cellClass}}"><span class="heat-main">{{$cell.ReturnPct.String}}%</span><br><small class="heat-alpha">{{$arrow}} {{$diffSign}}{{$cell.DiffPct.String}}%</small></td>
                 {{else}}
-                <td class="heat-neutral"><span class="heat-main">{{$cell.PortfolioReturn}}%</span></td>
+                <td class="heat-neutral"><span class="heat-main">{{$cell.ReturnPct.String}}%</span></td>
                 {{end}}
-                {{else if $cell.BenchmarkReturn}}
+                {{else if $cell.BenchmarkReturnPct}}
                 <td class="heat-empty">—</td>
                 {{else}}
                 <td class="heat-empty"></td>

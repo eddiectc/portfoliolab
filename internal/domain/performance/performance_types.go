@@ -69,13 +69,13 @@ type NavSummary struct {
 type YearlyPerformance []YearlyReturn
 
 // MonthlyReturn holds the monthly return data for a single month.
-// PortfolioReturn is the time-weighted return for the month (%).
-// BenchmarkReturn is the benchmark return for the month (%). Empty if no benchmark.
-// Diff is portfolio return minus benchmark return (%). Empty if no benchmark.
+// ReturnPct is the time-weighted return for the month (%). Nil when no data.
+// BenchmarkReturnPct is the benchmark return for the month (%). Nil when no benchmark.
+// DiffPct is portfolio return minus benchmark return (%). Nil when no benchmark.
 type MonthlyReturn struct {
-	PortfolioReturn string `json:"portfolio_return"`
-	BenchmarkReturn string `json:"benchmark_return,omitempty"`
-	Diff            string `json:"diff,omitempty"`
+	ReturnPct          *decimal.Decimal `json:"return_pct,omitempty"`
+	BenchmarkReturnPct *decimal.Decimal `json:"benchmark_return_pct,omitempty"`
+	DiffPct            *decimal.Decimal `json:"diff_pct,omitempty"`
 }
 
 // YearlyMonthlyReturns holds monthly returns grouped by year.
@@ -112,7 +112,7 @@ type PerformanceResult struct {
 	NavSummary            *NavSummary            `json:"nav_summary,omitempty"`
 	RiskMetrics           RiskMetrics            `json:"risk_metrics"`
 	DrawdownAnalysis      DrawdownAnalysis       `json:"drawdown_analysis"`
-	YearlyPerformance     YearlyPerformance      `json:"yearly_performance,omitempty"`
+	YearlyPerformance     YearlyPerformance      `json:"yearly_returns,omitempty"`
 	MonthlyReturns        []YearlyMonthlyReturns `json:"monthly_returns,omitempty"`
 }
 

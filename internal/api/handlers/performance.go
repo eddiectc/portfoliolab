@@ -422,9 +422,9 @@ func computeMonthlyReturnsFromCurve(curve []performance.EquityCurvePoint, benchP
 
 	// Group month data by year.
 	type monthCell struct {
-		portfolioRet string
-		benchRet     string
-		diff         string
+		portfolioRet *decimal.Decimal
+		benchRet     *decimal.Decimal
+		diff         *decimal.Decimal
 	}
 	yearMonths := make(map[int]map[int]monthCell) // year -> month -> cell
 	for _, key := range months {
@@ -439,21 +439,18 @@ func computeMonthlyReturnsFromCurve(curve []performance.EquityCurvePoint, benchP
 
 		// Portfolio return — TWR scoped to this month.
 		if pts, ok := portfolioMonths[key]; ok {
-			if twr := computeMonthlyTWR(pts); twr != nil {
-				cell.portfolioRet = twr.String()
-			}
+			cell.portfolioRet = computeMonthlyTWR(pts)
 		}
 
 		// Benchmark return.
 		if benchmarkTicker != "" {
 			if bRet, ok := benchMonthly[key]; ok {
-				cell.benchRet = bRet.String()
+				cell.benchRet = bRet
 				// Diff = portfolio - benchmark.
-				if cell.portfolioRet != "" {
-					pRet, _ := decimal.Parse(cell.portfolioRet)
-					diff, _ := pRet.Sub(*bRet)
+				if cell.portfolioRet != nil {
+					diff, _ := cell.portfolioRet.Sub(*bRet)
 					diffRounded := diff.Round(2)
-					cell.diff = diffRounded.String()
+					cell.diff = &diffRounded
 				}
 			}
 		}
@@ -473,9 +470,9 @@ func computeMonthlyReturnsFromCurve(curve []performance.EquityCurvePoint, benchP
 		monthsMap := make(map[int]performance.MonthlyReturn)
 		for month, cell := range yearMonths[year] {
 			monthsMap[month] = performance.MonthlyReturn{
-				PortfolioReturn: cell.portfolioRet,
-				BenchmarkReturn: cell.benchRet,
-				Diff:            cell.diff,
+				ReturnPct:          cell.portfolioRet,
+				BenchmarkReturnPct: cell.benchRet,
+				DiffPct:            cell.diff,
 			}
 		}
 		result = append(result, performance.YearlyMonthlyReturns{
