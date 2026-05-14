@@ -9,6 +9,7 @@
 - None yet.
 
 ## Implementation Notes
+- 2026-05-14 (Task 3.1): `RiskMetrics` and `DrawdownAnalysis` were **not re-declared** in `performance_types.go` — they already exist in `risk_metrics.go` and `drawdown.go` respectively (from Tasks 2.3 and 2.1). `PerformanceResult` references them directly. `YearlyPerformance` is a type alias (`[]YearlyReturn`) rather than a new struct.
 - Private `computeValueReturn` (formerly `computeSimpleReturn`) computes `end/begin - 1` on PortfolioValue — used as the TWR no-cash-flow fallback. Public `ComputeSimpleReturn` computes P&L-based return. Renamed to avoid confusion.
 
 ## Future Improvements
