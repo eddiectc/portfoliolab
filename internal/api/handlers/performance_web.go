@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -26,19 +25,6 @@ import (
 type cacheStatusProvider interface {
 	GetStatus() marketcache.CacheStatus
 	RefreshAll(ctx context.Context)
-}
-
-// monthCellData holds the data for a single month cell in the heatmap.
-type monthCellData struct {
-	PortfolioReturn string
-	BenchmarkReturn string
-	Diff            string
-}
-
-// yearReturnData holds one row (one year) for the monthly return heatmap.
-type yearReturnData struct {
-	Year   int
-	Months map[int]monthCellData // month number (1-12) -> cell data
 }
 
 // performancePageData is the data struct for the performance page template.
@@ -72,25 +58,23 @@ type performancePageData struct {
 	BenchmarkCurrency   string
 	BenchmarkWarning    string
 	BenchmarkURLs       map[string]string // option label -> full URL
-	MonthlyReturns      []yearReturnData
+	MonthlyReturns      []performance.YearlyMonthlyReturns
 }
 
 // PerformanceWebHandler handles server-rendered performance pages.
 type PerformanceWebHandler struct {
-	positionSvc   *position.Service
+	apiHandler    *PerformanceHandler
 	portfolioSvc  *portfolio.Service
 	marketCache   cacheStatusProvider
-	marketService position.MarketDataService
 	renderer      *web.Renderer
 }
 
 // NewPerformanceWebHandler creates a new performance web handler.
-func NewPerformanceWebHandler(positionSvc *position.Service, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, marketService position.MarketDataService, renderer *web.Renderer) *PerformanceWebHandler {
+func NewPerformanceWebHandler(apiHandler *PerformanceHandler, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, renderer *web.Renderer) *PerformanceWebHandler {
 	return &PerformanceWebHandler{
-		positionSvc:   positionSvc,
+		apiHandler:    apiHandler,
 		portfolioSvc:  portfolioSvc,
 		marketCache:   marketCache,
-		marketService: marketService,
 		renderer:      renderer,
 	}
 }
@@ -124,7 +108,7 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		selectedPortfolioID = strconv.FormatInt(*filters.PortfolioID, 10)
 	}
 
-	result, err := h.positionSvc.ComputeEquityCurve(r.Context(), filters)
+	result, err := h.apiHandler.computeResult(r.Context(), filters)
 	if err != nil {
 		// Cache status for aggregate indicator (available even on error).
 		var cacheStatus marketcache.CacheStatus
@@ -183,28 +167,18 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		staleSymbols = extractStaleSymbols(result.Warnings)
 	}
 
-	// Fetch benchmark data if selected.
-	var benchmarkChartData string
-	var benchmarkMWRPct *decimal.Decimal
-	var benchmarkCurrency, benchmarkWarning string
-	var benchmarkPrices []market.HistoricalPrice
-	if benchmark != "" && h.marketService != nil {
-		// Determine portfolio date range from equity curve for alignment.
-		var portfolioDateFrom, portfolioDateTo time.Time
-		if len(result.EquityCurve) > 0 {
-			portfolioDateFrom = result.EquityCurve[0].Date
-			portfolioDateTo = result.EquityCurve[len(result.EquityCurve)-1].Date
-		}
-		benchmarkChartData, benchmarkMWRPct, benchmarkCurrency, benchmarkWarning, benchmarkPrices = h.fetchBenchmarkData(r.Context(), benchmark, filters, portfolioDateFrom, portfolioDateTo)
-	}
-
-	// Compute monthly returns for heatmap.
-	monthlyReturns := computeMonthlyReturnsFromCurve(result.EquityCurve, benchmarkPrices, benchmark)
-
 	// Compute NAV chart data for NAV mode.
 	var navChartData string
 	if mode == "nav" {
 		navChartData = computeNavChartData(result.EquityCurve)
+	}
+
+	// Serialize benchmark chart data for ECharts (presentation only).
+	// Clip to portfolio date range so both chart lines start/end at the same dates.
+	var benchmarkChartData string
+	if benchmark != "" && len(result.BenchmarkPrices) > 0 {
+		clipped := clipToPortfolioRange(result.BenchmarkPrices, result.EquityCurve)
+		benchmarkChartData = serializeBenchmarkChartData(clipped)
 	}
 
 	data := performancePageData{
@@ -225,16 +199,16 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark, mode),
 		PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		ModeURLs:            buildModeURLs(selectedPortfolioID, filters.Period, benchmark, mode),
-		// Benchmark fields.
+		// Benchmark fields (from result, computed by API handler).
 		SelectedBenchmark:   benchmark,
 		BenchmarkNames:      comparison.GetPredefined(),
-		BenchmarkTicker:     benchmark,
+		BenchmarkTicker:     result.BenchmarkTicker,
 		BenchmarkChartData:  benchmarkChartData,
-		BenchmarkMWRPct:     benchmarkMWRPct,
-		BenchmarkCurrency:   benchmarkCurrency,
-		BenchmarkWarning:    benchmarkWarning,
+		BenchmarkMWRPct:     result.BenchmarkMWRPct,
+		BenchmarkCurrency:   result.BenchmarkCurrency,
+		BenchmarkWarning:    result.BenchmarkWarning,
 		BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period, mode),
-		MonthlyReturns:      monthlyReturns,
+		MonthlyReturns:      result.MonthlyReturns,
 	}
 
 	if err := h.renderer.Render(w, "performance/index", data); err != nil {
@@ -242,89 +216,22 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 	}
 }
 
-// benchmarkResult holds the computed benchmark data for the template.
-type benchmarkResult struct {
-	chartData string
-	mwrPct    *decimal.Decimal
-	currency  string
-	warning   string
-	prices    []market.HistoricalPrice
-}
-
-// computeBenchmarkResult computes chart data and MWR from benchmark prices.
-// Chart data is clipped to the portfolio date range so both chart lines
-// start and end at the same dates for easy comparison.
-func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo time.Time) benchmarkResult {
-	if len(prices) == 0 {
-		return benchmarkResult{chartData: "[]", warning: "no cached data available for benchmark"}
+// clipToPortfolioRange clips benchmark prices to the portfolio date range
+// so both chart lines start and end at the same dates for easy comparison.
+func clipToPortfolioRange(prices []market.HistoricalPrice, curve []performance.EquityCurvePoint) []market.HistoricalPrice {
+	if len(curve) == 0 {
+		return prices
 	}
-
-	// Clip prices to the intersection of the filter period and the portfolio
-	// date range. If the user selects 5Y but the portfolio only has 1Y of data,
-	// the benchmark should start from the portfolio's first date, not from 5Y ago.
-	effectiveFrom := dateFrom
-	effectiveTo := dateTo
-	if !portfolioDateFrom.IsZero() && portfolioDateFrom.After(effectiveFrom) {
-		effectiveFrom = portfolioDateFrom
-	}
-	if !portfolioDateTo.IsZero() && portfolioDateTo.Before(effectiveTo) {
-		effectiveTo = portfolioDateTo
-	}
+	dateFrom := curve[0].Date
+	dateTo := curve[len(curve)-1].Date
 
 	var clipped []market.HistoricalPrice
 	for _, p := range prices {
-		if !p.Date.Before(effectiveFrom) && !p.Date.After(effectiveTo) {
+		if !p.Date.Before(dateFrom) && !p.Date.After(dateTo) {
 			clipped = append(clipped, p)
 		}
 	}
-	if len(clipped) == 0 {
-		return benchmarkResult{chartData: "[]", warning: "no benchmark data in selected period"}
-	}
-	prices = clipped
-
-	currency := prices[0].Currency
-
-	// Align MWR period with the portfolio's actual date range so the
-	// figure is comparable. Chart data still covers the full filter period.
-	mwrFrom := dateFrom
-	mwrTo := dateTo
-	if !portfolioDateFrom.IsZero() && portfolioDateFrom.After(mwrFrom) {
-		mwrFrom = portfolioDateFrom
-	}
-	if !portfolioDateTo.IsZero() && portfolioDateTo.Before(mwrTo) {
-		mwrTo = portfolioDateTo
-	}
-	mwrPct := comparison.ComputeMWRForPeriod(prices, mwrFrom, mwrTo)
-
-	chartData := serializeBenchmarkChartData(prices)
-
-	return benchmarkResult{
-		chartData: chartData,
-		mwrPct:    mwrPct,
-		currency:  currency,
-		prices:    prices,
-	}
-}
-
-// fetchBenchmarkData fetches cached benchmark prices, computes MWR, and
-// serializes chart data for the template. Also returns raw prices for
-// monthly return computation.
-func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters performance.PerformanceFilters, portfolioDateFrom, portfolioDateTo time.Time) (chartData string, mwrPct *decimal.Decimal, currency, warning string, prices []market.HistoricalPrice) {
-	dateFrom, dateTo := determineDateRange(filters)
-	if dateFrom.IsZero() {
-		dateFrom = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	}
-	if dateTo.IsZero() {
-		dateTo = time.Now().UTC()
-	}
-
-	prices, err := h.marketService.GetHistoricalPrices(ctx, ticker, dateFrom, dateTo)
-	if err != nil {
-		return "[]", nil, "", "failed to fetch benchmark data", nil
-	}
-
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioDateFrom, portfolioDateTo)
-	return result.chartData, result.mwrPct, result.currency, result.warning, result.prices
+	return clipped
 }
 
 // benchmarkChartDataPoint is the JSON-serializable format for ECharts benchmark series.
@@ -654,203 +561,4 @@ func buildBenchmarkURLs(selectedBenchmark, portfolioID, period, mode string) map
 
 	_ = selectedBenchmark // used by template for active state
 	return urls
-}
-
-// computeMonthlyTWR computes the Time-Weighted Return for a single month
-// from its equity curve points. It detects cash flow dates by finding
-// changes in NetDeposit between consecutive points, computes the pre-cash-flow
-// portfolio value (PV - incremental_net_deposit), and geometrically links
-// sub-period returns.
-//
-// Sub-periods: start → pre-CF[0], post-CF[0] → pre-CF[1], ..., post-CF[n] → end.
-// The post-CF value on a cash flow date is the PortfolioValue from the equity
-// curve (which includes the cash flow). The pre-CF value is PV - delta_ND.
-//
-// Returns nil if the month has fewer than 2 points or the start value is
-// non-positive.
-func computeMonthlyTWR(points []performance.EquityCurvePoint) *decimal.Decimal {
-	if len(points) < 2 {
-		return nil
-	}
-
-	startPV := points[0].PortfolioValue
-	if !startPV.IsPos() {
-		return nil
-	}
-
-	startPVF, _ := startPV.Float64()
-	endPVF, _ := points[len(points)-1].PortfolioValue.Float64()
-
-	// Detect cash flow indices: points where NetDeposit changed from previous.
-	var cfIndices []int
-	prevND, _ := points[0].NetDeposit.Float64()
-	for i := 1; i < len(points); i++ {
-		nd, _ := points[i].NetDeposit.Float64()
-		if nd != prevND {
-			cfIndices = append(cfIndices, i)
-			prevND = nd
-		}
-	}
-
-	// No cash flows: simple return.
-	if len(cfIndices) == 0 {
-		if startPVF <= 0 {
-			return nil
-		}
-		ratio := endPVF / startPVF
-		retPct, _ := decimal.NewFromFloat64((ratio - 1.0) * 100.0)
-		result := retPct.Round(2)
-		return &result
-	}
-
-	// Geometrically link sub-period return ratios.
-	var product float64 = 1.0
-
-	// Previous "from" value for sub-period computation.
-	// Initially the start of the month.
-	var fromVal float64 = startPVF
-
-	for _, cfIdx := range cfIndices {
-		// Pre-cash-flow PV: PV_on_day - incremental_net_deposit.
-		// incremental_ND = ND[cfIdx] - ND[cfIdx-1]
-		// pre_CF_PV = PV[cfIdx] - (ND[cfIdx] - ND[cfIdx-1])
-		cfPV, _ := points[cfIdx].PortfolioValue.Float64()
-		cfND, _ := points[cfIdx].NetDeposit.Float64()
-		var prevCFND float64
-		if cfIdx > 0 {
-			prevCFND, _ = points[cfIdx-1].NetDeposit.Float64()
-		}
-		incrementalND := cfND - prevCFND
-		preCFPV := cfPV - incrementalND
-
-		// Sub-period return: fromVal → preCFPV.
-		if fromVal > 0 && preCFPV > 0 {
-			product *= preCFPV / fromVal
-		} else {
-			return nil
-		}
-
-		// Next sub-period starts from the post-cash-flow PV (includes the CF).
-		fromVal = cfPV
-	}
-
-	// Final sub-period: last post-CF (or start if no CFs reached) → end of month.
-	if fromVal > 0 && endPVF > 0 {
-		product *= endPVF / fromVal
-	} else {
-		return nil
-	}
-
-	// TWR = product - 1, expressed as percentage.
-	twrPct, _ := decimal.NewFromFloat64((product - 1.0) * 100.0)
-	result := twrPct.Round(2)
-	return &result
-}
-
-// computeMonthlyReturnsFromCurve computes monthly returns for the portfolio
-// equity curve and optionally for the benchmark. Produces yearReturnData
-// rows (one per year) for the heatmap template.
-//
-// Portfolio monthly return: Time-Weighted Return (TWR) that isolates
-// investment performance from deposit/withdrawal timing by splitting
-// the month at cash flow dates and geometrically linking sub-period returns.
-// Benchmark monthly return: uses comparison.ComputeMonthlyReturns on benchmark prices.
-// Diff: portfolio return - benchmark return (empty string if no benchmark).
-func computeMonthlyReturnsFromCurve(curve []performance.EquityCurvePoint, benchPrices []market.HistoricalPrice, benchmarkTicker string) []yearReturnData {
-	if len(curve) == 0 {
-		return nil
-	}
-
-	// Group equity curve points by year-month for TWR computation.
-	portfolioMonths := make(map[string][]performance.EquityCurvePoint)
-	for _, pt := range curve {
-		key := pt.Date.Format("2006-01")
-		portfolioMonths[key] = append(portfolioMonths[key], pt)
-	}
-
-	// Compute benchmark monthly returns if benchmark selected.
-	var benchMonthly map[string]*decimal.Decimal
-	if benchmarkTicker != "" && len(benchPrices) > 0 {
-		benchMonthly = comparison.ComputeMonthlyReturns(benchPrices)
-	}
-
-	// Only include months that have portfolio data.
-	// Benchmark-only months (before portfolio started) are excluded.
-	monthSet := make(map[string]bool)
-	for key := range portfolioMonths {
-		monthSet[key] = true
-	}
-
-	// Sort month keys.
-	months := make([]string, 0, len(monthSet))
-	for key := range monthSet {
-		months = append(months, key)
-	}
-	sort.Strings(months)
-
-	// Group month data by year.
-	type monthCell struct {
-		portfolioRet string
-		benchRet     string
-		diff         string
-	}
-	yearMonths := make(map[int]map[int]monthCell) // year -> month -> cell
-	for _, key := range months {
-		year, _ := strconv.Atoi(key[:4])
-		month, _ := strconv.Atoi(key[5:7])
-
-		if yearMonths[year] == nil {
-			yearMonths[year] = make(map[int]monthCell)
-		}
-
-		cell := monthCell{}
-
-		// Portfolio return — TWR scoped to this month.
-		if pts, ok := portfolioMonths[key]; ok {
-			if twr := computeMonthlyTWR(pts); twr != nil {
-				cell.portfolioRet = twr.String()
-			}
-		}
-
-		// Benchmark return.
-		if benchmarkTicker != "" {
-			if bRet, ok := benchMonthly[key]; ok {
-				cell.benchRet = bRet.String()
-				// Diff = portfolio - benchmark.
-				if cell.portfolioRet != "" {
-					pRet, _ := decimal.Parse(cell.portfolioRet)
-					diff, _ := pRet.Sub(*bRet)
-					diffRounded := diff.Round(2)
-					cell.diff = diffRounded.String()
-				}
-			}
-		}
-
-		yearMonths[year][month] = cell
-	}
-
-	// Build result rows sorted by year.
-	years := make([]int, 0, len(yearMonths))
-	for y := range yearMonths {
-		years = append(years, y)
-	}
-	sort.Ints(years)
-
-	result := make([]yearReturnData, 0, len(years))
-	for _, year := range years {
-		monthsMap := make(map[int]monthCellData)
-		for month, cell := range yearMonths[year] {
-			monthsMap[month] = monthCellData{
-				PortfolioReturn: cell.portfolioRet,
-				BenchmarkReturn: cell.benchRet,
-				Diff:            cell.diff,
-			}
-		}
-		result = append(result, yearReturnData{
-			Year:   year,
-			Months: monthsMap,
-		})
-	}
-
-	return result
 }
