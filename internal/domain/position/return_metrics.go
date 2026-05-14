@@ -164,7 +164,7 @@ func computeTWR(
 
 	// No cash flows: simple return.
 	if len(breakpoints) == 0 {
-		return computeSimpleReturn(first, last)
+		return computeValueReturn(first, last)
 	}
 
 	// Geometrically link sub-period return ratios.
@@ -254,8 +254,10 @@ func computeTWR(
 	return ptrDec(twrPct.Round(2))
 }
 
-// computeSimpleReturn computes (end - begin) / begin × 100.
-func computeSimpleReturn(first, last EquityCurvePoint) *decimal.Decimal {
+// computeValueReturn computes the raw portfolio value return:
+// (endValue - beginValue) / beginValue × 100.
+// Used as the TWR fallback when there are no cash flows.
+func computeValueReturn(first, last EquityCurvePoint) *decimal.Decimal {
 	beginValue := first.PortfolioValue
 	if !beginValue.IsPos() {
 		return nil
