@@ -966,6 +966,80 @@ legend {
     margin-bottom: 1rem;
 }
 
+/* Metrics panel — grouped summary table */
+.metrics-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metrics-section {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.metrics-section-header {
+    background: #f8f9fa;
+    padding: 0.625rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #eee;
+}
+
+.metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.metrics-table thead tr {
+    background: #fafbfc;
+}
+
+.metrics-table th,
+.metrics-table td {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.875rem;
+}
+
+.metrics-table th {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metrics-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.metrics-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.metrics-label {
+    color: #666;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.metrics-value {
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.metrics-value.num {
+    text-align: right;
+}
+
 /* Monthly return heatmap */
 .heatmap-container {
     background: #fff;
