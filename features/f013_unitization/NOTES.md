@@ -9,7 +9,7 @@
 - None yet.
 
 ## Implementation Notes
-- `ComputeSimpleReturn` (public, P&L-based) is distinct from `computeSimpleReturn` (private, portfolio-value-based). The private function computes `end/begin - 1` on PortfolioValue and is used internally by TWR as the no-cash-flow fallback. The public function computes the percentage change in cumulative P&L (`PortfolioValue - NetDeposit`). Both coexist — they measure different things.
+- Private `computeValueReturn` (formerly `computeSimpleReturn`) computes `end/begin - 1` on PortfolioValue — used as the TWR no-cash-flow fallback. Public `ComputeSimpleReturn` computes P&L-based return. Renamed to avoid confusion.
 
 ## Future Improvements
 - None yet.
