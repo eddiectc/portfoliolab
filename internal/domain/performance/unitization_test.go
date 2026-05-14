@@ -1,4 +1,4 @@
-package position
+package performance
 
 import (
 	"testing"
@@ -66,8 +66,8 @@ func TestComputeNavHistory_SubsequentDeposit(t *testing.T) {
 		{Date: mustTime("2024-01-04"), PortfolioValue: dec(1600000, 2)}, // $16,000
 	}
 
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(1050000, 2)}, // pre-cash-flow: $10,500
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(1050000, 2)}, // pre-cash-flow: $10,500
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
@@ -119,8 +119,8 @@ func TestComputeNavHistory_Withdrawal(t *testing.T) {
 		{Date: mustTime("2024-01-04"), PortfolioValue: dec(937500, 2)},  // $9,375
 	}
 
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(1200000, 2)}, // pre-cash-flow: $12,000
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(1200000, 2)}, // pre-cash-flow: $12,000
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
@@ -186,8 +186,8 @@ func TestComputeNavHistory_WithdrawalCap(t *testing.T) {
 		{Date: mustTime("2024-01-03"), PortfolioValue: dec(-500000, 2)}, // -$5,000 (after excessive withdrawal)
 	}
 
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(1000000, 2)}, // pre-cash-flow: $10,000
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(1000000, 2)}, // pre-cash-flow: $10,000
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
@@ -216,8 +216,8 @@ func TestComputeNavHistory_FractionalUnits(t *testing.T) {
 		{Date: mustTime("2024-01-03"), PortfolioValue: dec(1130100, 2)}, // $11,301 (after deposit)
 	}
 
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(1030000, 2)}, // pre-cash-flow: $10,300
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(1030000, 2)}, // pre-cash-flow: $10,300
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
@@ -255,9 +255,9 @@ func TestComputeNavHistory_MultipleTransactionsSameDay(t *testing.T) {
 	}
 
 	// Multiple breakpoints on same day — only first is used (deduplication)
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(1000000, 2)}, // pre first deposit
-		{date: mustTime("2024-01-03"), value: dec(1100000, 2)}, // pre second deposit (ignored)
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(1000000, 2)}, // pre first deposit
+		{Date: mustTime("2024-01-03"), Value: dec(1100000, 2)}, // pre second deposit (ignored)
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
@@ -298,9 +298,9 @@ func TestComputeNavHistory_MultipleDepositsDifferentDays(t *testing.T) {
 		{Date: mustTime("2024-01-05"), PortfolioValue: dec(1800000, 2)},  // $18,000
 	}
 
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(1050000, 2)}, // pre-cash-flow: $10,500
-		{date: mustTime("2024-01-05"), value: dec(1600000, 2)}, // pre-cash-flow: $16,000
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(1050000, 2)}, // pre-cash-flow: $10,500
+		{Date: mustTime("2024-01-05"), Value: dec(1600000, 2)}, // pre-cash-flow: $16,000
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
@@ -496,8 +496,8 @@ func TestComputeNavHistory_LargeDeposit(t *testing.T) {
 		{Date: mustTime("2024-01-03"), PortfolioValue: dec(10110000, 2)}, // $101,100
 	}
 
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(110000, 2)}, // pre-cash-flow: $1,100
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(110000, 2)}, // pre-cash-flow: $1,100
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
@@ -538,9 +538,9 @@ func TestComputeNavHistory_WithdrawalThenDeposit(t *testing.T) {
 		{Date: mustTime("2024-01-05"), PortfolioValue: dec(1350000, 2)}, // $13,500 (after deposit)
 	}
 
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-03"), value: dec(1200000, 2)}, // pre-cash-flow: $12,000
-		{date: mustTime("2024-01-05"), value: dec(1050000, 2)}, // pre-cash-flow: $10,500
+	breakpoints := []NavBreakpoint{
+		{Date: mustTime("2024-01-03"), Value: dec(1200000, 2)}, // pre-cash-flow: $12,000
+		{Date: mustTime("2024-01-05"), Value: dec(1050000, 2)}, // pre-cash-flow: $10,500
 	}
 
 	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))

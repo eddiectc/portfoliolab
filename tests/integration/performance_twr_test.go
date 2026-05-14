@@ -15,7 +15,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
@@ -123,7 +123,7 @@ func createTx(t *testing.T, router http.Handler, accountID int64, date, txType, 
 }
 
 // getPerformance hits the performance API and decodes the result.
-func getPerformance(t *testing.T, router http.Handler, portfolioID int64) position.PerformanceResult {
+func getPerformance(t *testing.T, router http.Handler, portfolioID int64) performance.PerformanceResult {
 	t.Helper()
 	req := httptest.NewRequest("GET", "/api/performance?portfolio_id="+fmt.Sprintf("%d", portfolioID), nil)
 	w := httptest.NewRecorder()
@@ -131,7 +131,7 @@ func getPerformance(t *testing.T, router http.Handler, portfolioID int64) positi
 	if w.Code != http.StatusOK {
 		t.Fatalf("performance API: %d %s", w.Code, w.Body.String())
 	}
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("decode: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -331,7 +332,7 @@ func TestRefreshMarketData_Success(t *testing.T) {
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -398,7 +399,7 @@ func TestRefreshMarketData_PartialFailure(t *testing.T) {
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -437,7 +438,7 @@ func TestRefreshMarketData_EmptyPortfolio(t *testing.T) {
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -501,7 +502,7 @@ func TestRefreshMarketData_MultiCurrency(t *testing.T) {
 		marketService:  &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -545,7 +546,7 @@ func TestRefreshMarketData_OpenPositionsOnly(t *testing.T) {
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -577,7 +578,7 @@ func TestRefreshMarketData_NoMarketFetcher(t *testing.T) {
 		// No marketService set
 	}
 
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -629,7 +630,7 @@ func TestRefreshMarketData_PeriodFilter(t *testing.T) {
 
 	// Use 1M period — should only pick up TSLA from transactions
 	// (AAPL transaction is outside the date range)
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{Period: "1M"})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{Period: "1M"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -678,7 +679,7 @@ func TestRefreshMarketData_PortfolioFilter(t *testing.T) {
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
-	result, err := svc.RefreshMarketData(ctx, PerformanceFilters{PortfolioID: &portfolioID})
+	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{PortfolioID: &portfolioID})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

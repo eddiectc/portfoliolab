@@ -14,6 +14,7 @@ import (
 	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -400,7 +401,7 @@ func TestPerfHandlePerformance_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -429,7 +430,7 @@ func TestPerfHandlePerformance_EmptyState(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	if !result.ReturnMetrics.HasInsufficientData {
 		t.Error("expected HasInsufficientData=true for empty state")
@@ -698,7 +699,7 @@ func TestPerfHandlePerformance_NoBenchmark(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "" {
 		t.Errorf("expected empty benchmark ticker, got %q", result.BenchmarkTicker)
@@ -752,7 +753,7 @@ func TestPerfHandlePerformance_ValidBenchmarkNoData(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
@@ -787,7 +788,7 @@ func TestPerfHandlePerformance_ValidBenchmarkWithData(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
@@ -829,7 +830,7 @@ func TestPerfHandlePerformance_BenchmarkWithPeriod(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
@@ -853,7 +854,7 @@ func TestPerfParseFilters_Benchmark(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^IXIC" {
 		t.Errorf("expected benchmark ticker ^IXIC, got %q", result.BenchmarkTicker)
@@ -879,7 +880,7 @@ func TestPerfParseFilters_Mode_Nav(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	// Mode is passed through filters to the service; verify request succeeds
 	if result.BaseCurrency != "USD" {
@@ -922,7 +923,7 @@ func TestPerfParseFilters_Mode_WithBenchmarkAndPeriod(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	var result position.PerformanceResult
+	var result performance.PerformanceResult
 	json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)

@@ -3,12 +3,13 @@ package position
 import (
 	"context"
 	"fmt"
-	"sort"
+	
 	"strings"
 	"testing"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -193,7 +194,7 @@ func ptrInt64(v int64) *int64 {
 // --- Tests for helper functions ---
 
 func TestDetermineDateRange_AllPeriod(t *testing.T) {
-	filters := PerformanceFilters{Period: "All"}
+	filters := performance.PerformanceFilters{Period: "All"}
 	dateFrom, dateTo := determineDateRange(filters)
 
 	if !dateFrom.IsZero() {
@@ -226,7 +227,7 @@ func TestDetermineDateRange_Periods(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filters := PerformanceFilters{Period: tt.period}
+			filters := performance.PerformanceFilters{Period: tt.period}
 			dateFrom, _ := determineDateRange(filters)
 			gotDay := toDay(dateFrom)
 			if !gotDay.Equal(tt.wantFrom) {
@@ -239,7 +240,7 @@ func TestDetermineDateRange_Periods(t *testing.T) {
 func TestDetermineDateRange_ExplicitDates(t *testing.T) {
 	from := testTime(2024, 3, 1)
 	to := testTime(2024, 6, 30)
-	filters := PerformanceFilters{
+	filters := performance.PerformanceFilters{
 		DateFrom: &from,
 		DateTo:   &to,
 	}
@@ -281,269 +282,6 @@ func TestFilterByDateRange_ZeroFrom(t *testing.T) {
 	result := filterByDateRange(txns, time.Time{}, testTime(2024, 12, 31))
 	if len(result) != 2 {
 		t.Fatalf("expected 2 transactions, got %d", len(result))
-	}
-}
-
-func TestWalkTransactions_HappyPath(t *testing.T) {
-	txns := []transaction.Transaction{
-		// Jan 15: deposit $10,000
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
-		// Feb 15: buy 10 AAPL at $150
-		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
-		// Mar 15: deposit $5,000
-		eqTxn(1, testTime(2024, 3, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
-		// Apr 15: sell 5 AAPL at $170 (negative quantity, matching real DB convention)
-		eqTxn(1, testTime(2024, 4, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
-	}
-
-	snapshots, _ := walkTransactions(txns)
-	if len(snapshots) != 4 {
-		t.Fatalf("expected 4 snapshots, got %d", len(snapshots))
-	}
-
-	// Snapshot 1 (Jan 15): no positions, cash = $10,000, net deposit = $10,000
-	s1 := snapshots[0]
-	if len(s1.positions) != 0 {
-		t.Errorf("snapshot 1: expected 0 positions, got %d", len(s1.positions))
-	}
-	wantCash := decimal.MustNew(1000000, 2)
-	if !s1.cashBalance["USD"].Equal(wantCash) {
-		t.Errorf("snapshot 1 cash: got %s, want %s", s1.cashBalance["USD"].String(), wantCash.String())
-	}
-	if !s1.netDeposit["USD"].Equal(wantCash) {
-		t.Errorf("snapshot 1 net deposit: got %s, want %s", s1.netDeposit["USD"].String(), wantCash.String())
-	}
-
-	// Snapshot 2 (Feb 15): 10 AAPL, cash = -$5,000, net deposit = $10,000
-	s2 := snapshots[1]
-	wantQty := decimal.MustNew(1000, 2)
-	if !s2.positions["AAPL"].Equal(wantQty) {
-		t.Errorf("snapshot 2 AAPL qty: got %s, want %s", s2.positions["AAPL"].String(), wantQty.String())
-	}
-	wantCash2 := decimal.MustNew(-500000, 2)
-	if !s2.cashBalance["USD"].Equal(wantCash2) {
-		t.Errorf("snapshot 2 cash: got %s, want %s", s2.cashBalance["USD"].String(), wantCash2.String())
-	}
-	if !s2.netDeposit["USD"].Equal(wantCash) {
-		t.Errorf("snapshot 2 net deposit: got %s, want %s", s2.netDeposit["USD"].String(), wantCash.String())
-	}
-
-	// Snapshot 3 (Mar 15): 10 AAPL, cash = $0, net deposit = $15,000
-	s3 := snapshots[2]
-	if !s3.cashBalance["USD"].IsZero() {
-		t.Errorf("snapshot 3 cash: expected 0, got %s", s3.cashBalance["USD"].String())
-	}
-	wantND3 := decimal.MustNew(1500000, 2)
-	if !s3.netDeposit["USD"].Equal(wantND3) {
-		t.Errorf("snapshot 3 net deposit: got %s, want %s", s3.netDeposit["USD"].String(), wantND3.String())
-	}
-
-	// Snapshot 4 (Apr 15): 5 AAPL, cash = $8,500, net deposit = $15,000
-	s4 := snapshots[3]
-	wantQty4 := decimal.MustNew(500, 2)
-	if !s4.positions["AAPL"].Equal(wantQty4) {
-		t.Errorf("snapshot 4 AAPL qty: got %s, want %s", s4.positions["AAPL"].String(), wantQty4.String())
-	}
-	wantCash4 := decimal.MustNew(850000, 2)
-	if !s4.cashBalance["USD"].Equal(wantCash4) {
-		t.Errorf("snapshot 4 cash: got %s, want %s", s4.cashBalance["USD"].String(), wantCash4.String())
-	}
-}
-
-func TestWalkTransactions_NegativeSellQuantity(t *testing.T) {
-	// Real transaction data stores sell quantities as negative.
-	// walkTransactions must handle this correctly — not double-negate.
-	txns := []transaction.Transaction{
-		// Jan 15: buy 10 AAPL at $150
-		eqTxn(1, testTime(2024, 1, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
-		// Feb 15: sell 5 AAPL at $170 (quantity is negative, matching real DB convention)
-		eqTxn(1, testTime(2024, 2, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
-	}
-
-	snapshots, _ := walkTransactions(txns)
-	if len(snapshots) != 2 {
-		t.Fatalf("expected 2 snapshots, got %d", len(snapshots))
-	}
-
-	// Snapshot 1: 10 AAPL
-	wantQty1 := decimal.MustNew(1000, 2)
-	if !snapshots[0].positions["AAPL"].Equal(wantQty1) {
-		t.Errorf("snapshot 1 AAPL qty: got %s, want %s", snapshots[0].positions["AAPL"].String(), wantQty1.String())
-	}
-
-	// Snapshot 2: 10 + (-5) = 5 AAPL remaining
-	wantQty2 := decimal.MustNew(500, 2)
-	if !snapshots[1].positions["AAPL"].Equal(wantQty2) {
-		t.Errorf("snapshot 2 AAPL qty: got %s, want %s", snapshots[1].positions["AAPL"].String(), wantQty2.String())
-	}
-}
-
-func TestWalkTransactions_MultipleTxnsSameDate(t *testing.T) {
-	txns := []transaction.Transaction{
-		// Jan 15: deposit $10,000
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
-		// Jan 15: buy 10 AAPL at $150 (same day)
-		eqTxn(1, testTime(2024, 1, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
-	}
-
-	snapshots, _ := walkTransactions(txns)
-	if len(snapshots) != 1 {
-		t.Fatalf("expected 1 snapshot (both txns same date), got %d", len(snapshots))
-	}
-
-	s := snapshots[0]
-	// After both txns: positions = 10 AAPL, cash = -$5,000, net deposit = $10,000
-	wantQty := decimal.MustNew(1000, 2)
-	if !s.positions["AAPL"].Equal(wantQty) {
-		t.Errorf("AAPL qty: got %s, want %s", s.positions["AAPL"].String(), wantQty.String())
-	}
-	wantCash := decimal.MustNew(-500000, 2)
-	if !s.cashBalance["USD"].Equal(wantCash) {
-		t.Errorf("cash: got %s, want %s", s.cashBalance["USD"].String(), wantCash.String())
-	}
-}
-
-func TestWalkTransactions_NegativeNetDeposit(t *testing.T) {
-	txns := []transaction.Transaction{
-		// Jan 15: deposit $5,000
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
-		// Feb 15: withdrawal $8,000
-		eqTxn(1, testTime(2024, 2, 15), "withdrawal", "$CASH-USD", "USD", 0, 0, -800000),
-	}
-
-	snapshots, _ := walkTransactions(txns)
-	if len(snapshots) != 2 {
-		t.Fatalf("expected 2 snapshots, got %d", len(snapshots))
-	}
-
-	// After withdrawal: net deposit = $5,000 - $8,000 = -$3,000
-	wantND := decimal.MustNew(-300000, 2)
-	if !snapshots[1].netDeposit["USD"].Equal(wantND) {
-		t.Errorf("net deposit: got %s, want %s", snapshots[1].netDeposit["USD"].String(), wantND.String())
-	}
-}
-
-func TestCollectUniqueSymbols(t *testing.T) {
-	txns := []transaction.Transaction{
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
-		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
-		eqTxn(1, testTime(2024, 3, 15), "buy", "MSFT", "USD", 500, 40000, -2000000),
-		eqTxn(1, testTime(2024, 4, 15), "sell", "AAPL", "USD", -500, 17000, 850000),
-	}
-
-	symbols := collectUniqueSymbols(txns)
-	sort.Strings(symbols)
-
-	if len(symbols) != 2 {
-		t.Fatalf("expected 2 symbols, got %d", len(symbols))
-	}
-	if symbols[0] != "AAPL" || symbols[1] != "MSFT" {
-		t.Errorf("expected [AAPL, MSFT], got %v", symbols)
-	}
-}
-
-func TestCollectUniqueSymbols_ExcludesCash(t *testing.T) {
-	txns := []transaction.Transaction{
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
-		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
-	}
-
-	symbols := collectUniqueSymbols(txns)
-	if len(symbols) != 1 || symbols[0] != "AAPL" {
-		t.Errorf("expected [AAPL], got %v", symbols)
-	}
-}
-
-func TestInterpolateDaily_NoPoints(t *testing.T) {
-	result := interpolateDaily([]EquityCurvePoint{}, time.Time{}, nil, nil, nil, nil, "", nil, nil)
-	if len(result) != 0 {
-		t.Errorf("expected 0 points, got %d", len(result))
-	}
-}
-
-func TestInterpolateDaily_SinglePoint(t *testing.T) {
-	points := []EquityCurvePoint{
-		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustNew(1000000, 2), NetDeposit: decimal.MustNew(1000000, 2)},
-	}
-	result := interpolateDaily(points, testTime(2024, 1, 15), nil, nil, nil, nil, "", nil, nil)
-	if len(result) != 1 {
-		t.Errorf("expected 1 point, got %d", len(result))
-	}
-}
-
-func TestInterpolateDaily_FillsGaps(t *testing.T) {
-	points := []EquityCurvePoint{
-		{Date: testTime(2024, 1, 1), PortfolioValue: decimal.MustNew(1000000, 2), NetDeposit: decimal.MustNew(1000000, 2)},
-		{Date: testTime(2024, 1, 4), PortfolioValue: decimal.MustNew(1100000, 2), NetDeposit: decimal.MustNew(1000000, 2)},
-	}
-	result := interpolateDaily(points, testTime(2024, 1, 4), nil, nil, nil, nil, "", nil, nil)
-	// Jan 1 (original), Jan 2 (carried), Jan 3 (carried), Jan 4 (original) = 4 points
-	if len(result) != 4 {
-		t.Fatalf("expected 4 points, got %d", len(result))
-	}
-
-	// Jan 2 should carry forward Jan 1 values.
-	if !result[1].Date.Equal(testTime(2024, 1, 2)) {
-		t.Errorf("expected Jan 2, got %v", result[1].Date)
-	}
-	if !result[1].PortfolioValue.Equal(decimal.MustNew(1000000, 2)) {
-		t.Errorf("Jan 2 portfolio value: got %s, want 1000000", result[1].PortfolioValue.String())
-	}
-
-	// Jan 4 should be the original value.
-	if !result[3].PortfolioValue.Equal(decimal.MustNew(1100000, 2)) {
-		t.Errorf("Jan 4 portfolio value: got %s, want 1100000", result[3].PortfolioValue.String())
-	}
-}
-
-func TestConvertToBase_SameCurrency(t *testing.T) {
-	value := decimal.MustNew(1000000, 2)
-	result, found := convertToBase(context.Background(), nil, "USD", "USD", value, testTime(2024, 1, 1))
-	if !found {
-		t.Error("expected found=true for same currency")
-	}
-	if !result.Equal(value) {
-		t.Errorf("expected unchanged value, got %s", result.String())
-	}
-}
-
-func TestConvertToBase_WithRate(t *testing.T) {
-	rate := decimal.MustNew(12700, 2)
-	fx := &mockMarketDataService{
-		historicalFx: map[string]*market.FxRate{
-			"GBP/USD": {BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: rate},
-		},
-	}
-
-	value := decimal.MustNew(1000000, 2) // £10,000
-	result, found := convertToBase(context.Background(), fx, "GBP", "USD", value, testTime(2024, 1, 1))
-	if !found {
-		t.Error("expected found=true")
-	}
-	want := decimal.MustNew(12700000000, 4) // $127,000
-	if !result.Equal(want) {
-		t.Errorf("expected %s, got %s", want.String(), result.String())
-	}
-}
-
-func TestConvertToBase_NoRate(t *testing.T) {
-	fx := &mockMarketDataService{}
-	value := decimal.MustNew(1000000, 2)
-	result, found := convertToBase(context.Background(), fx, "GBP", "USD", value, testTime(2024, 1, 1))
-	if found {
-		t.Error("expected found=false when no rate available")
-	}
-	// Returns 0 (not unconverted value) when no rate.
-	if !result.Equal(decimal.Zero) {
-		t.Errorf("expected zero, got %s", result.String())
-	}
-}
-
-func TestConvertToBase_NilProvider(t *testing.T) {
-	value := decimal.MustNew(1000000, 2)
-	_, found := convertToBase(context.Background(), nil, "GBP", "USD", value, testTime(2024, 1, 1))
-	if found {
-		t.Error("expected found=false with nil provider")
 	}
 }
 
@@ -603,7 +341,6 @@ func newTestServiceForEquity() (*Service, *mockTransactionRepository, *mockAccou
 		nil, // no portfolio currency checker
 	), txnRepo, accountLister
 }
-
 func TestComputeEquityCurve_EmptyState(t *testing.T) {
 	svc, _, accountLister := newTestServiceForEquity()
 	accountLister.SetAccountsByPortfolio(1, []AccountRef{
@@ -611,7 +348,7 @@ func TestComputeEquityCurve_EmptyState(t *testing.T) {
 	})
 
 	// No transactions.
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -642,7 +379,7 @@ func TestComputeEquityCurve_OnlyDeposits(t *testing.T) {
 		eqTxn(1, testTime(2024, 3, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
 	})
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -697,7 +434,7 @@ func TestComputeEquityCurve_HappyPath(t *testing.T) {
 	})
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -710,7 +447,7 @@ func TestComputeEquityCurve_HappyPath(t *testing.T) {
 	}
 
 	// Find the Jan 15 point (first snapshot).
-	var jan15, feb15, mar15 *EquityCurvePoint
+	var jan15, feb15, mar15 *performance.EquityCurvePoint
 	for i := range result.EquityCurve {
 		switch {
 		case result.EquityCurve[i].Date.Equal(testTime(2024, 1, 15)):
@@ -766,7 +503,7 @@ func TestComputeEquityCurve_HappyPath(t *testing.T) {
 		t.Error("MaxDrawdownPct is nil")
 	}
 	if len(result.YearlyPerformance) == 0 {
-		t.Error("YearlyPerformance is empty")
+		t.Error("performance.YearlyPerformance is empty")
 	}
 }
 
@@ -785,7 +522,7 @@ func TestComputeEquityCurve_MissingMarketData(t *testing.T) {
 	repo := newMockHistoricalRepo()
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -802,7 +539,7 @@ func TestComputeEquityCurve_MissingMarketData(t *testing.T) {
 	}
 
 	// Feb 15 point: only cash (-$500), AAPL position excluded (no price).
-	var feb15 *EquityCurvePoint
+	var feb15 *performance.EquityCurvePoint
 	for i := range result.EquityCurve {
 		if result.EquityCurve[i].Date.Equal(testTime(2024, 2, 15)) {
 			feb15 = &result.EquityCurve[i]
@@ -825,7 +562,7 @@ func TestComputeEquityCurve_MismatchedCurrencies(t *testing.T) {
 		{ID: 2, PortfolioID: 2, PortfolioCurrency: "GBP"},
 	})
 
-	_, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	_, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		Period: "All", // no portfolio filter → all portfolios
 	})
 	if err == nil {
@@ -866,7 +603,7 @@ func TestComputeEquityCurve_MultiCurrencyWithFX(t *testing.T) {
 		},
 	}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -909,7 +646,7 @@ func TestComputeEquityCurve_PeriodFiltering(t *testing.T) {
 	// but the portfolio state includes ALL transactions (both deposits).
 	from := testTime(2024, 5, 1)
 	to := testTime(2024, 12, 31)
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		DateFrom:    &from,
 		DateTo:      &to,
@@ -969,7 +706,7 @@ func TestComputeEquityCurve_ReturnMetricsRespectPeriod(t *testing.T) {
 	// Sub-period 1: Jan 15 ($10,000) → Mar 15 pre-deposit ($10,300) = +3%
 	// Sub-period 2: Mar 15 post-deposit ($15,300) → last ($15,300) = 0%
 	// TWR ≈ 3%
-	resultAll, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	resultAll, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -982,7 +719,7 @@ func TestComputeEquityCurve_ReturnMetricsRespectPeriod(t *testing.T) {
 	// Simple return: $15,300 → $15,300 = 0%
 	from := testTime(2024, 4, 1)
 	to := testTime(2024, 12, 31)
-	resultShort, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	resultShort, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		DateFrom:    &from,
 		DateTo:      &to,
@@ -1029,7 +766,7 @@ func TestComputeEquityCurve_AllPortfoliosMatchingCurrencies(t *testing.T) {
 		eqTxn(2, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
 	})
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		// No PortfolioID → all portfolios.
 		Period: "All",
 	})
@@ -1059,7 +796,7 @@ func TestComputeEquityCurve_NoMarketFetcher(t *testing.T) {
 	})
 
 	// No market fetcher configured — positions should be excluded from value.
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -1068,7 +805,7 @@ func TestComputeEquityCurve_NoMarketFetcher(t *testing.T) {
 	}
 
 	// Feb 15: only cash (-$500), AAPL excluded (no fetcher).
-	var feb15 *EquityCurvePoint
+	var feb15 *performance.EquityCurvePoint
 	for i := range result.EquityCurve {
 		if result.EquityCurve[i].Date.Equal(testTime(2024, 2, 15)) {
 			feb15 = &result.EquityCurve[i]
@@ -1095,7 +832,7 @@ func TestComputeEquityCurve_NegativeNetDeposit(t *testing.T) {
 		eqTxn(1, testTime(2024, 2, 15), "withdrawal", "$CASH-USD", "USD", 0, 0, -800000),
 	})
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -1117,7 +854,7 @@ func TestComputeEquityCurve_NegativeNetDeposit(t *testing.T) {
 
 // TestComputeEquityCurve_AdditionalMetrics verifies that risk metrics,
 // drawdown analysis, and yearly performance are computed and populated
-// on the PerformanceResult.
+// on the performance.PerformanceResult.
 func TestComputeEquityCurve_AdditionalMetrics(t *testing.T) {
 	svc, txnRepo, accountLister := newTestServiceForEquity()
 	accountLister.SetAccountsByPortfolio(1, []AccountRef{
@@ -1139,7 +876,7 @@ func TestComputeEquityCurve_AdditionalMetrics(t *testing.T) {
 	})
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -1195,7 +932,7 @@ func TestComputeEquityCurve_AdditionalMetrics(t *testing.T) {
 
 	// Yearly performance should have at least one year.
 	if len(result.YearlyPerformance) == 0 {
-		t.Error("YearlyPerformance is empty")
+		t.Error("performance.YearlyPerformance is empty")
 	}
 	if len(result.YearlyPerformance) > 0 {
 		if result.YearlyPerformance[0].Year != 2024 {
@@ -1225,7 +962,7 @@ func TestComputeEquityCurve_StaleDataWarning(t *testing.T) {
 	repo.SetLatestDate("AAPL", oldDate)
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -1268,7 +1005,7 @@ func TestComputeEquityCurve_PartialCache(t *testing.T) {
 	repo.SetLatestDate("AAPL", now)
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -1328,7 +1065,7 @@ func TestComputeEquityCurve_FXForwardFillWeekend(t *testing.T) {
 		},
 	}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -1390,7 +1127,7 @@ func TestComputeEquityCurve_MissingFXRateWarns(t *testing.T) {
 		},
 	}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -1410,148 +1147,6 @@ func TestComputeEquityCurve_MissingFXRateWarns(t *testing.T) {
 	wantGBP := decimal.MustNew(1000000, 2) // £10,000
 	if !gotValue.Equal(wantGBP) {
 		t.Errorf("portfolio value with missing FX: got %s, want %s (GBP only)", gotValue.String(), wantGBP.String())
-	}
-}
-
-func TestWalkTransactions_CapturesPreCashFlow(t *testing.T) {
-	txns := []transaction.Transaction{
-		// Jan 15: deposit $10,000
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
-		// Feb 15: buy 10 AAPL at $150
-		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -1500000),
-		// Mar 15: deposit $5,000
-		eqTxn(1, testTime(2024, 3, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
-	}
-
-	snapshots, _ := walkTransactions(txns)
-	if len(snapshots) != 3 {
-		t.Fatalf("expected 3 snapshots, got %d", len(snapshots))
-	}
-
-	// Jan 15: should have 1 pre-cash-flow snapshot (the deposit)
-	if len(snapshots[0].preCashFlowSnapshots) != 1 {
-		t.Errorf("Jan 15: expected 1 pre-cash-flow snapshot, got %d", len(snapshots[0].preCashFlowSnapshots))
-	}
-	// Feb 15: no cash flows, so no pre-cash-flow snapshots
-	if len(snapshots[1].preCashFlowSnapshots) != 0 {
-		t.Errorf("Feb 15: expected 0 pre-cash-flow snapshots, got %d", len(snapshots[1].preCashFlowSnapshots))
-	}
-	// Mar 15: should have 1 pre-cash-flow snapshot (the deposit)
-	if len(snapshots[2].preCashFlowSnapshots) != 1 {
-		t.Errorf("Mar 15: expected 1 pre-cash-flow snapshot, got %d", len(snapshots[2].preCashFlowSnapshots))
-	}
-}
-
-// TestWalkTransactions_DepositSharesDateWithBuy verifies that pre-cash-flow
-// snapshots are captured even when a deposit shares a date with other
-// transactions (buy/sell). This covers both orderings: deposit-first and
-// buy-first within the same date.
-func TestWalkTransactions_DepositSharesDateWithBuy(t *testing.T) {
-	tests := []struct {
-		name string
-		txns []transaction.Transaction
-	}{
-		{
-			name: "deposit then buy on same date",
-			txns: []transaction.Transaction{
-				eqTxn(1, testTime(2024, 6, 26), "deposit", "$CASH-GBP", "GBP", 0, 0, 1000000), // £10k
-				eqTxn(1, testTime(2024, 7, 2), "deposit", "$CASH-GBP", "GBP", 0, 0, 500000),  // £5k deposit
-				eqTxn(1, testTime(2024, 7, 2), "buy", "VT", "GBP", 1000, 10000, -1000000),    // buy on same date
-				eqTxn(1, testTime(2024, 7, 22), "sell", "VT", "GBP", 500, 10500, 525000),     // sell
-			},
-		},
-		{
-			name: "buy then deposit on same date",
-			txns: []transaction.Transaction{
-				eqTxn(1, testTime(2024, 6, 26), "deposit", "$CASH-GBP", "GBP", 0, 0, 1000000), // £10k
-				eqTxn(1, testTime(2024, 7, 2), "buy", "VT", "GBP", 1000, 10000, -1000000),    // buy first
-				eqTxn(1, testTime(2024, 7, 2), "deposit", "$CASH-GBP", "GBP", 0, 0, 500000),  // deposit second
-				eqTxn(1, testTime(2024, 7, 22), "sell", "VT", "GBP", 500, 10500, 525000),     // sell
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			snapshots, _ := walkTransactions(tt.txns)
-
-			// Should have 3 date-snapshots: 6/26, 7/2, 7/22
-			if len(snapshots) != 3 {
-				t.Fatalf("expected 3 snapshots, got %d", len(snapshots))
-			}
-
-			// 6/26: 1 pre-cash-flow (initial deposit)
-			if len(snapshots[0].preCashFlowSnapshots) != 1 {
-				t.Errorf("6/26: expected 1 pre-cash-flow, got %d", len(snapshots[0].preCashFlowSnapshots))
-			}
-
-			// 7/2: 1 pre-cash-flow (the deposit on this date)
-			if len(snapshots[1].preCashFlowSnapshots) != 1 {
-				t.Errorf("7/2: expected 1 pre-cash-flow snapshot (the deposit), got %d", len(snapshots[1].preCashFlowSnapshots))
-				if len(snapshots[1].preCashFlowSnapshots) == 0 {
-					t.Error("BUG: deposit on 7/2 did not create a pre-cash-flow snapshot attached to the dateSnapshot")
-				}
-			}
-
-			// 7/22: no cash flows, so no pre-cash-flow
-			if len(snapshots[2].preCashFlowSnapshots) != 0 {
-				t.Errorf("7/22: expected 0 pre-cash-flow, got %d", len(snapshots[2].preCashFlowSnapshots))
-			}
-		})
-	}
-}
-
-// TestComputeTWR_DepositOnSameDateAsBuy verifies that TWR correctly
-// isolates the deposit effect when a deposit shares a date with a buy.
-// This is a regression test for the bug where missing breakpoints caused
-// deposit amounts to be absorbed into sub-period returns, inflating TWR.
-func TestComputeTWR_DepositOnSameDateAsBuy(t *testing.T) {
-	// Scenario mimicking real data:
-	// 6/26: deposit £511k → portfolio £511k (all cash)
-	// 7/2:   deposit £73k + buy positions → portfolio £586k (pos £297k + cash £289k)
-	// 7/22:  sell some → portfolio £582k (pos £460k + cash £122k)
-	//
-	// Without the 7/2 breakpoint: TWR = 582/511 - 1 = 13.9% (WRONG — includes deposit)
-	// With the 7/2 breakpoint:
-	//   sub-period 6/26→7/2: pre(7/2) ≈ 513k / post(6/26) 511k ≈ 1.004 (+0.4%)
-	//   sub-period 7/2→7/22: post(7/22) ≈ 582k / post(7/2) 586k ≈ 0.993 (-0.7%)
-	//   TWR ≈ 1.004 * 0.993 - 1 ≈ -0.3% (correct — isolates market performance)
-
-	// Build equity curve points (simulating interpolated daily values)
-	points := []EquityCurvePoint{
-		{Date: testTime(2024, 6, 26), PortfolioValue: decimal.MustNew(51156800, 2), NetDeposit: decimal.MustNew(50788500, 2)},
-		{Date: testTime(2024, 7, 2), PortfolioValue: decimal.MustNew(58646200, 2), NetDeposit: decimal.MustNew(58077800, 2)},
-		{Date: testTime(2024, 7, 22), PortfolioValue: decimal.MustNew(58208900, 2), NetDeposit: decimal.MustNew(58035900, 2)},
-	}
-
-	// Breakpoints: pre-cash-flow values
-	// 6/26: 0 (initial deposit, no prior portfolio)
-	// 7/2: ~513,569 (portfolio before £73k deposit, i.e., ~6/26 value + small market gain)
-	breakpoints := []twrBreakpoint{
-		{date: testTime(2024, 6, 26), value: decimal.Zero},
-		{date: testTime(2024, 7, 2), value: decimal.MustNew(51356900, 2)},
-	}
-
-	metrics := ComputePeriodReturn(points, breakpoints, "GBP")
-	if metrics.TWRPct == nil {
-		t.Fatal("TWR should not be nil")
-	}
-
-	twrPct, _ := metrics.TWRPct.Float64()
-
-	// Expected TWR:
-	// sub-period 1: post(6/26)=511,568 → pre(7/2)=513,569 → ratio = 1.0039
-	// sub-period 2: post(7/2)=586,462 → last=582,089 → ratio = 0.9926
-	// TWR = 1.0039 * 0.9926 - 1 = -0.077% ≈ -0.08%
-	// (small negative because portfolio declined slightly after the deposit)
-
-	// The key assertion: TWR should be close to 0%, NOT 13.9%
-	// If the 7/2 breakpoint were missing, TWR would be ~13.9%
-	if twrPct > 5.0 {
-		t.Errorf("TWR = %.2f%%, expected near 0%% (got inflated by missing breakpoint?)", twrPct)
-	}
-	if twrPct < -5.0 {
-		t.Errorf("TWR = %.2f%%, expected near 0%% (unexpectedly negative?)", twrPct)
 	}
 }
 

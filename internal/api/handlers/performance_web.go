@@ -16,6 +16,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
@@ -43,7 +44,7 @@ type yearReturnData struct {
 // performancePageData is the data struct for the performance page template.
 type performancePageData struct {
 	web.PageData
-	Result              *position.PerformanceResult
+	Result              *performance.PerformanceResult
 	ChartData           string // pre-serialized JSON for ECharts (equity mode)
 	NavChartData        string // pre-serialized JSON for ECharts (NAV mode, normalized to 100%)
 	CurrentValue        string // last equity curve point's portfolio value
@@ -308,7 +309,7 @@ func computeBenchmarkResult(prices []market.HistoricalPrice, dateFrom, dateTo, p
 // fetchBenchmarkData fetches cached benchmark prices, computes MWR, and
 // serializes chart data for the template. Also returns raw prices for
 // monthly return computation.
-func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters position.PerformanceFilters, portfolioDateFrom, portfolioDateTo time.Time) (chartData string, mwrPct *decimal.Decimal, currency, warning string, prices []market.HistoricalPrice) {
+func (h *PerformanceWebHandler) fetchBenchmarkData(ctx context.Context, ticker string, filters performance.PerformanceFilters, portfolioDateFrom, portfolioDateTo time.Time) (chartData string, mwrPct *decimal.Decimal, currency, warning string, prices []market.HistoricalPrice) {
 	dateFrom, dateTo := determineDateRange(filters)
 	if dateFrom.IsZero() {
 		dateFrom = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -397,7 +398,7 @@ type chartDataPoint struct {
 }
 
 // serializeChartData converts equity curve points to JSON for ECharts consumption.
-func serializeChartData(points []position.EquityCurvePoint) string {
+func serializeChartData(points []performance.EquityCurvePoint) string {
 	if len(points) == 0 {
 		return "[]"
 	}
@@ -490,7 +491,7 @@ type navChartDataPoint struct {
 
 // computeNavChartData converts equity curve points to NAV-mode chart data
 // using the actual NavPerUnit value on each point.
-func computeNavChartData(points []position.EquityCurvePoint) string {
+func computeNavChartData(points []performance.EquityCurvePoint) string {
 	if len(points) == 0 {
 		return "[]"
 	}
@@ -667,7 +668,7 @@ func buildBenchmarkURLs(selectedBenchmark, portfolioID, period, mode string) map
 //
 // Returns nil if the month has fewer than 2 points or the start value is
 // non-positive.
-func computeMonthlyTWR(points []position.EquityCurvePoint) *decimal.Decimal {
+func computeMonthlyTWR(points []performance.EquityCurvePoint) *decimal.Decimal {
 	if len(points) < 2 {
 		return nil
 	}
@@ -755,13 +756,13 @@ func computeMonthlyTWR(points []position.EquityCurvePoint) *decimal.Decimal {
 // the month at cash flow dates and geometrically linking sub-period returns.
 // Benchmark monthly return: uses comparison.ComputeMonthlyReturns on benchmark prices.
 // Diff: portfolio return - benchmark return (empty string if no benchmark).
-func computeMonthlyReturnsFromCurve(curve []position.EquityCurvePoint, benchPrices []market.HistoricalPrice, benchmarkTicker string) []yearReturnData {
+func computeMonthlyReturnsFromCurve(curve []performance.EquityCurvePoint, benchPrices []market.HistoricalPrice, benchmarkTicker string) []yearReturnData {
 	if len(curve) == 0 {
 		return nil
 	}
 
 	// Group equity curve points by year-month for TWR computation.
-	portfolioMonths := make(map[string][]position.EquityCurvePoint)
+	portfolioMonths := make(map[string][]performance.EquityCurvePoint)
 	for _, pt := range curve {
 		key := pt.Date.Format("2006-01")
 		portfolioMonths[key] = append(portfolioMonths[key], pt)

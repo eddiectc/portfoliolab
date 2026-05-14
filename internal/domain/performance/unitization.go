@@ -1,4 +1,4 @@
-package position
+package performance
 
 import (
 	"time"
@@ -8,9 +8,9 @@ import (
 
 // navBreakpoint holds the portfolio value just before a cash flow
 // (deposit/withdrawal), used for unitization NAV computation.
-type navBreakpoint struct {
-	date  time.Time
-	value decimal.Decimal // portfolio value in base currency, before the cash flow
+type NavBreakpoint struct {
+	Date  time.Time
+	Value decimal.Decimal // portfolio value in base currency, before the cash flow
 }
 
 // NavPoint is a single data point in the NAV history.
@@ -51,7 +51,7 @@ type NavPoint struct {
 // breakpoints are the pre-cash-flow portfolio values at each deposit/withdrawal
 // date (excluding the initial deposit, which is handled by the fixed-units
 // initialization). Breakpoints on the same date are deduplicated (first kept).
-func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []navBreakpoint, inceptionDate time.Time) []NavPoint {
+func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []NavBreakpoint, inceptionDate time.Time) []NavPoint {
 	if len(equityCurve) == 0 || inceptionDate.IsZero() {
 		return nil
 	}
@@ -59,9 +59,9 @@ func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []navBreakpoi
 	// Build a date → breakpoint map for O(1) lookup.
 	// When multiple breakpoints exist on the same date, keep only the first
 	// (before any cash flow that day), matching the TWR deduplication logic.
-	bpMap := make(map[string]navBreakpoint)
+	bpMap := make(map[string]NavBreakpoint)
 	for _, bp := range breakpoints {
-		key := bp.date.Format("2006-01-02")
+		key := bp.Date.Format("2006-01-02")
 		if _, exists := bpMap[key]; !exists {
 			bpMap[key] = bp
 		}
@@ -100,7 +100,7 @@ func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []navBreakpoi
 			// the first deposit as a "new units" event.
 			if i > 0 {
 				// Pre-cash-flow NAV: value before the cash flow / current units.
-				preValue := bp.value
+				preValue := bp.Value
 				if !preValue.IsPos() {
 					preValue = equityCurve[i-1].PortfolioValue
 				}

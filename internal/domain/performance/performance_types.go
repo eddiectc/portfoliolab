@@ -1,4 +1,4 @@
-package position
+package performance
 
 import (
 	"time"
@@ -68,6 +68,22 @@ type NavSummary struct {
 // YearlyPerformance is a sequence of calendar-year returns.
 type YearlyPerformance []YearlyReturn
 
+// MonthlyReturn holds the monthly return data for a single month.
+// PortfolioReturn is the time-weighted return for the month (%).
+// BenchmarkReturn is the benchmark return for the month (%). Empty if no benchmark.
+// Diff is portfolio return minus benchmark return (%). Empty if no benchmark.
+type MonthlyReturn struct {
+	PortfolioReturn string `json:"portfolio_return"`
+	BenchmarkReturn string `json:"benchmark_return,omitempty"`
+	Diff            string `json:"diff,omitempty"`
+}
+
+// YearlyMonthlyReturns holds monthly returns grouped by year.
+type YearlyMonthlyReturns struct {
+	Year   int                    `json:"year"`
+	Months map[int]MonthlyReturn  `json:"months"` // month number (1-12) -> return data
+}
+
 // PerformanceResult is the complete output of a performance computation.
 // EquityCurve is the time-series of portfolio value and net deposit points.
 // ReturnMetrics are the summary return calculations.
@@ -82,6 +98,7 @@ type YearlyPerformance []YearlyReturn
 // RiskMetrics holds volatility, Sharpe, and Sortino ratios.
 // DrawdownAnalysis holds max/current drawdown statistics.
 // YearlyPerformance holds calendar-year return breakdown.
+// MonthlyReturns holds monthly return heatmap data (portfolio vs benchmark).
 type PerformanceResult struct {
 	EquityCurve           []EquityCurvePoint     `json:"equity_curve"`
 	ReturnMetrics         ReturnMetrics          `json:"return_metrics"`
@@ -96,16 +113,7 @@ type PerformanceResult struct {
 	RiskMetrics           RiskMetrics            `json:"risk_metrics"`
 	DrawdownAnalysis      DrawdownAnalysis       `json:"drawdown_analysis"`
 	YearlyPerformance     YearlyPerformance      `json:"yearly_performance,omitempty"`
-}
-
-// RefreshResult summarizes the outcome of a market data refresh.
-// SymbolsRefreshed lists symbols whose current price was successfully fetched.
-// FxPairsRefreshed lists FX pairs whose current rate was successfully fetched.
-// FailedSymbols lists symbols that could not be fetched.
-type RefreshResult struct {
-	SymbolsRefreshed  []string `json:"symbols_refreshed"`
-	FxPairsRefreshed  []string `json:"fx_pairs_refreshed"`
-	FailedSymbols     []string `json:"failed_symbols,omitempty"`
+	MonthlyReturns        []YearlyMonthlyReturns `json:"monthly_returns,omitempty"`
 }
 
 // PerformanceFilters holds optional filter criteria for performance queries.

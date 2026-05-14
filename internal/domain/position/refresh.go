@@ -3,11 +3,20 @@ package position
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
+
+// RefreshResult summarizes the outcome of a market data refresh.
+type RefreshResult struct {
+	SymbolsRefreshed  []string `json:"symbols_refreshed"`
+	FxPairsRefreshed  []string `json:"fx_pairs_refreshed"`
+	FailedSymbols     []string `json:"failed_symbols,omitempty"`
+}
 
 // RefreshMarketData refreshes current market data (prices and FX rates) for
 // the symbols and currencies relevant to the given performance filters.
@@ -20,7 +29,7 @@ import (
 //
 // FX rates are refreshed for every unique transaction/position currency
 // that differs from the portfolio base currency.
-func (s *Service) RefreshMarketData(ctx context.Context, filters PerformanceFilters) (*RefreshResult, error) {
+func (s *Service) RefreshMarketData(ctx context.Context, filters performance.PerformanceFilters) (*RefreshResult, error) {
 	// 1. Resolve accounts from filters.
 	accounts, err := s.resolveAccountsForPerformance(ctx, filters)
 	if err != nil {
@@ -126,6 +135,21 @@ func collectUniqueCurrencies(txns []transaction.Transaction) []string {
 		currencies = append(currencies, currency)
 	}
 	return currencies
+}
+
+// filterByDateRange filters transactions to the given date range.
+func filterByDateRange(txns []transaction.Transaction, dateFrom, dateTo time.Time) []transaction.Transaction {
+	var result []transaction.Transaction
+	for _, txn := range txns {
+		if !dateFrom.IsZero() && txn.Date.Before(dateFrom) {
+			continue
+		}
+		if !dateTo.IsZero() && txn.Date.After(dateTo) {
+			continue
+		}
+		result = append(result, txn)
+	}
+	return result
 }
 
 // deduplicateStrings removes duplicate strings from a slice, preserving
