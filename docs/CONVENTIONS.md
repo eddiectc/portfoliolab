@@ -60,6 +60,20 @@
 - Paginate list endpoints with `?limit=&offset=` or cursor-based
 - Return ETags for cacheable resources
 
+## API-First Architecture
+
+The API is the **single source of truth** for all business logic and data computation. The web UI is a thin presentation layer on top.
+
+- **Web handlers delegate to the API** — web handlers should not duplicate computation logic. They call the same service methods the API uses, then add only presentation concerns (chart serialization, template data shaping, URL building).
+- **API responses are mobile-ready** — API endpoints return complete, self-contained data. If a mobile client needs the same data as the web page, it should be available from the API without extra endpoints.
+- **No computation in web handlers** — data transformation, aggregation, and analytics live in the domain/service layer. Web handlers only:
+  - Parse request params → build filter structs
+  - Call service/API methods
+  - Serialize chart data (JSON for ECharts)
+  - Build template data (URLs, labels, page metadata)
+  - Render templates
+- **Shared computation** — if both API and web need the same derived data (e.g., monthly returns), compute it once in the service layer and include it in the result struct. Don't compute separately in each handler.
+
 ## Web UI
 - Keep templates simple — no complex logic in templates
 - Use partials for reusable components (nav, footer, table rows)

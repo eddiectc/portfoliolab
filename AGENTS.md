@@ -168,6 +168,15 @@ When storing data with a new filterable field (e.g., a new `data_type`, `source`
 3. **Service layer** — verify consumers handle the new data type (no silent drops)
 4. **Tests** — add a test case with the new value exercising the full path (repo → service → output)
 
+### API-First Architecture
+
+The API is the **single source of truth** for all data computation. The web UI is a thin presentation layer.
+
+- **Web handlers delegate to API/service** — never duplicate computation in web handlers. Call the same service methods the API uses, then add only presentation concerns (chart serialization, template data, URLs).
+- **API responses are mobile-ready** — if a mobile client needs the same data, it must be available from the API.
+- **Shared computation** — if both API and web need derived data (e.g., monthly returns), compute once in the service layer and include in the result struct.
+- See `docs/CONVENTIONS.md` → API-First Architecture for details.
+
 ### Web UI
 - Keep templates simple — no complex logic in templates
 - Use partials for reusable components (nav, footer, table rows)
