@@ -418,3 +418,56 @@ func npv(cfs []mwrCashFlow, r float64) float64 {
 	}
 	return sum
 }
+
+// ComputeSimpleReturn computes the simple (unweighted) return as a percentage.
+//
+// It uses TotalReturn = PortfolioValue - NetDeposit (i.e., the cumulative P&L)
+// at the first and last equity curve points:
+//
+//	SimpleReturn = (endingTotalReturn - beginningTotalReturn) / beginningTotalReturn × 100
+//
+// Returns nil when the beginning TotalReturn is non-positive (e.g., at portfolio
+// inception with no prior gains/losses).
+func ComputeSimpleReturn(first, last EquityCurvePoint) *decimal.Decimal {
+	beginTotalReturn, _ := first.PortfolioValue.Sub(first.NetDeposit)
+	endTotalReturn, _ := last.PortfolioValue.Sub(last.NetDeposit)
+
+	if !beginTotalReturn.IsPos() {
+		return nil
+	}
+
+	beginF, _ := beginTotalReturn.Float64()
+	endF, _ := endTotalReturn.Float64()
+	if beginF <= 0 {
+		return nil
+	}
+
+	ratio := (endF - beginF) / beginF
+	pct, _ := decimal.NewFromFloat64(ratio * 100.0)
+	return ptrDec(pct.Round(2))
+}
+
+// ComputeAnnualizedSimpleReturn computes the annualized simple return as a
+// percentage. It takes the simple return (as a percentage) and annualizes it
+// using the number of days between the first and last equity curve points:
+//
+//	Annualized = ((1 + simpleReturn)^(365/days) - 1) × 100
+//
+// Returns nil when the simple return is nil or when zero days elapsed.
+func ComputeAnnualizedSimpleReturn(simpleReturn *decimal.Decimal, first, last EquityCurvePoint) *decimal.Decimal {
+	if simpleReturn == nil {
+		return nil
+	}
+
+	days := last.Date.Sub(first.Date).Hours() / 24.0
+	if days <= 0 {
+		return nil
+	}
+
+	simpleF, _ := simpleReturn.Float64()
+	simpleF /= 100.0 // convert from percentage to ratio
+
+	annualized := math.Pow(1.0+simpleF, 365.0/days) - 1.0
+	pct, _ := decimal.NewFromFloat64(annualized * 100.0)
+	return ptrDec(pct.Round(2))
+}

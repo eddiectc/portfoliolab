@@ -87,7 +87,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - Sortino = (mean daily return × 252 - riskFreeRate) / downsideDeviation × sqrt(252)
   - **Tests**: `risk_metrics_test.go` — zero volatility, positive/negative returns, nil risk-free rate (returns nil Sharpe/Sortino), valid risk-free rate
 
-- [ ] **Task 2.4**: Add `SimpleReturn` computation to `return_metrics.go`
+- [x] **Task 2.4**: Add `SimpleReturn` computation to `return_metrics.go`
   - `ComputeSimpleReturn(first, last EquityCurvePoint) → *decimal.Decimal`
   - Formula: `(endingTotalReturn - beginningTotalReturn) / beginningTotalReturn`
   - Where `TotalReturn = PortfolioValue - NetDeposit`

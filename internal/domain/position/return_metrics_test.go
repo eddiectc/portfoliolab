@@ -1,6 +1,7 @@
 package position
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -706,6 +707,218 @@ func TestComputeMWR_NegativeReturn(t *testing.T) {
 	// MWR should be positive but modest
 	if mwrF < -5 || mwrF > 20 {
 		t.Errorf("MWRPct: got %s, expected between -5%% and 20%%", result.MWRPct.String())
+	}
+}
+
+func TestComputeSimpleReturn_Public(t *testing.T) {
+	tests := []struct {
+		name         string
+		first        EquityCurvePoint
+		last         EquityCurvePoint
+		wantNil      bool
+		wantApprox   float64
+		approxMargin float64
+	}{
+		{
+			name: "positive return with prior gains",
+			first: EquityCurvePoint{
+				Date:           mustTime("2023-06-01"),
+				PortfolioValue: dec(1100000, 2), // $11,000
+				NetDeposit:     dec(1000000, 2), // $10,000
+			}, // TotalReturn = $1,000
+			last: EquityCurvePoint{
+				Date:           mustTime("2024-01-01"),
+				PortfolioValue: dec(1300000, 2), // $13,000
+				NetDeposit:     dec(1000000, 2), // $10,000
+			}, // TotalReturn = $3,000
+			// (3000 - 1000) / 1000 = 200%
+			wantNil:      false,
+			wantApprox:   200.0,
+			approxMargin: 0.5,
+		},
+		{
+			name: "negative return",
+			first: EquityCurvePoint{
+				Date:           mustTime("2023-06-01"),
+				PortfolioValue: dec(1200000, 2), // $12,000
+				NetDeposit:     dec(1000000, 2), // $10,000
+			}, // TotalReturn = $2,000
+			last: EquityCurvePoint{
+				Date:           mustTime("2024-01-01"),
+				PortfolioValue: dec(1050000, 2), // $10,500
+				NetDeposit:     dec(1000000, 2), // $10,000
+			}, // TotalReturn = $500
+			// (500 - 2000) / 2000 = -75%
+			wantNil:      false,
+			wantApprox:   -75.0,
+			approxMargin: 0.5,
+		},
+		{
+			name: "zero beginning total return at inception",
+			first: EquityCurvePoint{
+				Date:           mustTime("2023-01-01"),
+				PortfolioValue: dec(1000000, 2),
+				NetDeposit:     dec(1000000, 2),
+			}, // TotalReturn = 0
+			last: EquityCurvePoint{
+				Date:           mustTime("2024-01-01"),
+				PortfolioValue: dec(1150000, 2),
+				NetDeposit:     dec(1000000, 2),
+			},
+			wantNil: true,
+		},
+		{
+			name: "loss position at beginning",
+			first: EquityCurvePoint{
+				Date:           mustTime("2023-06-01"),
+				PortfolioValue: dec(900000, 2),  // $9,000
+				NetDeposit:     dec(1000000, 2), // $10,000
+			}, // TotalReturn = -$1,000
+			last: EquityCurvePoint{
+				Date:           mustTime("2024-01-01"),
+				PortfolioValue: dec(1050000, 2), // $10,500
+				NetDeposit:     dec(1000000, 2), // $10,000
+			},
+			wantNil: true,
+		},
+		{
+			name: "flat performance",
+			first: EquityCurvePoint{
+				Date:           mustTime("2023-06-01"),
+				PortfolioValue: dec(1100000, 2),
+				NetDeposit:     dec(1000000, 2),
+			}, // TotalReturn = $1,000
+			last: EquityCurvePoint{
+				Date:           mustTime("2024-01-01"),
+				PortfolioValue: dec(1100000, 2),
+				NetDeposit:     dec(1000000, 2),
+			}, // TotalReturn = $1,000
+			// (1000 - 1000) / 1000 = 0%
+			wantNil:      false,
+			wantApprox:   0.0,
+			approxMargin: 0.1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ComputeSimpleReturn(tt.first, tt.last)
+
+			if tt.wantNil {
+				if result != nil {
+					t.Errorf("expected nil, got %s", result.String())
+				}
+				return
+			}
+
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+
+			got, _ := result.Float64()
+			if math.Abs(got-tt.wantApprox) > tt.approxMargin {
+				t.Errorf("got %s, want approx %.2f (margin %.2f)", result.String(), tt.wantApprox, tt.approxMargin)
+			}
+		})
+	}
+}
+
+func TestComputeAnnualizedSimpleReturn_Public(t *testing.T) {
+	tests := []struct {
+		name         string
+		simpleReturn *decimal.Decimal
+		first        EquityCurvePoint
+		last         EquityCurvePoint
+		wantNil      bool
+		wantApprox   float64
+		approxMargin float64
+	}{
+		{
+			name:         "nil simple return",
+			simpleReturn: nil,
+			first: EquityCurvePoint{
+				Date: mustTime("2023-01-01"),
+			},
+			last: EquityCurvePoint{
+				Date: mustTime("2024-01-01"),
+			},
+			wantNil: true,
+		},
+		{
+			name:         "same date zero days",
+			simpleReturn: ptrDec(decimal.MustParse("200.00")),
+			first: EquityCurvePoint{
+				Date: mustTime("2023-01-01"),
+			},
+			last: EquityCurvePoint{
+				Date: mustTime("2023-01-01"),
+			},
+			wantNil: true,
+		},
+		{
+			name: "200% over 214 days",
+			simpleReturn: ptrDec(decimal.MustParse("200.00")),
+			first: EquityCurvePoint{
+				Date: mustTime("2023-06-01"),
+			},
+			last: EquityCurvePoint{
+				Date: mustTime("2024-01-01"),
+			},
+			// (1 + 2.0)^(365/214) - 1 = 3^(1.7056) - 1 ≈ 551.3%
+			wantNil:      false,
+			wantApprox:   551.3,
+			approxMargin: 1.0,
+		},
+		{
+			name: "15% over 1 year",
+			simpleReturn: ptrDec(decimal.MustParse("15.00")),
+			first: EquityCurvePoint{
+				Date: mustTime("2023-01-01"),
+			},
+			last: EquityCurvePoint{
+				Date: mustTime("2024-01-01"),
+			},
+			// (1 + 0.15)^(365/365) - 1 = 15%
+			wantNil:      false,
+			wantApprox:   15.0,
+			approxMargin: 0.5,
+		},
+		{
+			name: "10% over 182 days (half year)",
+			simpleReturn: ptrDec(decimal.MustParse("10.00")),
+			first: EquityCurvePoint{
+				Date: mustTime("2023-01-01"),
+			},
+			last: EquityCurvePoint{
+				Date: mustTime("2023-07-02"),
+			},
+			// (1 + 0.10)^(365/182) - 1 ≈ 1.1^2.0055 - 1 ≈ 21.1%
+			wantNil:      false,
+			wantApprox:   21.1,
+			approxMargin: 1.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ComputeAnnualizedSimpleReturn(tt.simpleReturn, tt.first, tt.last)
+
+			if tt.wantNil {
+				if result != nil {
+					t.Errorf("expected nil, got %s", result.String())
+				}
+				return
+			}
+
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+
+			got, _ := result.Float64()
+			if math.Abs(got-tt.wantApprox) > tt.approxMargin {
+				t.Errorf("got %s, want approx %.2f (margin %.2f)", result.String(), tt.wantApprox, tt.approxMargin)
+			}
+		})
 	}
 }
 
