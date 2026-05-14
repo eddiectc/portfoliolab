@@ -67,7 +67,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
 
 ### Phase 2: Domain — Additional metrics
 
-- [ ] **Task 2.1**: Create `internal/domain/position/drawdown.go` with drawdown analysis
+- [x] **Task 2.1**: Create `internal/domain/position/drawdown.go` with drawdown analysis
   - `ComputeDrawdownAnalysis(navPoints) → DrawdownAnalysis`
   - `DrawdownAnalysis`: `MaxDrawdownPct`, `CurrentDrawdownPct`, `DrawdownDurationDays`
   - Running peak tracking, current drawdown from peak
