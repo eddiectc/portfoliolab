@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -37,21 +38,27 @@ func (h *PositionHandler) RegisterRoutes(r *chi.Mux) {
 func (h *PositionHandler) HandleListOpen(w http.ResponseWriter, r *http.Request) {
 	filters, limit, offset := parsePositionListParams(r.URL.Query())
 
-	items, err := h.service.GetOpenPositionsFiltered(r.Context(), filters, limit, offset)
+	enriched, err := h.computeOpenPositions(r.Context(), filters, limit, offset, "")
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list positions")
 		return
 	}
 
-	// Enrich with market data (current price, market value, unrealized P&L).
-	// API handler doesn't resolve base currency — web handler does.
-	enriched := h.service.EnrichWithMarketData(r.Context(), items, "")
+	writeJSON(w, http.StatusOK, enriched)
+}
 
+// computeOpenPositions fetches and enriches open positions. Used by both API and web handlers.
+func (h *PositionHandler) computeOpenPositions(ctx context.Context, filters position.ListFilters, limit, offset int, baseCurrency string) ([]position.PositionWithMarket, error) {
+	items, err := h.service.GetOpenPositionsFiltered(ctx, filters, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	enriched := h.service.EnrichWithMarketData(ctx, items, baseCurrency)
 	if enriched == nil {
 		enriched = []position.PositionWithMarket{}
 	}
-
-	writeJSON(w, http.StatusOK, enriched)
+	return enriched, nil
 }
 
 // HandleOpenSummary handles GET /api/positions/summary (aggregated totals for open positions).
@@ -71,17 +78,25 @@ func (h *PositionHandler) HandleOpenSummary(w http.ResponseWriter, r *http.Reque
 func (h *PositionHandler) HandleListClosed(w http.ResponseWriter, r *http.Request) {
 	filters, limit, offset := parsePositionListParams(r.URL.Query())
 
-	items, err := h.service.GetClosedPositionsFiltered(r.Context(), filters, limit, offset)
+	items, err := h.computeClosedPositions(r.Context(), filters, limit, offset)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list positions")
 		return
 	}
 
+	writeJSON(w, http.StatusOK, items)
+}
+
+// computeClosedPositions fetches closed positions. Used by both API and web handlers.
+func (h *PositionHandler) computeClosedPositions(ctx context.Context, filters position.ListFilters, limit, offset int) ([]position.Position, error) {
+	items, err := h.service.GetClosedPositionsFiltered(ctx, filters, limit, offset)
+	if err != nil {
+		return nil, err
+	}
 	if items == nil {
 		items = []position.Position{}
 	}
-
-	writeJSON(w, http.StatusOK, items)
+	return items, nil
 }
 
 // HandleClosedSummary handles GET /api/positions/closed/summary (aggregated totals for closed positions).
