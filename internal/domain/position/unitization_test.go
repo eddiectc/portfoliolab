@@ -2,6 +2,7 @@ package position
 
 import (
 	"testing"
+	"time"
 
 	"github.com/govalues/decimal"
 )
@@ -22,7 +23,7 @@ func TestComputeNavHistory_InitialDeposit(t *testing.T) {
 		{Date: mustTime("2024-01-03"), PortfolioValue: dec(999900, 2)},  // $9,999 (-1.1%)
 	}
 
-	result := ComputeNavHistory(equityCurve, nil)
+	result := ComputeNavHistory(equityCurve, nil, mustTime("2024-01-01"))
 
 	if len(result) != 3 {
 		t.Fatalf("got %d points, want 3", len(result))
@@ -69,7 +70,7 @@ func TestComputeNavHistory_SubsequentDeposit(t *testing.T) {
 		{date: mustTime("2024-01-03"), value: dec(1050000, 2)}, // pre-cash-flow: $10,500
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 4 {
 		t.Fatalf("got %d points, want 4", len(result))
@@ -122,7 +123,7 @@ func TestComputeNavHistory_Withdrawal(t *testing.T) {
 		{date: mustTime("2024-01-03"), value: dec(1200000, 2)}, // pre-cash-flow: $12,000
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 4 {
 		t.Fatalf("got %d points, want 4", len(result))
@@ -148,18 +149,26 @@ func TestComputeNavHistory_Withdrawal(t *testing.T) {
 }
 
 func TestComputeNavHistory_ZeroValuePortfolio(t *testing.T) {
+	// Zero-value portfolio with a valid inception date still gets unitized:
+	// 10000 units, NAV = 0/10000 = $0.00.
 	equityCurve := []EquityCurvePoint{
 		{Date: mustTime("2024-01-01"), PortfolioValue: decimal.Zero},
 	}
 
-	result := ComputeNavHistory(equityCurve, nil)
-	if result != nil {
-		t.Errorf("expected nil for zero-value portfolio, got %d points", len(result))
+	result := ComputeNavHistory(equityCurve, nil, mustTime("2024-01-01"))
+	if len(result) != 1 {
+		t.Fatalf("got %d points, want 1", len(result))
+	}
+	if !result[0].NavPerUnit.Equal(decimal.Zero) {
+		t.Errorf("NAV: got %s, want 0", result[0].NavPerUnit.String())
+	}
+	if !result[0].Units.Equal(decimal.MustNew(10000, 0)) {
+		t.Errorf("units: got %s, want 10000", result[0].Units.String())
 	}
 }
 
 func TestComputeNavHistory_EmptyCurve(t *testing.T) {
-	result := ComputeNavHistory([]EquityCurvePoint{}, nil)
+	result := ComputeNavHistory([]EquityCurvePoint{}, nil, mustTime("2024-01-01"))
 	if result != nil {
 		t.Errorf("expected nil for empty curve, got %d points", len(result))
 	}
@@ -181,7 +190,7 @@ func TestComputeNavHistory_WithdrawalCap(t *testing.T) {
 		{date: mustTime("2024-01-03"), value: dec(1000000, 2)}, // pre-cash-flow: $10,000
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 3 {
 		t.Fatalf("got %d points, want 3", len(result))
@@ -211,7 +220,7 @@ func TestComputeNavHistory_FractionalUnits(t *testing.T) {
 		{date: mustTime("2024-01-03"), value: dec(1030000, 2)}, // pre-cash-flow: $10,300
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 3 {
 		t.Fatalf("got %d points, want 3", len(result))
@@ -251,7 +260,7 @@ func TestComputeNavHistory_MultipleTransactionsSameDay(t *testing.T) {
 		{date: mustTime("2024-01-03"), value: dec(1100000, 2)}, // pre second deposit (ignored)
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 3 {
 		t.Fatalf("got %d points, want 3", len(result))
@@ -294,7 +303,7 @@ func TestComputeNavHistory_MultipleDepositsDifferentDays(t *testing.T) {
 		{date: mustTime("2024-01-05"), value: dec(1600000, 2)}, // pre-cash-flow: $16,000
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 5 {
 		t.Fatalf("got %d points, want 5", len(result))
@@ -325,7 +334,7 @@ func TestComputeNavHistory_SinglePoint(t *testing.T) {
 		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
 	}
 
-	result := ComputeNavHistory(equityCurve, nil)
+	result := ComputeNavHistory(equityCurve, nil, mustTime("2024-01-01"))
 
 	if len(result) != 1 {
 		t.Fatalf("got %d points, want 1", len(result))
@@ -348,7 +357,7 @@ func TestComputeNavHistory_NoMarketChange(t *testing.T) {
 		{Date: mustTime("2024-01-03"), PortfolioValue: dec(1000000, 2)},
 	}
 
-	result := ComputeNavHistory(equityCurve, nil)
+	result := ComputeNavHistory(equityCurve, nil, mustTime("2024-01-01"))
 
 	for i, point := range result {
 		if !point.NavPerUnit.Equal(decimal.MustParse("1.00")) {
@@ -363,7 +372,7 @@ func TestComputeNavHistory_DatesMatch(t *testing.T) {
 		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1050000, 2)},
 	}
 
-	result := ComputeNavHistory(equityCurve, nil)
+	result := ComputeNavHistory(equityCurve, nil, mustTime("2024-01-01"))
 
 	if !result[0].Date.Equal(mustTime("2024-01-01")) {
 		t.Errorf("point 0 date: got %v, want 2024-01-01", result[0].Date)
@@ -379,7 +388,7 @@ func TestComputeNavHistory_PortfolioValueMatches(t *testing.T) {
 		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1050000, 2)},
 	}
 
-	result := ComputeNavHistory(equityCurve, nil)
+	result := ComputeNavHistory(equityCurve, nil, mustTime("2024-01-01"))
 
 	for i, point := range result {
 		if !point.PortfolioValue.Equal(equityCurve[i].PortfolioValue) {
@@ -390,25 +399,87 @@ func TestComputeNavHistory_PortfolioValueMatches(t *testing.T) {
 }
 
 func TestComputeNavHistory_NonDepositFirstTransaction(t *testing.T) {
-	// First transaction is a buy (not a deposit), but the portfolio still
-	// has a positive value. The unitization should still work — fixed units
-	// are assigned at the first point regardless of transaction type.
+	// First transaction is a buy (not a deposit). Without an inception date
+	// (no deposit occurred), the portfolio remains un-unitized. Points before
+	// the inception date show 0 units and 0 NAV.
+	//
+	// In the real flow, ComputeEquityCurve only sets inceptionDate when a
+	// deposit is found. Without a deposit, inceptionDate is zero and
+	// ComputeNavHistory returns nil. This test simulates the case where
+	// buy/sell transactions exist but no deposit has occurred yet.
 	equityCurve := []EquityCurvePoint{
 		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
 		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1050000, 2)}, // $10,500
 	}
 
-	result := ComputeNavHistory(equityCurve, nil)
+	// No deposit → inceptionDate is zero → nil result.
+	result := ComputeNavHistory(equityCurve, nil, time.Time{})
 
-	if len(result) != 2 {
-		t.Fatalf("got %d points, want 2", len(result))
+	if result != nil {
+		t.Errorf("expected nil for no-deposit portfolio, got %d points", len(result))
+	}
+}
+
+func TestComputeNavHistory_NoDepositEver(t *testing.T) {
+	// Only buy/sell transactions, no deposit ever. The system remains
+	// un-unitized throughout.
+	equityCurve := []EquityCurvePoint{
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)},
+		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1050000, 2)},
+		{Date: mustTime("2024-01-03"), PortfolioValue: dec(999900, 2)},
 	}
 
-	if !result[0].NavPerUnit.Equal(decimal.MustParse("1.00")) {
-		t.Errorf("day 1 NAV: got %s, want 1.00", result[0].NavPerUnit.String())
+	// No deposit → inceptionDate is zero → nil result.
+	result := ComputeNavHistory(equityCurve, nil, time.Time{})
+
+	if result != nil {
+		t.Errorf("expected nil for no-deposit portfolio, got %d points", len(result))
 	}
-	if !result[0].Units.Equal(decimal.MustNew(10000, 0)) {
-		t.Errorf("day 1 units: got %s, want 10000", result[0].Units.String())
+}
+
+func TestComputeNavHistory_BuyBeforeDeposit(t *testing.T) {
+	// Buy on Jan 1, deposit on Jan 5. Unitization starts on Jan 5.
+	// Points before Jan 5 show 0 units and 0 NAV.
+	equityCurve := []EquityCurvePoint{
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)},  // $10,000 (buy)
+		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1010000, 2)},  // $10,100
+		{Date: mustTime("2024-01-03"), PortfolioValue: dec(999900, 2)},   // $9,999
+		{Date: mustTime("2024-01-05"), PortfolioValue: dec(1500000, 2)},  // $15,000 (after deposit)
+		{Date: mustTime("2024-01-06"), PortfolioValue: dec(1515000, 2)},  // $15,150
+	}
+
+	// Inception date is the deposit date (Jan 5).
+	result := ComputeNavHistory(equityCurve, nil, mustTime("2024-01-05"))
+
+	if len(result) != 5 {
+		t.Fatalf("got %d points, want 5", len(result))
+	}
+
+	// Points before deposit: un-unitized (0 units, 0 NAV).
+	for i := 0; i < 3; i++ {
+		if !result[i].Units.Equal(decimal.Zero) {
+			t.Errorf("day %d units: got %s, want 0 (before deposit)", i+1, result[i].Units.String())
+		}
+		if !result[i].NavPerUnit.Equal(decimal.Zero) {
+			t.Errorf("day %d NAV: got %s, want 0 (before deposit)", i+1, result[i].NavPerUnit.String())
+		}
+	}
+
+	// Point on deposit date: unitized with 10000 units.
+	// NAV = 15000/10000 = $1.50
+	if !result[3].Units.Equal(decimal.MustNew(10000, 0)) {
+		t.Errorf("day 4 units: got %s, want 10000", result[3].Units.String())
+	}
+	wantNAV := decimal.MustParse("1.50")
+	if !approxEqual(result[3].NavPerUnit, wantNAV, decimal.MustParse("0.001")) {
+		t.Errorf("day 4 NAV: got %s, want approx %s", result[3].NavPerUnit.String(), wantNAV.String())
+	}
+
+	// Point after deposit: NAV changes with market.
+	// NAV = 15150/10000 = $1.515
+	wantNAV2 := decimal.MustParse("1.515")
+	if !approxEqual(result[4].NavPerUnit, wantNAV2, decimal.MustParse("0.001")) {
+		t.Errorf("day 5 NAV: got %s, want approx %s", result[4].NavPerUnit.String(), wantNAV2.String())
 	}
 }
 
@@ -429,7 +500,7 @@ func TestComputeNavHistory_LargeDeposit(t *testing.T) {
 		{date: mustTime("2024-01-03"), value: dec(110000, 2)}, // pre-cash-flow: $1,100
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 3 {
 		t.Fatalf("got %d points, want 3", len(result))
@@ -472,7 +543,7 @@ func TestComputeNavHistory_WithdrawalThenDeposit(t *testing.T) {
 		{date: mustTime("2024-01-05"), value: dec(1050000, 2)}, // pre-cash-flow: $10,500
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-01"))
 
 	if len(result) != 5 {
 		t.Fatalf("got %d points, want 5", len(result))

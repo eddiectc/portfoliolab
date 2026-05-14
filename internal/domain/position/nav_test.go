@@ -401,7 +401,7 @@ func TestComputeNavHistory_DepositsOnly(t *testing.T) {
 		{date: mustTime("2024-03-15"), value: decimal.Zero}, // subsequent deposit
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints)
+	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-15"))
 
 	if len(result) != 3 {
 		t.Fatalf("got %d points, want 3", len(result))

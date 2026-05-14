@@ -187,11 +187,21 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 
 	// 12. Compute NAV history (unitization) on the full (pre-slice) curve.
 	// This populates NavPerUnit and Units on each equity curve point.
+
+	// Find the first deposit date to trigger unitization.
+	var inceptionDate time.Time
+	for _, txn := range allTxns {
+		if txn.Type == "deposit" {
+			inceptionDate = txn.Date
+			break
+		}
+	}
+
 	navBreakpoints := make([]navBreakpoint, len(preCashFlowValues))
 	for i, bp := range preCashFlowValues {
 		navBreakpoints[i] = navBreakpoint{date: bp.date, value: bp.value}
 	}
-	navHistory := ComputeNavHistory(points, navBreakpoints)
+	navHistory := ComputeNavHistory(points, navBreakpoints, inceptionDate)
 	if navHistory != nil {
 		for i := range points {
 			nav := navHistory[i].NavPerUnit
@@ -713,5 +723,3 @@ func tradingDayBeforeOrOn(t time.Time) time.Time {
 	}
 	return d
 }
-
-
