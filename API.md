@@ -305,7 +305,7 @@ Returns portfolio performance analytics. Computation is done once in the service
 | `metrics` | `return_metrics`, `base_currency`, `warnings` |
 | `risk` | `risk_metrics` |
 | `drawdown` | `drawdown_analysis` |
-| `yearly` | `yearly_performance` |
+| `yearly` | `yearly_returns` |
 | `monthly` | `monthly_returns` |
 | `benchmark` | `benchmark_ticker`, `benchmark_prices`, `benchmark_mwr_pct`, `benchmark_currency`, `benchmark_warning` |
 | `nav` | `nav_summary` |
@@ -607,49 +607,46 @@ Same as IBKR add broker symbol.
 {
   "equity_curve": [{"date": "2024-01-15T00:00:00Z", "portfolio_value": 1000000, "net_deposit": 1000000}, ...],
   "return_metrics": {
-    "total_return_pct": 25.50,
-    "annualized_return_pct": 12.75,
-    "simple_return_pct": 25.50,
     "twr_pct": 24.80,
+    "annualized_twr_pct": 12.75,
     "mwr_pct": 23.90,
-    "period_days": 365,
-    "inception_date": "2024-01-01T00:00:00Z"
+    "holding_period_mwr_pct": 23.90,
+    "simple_return_pct": 25.50,
+    "annualized_simple_return_pct": 12.75,
+    "has_insufficient_data": false
   },
   "base_currency": "USD",
   "warnings": [],
   "risk_metrics": {
-    "volatility_pct": 15.20,
+    "annualized_volatility_pct": 15.20,
     "sharpe_ratio": 0.84,
-    "sortino_ratio": 1.23,
-    "max_daily_return_pct": 3.50,
-    "min_daily_return_pct": -4.20
+    "sortino_ratio": 1.23
   },
   "drawdown_analysis": {
-    "max_drawdown_pct": -12.50,
-    "max_drawdown_start": "2024-06-01T00:00:00Z",
-    "max_drawdown_end": "2024-08-15T00:00:00Z",
-    "recovery_date": "2024-09-01T00:00:00Z",
-    "current_drawdown_pct": -2.30
+    "max_drawdown_pct": 12.50,
+    "current_drawdown_pct": 2.30,
+    "drawdown_duration_days": 45
   },
-  "yearly_performance": [
-    {"year": 2024, "return_pct": 25.50, "start_value": 1000000, "end_value": 1255000}
+  "yearly_returns": [
+    {"year": 2024, "return_pct": 25.50}
   ],
   "monthly_returns": [
     {
       "year": 2024,
-      "months": [
-        {"label": "Jan", "portfolio": 2.50, "benchmark": 1.80},
-        {"label": "Feb", "portfolio": -1.20, "benchmark": -0.80}
-      ]
+      "months": {
+        "1": {"return_pct": 2.50, "benchmark_return_pct": 1.80, "diff_pct": 0.70},
+        "2": {"return_pct": -1.20, "benchmark_return_pct": -0.80, "diff_pct": -0.40}
+      }
     }
   ],
   "benchmark_ticker": "^GSPC",
   "benchmark_mwr_pct": 18.50,
   "benchmark_currency": "USD",
   "nav_summary": {
-    "current_nav": 1.255,
-    "units": 10000,
-    "inception_nav": 1.000
+    "nav_per_unit": 1.255,
+    "total_units": 10000,
+    "total_value": 12550,
+    "inception_date": "2024-01-15T00:00:00Z"
   }
 }
 ```

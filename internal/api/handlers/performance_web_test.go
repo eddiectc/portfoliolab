@@ -1176,11 +1176,27 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 				t.Errorf("month %d not found in first row", tt.wantFirstMon)
 				return
 			}
-			if cell.PortfolioReturn != tt.wantFirstRet {
-				t.Errorf("first row portfolio return = %q, want %q", cell.PortfolioReturn, tt.wantFirstRet)
+			if tt.wantFirstRet == "" {
+				if cell.ReturnPct != nil {
+					t.Errorf("first row return_pct = %q, want nil", cell.ReturnPct.String())
+				}
+			} else {
+				if cell.ReturnPct == nil {
+					t.Errorf("first row return_pct is nil, want %q", tt.wantFirstRet)
+				} else if cell.ReturnPct.String() != tt.wantFirstRet {
+					t.Errorf("first row return_pct = %q, want %q", cell.ReturnPct.String(), tt.wantFirstRet)
+				}
 			}
-			if cell.Diff != tt.wantFirstDiff {
-				t.Errorf("first row diff = %q, want %q", cell.Diff, tt.wantFirstDiff)
+			if tt.wantFirstDiff == "" {
+				if cell.DiffPct != nil {
+					t.Errorf("first row diff_pct = %q, want nil", cell.DiffPct.String())
+				}
+			} else {
+				if cell.DiffPct == nil {
+					t.Errorf("first row diff_pct is nil, want %q", tt.wantFirstDiff)
+				} else if cell.DiffPct.String() != tt.wantFirstDiff {
+					t.Errorf("first row diff_pct = %q, want %q", cell.DiffPct.String(), tt.wantFirstDiff)
+				}
 			}
 		})
 	}
