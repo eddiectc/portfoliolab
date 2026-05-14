@@ -152,28 +152,17 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 
 	// Build domain filters
 	var domainFilters position.ListFilters
-	if filter.AccountID != "" {
-		if n, err := strconv.ParseInt(filter.AccountID, 10, 64); err == nil {
-			domainFilters.AccountID = &n
-		}
-	}
-	if filter.PortfolioID != "" {
-		if n, err := strconv.ParseInt(filter.PortfolioID, 10, 64); err == nil {
-			domainFilters.PortfolioID = &n
-		}
-	}
-
-	items, err := h.positionSvc.GetOpenPositionsFiltered(r.Context(), domainFilters, limit, offset)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	filterToDomain(filter, &domainFilters)
 
 	// Determine base currency from filter or first portfolio.
 	baseCurrency := h.resolveBaseCurrency(r.Context(), domainFilters)
 
-	// Enrich with market data (current price, market value, unrealized P&L).
-	enriched := h.positionSvc.EnrichWithMarketData(r.Context(), items, baseCurrency)
+	// Fetch positions via shared API handler method.
+	enriched, err := h.apiHandler.computeOpenPositions(r.Context(), domainFilters, limit, offset, baseCurrency)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	// Compute summary from ALL positions (not just current page).
 	summary, err := h.positionSvc.GetOpenPositionsSummary(r.Context(), domainFilters, baseCurrency)
@@ -240,25 +229,17 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 
 	// Build domain filters
 	var domainFilters position.ListFilters
-	if filter.AccountID != "" {
-		if n, err := strconv.ParseInt(filter.AccountID, 10, 64); err == nil {
-			domainFilters.AccountID = &n
-		}
-	}
-	if filter.PortfolioID != "" {
-		if n, err := strconv.ParseInt(filter.PortfolioID, 10, 64); err == nil {
-			domainFilters.PortfolioID = &n
-		}
-	}
+	filterToDomain(filter, &domainFilters)
 
-	items, err := h.positionSvc.GetClosedPositionsFiltered(r.Context(), domainFilters, limit, offset)
+	// Determine base currency from filter or first portfolio.
+	baseCurrency := h.resolveBaseCurrency(r.Context(), domainFilters)
+
+	// Fetch positions via shared API handler method.
+	items, err := h.apiHandler.computeClosedPositions(r.Context(), domainFilters, limit, offset)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	// Determine base currency from filter or first portfolio.
-	baseCurrency := h.resolveBaseCurrency(r.Context(), domainFilters)
 
 	// Compute summary from ALL closed positions (not just current page).
 	summary, err := h.positionSvc.GetClosedPositionsSummary(r.Context(), domainFilters, baseCurrency)
@@ -346,6 +327,21 @@ func parsePositionFilter(query url.Values) PositionFilter {
 	return PositionFilter{
 		AccountID:   query.Get("account_id"),
 		PortfolioID: query.Get("portfolio_id"),
+	}
+}
+
+// filterToDomain converts a PositionFilter (string-based for template state)
+// to domain ListFilters (int64-based for service calls).
+func filterToDomain(filter PositionFilter, out *position.ListFilters) {
+	if filter.AccountID != "" {
+		if n, err := strconv.ParseInt(filter.AccountID, 10, 64); err == nil {
+			out.AccountID = &n
+		}
+	}
+	if filter.PortfolioID != "" {
+		if n, err := strconv.ParseInt(filter.PortfolioID, 10, 64); err == nil {
+			out.PortfolioID = &n
+		}
 	}
 }
 
