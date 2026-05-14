@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 )
 
@@ -95,7 +96,7 @@ func (h *PerformanceHandler) handleRefreshError(w http.ResponseWriter, err error
 
 // addBenchmarkData fetches cached benchmark prices and computes MWR for the
 // selected benchmark, populating the benchmark fields on the result.
-func (h *PerformanceHandler) addBenchmarkData(ctx context.Context, result *position.PerformanceResult, filters position.PerformanceFilters) {
+func (h *PerformanceHandler) addBenchmarkData(ctx context.Context, result *performance.PerformanceResult, filters performance.PerformanceFilters) {
 	ticker := filters.Benchmark
 	result.BenchmarkTicker = ticker
 
@@ -130,7 +131,7 @@ func (h *PerformanceHandler) addBenchmarkData(ctx context.Context, result *posit
 
 // determineDateRange parses the period string into a date range, mirroring
 // the logic in position/equity_curve.go.
-func determineDateRange(filters position.PerformanceFilters) (time.Time, time.Time) {
+func determineDateRange(filters performance.PerformanceFilters) (time.Time, time.Time) {
 	now := time.Now().UTC()
 
 	if filters.DateFrom != nil && filters.DateTo != nil {
@@ -175,8 +176,8 @@ func determineDateRange(filters position.PerformanceFilters) (time.Time, time.Ti
 }
 
 // parsePerformanceFilters extracts performance filter criteria from query params.
-func parsePerformanceFilters(query url.Values) position.PerformanceFilters {
-	var filters position.PerformanceFilters
+func parsePerformanceFilters(query url.Values) performance.PerformanceFilters {
+	var filters performance.PerformanceFilters
 
 	if v := query.Get("portfolio_id"); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil {

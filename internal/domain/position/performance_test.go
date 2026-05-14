@@ -4,19 +4,20 @@ import (
 	"encoding/json"
 	"testing"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"github.com/govalues/decimal"
 )
 
 func TestEquityCurvePoint_JSONRoundTrip(t *testing.T) {
 	tests := []struct {
 		name   string
-		point  EquityCurvePoint
+		point  performance.EquityCurvePoint
 		wantPV string // expected portfolio_value JSON string
 		wantND string // expected net_deposit JSON string
 	}{
 		{
 			name: "standard positive values",
-			point: EquityCurvePoint{
+			point: performance.EquityCurvePoint{
 				Date:           mustTime("2024-06-15"),
 				PortfolioValue: decimal.MustParse("50000.00"),
 				NetDeposit:     decimal.MustParse("45000.00"),
@@ -26,7 +27,7 @@ func TestEquityCurvePoint_JSONRoundTrip(t *testing.T) {
 		},
 		{
 			name: "negative net deposit (withdrawals exceed deposits)",
-			point: EquityCurvePoint{
+			point: performance.EquityCurvePoint{
 				Date:           mustTime("2024-06-15"),
 				PortfolioValue: decimal.MustParse("10000.00"),
 				NetDeposit:     decimal.MustParse("-2000.00"),
@@ -36,7 +37,7 @@ func TestEquityCurvePoint_JSONRoundTrip(t *testing.T) {
 		},
 		{
 			name: "zero values",
-			point: EquityCurvePoint{
+			point: performance.EquityCurvePoint{
 				Date:           mustTime("2024-01-01"),
 				PortfolioValue: decimal.Zero,
 				NetDeposit:     decimal.Zero,
@@ -53,7 +54,7 @@ func TestEquityCurvePoint_JSONRoundTrip(t *testing.T) {
 				t.Fatalf("marshal: %v", err)
 			}
 
-			var got EquityCurvePoint
+			var got performance.EquityCurvePoint
 			if err := json.Unmarshal(data, &got); err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}
@@ -77,14 +78,14 @@ func TestReturnMetrics_JSONRoundTrip(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		metrics          ReturnMetrics
+		metrics          performance.ReturnMetrics
 		wantTWR          *decimal.Decimal
 		wantAnnualized   *decimal.Decimal
 		wantInsufficient bool
 	}{
 		{
 			name: "standard metrics",
-			metrics: ReturnMetrics{
+			metrics: performance.ReturnMetrics{
 				TWRPct:              &twr,
 				AnnualizedTWRPct:    &annualized,
 				HasInsufficientData: false,
@@ -94,7 +95,7 @@ func TestReturnMetrics_JSONRoundTrip(t *testing.T) {
 		},
 		{
 			name: "nil TWR (N/A case)",
-			metrics: ReturnMetrics{
+			metrics: performance.ReturnMetrics{
 				TWRPct:              nil,
 				AnnualizedTWRPct:    &annualized,
 				HasInsufficientData: false,
@@ -104,7 +105,7 @@ func TestReturnMetrics_JSONRoundTrip(t *testing.T) {
 		},
 		{
 			name: "insufficient data",
-			metrics: ReturnMetrics{
+			metrics: performance.ReturnMetrics{
 				TWRPct:              nil,
 				AnnualizedTWRPct:    nil,
 				HasInsufficientData: true,
@@ -122,7 +123,7 @@ func TestReturnMetrics_JSONRoundTrip(t *testing.T) {
 				t.Fatalf("marshal: %v", err)
 			}
 
-			var got ReturnMetrics
+			var got performance.ReturnMetrics
 			if err := json.Unmarshal(data, &got); err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}
@@ -150,12 +151,12 @@ func TestPerformanceResult_JSONRoundTrip(t *testing.T) {
 	twr := decimal.MustParse("15.75")
 	annualized := decimal.MustParse("10.25")
 
-	point1 := EquityCurvePoint{
+	point1 := performance.EquityCurvePoint{
 		Date:           mustTime("2024-01-01"),
 		PortfolioValue: decimal.MustParse("100000.00"),
 		NetDeposit:     decimal.MustParse("80000.00"),
 	}
-	point2 := EquityCurvePoint{
+	point2 := performance.EquityCurvePoint{
 		Date:           mustTime("2024-06-01"),
 		PortfolioValue: decimal.MustParse("120000.00"),
 		NetDeposit:     decimal.MustParse("90000.00"),
@@ -163,13 +164,13 @@ func TestPerformanceResult_JSONRoundTrip(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		result PerformanceResult
+		result performance.PerformanceResult
 	}{
 		{
 			name: "full result with warnings",
-			result: PerformanceResult{
-				EquityCurve: []EquityCurvePoint{point1, point2},
-				ReturnMetrics: ReturnMetrics{
+			result: performance.PerformanceResult{
+				EquityCurve: []performance.EquityCurvePoint{point1, point2},
+				ReturnMetrics: performance.ReturnMetrics{
 					TWRPct:              &twr,
 					AnnualizedTWRPct:    &annualized,
 					HasInsufficientData: false,
@@ -180,9 +181,9 @@ func TestPerformanceResult_JSONRoundTrip(t *testing.T) {
 		},
 		{
 			name: "empty result",
-			result: PerformanceResult{
-				EquityCurve: []EquityCurvePoint{},
-				ReturnMetrics: ReturnMetrics{
+			result: performance.PerformanceResult{
+				EquityCurve: []performance.EquityCurvePoint{},
+				ReturnMetrics: performance.ReturnMetrics{
 					HasInsufficientData: true,
 				},
 				BaseCurrency: "GBP",
@@ -198,7 +199,7 @@ func TestPerformanceResult_JSONRoundTrip(t *testing.T) {
 				t.Fatalf("marshal: %v", err)
 			}
 
-			var got PerformanceResult
+			var got performance.PerformanceResult
 			if err := json.Unmarshal(data, &got); err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}

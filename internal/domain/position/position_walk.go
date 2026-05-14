@@ -94,6 +94,15 @@ func FinalPortfolioState(txns []transaction.Transaction) PortfolioSnapshot {
 	}
 }
 
+// copyDecimalMap creates a deep copy of a decimal map.
+func copyDecimalMap(src map[string]decimal.Decimal) map[string]decimal.Decimal {
+	dst := make(map[string]decimal.Decimal, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
 // WalkPositionQuantities walks transactions and returns position quantity
 // snapshots. Deprecated: use WalkPortfolioState instead for the full
 // portfolio state (includes cash and net deposit).

@@ -1,4 +1,4 @@
-package position
+package performance
 
 import (
 	"context"
@@ -48,13 +48,13 @@ func collectFxPairs(snapshots []dateSnapshot, baseCurrency string) []string {
 // snapshot date range and returns a map of pair -> forward-fill lookup.
 func buildFxLookupFF(
 	ctx context.Context,
-	marketService MarketDataService,
+	marketProvider MarketDataProvider,
 	fxPairs []string,
 	snapshots []dateSnapshot,
 	logger *slog.Logger,
 ) map[string]*fxLookupFF {
 	lookup := make(map[string]*fxLookupFF)
-	if marketService == nil || len(fxPairs) == 0 || len(snapshots) == 0 {
+	if marketProvider == nil || len(fxPairs) == 0 || len(snapshots) == 0 {
 		return lookup
 	}
 
@@ -62,7 +62,7 @@ func buildFxLookupFF(
 	dateTo := snapshots[len(snapshots)-1].date
 
 	for _, pair := range fxPairs {
-		prices, err := marketService.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
+		prices, err := marketProvider.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
 		if err != nil {
 			if logger != nil {
 				logger.Warn("failed to read cached FX rates", "pair", pair, "error", err)
@@ -137,9 +137,9 @@ func convertWithFxLookup(
 // convertToBase converts a value from one currency to another using the
 // market data service. If currencies match, returns the value unchanged.
 // If no FX rate is available, returns (0, false) — never the unconverted value.
-func convertToBase(
+func ConvertToBase(
 	ctx context.Context,
-	marketService MarketDataService,
+	marketProvider MarketDataProvider,
 	fromCurrency, toCurrency string,
 	value decimal.Decimal,
 	date time.Time,
@@ -148,11 +148,11 @@ func convertToBase(
 		return value, true
 	}
 
-	if marketService == nil {
+	if marketProvider == nil {
 		return decimal.Zero, false
 	}
 
-	rate, _ := marketService.GetHistoricalFxRate(ctx, fromCurrency, toCurrency, date)
+	rate, _ := marketProvider.GetHistoricalFxRate(ctx, fromCurrency, toCurrency, date)
 	if rate == nil {
 		return decimal.Zero, false
 	}
@@ -190,20 +190,20 @@ func collectFxPairsForInterpolation(
 // range (first point to dateTo) and builds a forward-fill lookup.
 func buildFxLookupForInterpolation(
 	ctx context.Context,
-	marketService MarketDataService,
+	marketProvider MarketDataProvider,
 	fxPairs []string,
 	points []EquityCurvePoint,
 	dateTo time.Time,
 ) map[string]*fxLookupFF {
 	lookup := make(map[string]*fxLookupFF)
-	if marketService == nil || len(fxPairs) == 0 || len(points) == 0 {
+	if marketProvider == nil || len(fxPairs) == 0 || len(points) == 0 {
 		return lookup
 	}
 
 	dateFrom := points[0].Date
 
 	for _, pair := range fxPairs {
-		prices, err := marketService.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
+		prices, err := marketProvider.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
 		if err != nil || len(prices) == 0 {
 			continue
 		}

@@ -16,6 +16,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
@@ -31,7 +32,7 @@ func TestRegisterRoutes_PerformanceWeb(t *testing.T) {
 func TestSerializeChartData(t *testing.T) {
 	tests := []struct {
 		name string
-		in   []position.EquityCurvePoint
+		in   []performance.EquityCurvePoint
 		want string
 	}{
 		{
@@ -41,19 +42,19 @@ func TestSerializeChartData(t *testing.T) {
 		},
 		{
 			name: "empty slice",
-			in:   []position.EquityCurvePoint{},
+			in:   []performance.EquityCurvePoint{},
 			want: "[]",
 		},
 		{
 			name: "single point",
-			in: []position.EquityCurvePoint{
+			in: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(100000, 2), NetDeposit: decimal.MustNew(100000, 2)},
 			},
 			want: `[{"date":"2024-01-15","portfolio_value":"1000.00","net_deposit":"1000.00"}]`,
 		},
 		{
 			name: "multiple points",
-			in: []position.EquityCurvePoint{
+			in: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(100000, 2), NetDeposit: decimal.MustNew(100000, 2)},
 				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(110000, 2), NetDeposit: decimal.MustNew(100000, 2)},
 			},
@@ -61,7 +62,7 @@ func TestSerializeChartData(t *testing.T) {
 		},
 		{
 			name: "negative values",
-			in: []position.EquityCurvePoint{
+			in: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(-5000, 2), NetDeposit: decimal.MustNew(-5000, 2)},
 			},
 			want: `[{"date":"2024-03-01","portfolio_value":"-50.00","net_deposit":"-50.00"}]`,
@@ -232,7 +233,7 @@ func TestPerformanceTemplate_Renders(t *testing.T) {
 func TestPerformanceTemplate_WithData(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 		{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
@@ -240,9 +241,9 @@ func TestPerformanceTemplate_WithData(t *testing.T) {
 	annTWR := decimal.MustNew(1900, 2)
 	mwr := decimal.MustNew(1800, 2)
 	hpMwr := decimal.MustNew(1750, 2)
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve: curve,
-		ReturnMetrics: position.ReturnMetrics{
+		ReturnMetrics: performance.ReturnMetrics{
 			TWRPct:              &twr,
 			AnnualizedTWRPct:    &annTWR,
 			MWRPct:              &mwr,
@@ -418,7 +419,7 @@ func TestBuildModeURLs(t *testing.T) {
 func TestComputeNavChartData(t *testing.T) {
 	tests := []struct {
 		name string
-		in   []position.EquityCurvePoint
+		in   []performance.EquityCurvePoint
 		want string
 	}{
 		{
@@ -428,19 +429,19 @@ func TestComputeNavChartData(t *testing.T) {
 		},
 		{
 			name: "empty slice",
-			in:   []position.EquityCurvePoint{},
+			in:   []performance.EquityCurvePoint{},
 			want: "[]",
 		},
 		{
 			name: "single point — actual NAV",
-			in: []position.EquityCurvePoint{
+			in: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(920000, 6))},
 			},
 			want: `[{"date":"2024-01-15","value":0.92}]`,
 		},
 		{
 			name: "NAV growth over time",
-			in: []position.EquityCurvePoint{
+			in: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(900000, 6))},
 				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(910000, 6))},
 				{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(920000, 6))},
@@ -449,7 +450,7 @@ func TestComputeNavChartData(t *testing.T) {
 		},
 		{
 			name: "NAV decline",
-			in: []position.EquityCurvePoint{
+			in: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(920000, 6))},
 				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(8000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(880000, 6))},
 			},
@@ -457,7 +458,7 @@ func TestComputeNavChartData(t *testing.T) {
 		},
 		{
 			name: "nil NavPerUnit produces zero",
-			in: []position.EquityCurvePoint{
+			in: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2)},
 			},
 			want: `[{"date":"2024-01-01","value":0}]`,
@@ -643,10 +644,10 @@ func TestFormatLastRefresh(t *testing.T) {
 func TestPerformanceTemplate_CacheStatusCurrent(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}
@@ -682,10 +683,10 @@ func TestPerformanceTemplate_CacheStatusCurrent(t *testing.T) {
 func TestPerformanceTemplate_CacheStatusStale(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 		Warnings:     []string{"stale market data for AAPL (last updated 5 days ago)"},
@@ -722,10 +723,10 @@ func TestPerformanceTemplate_CacheStatusStale(t *testing.T) {
 func TestPerformanceTemplate_CacheStatusRefreshing(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}
@@ -783,11 +784,11 @@ func TestPerformanceTemplate_NoCacheStatus(t *testing.T) {
 func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 		{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}
@@ -871,10 +872,10 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 func TestPerformanceTemplate_WithoutBenchmark(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}
@@ -922,10 +923,10 @@ func TestPerformanceTemplate_WithoutBenchmark(t *testing.T) {
 func TestPerformanceTemplate_WithBenchmarkWarning(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}
@@ -965,10 +966,10 @@ func TestPerformanceTemplate_WithBenchmarkWarning(t *testing.T) {
 func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}
@@ -1025,7 +1026,7 @@ func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
 func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 	tests := []struct {
 		name          string
-		curve         []position.EquityCurvePoint
+		curve         []performance.EquityCurvePoint
 		benchPrices   []market.HistoricalPrice
 		benchmark     string
 		wantLen       int
@@ -1045,7 +1046,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 		},
 		{
 			name: "single point — no monthly return",
-			curve: []position.EquityCurvePoint{
+			curve: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 			},
 			wantLen:       1,
@@ -1056,7 +1057,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 		},
 		{
 			name: "two months positive returns",
-			curve: []position.EquityCurvePoint{
+			curve: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				{Date: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
@@ -1070,7 +1071,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 		},
 		{
 			name: "with benchmark — diff computed",
-			curve: []position.EquityCurvePoint{
+			curve: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 			},
@@ -1087,7 +1088,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 		},
 		{
 			name: "negative return",
-			curve: []position.EquityCurvePoint{
+			curve: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				{Date: time.Date(2024, 3, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(9500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 			},
@@ -1099,7 +1100,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 		},
 		{
 			name: "benchmark only month (no portfolio data)",
-			curve: []position.EquityCurvePoint{
+			curve: []performance.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 			},
@@ -1118,7 +1119,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 		},
 		{
 			name: "multi-year — groups by year not month",
-			curve: []position.EquityCurvePoint{
+			curve: []performance.EquityCurvePoint{
 				// 2024: Jan, Feb, Mar
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
@@ -1140,7 +1141,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 		},
 		{
 			name: "mid-month deposit — TWR isolates cash flow",
-			curve: []position.EquityCurvePoint{
+			curve: []performance.EquityCurvePoint{
 				// Jan 1: start with 100k, ND=100k
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 				// Jan 15: deposited 100k more, PV jumped to 200k (no market gain yet), ND=200k
@@ -1191,13 +1192,13 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 func TestPerformanceTemplate_HeatmapWithoutBenchmark(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 		{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 		{Date: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 		{Date: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10200000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}
@@ -1265,11 +1266,11 @@ func TestPerformanceTemplate_HeatmapWithoutBenchmark(t *testing.T) {
 func TestPerformanceTemplate_HeatmapWithBenchmark(t *testing.T) {
 	renderer := newTestRenderer(t)
 
-	curve := []position.EquityCurvePoint{
+	curve := []performance.EquityCurvePoint{
 		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 		{Date: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10500000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
 	}
-	result := &position.PerformanceResult{
+	result := &performance.PerformanceResult{
 		EquityCurve:  curve,
 		BaseCurrency: "USD",
 	}

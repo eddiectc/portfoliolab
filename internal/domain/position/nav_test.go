@@ -3,6 +3,7 @@ package position
 import (
 	"testing"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -30,7 +31,7 @@ func TestComputeEquityCurve_NAVFieldsPopulated(t *testing.T) {
 	})
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -80,7 +81,7 @@ func TestComputeEquityCurve_NAVSummary(t *testing.T) {
 	})
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -88,9 +89,9 @@ func TestComputeEquityCurve_NAVSummary(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// NavSummary should be populated.
+	// performance.NavSummary should be populated.
 	if result.NavSummary == nil {
-		t.Fatal("NavSummary is nil")
+		t.Fatal("performance.NavSummary is nil")
 	}
 
 	// Inception date should be the first transaction date.
@@ -134,7 +135,7 @@ func TestComputeEquityCurve_NAVWithSubsequentDeposit(t *testing.T) {
 	})
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -143,7 +144,7 @@ func TestComputeEquityCurve_NAVWithSubsequentDeposit(t *testing.T) {
 	}
 
 	// Find the Mar 15 point (after deposit).
-	var mar15 *EquityCurvePoint
+	var mar15 *performance.EquityCurvePoint
 	for i := range result.EquityCurve {
 		if result.EquityCurve[i].Date.Equal(testTime(2024, 3, 15)) {
 			mar15 = &result.EquityCurve[i]
@@ -177,7 +178,7 @@ func TestComputeEquityCurve_NAVEmptyState(t *testing.T) {
 	})
 
 	// No transactions.
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -185,9 +186,9 @@ func TestComputeEquityCurve_NAVEmptyState(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// NavSummary should be nil for empty state.
+	// performance.NavSummary should be nil for empty state.
 	if result.NavSummary != nil {
-		t.Error("NavSummary should be nil for empty state")
+		t.Error("performance.NavSummary should be nil for empty state")
 	}
 
 	// Equity curve should be empty.
@@ -208,7 +209,7 @@ func TestComputeEquityCurve_NAVOnlyDeposits(t *testing.T) {
 		eqTxn(1, testTime(2024, 3, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),  // $5,000
 	})
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -240,12 +241,12 @@ func TestComputeEquityCurve_NAVOnlyDeposits(t *testing.T) {
 		t.Errorf("last Units: got %s, want %s", last.Units.String(), wantUnits.String())
 	}
 
-	// NavSummary should reflect final state.
+	// performance.NavSummary should reflect final state.
 	if result.NavSummary == nil {
-		t.Fatal("NavSummary is nil")
+		t.Fatal("performance.NavSummary is nil")
 	}
 	if !result.NavSummary.TotalUnits.Equal(wantUnits) {
-		t.Errorf("NavSummary TotalUnits: got %s, want %s",
+		t.Errorf("performance.NavSummary TotalUnits: got %s, want %s",
 			result.NavSummary.TotalUnits.String(), wantUnits.String())
 	}
 }
@@ -261,7 +262,7 @@ func TestComputeEquityCurve_NAVCarriedForwardInInterpolation(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 20), "deposit", "$CASH-USD", "USD", 0, 0, 500000),
 	})
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -302,7 +303,7 @@ func TestComputeEquityCurve_NAVWithWithdrawal(t *testing.T) {
 	})
 	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
 
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		Period:      "All",
 	})
@@ -311,7 +312,7 @@ func TestComputeEquityCurve_NAVWithWithdrawal(t *testing.T) {
 	}
 
 	// Find the Mar 15 point (after withdrawal).
-	var mar15 *EquityCurvePoint
+	var mar15 *performance.EquityCurvePoint
 	for i := range result.EquityCurve {
 		if result.EquityCurve[i].Date.Equal(testTime(2024, 3, 15)) {
 			mar15 = &result.EquityCurve[i]
@@ -352,7 +353,7 @@ func TestComputeEquityCurve_NAVPeriodSlicing(t *testing.T) {
 	// Filter with explicit dates (Mar-Dec).
 	from := testTime(2024, 3, 1)
 	to := testTime(2024, 12, 31)
-	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+	result, err := svc.ComputeEquityCurve(ctx, performance.PerformanceFilters{
 		PortfolioID: ptrInt64(1),
 		DateFrom:    &from,
 		DateTo:      &to,
@@ -389,19 +390,19 @@ func TestComputeNavHistory_DepositsOnly(t *testing.T) {
 	// because there are no positions to value and cash hasn't been deposited yet.
 	// The fallback uses the previous equity curve point's portfolio value.
 
-	equityCurve := []EquityCurvePoint{
+	equityCurve := []performance.EquityCurvePoint{
 		{Date: mustTime("2024-01-15"), PortfolioValue: dec(1000000, 2)}, // $10,000
 		{Date: mustTime("2024-01-16"), PortfolioValue: dec(1000000, 2)}, // $10,000 (flat)
 		{Date: mustTime("2024-03-15"), PortfolioValue: dec(1500000, 2)}, // $15,000 (after $5k deposit)
 	}
 
 	// Breakpoints: zero values (from pre-cash-flow snapshots with no positions).
-	breakpoints := []navBreakpoint{
-		{date: mustTime("2024-01-15"), value: decimal.Zero}, // initial deposit
-		{date: mustTime("2024-03-15"), value: decimal.Zero}, // subsequent deposit
+	breakpoints := []performance.NavBreakpoint{
+		{Date: mustTime("2024-01-15"), Value: decimal.Zero}, // initial deposit
+		{Date: mustTime("2024-03-15"), Value: decimal.Zero}, // subsequent deposit
 	}
 
-	result := ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-15"))
+	result := performance.ComputeNavHistory(equityCurve, breakpoints, mustTime("2024-01-15"))
 
 	if len(result) != 3 {
 		t.Fatalf("got %d points, want 3", len(result))

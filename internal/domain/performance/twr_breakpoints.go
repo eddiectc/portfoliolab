@@ -1,4 +1,4 @@
-package position
+package performance
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func computePreCashFlowValues(
 	snapshots []dateSnapshot,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
-	marketService MarketDataService,
+	marketProvider MarketDataProvider,
 	logger *slog.Logger,
 	ctx context.Context,
 ) []twrBreakpoint {
@@ -39,7 +39,7 @@ func computePreCashFlowValues(
 	// Collect FX pairs from all pre-cash-flow snapshots.
 	allPreSnaps := collectAllPreCashFlowSnaps(snapshots)
 	fxPairs := collectFxPairsFromPreSnaps(allPreSnaps, baseCurrency)
-	fxLookup := buildFxLookupFromPreSnaps(ctx, marketService, fxPairs, allPreSnaps, logger)
+	fxLookup := buildFxLookupFromPreSnaps(ctx, marketProvider, fxPairs, allPreSnaps, logger)
 
 	var values []twrBreakpoint
 	for _, snap := range snapshots {
@@ -99,13 +99,13 @@ func collectFxPairsFromPreSnaps(snaps []preCashFlowSnapWithDate, baseCurrency st
 // across the pre-cash-flow snapshot date range.
 func buildFxLookupFromPreSnaps(
 	ctx context.Context,
-	marketService MarketDataService,
+	marketProvider MarketDataProvider,
 	fxPairs []string,
 	snaps []preCashFlowSnapWithDate,
 	logger *slog.Logger,
 ) map[string]*fxLookupFF {
 	lookup := make(map[string]*fxLookupFF)
-	if marketService == nil || len(fxPairs) == 0 || len(snaps) == 0 {
+	if marketProvider == nil || len(fxPairs) == 0 || len(snaps) == 0 {
 		return lookup
 	}
 
@@ -113,7 +113,7 @@ func buildFxLookupFromPreSnaps(
 	dateTo := snaps[len(snaps)-1].date
 
 	for _, pair := range fxPairs {
-		prices, err := marketService.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
+		prices, err := marketProvider.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
 		if err != nil || len(prices) == 0 {
 			continue
 		}

@@ -1,4 +1,4 @@
-package position
+package performance
 
 import (
 	"context"
@@ -54,7 +54,7 @@ func lookupPrice(ff map[string]*priceLookupFF, symbol, dateKey string) (market.H
 // last known portfolio value and net deposit. Extends through dateTo using
 // cached historical prices for the current positions, so the curve reflects
 // actual price changes after the last transaction.
-func interpolateDaily(
+func InterpolateDaily(
 	points []EquityCurvePoint,
 	dateTo time.Time,
 	positions map[string]decimal.Decimal,
@@ -62,7 +62,7 @@ func interpolateDaily(
 	cashBalance map[string]decimal.Decimal,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
-	marketService MarketDataService,
+	marketProvider MarketDataProvider,
 	ctx context.Context,
 ) []EquityCurvePoint {
 	if len(points) == 0 {
@@ -82,7 +82,7 @@ func interpolateDaily(
 
 	// Build FX forward-fill lookup for the extended date range.
 	fxPairs := collectFxPairsForInterpolation(positionCurrency, cashBalance, baseCurrency)
-	fxLookup := buildFxLookupForInterpolation(ctx, marketService, fxPairs, points, dateTo)
+	fxLookup := buildFxLookupForInterpolation(ctx, marketProvider, fxPairs, points, dateTo)
 
 	dateFrom := points[0].Date
 	lastPointDate := points[len(points)-1].Date
@@ -151,7 +151,7 @@ func computePortfolioValue(
 
 	// Position values.
 	for symbol, qty := range positions {
-		if isCashPosition(symbol) {
+		if isCashSymbol(symbol) {
 			continue
 		}
 		price, ok := lookupPrice(ff, symbol, dateKey)
