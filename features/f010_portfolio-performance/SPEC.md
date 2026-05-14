@@ -9,7 +9,7 @@ This feature answers the core question: *"How much money did I make beyond what 
 ## User Stories
 
 - As an investor, I want to see my portfolio's equity curve over time alongside my net deposits, so I can visually track how much value I've created beyond what I put in.
-- As an investor, I want to see summary return metrics (time-weighted return, annualized TWR), so I can quickly assess investment performance independent of deposit/withdrawal timing.
+- As an investor, I want to see summary return metrics (TWR, MWR, simple return, and their annualized counterparts), so I can quickly assess investment performance from multiple angles.
 - As an investor with multi-currency accounts, I want all performance metrics expressed in my portfolio's base currency, so I have a consistent view without manual conversion.
 - As an investor, I want to manually trigger a refresh of historical market data, so that cached prices and FX rates are re-fetched and the performance view reflects the latest available data.
 
@@ -38,10 +38,15 @@ This feature answers the core question: *"How much money did I make beyond what 
 ### Scenario: View summary return metrics
 **Given** a portfolio with transactions spanning at least 30 days
 **When** the investor views the performance page
-**Then** they see the time-weighted return (TWR) as a percentage, computed by geometrically linking sub-period returns between cash flow events (deposits/withdrawals)
-**And** they see the annualized TWR using the formula `(1 + TWR)^(365 / days) - 1`
-**And** if the portfolio has no cash flows, TWR degenerates to the simple return: `(End Value / Begin Value) - 1`
-**And** if the portfolio has less than one year of history, annualized TWR is still shown using the same formula annualized over the actual number of days
+**Then** they see the following return metrics:
+- **Time-Weighted Return (TWR)** — geometrically links sub-period returns between cash flow events (deposits/withdrawals), isolating investment performance from deposit/withdrawal timing
+- **Annualized TWR** — `(1 + TWR)^(365 / days) - 1`, annualized over the actual number of days
+- **Money-Weighted Return (MWR)** — Internal Rate of Return; finds the discount rate that makes the net present value of all cash flows plus the terminal portfolio value equal to zero; affected by timing and magnitude of deposits/withdrawals
+- **Holding-Period MWR** — MWR expressed as a holding-period return (not annualized): `(1 + MWR)^(days/365) - 1`
+- **Simple Return** — total profit (PortfolioValue - NetDeposit at last point) as a percentage of total NetDeposit; answers "for every unit deposited, how much profit was made?"
+- **Annualized Simple Return** — `(1 + SimpleReturn)^(365 / days) - 1`
+**And** if the portfolio has no cash flows, TWR degenerates to the simple value return: `(End Value / Begin Value) - 1`
+**And** if the portfolio has less than one year of history, annualized metrics are still shown using the same formula annualized over the actual number of days
 
 ### Scenario: Multi-currency portfolio performance
 **Given** a portfolio with base currency USD that contains accounts in GBP and EUR

@@ -104,12 +104,16 @@ func ComputePeriodReturn(
 	}
 
 	// --- Simple return ---
-	// Uses value-based return (end/begin - 1) so it yields a meaningful
-	// value even at portfolio inception where P&L-based return is zero.
-	simpleReturn := computeValueReturn(first, last)
-	metrics.SimpleReturnPct = simpleReturn
-	if simpleReturn != nil {
-		metrics.AnnualizedSimpleReturnPct = ComputeAnnualizedSimpleReturn(simpleReturn, first, last)
+	// Total profit (PortfolioValue - NetDeposit) as a percentage of
+	// total NetDeposit. Answers "for every unit of currency deposited,
+	// how much profit was made?" Always defined as long as net deposit > 0.
+	profit, _ := last.PortfolioValue.Sub(last.NetDeposit)
+	if last.NetDeposit.IsPos() {
+		profitF, _ := profit.Float64()
+		ndF, _ := last.NetDeposit.Float64()
+		pct, _ := decimal.NewFromFloat64((profitF / ndF) * 100.0)
+		metrics.SimpleReturnPct = ptrDec(pct.Round(2))
+		metrics.AnnualizedSimpleReturnPct = ComputeAnnualizedSimpleReturn(metrics.SimpleReturnPct, first, last)
 	}
 
 	return metrics
@@ -428,34 +432,6 @@ func npv(cfs []mwrCashFlow, r float64) float64 {
 		sum += cf.amount / math.Pow(1.0+r, cf.timeYears)
 	}
 	return sum
-}
-
-// ComputeSimpleReturn computes the simple (unweighted) return as a percentage.
-//
-// It uses TotalReturn = PortfolioValue - NetDeposit (i.e., the cumulative P&L)
-// at the first and last equity curve points:
-//
-//	SimpleReturn = (endingTotalReturn - beginningTotalReturn) / beginningTotalReturn × 100
-//
-// Returns nil when the beginning TotalReturn is non-positive (e.g., at portfolio
-// inception with no prior gains/losses).
-func ComputeSimpleReturn(first, last EquityCurvePoint) *decimal.Decimal {
-	beginTotalReturn, _ := first.PortfolioValue.Sub(first.NetDeposit)
-	endTotalReturn, _ := last.PortfolioValue.Sub(last.NetDeposit)
-
-	if !beginTotalReturn.IsPos() {
-		return nil
-	}
-
-	beginF, _ := beginTotalReturn.Float64()
-	endF, _ := endTotalReturn.Float64()
-	if beginF <= 0 {
-		return nil
-	}
-
-	ratio := (endF - beginF) / beginF
-	pct, _ := decimal.NewFromFloat64(ratio * 100.0)
-	return ptrDec(pct.Round(2))
 }
 
 // ComputeAnnualizedSimpleReturn computes the annualized simple return as a

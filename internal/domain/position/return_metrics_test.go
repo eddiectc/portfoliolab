@@ -710,114 +710,93 @@ func TestComputeMWR_NegativeReturn(t *testing.T) {
 	}
 }
 
-func TestComputeSimpleReturn(t *testing.T) {
+func TestComputeSimpleReturn_ProfitOverNetDeposit(t *testing.T) {
+	// Simple return = (end_pv - end_nd) / end_nd × 100
+	// "For every £1 deposited, how much profit was made?"
 	tests := []struct {
 		name         string
-		first        EquityCurvePoint
-		last         EquityCurvePoint
+		equityCurve  []EquityCurvePoint
+		breakpoints  []twrBreakpoint
 		wantNil      bool
 		wantApprox   float64
 		approxMargin float64
 	}{
 		{
-			name: "positive return with prior gains",
-			first: EquityCurvePoint{
-				Date:           mustTime("2023-06-01"),
-				PortfolioValue: dec(1100000, 2), // $11,000
-				NetDeposit:     dec(1000000, 2), // $10,000
-			}, // TotalReturn = $1,000
-			last: EquityCurvePoint{
-				Date:           mustTime("2024-01-01"),
-				PortfolioValue: dec(1300000, 2), // $13,000
-				NetDeposit:     dec(1000000, 2), // $10,000
-			}, // TotalReturn = $3,000
-			// (3000 - 1000) / 1000 = 200%
-			wantNil:      false,
-			wantApprox:   200.0,
-			approxMargin: 0.5,
+			name: "profit on deposits",
+			equityCurve: []EquityCurvePoint{
+				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1150000, 2), NetDeposit: dec(1000000, 2)},
+			}, // profit = 15000, nd = 100000 → 15%
+			breakpoints:    nil,
+			wantNil:        false,
+			wantApprox:     15.0,
+			approxMargin:   0.5,
 		},
 		{
-			name: "negative return",
-			first: EquityCurvePoint{
-				Date:           mustTime("2023-06-01"),
-				PortfolioValue: dec(1200000, 2), // $12,000
-				NetDeposit:     dec(1000000, 2), // $10,000
-			}, // TotalReturn = $2,000
-			last: EquityCurvePoint{
-				Date:           mustTime("2024-01-01"),
-				PortfolioValue: dec(1050000, 2), // $10,500
-				NetDeposit:     dec(1000000, 2), // $10,000
-			}, // TotalReturn = $500
-			// (500 - 2000) / 2000 = -75%
-			wantNil:      false,
-			wantApprox:   -75.0,
-			approxMargin: 0.5,
+			name: "loss on deposits",
+			equityCurve: []EquityCurvePoint{
+				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+				{Date: mustTime("2024-01-01"), PortfolioValue: dec(900000, 2), NetDeposit: dec(1000000, 2)},
+			}, // profit = -10000, nd = 100000 → -10%
+			breakpoints:    nil,
+			wantNil:        false,
+			wantApprox:     -10.0,
+			approxMargin:   0.5,
 		},
 		{
-			name: "zero beginning total return at inception",
-			first: EquityCurvePoint{
-				Date:           mustTime("2023-01-01"),
-				PortfolioValue: dec(1000000, 2),
-				NetDeposit:     dec(1000000, 2),
-			}, // TotalReturn = 0
-			last: EquityCurvePoint{
-				Date:           mustTime("2024-01-01"),
-				PortfolioValue: dec(1150000, 2),
-				NetDeposit:     dec(1000000, 2),
+			name: "zero net deposit",
+			equityCurve: []EquityCurvePoint{
+				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: decimal.Zero},
+				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1150000, 2), NetDeposit: decimal.Zero},
 			},
-			wantNil: true,
-		},
-		{
-			name: "loss position at beginning",
-			first: EquityCurvePoint{
-				Date:           mustTime("2023-06-01"),
-				PortfolioValue: dec(900000, 2),  // $9,000
-				NetDeposit:     dec(1000000, 2), // $10,000
-			}, // TotalReturn = -$1,000
-			last: EquityCurvePoint{
-				Date:           mustTime("2024-01-01"),
-				PortfolioValue: dec(1050000, 2), // $10,500
-				NetDeposit:     dec(1000000, 2), // $10,000
-			},
-			wantNil: true,
+			breakpoints: nil,
+			wantNil:     true,
 		},
 		{
 			name: "flat performance",
-			first: EquityCurvePoint{
-				Date:           mustTime("2023-06-01"),
-				PortfolioValue: dec(1100000, 2),
-				NetDeposit:     dec(1000000, 2),
-			}, // TotalReturn = $1,000
-			last: EquityCurvePoint{
-				Date:           mustTime("2024-01-01"),
-				PortfolioValue: dec(1100000, 2),
-				NetDeposit:     dec(1000000, 2),
-			}, // TotalReturn = $1,000
-			// (1000 - 1000) / 1000 = 0%
+			equityCurve: []EquityCurvePoint{
+				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+			}, // profit = 0, nd = 100000 → 0%
+			breakpoints:    nil,
+			wantNil:        false,
+			wantApprox:     0.0,
+			approxMargin:   0.1,
+		},
+		{
+			name: "with intermediate deposits",
+			equityCurve: []EquityCurvePoint{
+				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
+				{Date: mustTime("2023-07-01"), PortfolioValue: dec(2000000, 2), NetDeposit: dec(2000000, 2)},
+				{Date: mustTime("2024-01-01"), PortfolioValue: dec(2300000, 2), NetDeposit: dec(2000000, 2)},
+			}, // profit = 30000, nd = 200000 → 15%
+			breakpoints: []twrBreakpoint{
+				{date: mustTime("2023-07-01"), value: dec(1000000, 2)},
+			},
 			wantNil:      false,
-			wantApprox:   0.0,
-			approxMargin: 0.1,
+			wantApprox:   15.0,
+			approxMargin: 0.5,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ComputeSimpleReturn(tt.first, tt.last)
+			result := ComputePeriodReturn(tt.equityCurve, tt.breakpoints, "USD")
 
 			if tt.wantNil {
-				if result != nil {
-					t.Errorf("expected nil, got %s", result.String())
+				if result.SimpleReturnPct != nil {
+					t.Errorf("expected nil, got %s", result.SimpleReturnPct.String())
 				}
 				return
 			}
 
-			if result == nil {
-				t.Fatal("expected non-nil result")
+			if result.SimpleReturnPct == nil {
+				t.Fatal("expected non-nil SimpleReturnPct")
 			}
 
-			got, _ := result.Float64()
+			got, _ := result.SimpleReturnPct.Float64()
 			if math.Abs(got-tt.wantApprox) > tt.approxMargin {
-				t.Errorf("got %s, want approx %.2f (margin %.2f)", result.String(), tt.wantApprox, tt.approxMargin)
+				t.Errorf("got %s, want approx %.2f (margin %.2f)", result.SimpleReturnPct.String(), tt.wantApprox, tt.approxMargin)
 			}
 		})
 	}

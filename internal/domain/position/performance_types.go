@@ -37,8 +37,9 @@ type EquityCurvePoint struct {
 // or begin value is non-positive. Expressed as an annualized percentage.
 // HoldingPeriodMWRPct is the MWR expressed as a holding-period return
 // (not annualized): (1 + MWR)^(days/365) - 1. Nil when MWR is nil.
-// SimpleReturnPct is the simple (unweighted) return: (endTotalReturn - beginTotalReturn) / beginTotalReturn.
-// Nil when the beginning TotalReturn is non-positive. Expressed as a percentage.
+// SimpleReturnPct is total profit (PortfolioValue - NetDeposit at last point)
+// as a percentage of total NetDeposit. Answers "for every unit deposited,
+// how much profit was made?" Nil when net deposit is non-positive.
 // AnnualizedSimpleReturnPct is the annualized simple return.
 // Nil when the simple return is nil or zero days elapsed.
 // HasInsufficientData is true when fewer than 2 data points are available.
@@ -47,8 +48,8 @@ type ReturnMetrics struct {
 	AnnualizedTWRPct        *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
 	MWRPct                  *decimal.Decimal `json:"mwr_pct,omitempty"`
 	HoldingPeriodMWRPct     *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
-	SimpleReturnPct         *decimal.Decimal `json:"simple_return_pct,omitempty"`
-	AnnualizedSimpleReturnPct *decimal.Decimal `json:"annualized_simple_return_pct,omitempty"`
+	SimpleReturnPct         *decimal.Decimal `json:"simple_return_pct,omitempty"`         // Total profit / total net deposit (%). Nil when net deposit ≤ 0.
+	AnnualizedSimpleReturnPct *decimal.Decimal `json:"annualized_simple_return_pct,omitempty"` // Annualized simple return. Nil when simple return is nil or zero days elapsed.
 	HasInsufficientData     bool             `json:"has_insufficient_data"`
 }
 
