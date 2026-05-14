@@ -78,6 +78,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 			EquityCurve:   []EquityCurvePoint{},
 			ReturnMetrics: ReturnMetrics{HasInsufficientData: true},
 			BaseCurrency:  baseCurrency,
+			NavSummary:    nil,
 		}, nil
 	}
 
@@ -167,7 +168,14 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	// 9. Build equity curve points from snapshots.
 	points := buildEquityCurvePoints(snapshots, pricesBySymbol, baseCurrency, s.marketService, s.logger, ctx)
 
-	// 10. Interpolate for non-transaction days, extending through dateTo.
+	// 10. Compute pre-cash-flow breakpoints (needed for both NAV and TWR).
+	// Computed here before interpolation so breakpoints are available for
+	// NAV history computation, which operates on the full (pre-slice) curve.
+	preCashFlowValues := computePreCashFlowValues(
+		snapshots, pricesBySymbol, baseCurrency, s.marketService, s.logger, ctx,
+	)
+
+	// 11. Interpolate for non-transaction days, extending through dateTo.
 	// Uses cached historical prices so the curve reflects actual price changes
 	// after the last transaction, not just a flat carry-forward.
 	lastSnapshot := finalState
@@ -177,26 +185,35 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		s.logger.Debug("performance: interpolation complete", "points", len(points))
 	}
 
-	// 11. Compute pre-cash-flow portfolio values for TWR.
-	// These are the portfolio values just before each deposit/withdrawal,
-	// computed using the same price/FX logic as the equity curve.
-	preCashFlowValues := computePreCashFlowValues(
-		snapshots, pricesBySymbol, baseCurrency, s.marketService, s.logger, ctx,
-	)
+	// 12. Compute NAV history (unitization) on the full (pre-slice) curve.
+	// This populates NavPerUnit and Units on each equity curve point.
+	navBreakpoints := make([]navBreakpoint, len(preCashFlowValues))
+	for i, bp := range preCashFlowValues {
+		navBreakpoints[i] = navBreakpoint{date: bp.date, value: bp.value}
+	}
+	navHistory := ComputeNavHistory(points, navBreakpoints)
+	if navHistory != nil {
+		for i := range points {
+			nav := navHistory[i].NavPerUnit
+			units := navHistory[i].Units
+			points[i].NavPerUnit = &nav
+			points[i].Units = &units
+		}
+	}
 
-	// 12. Slice to period range. The portfolio state includes all history,
+	// 13. Slice to period range. The portfolio state includes all history,
 	// but the output curve only shows the selected period.
 	if !dateFrom.IsZero() {
 		points = sliceFrom(points, dateFrom)
 	}
 
-	// 13. Filter breakpoints to the visible period so that TWR reflects
+	// 14. Filter breakpoints to the visible period so that TWR reflects
 	// only the selected window. Exclude breakpoints on or before the first
 	// curve point — that point is the starting value, and any cash flow
 	// on that date already happened before (or at) the window start.
 	visibleBreakpoints := filterBreakpointsForPeriod(preCashFlowValues, points, dateTo)
 
-	// 14. Compute return metrics (TWR + annualized) from the sliced curve
+	// 15. Compute return metrics (TWR + annualized) from the sliced curve
 	// and filtered breakpoints.
 	if s.logger != nil {
 		s.logger.Debug("performance: TWR breakpoints",
@@ -243,11 +260,24 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		)
 	}
 
+	// 16. Build NavSummary from the final NAV state.
+	var navSummary *NavSummary
+	if navHistory != nil && len(navHistory) > 0 {
+		lastNav := navHistory[len(navHistory)-1]
+		navSummary = &NavSummary{
+			NavPerUnit:    lastNav.NavPerUnit,
+			TotalUnits:    lastNav.Units,
+			TotalValue:    lastNav.PortfolioValue,
+			InceptionDate: navHistory[0].Date,
+		}
+	}
+
 	return &PerformanceResult{
 		EquityCurve:   points,
 		ReturnMetrics: returnMetrics,
 		BaseCurrency:  baseCurrency,
 		Warnings:      warnings,
+		NavSummary:    navSummary,
 	}, nil
 }
 
