@@ -266,15 +266,10 @@
 {{/* Chart data — passed as JSON for ECharts */}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <script>
-var navRawData = [];
-{{if .NavChartData}}
-try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []; }
-{{end}}
-</script>
-<script>
 (function() {
     try {
     var mode = '{{.SelectedMode}}';
+    var equityModeUrl = '{{index .ModeURLs "equity"}}';
     var rawData = JSON.parse('{{.ChartData}}');
     var navData = [];
     try { navData = JSON.parse('{{.NavChartData}}'); } catch(e) {}
@@ -305,57 +300,20 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
             portfolioNavData.push([navData[i].date, navData[i].value]);
         }
 
-        // Normalize benchmark to 100 at portfolio inception (first nav data point).
-        var navStartTs = new Date(portfolioNavData[0][0]).getTime();
-        var navBenchData = [];
-        if (benchData.length > 0) {
-            // Find benchmark price closest to portfolio inception.
-            var benchStartIdx = 0, bestDiff = Infinity;
-            for (var i = 0; i < benchData.length; i++) {
-                var d = Math.abs(new Date(benchData[i][0]).getTime() - navStartTs);
-                if (d < bestDiff) { bestDiff = d; benchStartIdx = i; }
-            }
-            var benchStartPrice = benchData[benchStartIdx][1];
-            for (var i = 0; i < benchData.length; i++) {
-                var pct = benchStartPrice !== 0 ? (benchData[i][1] / benchStartPrice) * 100 : 0;
-                pct = Math.round(pct * 100) / 100;
-                navBenchData.push([benchData[i][0], pct]);
-            }
-        }
-
-        // Compute Y-axis range.
+        // Compute Y-axis range from actual NAV values.
         var allVals = [];
         for (var i = 0; i < portfolioNavData.length; i++) allVals.push(portfolioNavData[i][1]);
-        for (var i = 0; i < navBenchData.length; i++) allVals.push(navBenchData[i][1]);
         var axisMin = Math.min.apply(null, allVals);
         var axisMax = Math.max.apply(null, allVals);
-        // Ensure 100 is visible.
-        if (axisMin > 100) axisMin = 100;
-        if (axisMax < 100) axisMax = 100;
         if (axisMin > 0) axisMin = Math.max(0, axisMin - (axisMax - axisMin) * 0.05);
         axisMax = axisMax + (axisMax - axisMin) * 0.05;
 
-        var legendData = ['Portfolio'];
-        var seriesList = [
-            {
-                name: 'Portfolio',
-                type: 'line',
-                data: portfolioNavData,
-                smooth: false,
-                symbol: 'none',
-                lineStyle: { width: 2 }
-            }
-        ];
-        if (hasBenchmark && navBenchData.length > 0) {
-            legendData.push(benchName);
-            seriesList.push({
-                name: benchName,
-                type: 'line',
-                data: navBenchData,
-                smooth: false,
-                symbol: 'none',
-                lineStyle: { width: 2, type: 'dashed', color: '#888' }
-            });
+        // Determine decimal places from the data (NAV per unit typically has 2-6 decimals).
+        var navDecimals = 2;
+        if (portfolioNavData.length > 0) {
+            var sampleVal = portfolioNavData[0][1];
+            if (sampleVal < 1) navDecimals = 4;
+            else if (sampleVal < 10) navDecimals = 3;
         }
 
         var chart = echarts.init(document.getElementById('equity-chart'));
@@ -368,27 +326,38 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
                     var html = '<strong>' + dateStr + '</strong><br/>';
                     for (var i = 0; i < params.length; i++) {
                         var val = params[i].value[1];
-                        var pctStr = (val - 100);
-                        var signStr = pctStr >= 0 ? '+' : '';
-                        html += params[i].marker + params[i].seriesName + ': ' + val.toFixed(2) + ' (' + signStr + pctStr.toFixed(2) + '%)<br/>';
+                        html += params[i].marker + params[i].seriesName + ': ' + val.toFixed(navDecimals) + ' {{.Result.BaseCurrency}}<br/>';
                     }
                     return html;
                 }
             },
-            legend: { data: legendData, bottom: 0 },
+            legend: { data: ['NAV per Unit'], bottom: 0 },
             grid: { left: '3%', right: '8%', bottom: '12%', top: '8%', containLabel: true },
             xAxis: { type: 'time', axisLabel: { rotate: 0, interval: 'auto' } },
             yAxis: {
                 type: 'value',
-                name: 'Normalized (100 at inception)',
+                name: 'NAV per Unit',
                 min: axisMin,
                 max: axisMax,
-                axisLabel: { formatter: function(v) { return v.toFixed(0); } }
+                axisLabel: { formatter: function(v) { return v.toFixed(navDecimals); } }
             },
-            series: seriesList
+            series: [
+                {
+                    name: 'NAV per Unit',
+                    type: 'line',
+                    data: portfolioNavData,
+                    smooth: false,
+                    symbol: 'none',
+                    lineStyle: { width: 2 }
+                }
+            ]
         });
 
         window.addEventListener('resize', function() { chart.resize(); });
+        return;
+    } else if (mode === 'nav') {
+        // NAV mode selected but no NAV data available (no deposits yet).
+        document.getElementById('equity-chart').innerHTML = '<p style="color:#856404;background:#fff3cd;padding:2rem;text-align:center;border:1px solid #ffc107;border-radius:4px;">NAV mode requires at least one deposit transaction. The portfolio has not been unitized yet. <a href="' + equityModeUrl + '">Switch to Total Return mode</a> to see portfolio value and deposits.</p>';
         return;
     }
 
