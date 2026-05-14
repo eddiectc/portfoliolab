@@ -113,7 +113,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - Handle empty state (no deposits → nil NAV fields)
   - **Tests**: Add integration test cases to `equity_curve_test.go` or new `nav_test.go`
 
-- [ ] **Task 3.3**: Compute additional metrics in `ComputeEquityCurve`
+- [x] **Task 3.3**: Compute additional metrics in `ComputeEquityCurve`
   - After NAV history is available, compute risk metrics, drawdown, yearly performance
   - Populate new fields on `PerformanceResult`
   - Add simple return to return metrics computation

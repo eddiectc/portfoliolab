@@ -103,6 +103,15 @@ func ComputePeriodReturn(
 		}
 	}
 
+	// --- Simple return ---
+	// Uses value-based return (end/begin - 1) so it yields a meaningful
+	// value even at portfolio inception where P&L-based return is zero.
+	simpleReturn := computeValueReturn(first, last)
+	metrics.SimpleReturnPct = simpleReturn
+	if simpleReturn != nil {
+		metrics.AnnualizedSimpleReturnPct = ComputeAnnualizedSimpleReturn(simpleReturn, first, last)
+	}
+
 	return metrics
 }
 

@@ -750,6 +750,24 @@ func TestComputeEquityCurve_HappyPath(t *testing.T) {
 	if !mar15.PortfolioValue.Equal(wantMarPV) {
 		t.Errorf("Mar 15 portfolio value: got %s, want %s", mar15.PortfolioValue.String(), wantMarPV.String())
 	}
+
+	// Verify additional metrics are populated.
+	if result.ReturnMetrics.SimpleReturnPct == nil {
+		t.Error("SimpleReturnPct is nil")
+	}
+	if result.RiskMetrics.AnnualizedVolatilityPct == nil {
+		t.Error("AnnualizedVolatilityPct is nil")
+	}
+	// Sharpe/Sortino are nil without risk-free rate — expected.
+	if result.RiskMetrics.SharpeRatio != nil {
+		t.Error("SharpeRatio should be nil without risk-free rate")
+	}
+	if result.DrawdownAnalysis.MaxDrawdownPct == nil {
+		t.Error("MaxDrawdownPct is nil")
+	}
+	if len(result.YearlyPerformance) == 0 {
+		t.Error("YearlyPerformance is empty")
+	}
 }
 
 func TestComputeEquityCurve_MissingMarketData(t *testing.T) {
@@ -1094,6 +1112,95 @@ func TestComputeEquityCurve_NegativeNetDeposit(t *testing.T) {
 	// Portfolio value should also be -$3,000 (only cash, no positions).
 	if !last.PortfolioValue.Equal(wantND) {
 		t.Errorf("portfolio value: got %s, want %s", last.PortfolioValue.String(), wantND.String())
+	}
+}
+
+// TestComputeEquityCurve_AdditionalMetrics verifies that risk metrics,
+// drawdown analysis, and yearly performance are computed and populated
+// on the PerformanceResult.
+func TestComputeEquityCurve_AdditionalMetrics(t *testing.T) {
+	svc, txnRepo, accountLister := newTestServiceForEquity()
+	accountLister.SetAccountsByPortfolio(1, []AccountRef{
+		{ID: 1, PortfolioCurrency: "USD"},
+	})
+
+	// Deposit, buy, price appreciation.
+	txnRepo.SetTransactions(1, []transaction.Transaction{
+		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
+		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -150000),
+		eqTxn(1, testTime(2024, 3, 15), "sell", "AAPL", "USD", -500, 17000, 85000),
+	})
+
+	repo := newMockHistoricalRepo()
+	repo.SetCachedPrices("AAPL", []market.HistoricalPrice{
+		histPrice(testTime(2024, 1, 15), 15000, "USD"),
+		histPrice(testTime(2024, 2, 15), 15000, "USD"),
+		histPrice(testTime(2024, 3, 15), 17000, "USD"),
+	})
+	svc.WithMarketDataService(&mockEqMarketService{repo: repo}, nil)
+
+	result, err := svc.ComputeEquityCurve(ctx, PerformanceFilters{
+		PortfolioID: ptrInt64(1),
+		Period:      "All",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Simple return: (10200 - 10000) / 10000 = 2% approximately.
+	// (Portfolio went from $10,000 to $10,200, no additional deposits after first).
+	if result.ReturnMetrics.SimpleReturnPct == nil {
+		t.Fatal("SimpleReturnPct is nil")
+	}
+	simpleReturn, _ := result.ReturnMetrics.SimpleReturnPct.Float64()
+	if simpleReturn < 0 || simpleReturn > 10 {
+		t.Errorf("SimpleReturnPct = %.2f%%, expected small positive value", simpleReturn)
+	}
+
+	// Annualized simple return should also be populated.
+	if result.ReturnMetrics.AnnualizedSimpleReturnPct == nil {
+		t.Error("AnnualizedSimpleReturnPct is nil")
+	}
+
+	// Risk metrics: volatility should be populated.
+	if result.RiskMetrics.AnnualizedVolatilityPct == nil {
+		t.Error("AnnualizedVolatilityPct is nil")
+	}
+	vol, _ := result.RiskMetrics.AnnualizedVolatilityPct.Float64()
+	if vol < 0 {
+		t.Errorf("AnnualizedVolatilityPct = %.2f%%, expected non-negative", vol)
+	}
+
+	// Sharpe and Sortino should be nil without risk-free rate.
+	if result.RiskMetrics.SharpeRatio != nil {
+		t.Error("SharpeRatio should be nil without risk-free rate")
+	}
+	if result.RiskMetrics.SortinoRatio != nil {
+		t.Error("SortinoRatio should be nil without risk-free rate")
+	}
+
+	// Drawdown: max drawdown should be populated.
+	if result.DrawdownAnalysis.MaxDrawdownPct == nil {
+		t.Error("MaxDrawdownPct is nil")
+	}
+	maxDD, _ := result.DrawdownAnalysis.MaxDrawdownPct.Float64()
+	if maxDD < 0 {
+		t.Errorf("MaxDrawdownPct = %.2f%%, expected non-negative", maxDD)
+	}
+
+	// Current drawdown should be populated.
+	if result.DrawdownAnalysis.CurrentDrawdownPct == nil {
+		t.Error("CurrentDrawdownPct is nil")
+	}
+
+	// Yearly performance should have at least one year.
+	if len(result.YearlyPerformance) == 0 {
+		t.Error("YearlyPerformance is empty")
+	}
+	if len(result.YearlyPerformance) > 0 {
+		if result.YearlyPerformance[0].Year != 2024 {
+			t.Errorf("expected year 2024, got %d", result.YearlyPerformance[0].Year)
+		}
 	}
 }
 
