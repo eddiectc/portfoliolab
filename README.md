@@ -26,7 +26,7 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 - [ ] **Position Aggregation** — Real-time calculation of outstanding (open) positions across all accounts
 - [ ] **Closed Positions** — History of fully closed positions with realized P&L
 - [ ] **Cash Balance Tracking** — Per-account cash balance derived from transactions
-- [x] **Portfolio Performance** — Equity curve (portfolio value vs net deposits), time-weighted return (TWR), annualized TWR, money-weighted return (MWR/IRR), simple return (profit/net deposit), annualized simple return, period selector, multi-currency FX conversion (using yfinance for prices)
+- [x] **Portfolio Performance** — Equity curve (portfolio value vs net deposits), time-weighted return (TWR), annualized TWR, money-weighted return (MWR/IRR), simple return (profit/net deposit), annualized simple return, annualized volatility, drawdown analysis (max/current/duration), yearly performance, period selector, multi-currency FX conversion (using yfinance for prices)
 - [ ] **Historical P&L** — Time-series of portfolio value, daily returns, cumulative returns
 - [ ] **Detailed P&L Analysis** — Drawdown analysis, benchmark comparison (S&P 500, NASDAQ, custom), sector/currency breakdown, win rate, avg hold period
 

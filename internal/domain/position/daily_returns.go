@@ -17,6 +17,10 @@ type DailyReturn struct {
 // equity curve points. Each return is (value[i] - value[i-1]) / value[i-1] × 100,
 // expressed as a percentage (e.g. 1.50 = 1.50%).
 //
+// Uses NavPerUnit when available (both prev and curr non-nil), which isolates
+// investment performance from cash flow effects. Falls back to PortfolioValue
+// when NavPerUnit is nil (no unitization / no cash flows).
+//
 // Returns nil for empty input. Returns a single-element slice with 0% return
 // for single-point input (no prior day to compare against).
 // Skips any point whose prior value is zero or negative (undefined return).
@@ -32,8 +36,16 @@ func ComputeDailyReturns(points []EquityCurvePoint) []DailyReturn {
 
 	var returns []DailyReturn
 	for i := 1; i < len(points); i++ {
-		prev := points[i-1].PortfolioValue
-		curr := points[i].PortfolioValue
+		// Use NAV per unit when available (cash-flow-independent), otherwise
+		// fall back to portfolio value (correct only when no cash flows).
+		var prev, curr decimal.Decimal
+		if points[i-1].NavPerUnit != nil && points[i].NavPerUnit != nil {
+			prev = *points[i-1].NavPerUnit
+			curr = *points[i].NavPerUnit
+		} else {
+			prev = points[i-1].PortfolioValue
+			curr = points[i].PortfolioValue
+		}
 
 		if !prev.IsPos() {
 			// Prior value is zero or negative — return is undefined.

@@ -34,3 +34,25 @@
 - [ ] Add a "Validation / Hardening" task template to future PLAN.md drafts
 - [ ] Include "run `go build ./...`" in the per-task self-check checklist
 - [ ] When changing function signatures, update all callers + tests in the same session
+
+## Post-Retro Changes
+
+### Daily Returns and Drawdown Switched to NAV-Based (2026-05-14)
+
+`ComputeDailyReturns` and `ComputeDrawdownAnalysis` were both using `PortfolioValue`, which includes the effects of deposits and withdrawals. This produced inflated volatility and misleading drawdown for portfolios with significant cash flows.
+
+**Before:**
+- `ComputeDailyReturns` used `points[i].PortfolioValue` → a deposit creating a +685% "daily return"
+- `ComputeDrawdownAnalysis` used `points[i].PortfolioValue` → peak was a deposit, not a market high
+- Result: annualized volatility 395%, max drawdown 33.8% — both meaningless
+
+**After:**
+- `ComputeDailyReturns` uses `NavPerUnit` when available (falls back to `PortfolioValue` when nil) → deposit creates 0% return (correct)
+- `ComputeDrawdownAnalysis` uses `NavPerUnit` → peak is the actual market high
+- Result: annualized volatility 9.2%, max drawdown 12.0% — both reflect investment performance
+
+**Changes:**
+- `daily_returns.go`: Use `NavPerUnit` over `PortfolioValue` for return computation
+- `drawdown.go`: Use `NavPerUnit` over `PortfolioValue` for peak/trough tracking
+- `daily_returns_test.go`: Added `TestComputeDailyReturns_UsesNAV` and `TestComputeDailyReturns_FallbackToPortfolioValue`
+- `drawdown_test.go`: Updated all tests to set `NavPerUnit` instead of `PortfolioValue`
