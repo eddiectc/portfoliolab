@@ -47,6 +47,12 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
 
 **Rationale**: A 0% risk-free rate silently inflates Sharpe/Sortino ratios, which can mislead the user. Better to surface the issue explicitly so the user knows the metric is unavailable. Treasury data fetching is out of scope; we can wire it in later.
 
+### 5. NAV-based daily returns and drawdown
+
+**Decision**: `ComputeDailyReturns` uses `NavPerUnit` (falls back to `PortfolioValue` when nil). `ComputeDrawdownAnalysis` uses `NavPerUnit`.
+
+**Rationale**: Both metrics measure investment performance, which should be independent of cash flow timing. Using `PortfolioValue` conflates market gains/losses with deposits/withdrawals — a deposit that doubles portfolio value would create a spurious +100% "daily return" and inflate volatility. NAV per unit isolates pure investment performance, consistent with TWR. The fallback to `PortfolioValue` when NAV is nil covers the no-cash-flows case where they're equivalent.
+
 ## Task List
 
 ### Phase 1: Domain — Unitization core

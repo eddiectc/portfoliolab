@@ -27,7 +27,11 @@ type DrawdownAnalysis struct {
 // NavPoints. It walks through the points tracking a running peak and computes
 // the drawdown at each point as (peak - value) / peak × 100.
 //
-// The running peak is the maximum portfolio value seen up to each point.
+// Uses NavPerUnit for the drawdown calculation, which isolates investment
+// performance from cash flow effects. This means the drawdown reflects actual
+// market losses, not the impact of deposits or withdrawals.
+//
+// The running peak is the maximum NAV per unit seen up to each point.
 // When a new peak is reached, the drawdown resets to zero.
 //
 // Returns nil fields when fewer than 2 data points are available or all
@@ -46,7 +50,7 @@ func ComputeDrawdownAnalysis(points []NavPoint) DrawdownAnalysis {
 	)
 
 	for i := 0; i < len(points); i++ {
-		val := points[i].PortfolioValue
+		val := points[i].NavPerUnit
 
 		if !val.IsPos() {
 			continue

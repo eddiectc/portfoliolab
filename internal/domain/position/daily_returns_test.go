@@ -138,3 +138,64 @@ func TestComputeDailyReturns_NoChange(t *testing.T) {
 		}
 	}
 }
+
+func TestComputeDailyReturns_UsesNAV(t *testing.T) {
+	// When NavPerUnit is set, returns are computed from NAV (not PortfolioValue).
+	// This isolates investment performance from cash flow effects.
+	// Scenario: portfolio value jumps due to a deposit, but NAV stays flat.
+	p1 := decimal.MustParse("0.9000")
+	p2 := decimal.MustParse("0.9000") // NAV unchanged (deposit, not market gain)
+	p3 := decimal.MustParse("0.9180") // NAV up 2%
+	p4 := decimal.MustParse("0.9000") // NAV down 1.96%
+
+	points := []EquityCurvePoint{
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NavPerUnit: &p1},
+		{Date: mustTime("2024-01-02"), PortfolioValue: dec(2000000, 2), NavPerUnit: &p2}, // deposit doubled PV but NAV flat
+		{Date: mustTime("2024-01-03"), PortfolioValue: dec(2036000, 2), NavPerUnit: &p3}, // market gain
+		{Date: mustTime("2024-01-04"), PortfolioValue: dec(1980000, 2), NavPerUnit: &p4}, // market loss
+	}
+
+	result := ComputeDailyReturns(points)
+
+	if len(result) != 3 {
+		t.Fatalf("got %d returns, want 3", len(result))
+	}
+
+	// Day 2: NAV unchanged → 0% (not +100% from PV)
+	zero := decimal.Zero
+	if !result[0].ReturnPct.Equal(zero) {
+		t.Errorf("day 2 return: got %s, want 0.00 (NAV flat despite deposit)", result[0].ReturnPct.String())
+	}
+
+	// Day 3: (0.9180 - 0.9000) / 0.9000 × 100 = +2.00%
+	want2 := decimal.MustParse("2.00")
+	if !result[1].ReturnPct.Equal(want2) {
+		t.Errorf("day 3 return: got %s, want %s", result[1].ReturnPct.String(), want2.String())
+	}
+
+	// Day 4: (0.9000 - 0.9180) / 0.9180 × 100 ≈ -1.9608%
+	wantNeg := decimal.MustParse("-1.9608")
+	if !result[2].ReturnPct.Equal(wantNeg) {
+		t.Errorf("day 4 return: got %s, want %s", result[2].ReturnPct.String(), wantNeg.String())
+	}
+}
+
+func TestComputeDailyReturns_FallbackToPortfolioValue(t *testing.T) {
+	// When NavPerUnit is nil, falls back to PortfolioValue.
+	points := []EquityCurvePoint{
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NavPerUnit: nil},
+		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1010000, 2), NavPerUnit: nil},
+	}
+
+	result := ComputeDailyReturns(points)
+
+	if len(result) != 1 {
+		t.Fatalf("got %d returns, want 1", len(result))
+	}
+
+	// (10100 - 10000) / 10000 × 100 = +1.00%
+	wantPct := decimal.MustParse("1.00")
+	if !result[0].ReturnPct.Equal(wantPct) {
+		t.Errorf("return: got %s, want %s", result[0].ReturnPct.String(), wantPct.String())
+	}
+}

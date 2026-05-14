@@ -35,11 +35,11 @@ func assertDrawdown(t *testing.T, got DrawdownAnalysis, wantMax, wantCurrent *de
 }
 
 func TestComputeDrawdownAnalysis_NoDrawdown(t *testing.T) {
-	// Flat portfolio — no drawdown at all.
+	// Flat NAV — no drawdown at all.
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1000000, 2)}, // $10,000
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(1000000, 2)}, // $10,000
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.00")},
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.MustParse("1.00")},
+		{Date: mustTime("2024-01-03"), NavPerUnit: decimal.MustParse("1.00")},
 	}
 
 	result := ComputeDrawdownAnalysis(points)
@@ -50,11 +50,11 @@ func TestComputeDrawdownAnalysis_NoDrawdown(t *testing.T) {
 }
 
 func TestComputeDrawdownAnalysis_RisingPortfolio(t *testing.T) {
-	// Continuously rising — peak keeps moving forward, drawdown always zero.
+	// Continuously rising NAV — peak keeps moving forward, drawdown always zero.
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1100000, 2)}, // $11,000
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(1200000, 2)}, // $12,000
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.00")},
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.MustParse("1.10")},
+		{Date: mustTime("2024-01-03"), NavPerUnit: decimal.MustParse("1.20")},
 	}
 
 	result := ComputeDrawdownAnalysis(points)
@@ -65,12 +65,12 @@ func TestComputeDrawdownAnalysis_RisingPortfolio(t *testing.T) {
 }
 
 func TestComputeDrawdownAnalysis_FullDrawdown(t *testing.T) {
-	// Peak at $12,000, then drops to $6,000 (50% drawdown).
+	// Peak NAV at 1.20, then drops to 0.60 (50% drawdown).
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1200000, 2)}, // $12,000 (peak)
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(900000, 2)},  // $9,000 (25% DD)
-		{Date: mustTime("2024-01-04"), PortfolioValue: dec(600000, 2)},  // $6,000 (50% DD)
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.00")},
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.MustParse("1.20")}, // peak
+		{Date: mustTime("2024-01-03"), NavPerUnit: decimal.MustParse("0.90")}, // 25% DD
+		{Date: mustTime("2024-01-04"), NavPerUnit: decimal.MustParse("0.60")}, // 50% DD
 	}
 
 	result := ComputeDrawdownAnalysis(points)
@@ -82,13 +82,13 @@ func TestComputeDrawdownAnalysis_FullDrawdown(t *testing.T) {
 }
 
 func TestComputeDrawdownAnalysis_RecoveringDrawdown(t *testing.T) {
-	// Peak at $12,000, trough at $6,000 (50%), recovers to $9,000 (25% from peak).
+	// Peak NAV at 1.20, trough at 0.60 (50%), recovers to 0.90 (25% from peak).
 	// Max drawdown stays 50%, current drawdown is 25%.
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1200000, 2)}, // $12,000 (peak)
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(600000, 2)},  // $6,000 (50% DD)
-		{Date: mustTime("2024-01-04"), PortfolioValue: dec(900000, 2)},  // $9,000 (25% DD)
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.00")},
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.MustParse("1.20")}, // peak
+		{Date: mustTime("2024-01-03"), NavPerUnit: decimal.MustParse("0.60")}, // 50% DD
+		{Date: mustTime("2024-01-04"), NavPerUnit: decimal.MustParse("0.90")}, // 25% DD
 	}
 
 	result := ComputeDrawdownAnalysis(points)
@@ -103,17 +103,17 @@ func TestComputeDrawdownAnalysis_CurrentDrawdownDuration(t *testing.T) {
 	// Peak on Jan 1, then declining over a week.
 	// Duration should be 7 calendar days.
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000 (peak)
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(990000, 2)},  // $9,900
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(970000, 2)},  // $9,700
-		{Date: mustTime("2024-01-06"), PortfolioValue: dec(950000, 2)},  // $9,500
-		{Date: mustTime("2024-01-07"), PortfolioValue: dec(940000, 2)},  // $9,400
-		{Date: mustTime("2024-01-08"), PortfolioValue: dec(930000, 2)},  // $9,300
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.0000")}, // peak
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.MustParse("0.9900")},
+		{Date: mustTime("2024-01-03"), NavPerUnit: decimal.MustParse("0.9700")},
+		{Date: mustTime("2024-01-06"), NavPerUnit: decimal.MustParse("0.9500")},
+		{Date: mustTime("2024-01-07"), NavPerUnit: decimal.MustParse("0.9400")},
+		{Date: mustTime("2024-01-08"), NavPerUnit: decimal.MustParse("0.9300")},
 	}
 
 	result := ComputeDrawdownAnalysis(points)
 
-	// Max drawdown = (10000 - 9300) / 10000 * 100 = 7.00%
+	// Max drawdown = (1.00 - 0.93) / 1.00 * 100 = 7.00%
 	wantMax := decimal.MustParse("7.00")
 	// Current drawdown = same as max (still declining)
 	wantCurrent := decimal.MustParse("7.00")
@@ -124,9 +124,9 @@ func TestComputeDrawdownAnalysis_CurrentDrawdownDuration(t *testing.T) {
 func TestComputeDrawdownAnalysis_NewPeakResetsCurrent(t *testing.T) {
 	// Drawdown then new peak — current drawdown resets to 0, duration = 0.
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(800000, 2)},  // $8,000 (20% DD)
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(1200000, 2)}, // $12,000 (new peak)
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.00")},
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.MustParse("0.80")}, // 20% DD
+		{Date: mustTime("2024-01-03"), NavPerUnit: decimal.MustParse("1.20")}, // new peak
 	}
 
 	result := ComputeDrawdownAnalysis(points)
@@ -155,7 +155,7 @@ func TestComputeDrawdownAnalysis_Empty(t *testing.T) {
 
 func TestComputeDrawdownAnalysis_SinglePoint(t *testing.T) {
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)},
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.00")},
 	}
 
 	result := ComputeDrawdownAnalysis(points)
@@ -173,8 +173,8 @@ func TestComputeDrawdownAnalysis_SinglePoint(t *testing.T) {
 
 func TestComputeDrawdownAnalysis_AllZeroValues(t *testing.T) {
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: decimal.Zero},
-		{Date: mustTime("2024-01-02"), PortfolioValue: decimal.Zero},
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.Zero},
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.Zero},
 	}
 
 	result := ComputeDrawdownAnalysis(points)
@@ -188,11 +188,11 @@ func TestComputeDrawdownAnalysis_MultipleDrawdownPeriods(t *testing.T) {
 	// Two drawdown periods: first 30%, second 15%. Max should be 30%.
 	// Current should be 15% (from the second peak).
 	points := []NavPoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1000000, 2)}, // $10,000 (peak 1)
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(700000, 2)},  // $7,000 (30% DD)
-		{Date: mustTime("2024-01-04"), PortfolioValue: dec(1100000, 2)}, // $11,000 (new peak)
-		{Date: mustTime("2024-01-05"), PortfolioValue: dec(935000, 2)},  // $9,350 (15% DD from $11,000)
+		{Date: mustTime("2024-01-01"), NavPerUnit: decimal.MustParse("1.0000")},
+		{Date: mustTime("2024-01-02"), NavPerUnit: decimal.MustParse("1.0000")}, // peak 1
+		{Date: mustTime("2024-01-03"), NavPerUnit: decimal.MustParse("0.7000")}, // 30% DD
+		{Date: mustTime("2024-01-04"), NavPerUnit: decimal.MustParse("1.1000")}, // new peak
+		{Date: mustTime("2024-01-05"), NavPerUnit: decimal.MustParse("0.9350")}, // 15% DD from 1.10
 	}
 
 	result := ComputeDrawdownAnalysis(points)
