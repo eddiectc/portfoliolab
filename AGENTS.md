@@ -74,7 +74,7 @@ golangci-lint run
 ## Agile Workflow
 
 Features live in `features/<id>_<name>/` with `SPEC.md`, `PLAN.md`, `NOTES.md`.
-Project docs: `docs/PROJECT.md`, `docs/CONVENTIONS.md`.
+Project docs: `API.md`, `docs/PROJECT.md`, `docs/CONVENTIONS.md`.
 Feature index: `features/README.md`.
 
 ### Workflow Phases
