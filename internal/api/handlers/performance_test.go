@@ -860,6 +860,75 @@ func TestPerfParseFilters_Benchmark(t *testing.T) {
 	}
 }
 
+// --- Mode Parameter Tests ---
+
+func TestPerfParseFilters_Mode_Nav(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&mode=nav", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result position.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	// Mode is passed through filters to the service; verify request succeeds
+	if result.BaseCurrency != "USD" {
+		t.Errorf("expected base currency 'USD', got %q", result.BaseCurrency)
+	}
+}
+
+func TestPerfParseFilters_Mode_Equity(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&mode=equity", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestPerfParseFilters_Mode_WithBenchmarkAndPeriod(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&mode=nav&benchmark=^GSPC&period=1Y", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result position.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.BenchmarkTicker != "^GSPC" {
+		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
+	}
+}
+
 func TestPerfHandlePerformance_AllPredefinedBenchmarks(t *testing.T) {
 	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{

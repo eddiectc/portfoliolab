@@ -192,5 +192,9 @@ func parsePerformanceFilters(query url.Values) position.PerformanceFilters {
 		filters.Benchmark = v
 	}
 
+	if v := query.Get("mode"); v != "" {
+		filters.Mode = v
+	}
+
 	return filters
 }
