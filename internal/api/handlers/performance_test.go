@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -927,6 +928,304 @@ func TestPerfParseFilters_Mode_WithBenchmarkAndPeriod(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
+	}
+}
+
+// --- Fields Filtering Tests ---
+
+func TestParseFields_Empty(t *testing.T) {
+	query := url.Values{}
+	result := parseFields(query)
+	if result != nil {
+		t.Errorf("expected nil for empty fields, got %v", result)
+	}
+}
+
+func TestParseFields_Single(t *testing.T) {
+	query := url.Values{"fields": []string{"metrics"}}
+	result := parseFields(query)
+	if len(result) != 1 || !result["metrics"] {
+		t.Errorf("expected {metrics}, got %v", result)
+	}
+}
+
+func TestParseFields_Multiple(t *testing.T) {
+	query := url.Values{"fields": []string{"equity_curve,metrics,risk"}}
+	result := parseFields(query)
+	if len(result) != 3 {
+		t.Errorf("expected 3 fields, got %d", len(result))
+	}
+	if !result["equity_curve"] || !result["metrics"] || !result["risk"] {
+		t.Errorf("expected equity_curve, metrics, risk, got %v", result)
+	}
+}
+
+func TestParseFields_WithSpaces(t *testing.T) {
+	query := url.Values{"fields": []string{" metrics , risk , drawdown "}}
+	result := parseFields(query)
+	if len(result) != 3 {
+		t.Errorf("expected 3 fields, got %d", len(result))
+	}
+	if !result["metrics"] || !result["risk"] || !result["drawdown"] {
+		t.Errorf("expected metrics, risk, drawdown, got %v", result)
+	}
+}
+
+func TestFilterPerformanceResult_NoFilter(t *testing.T) {
+	// When fields is nil, filterPerformanceResult is not called at all
+	// (handler checks len(fields) > 0 before calling). Verify this behavior
+	// by checking that parseFields returns nil for empty query.
+	query := url.Values{}
+	fields := parseFields(query)
+	if fields != nil {
+		t.Error("parseFields should return nil for empty query")
+	}
+	// With nil fields, handler skips filterPerformanceResult entirely,
+	// so result is unchanged. Verify by simulating the handler logic:
+	volatility := decimal.MustParse("15.00")
+	maxDD := decimal.MustParse("10.00")
+	benchMWR := decimal.MustParse("18.50")
+	result := &performance.PerformanceResult{
+		EquityCurve:      []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
+		ReturnMetrics:    performance.ReturnMetrics{HasInsufficientData: false},
+		BaseCurrency:     "USD",
+		Warnings:         []string{"test warning"},
+		RiskMetrics:      performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
+		DrawdownAnalysis: performance.DrawdownAnalysis{MaxDrawdownPct: &maxDD},
+		MonthlyReturns:   []performance.YearlyMonthlyReturns{{Year: 2024}},
+		BenchmarkTicker:  "^GSPC",
+		BenchmarkMWRPct:  &benchMWR,
+		NavSummary:       &performance.NavSummary{NavPerUnit: decimal.MustParse("1.25")},
+	}
+
+	// Simulate handler: only filter when len(fields) > 0
+	if len(fields) > 0 {
+		filterPerformanceResult(result, fields)
+	}
+
+	if result.EquityCurve == nil {
+		t.Error("equity curve should not be nil when no filter")
+	}
+	if result.BaseCurrency != "USD" {
+		t.Error("base currency should not be cleared when no filter")
+	}
+	if result.BenchmarkTicker != "^GSPC" {
+		t.Error("benchmark ticker should not be cleared when no filter")
+	}
+}
+
+func TestFilterPerformanceResult_MetricsOnly(t *testing.T) {
+	volatility := decimal.MustParse("15.00")
+	maxDD := decimal.MustParse("10.00")
+	benchMWR := decimal.MustParse("18.50")
+	result := &performance.PerformanceResult{
+		EquityCurve:      []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
+		ReturnMetrics:    performance.ReturnMetrics{HasInsufficientData: false},
+		BaseCurrency:     "USD",
+		Warnings:         []string{"test warning"},
+		RiskMetrics:      performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
+		DrawdownAnalysis: performance.DrawdownAnalysis{MaxDrawdownPct: &maxDD},
+		MonthlyReturns:   []performance.YearlyMonthlyReturns{{Year: 2024}},
+		BenchmarkTicker:  "^GSPC",
+		BenchmarkMWRPct:  &benchMWR,
+		NavSummary:       &performance.NavSummary{NavPerUnit: decimal.MustParse("1.25")},
+	}
+
+	fields := map[string]bool{"metrics": true}
+	filterPerformanceResult(result, fields)
+
+	if result.EquityCurve != nil {
+		t.Error("equity curve should be nil")
+	}
+	if result.BaseCurrency != "USD" {
+		t.Error("base currency should remain")
+	}
+	if result.Warnings == nil {
+		t.Error("warnings should remain")
+	}
+	if result.RiskMetrics.AnnualizedVolatilityPct != nil {
+		t.Error("risk metrics should be zeroed")
+	}
+	if result.DrawdownAnalysis.MaxDrawdownPct != nil {
+		t.Error("drawdown should be zeroed")
+	}
+	if result.MonthlyReturns != nil {
+		t.Error("monthly returns should be nil")
+	}
+	if result.BenchmarkTicker != "" {
+		t.Error("benchmark ticker should be empty")
+	}
+	if result.NavSummary != nil {
+		t.Error("nav summary should be nil")
+	}
+}
+
+func TestFilterPerformanceResult_EquityCurveOnly(t *testing.T) {
+	volatility := decimal.MustParse("15.00")
+	result := &performance.PerformanceResult{
+		EquityCurve:    []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
+		ReturnMetrics:  performance.ReturnMetrics{HasInsufficientData: false},
+		BaseCurrency:   "USD",
+		RiskMetrics:    performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
+		MonthlyReturns: []performance.YearlyMonthlyReturns{{Year: 2024}},
+		BenchmarkTicker: "^GSPC",
+	}
+
+	fields := map[string]bool{"equity_curve": true}
+	filterPerformanceResult(result, fields)
+
+	if result.EquityCurve == nil {
+		t.Error("equity curve should remain")
+	}
+	if result.BaseCurrency != "" {
+		t.Error("base currency should be cleared")
+	}
+	if result.RiskMetrics.AnnualizedVolatilityPct != nil {
+		t.Error("risk metrics should be zeroed")
+	}
+	if result.MonthlyReturns != nil {
+		t.Error("monthly returns should be nil")
+	}
+}
+
+func TestFilterPerformanceResult_AllFields(t *testing.T) {
+	volatility := decimal.MustParse("15.00")
+	maxDD := decimal.MustParse("10.00")
+	benchMWR := decimal.MustParse("18.50")
+	result := &performance.PerformanceResult{
+		EquityCurve:      []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
+		ReturnMetrics:    performance.ReturnMetrics{HasInsufficientData: false},
+		BaseCurrency:     "USD",
+		Warnings:         []string{"test"},
+		RiskMetrics:      performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
+		DrawdownAnalysis: performance.DrawdownAnalysis{MaxDrawdownPct: &maxDD},
+		YearlyPerformance: performance.YearlyPerformance{{Year: 2024, ReturnPct: decimal.MustParse("10.00")}},
+		MonthlyReturns:    []performance.YearlyMonthlyReturns{{Year: 2024}},
+		BenchmarkTicker:   "^GSPC",
+		BenchmarkMWRPct:   &benchMWR,
+		NavSummary:        &performance.NavSummary{NavPerUnit: decimal.MustParse("1.25")},
+	}
+
+	fields := map[string]bool{
+		"equity_curve": true, "metrics": true, "risk": true,
+		"drawdown": true, "yearly": true, "monthly": true,
+		"benchmark": true, "nav": true,
+	}
+	filterPerformanceResult(result, fields)
+
+	if result.EquityCurve == nil {
+		t.Error("equity curve should remain")
+	}
+	if result.BaseCurrency != "USD" {
+		t.Error("base currency should remain")
+	}
+	if result.RiskMetrics.AnnualizedVolatilityPct == nil {
+		t.Error("risk metrics should remain")
+	}
+	if result.DrawdownAnalysis.MaxDrawdownPct == nil {
+		t.Error("drawdown should remain")
+	}
+	if result.YearlyPerformance == nil {
+		t.Error("yearly performance should remain")
+	}
+	if result.MonthlyReturns == nil {
+		t.Error("monthly returns should remain")
+	}
+	if result.BenchmarkTicker != "^GSPC" {
+		t.Error("benchmark ticker should remain")
+	}
+	if result.NavSummary == nil {
+		t.Error("nav summary should remain")
+	}
+}
+
+// --- Fields Filtering End-to-End Tests ---
+
+func TestPerfHandlePerformance_FieldsMetricsOnly(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&fields=metrics", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result performance.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.EquityCurve != nil {
+		t.Error("equity curve should be nil when not requested")
+	}
+	if result.BaseCurrency != "USD" {
+		t.Error("base currency should be present")
+	}
+}
+
+func TestPerfHandlePerformance_FieldsEquityCurveOnly(t *testing.T) {
+	svc, txnRepo, accountLister, fetcher, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+	txnRepo.byAccount[1] = []transaction.Transaction{
+		perfTxn(1, perfTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
+	}
+	fetcher.prices["AAPL"] = []market.HistoricalPrice{}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&fields=equity_curve", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result performance.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if len(result.EquityCurve) < 1 {
+		t.Error("equity curve should have points")
+	}
+	if result.BaseCurrency != "" {
+		t.Error("base currency should be empty when not requested")
+	}
+}
+
+func TestPerfHandlePerformance_FieldsMultiple(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&fields=metrics,risk,drawdown", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result performance.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.EquityCurve != nil {
+		t.Error("equity curve should be nil")
+	}
+	if result.BaseCurrency != "USD" {
+		t.Error("base currency should be present")
+	}
+	if result.MonthlyReturns != nil {
+		t.Error("monthly returns should be nil")
 	}
 }
 
