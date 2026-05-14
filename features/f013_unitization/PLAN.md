@@ -96,7 +96,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
 
 ### Phase 3: Types & equity curve integration
 
-- [ ] **Task 3.1**: Extend `performance_types.go` with new types and fields
+- [x] **Task 3.1**: Extend `performance_types.go` with new types and fields
   - Add `NavPerUnit`, `Units` fields to `EquityCurvePoint` (optional — nil when unitization not applicable)
   - Add `NavSummary` struct: `NavPerUnit`, `TotalUnits`, `TotalValue`, `InceptionDate`
   - Extend `ReturnMetrics` with: `SimpleReturnPct`, `AnnualizedSimpleReturnPct`

@@ -12,10 +12,15 @@ import (
 // open positions plus cash balances, converted to the base currency.
 // NetDeposit is the cumulative sum of deposits minus withdrawals up to and
 // including this date, converted to the base currency.
+// NavPerUnit is the net asset value per portfolio unit on this date.
+// Nil when unitization is not applicable (no deposits). Units is the total
+// number of portfolio units outstanding. Nil when unitization is not applicable.
 type EquityCurvePoint struct {
-	Date           time.Time       `json:"date"`
-	PortfolioValue decimal.Decimal `json:"portfolio_value"`
-	NetDeposit     decimal.Decimal `json:"net_deposit"`
+	Date           time.Time        `json:"date"`
+	PortfolioValue decimal.Decimal  `json:"portfolio_value"`
+	NetDeposit     decimal.Decimal  `json:"net_deposit"`
+	NavPerUnit     *decimal.Decimal `json:"nav_per_unit,omitempty"`
+	Units          *decimal.Decimal `json:"units,omitempty"`
 }
 
 // ReturnMetrics holds summary return calculations derived from the equity curve.
@@ -32,14 +37,35 @@ type EquityCurvePoint struct {
 // or begin value is non-positive. Expressed as an annualized percentage.
 // HoldingPeriodMWRPct is the MWR expressed as a holding-period return
 // (not annualized): (1 + MWR)^(days/365) - 1. Nil when MWR is nil.
+// SimpleReturnPct is the simple (unweighted) return: (endTotalReturn - beginTotalReturn) / beginTotalReturn.
+// Nil when the beginning TotalReturn is non-positive. Expressed as a percentage.
+// AnnualizedSimpleReturnPct is the annualized simple return.
+// Nil when the simple return is nil or zero days elapsed.
 // HasInsufficientData is true when fewer than 2 data points are available.
 type ReturnMetrics struct {
-	TWRPct               *decimal.Decimal `json:"twr_pct,omitempty"`
-	AnnualizedTWRPct     *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
-	MWRPct               *decimal.Decimal `json:"mwr_pct,omitempty"`
-	HoldingPeriodMWRPct  *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
-	HasInsufficientData  bool             `json:"has_insufficient_data"`
+	TWRPct                  *decimal.Decimal `json:"twr_pct,omitempty"`
+	AnnualizedTWRPct        *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
+	MWRPct                  *decimal.Decimal `json:"mwr_pct,omitempty"`
+	HoldingPeriodMWRPct     *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
+	SimpleReturnPct         *decimal.Decimal `json:"simple_return_pct,omitempty"`
+	AnnualizedSimpleReturnPct *decimal.Decimal `json:"annualized_simple_return_pct,omitempty"`
+	HasInsufficientData     bool             `json:"has_insufficient_data"`
 }
+
+// NavSummary holds the current unitization state of the portfolio.
+// NavPerUnit is the current net asset value per unit.
+// TotalUnits is the total number of portfolio units outstanding.
+// TotalValue is the total market value (units × NAV).
+// InceptionDate is the date of the first deposit (portfolio inception).
+type NavSummary struct {
+	NavPerUnit    decimal.Decimal `json:"nav_per_unit"`
+	TotalUnits    decimal.Decimal `json:"total_units"`
+	TotalValue    decimal.Decimal `json:"total_value"`
+	InceptionDate time.Time       `json:"inception_date"`
+}
+
+// YearlyPerformance is a sequence of calendar-year returns.
+type YearlyPerformance []YearlyReturn
 
 // PerformanceResult is the complete output of a performance computation.
 // EquityCurve is the time-series of portfolio value and net deposit points.
@@ -51,16 +77,24 @@ type ReturnMetrics struct {
 // BenchmarkMWRPct is the benchmark money-weighted return for the period.
 // BenchmarkCurrency is the currency of the benchmark price data.
 // BenchmarkWarning is a data availability warning (empty if OK).
+// NavSummary holds the current unitization state (nil when no deposits).
+// RiskMetrics holds volatility, Sharpe, and Sortino ratios.
+// DrawdownAnalysis holds max/current drawdown statistics.
+// YearlyPerformance holds calendar-year return breakdown.
 type PerformanceResult struct {
-	EquityCurve        []EquityCurvePoint `json:"equity_curve"`
-	ReturnMetrics      ReturnMetrics      `json:"return_metrics"`
-	BaseCurrency       string             `json:"base_currency"`
-	Warnings           []string           `json:"warnings,omitempty"`
-	BenchmarkTicker    string             `json:"benchmark_ticker,omitempty"`
-	BenchmarkPrices    []market.HistoricalPrice `json:"benchmark_prices,omitempty"`
-	BenchmarkMWRPct    *decimal.Decimal   `json:"benchmark_mwr_pct,omitempty"`
-	BenchmarkCurrency  string             `json:"benchmark_currency,omitempty"`
-	BenchmarkWarning   string             `json:"benchmark_warning,omitempty"`
+	EquityCurve           []EquityCurvePoint     `json:"equity_curve"`
+	ReturnMetrics         ReturnMetrics          `json:"return_metrics"`
+	BaseCurrency          string                 `json:"base_currency"`
+	Warnings              []string               `json:"warnings,omitempty"`
+	BenchmarkTicker       string                 `json:"benchmark_ticker,omitempty"`
+	BenchmarkPrices       []market.HistoricalPrice `json:"benchmark_prices,omitempty"`
+	BenchmarkMWRPct       *decimal.Decimal       `json:"benchmark_mwr_pct,omitempty"`
+	BenchmarkCurrency     string                 `json:"benchmark_currency,omitempty"`
+	BenchmarkWarning      string                 `json:"benchmark_warning,omitempty"`
+	NavSummary            *NavSummary            `json:"nav_summary,omitempty"`
+	RiskMetrics           RiskMetrics            `json:"risk_metrics"`
+	DrawdownAnalysis      DrawdownAnalysis       `json:"drawdown_analysis"`
+	YearlyPerformance     YearlyPerformance      `json:"yearly_performance,omitempty"`
 }
 
 // RefreshResult summarizes the outcome of a market data refresh.
@@ -77,10 +111,12 @@ type RefreshResult struct {
 // Nil PortfolioID means "all portfolios". Empty Period defaults to "All".
 // Nil DateFrom/DateTo means the full available range.
 // Benchmark is an optional benchmark ticker for comparison (empty = none).
+// Mode selects the performance view: "equity" (default, total return) or "nav" (NAV per unit).
 type PerformanceFilters struct {
 	PortfolioID *int64
 	Period      string // "1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"
 	DateFrom    *time.Time
 	DateTo      *time.Time
 	Benchmark   string
+	Mode        string // "equity" (default) or "nav"
 }
