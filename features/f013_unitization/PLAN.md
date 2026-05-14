@@ -121,7 +121,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
 
 ### Phase 4: API layer
 
-- [ ] **Task 4.1**: Update `performance.go` handler
+- [x] **Task 4.1**: Update `performance.go` handler
   - Parse `mode` query parameter in `parsePerformanceFilters`
   - Pass mode to `PerformanceFilters`
   - Ensure new fields serialize correctly in JSON response
