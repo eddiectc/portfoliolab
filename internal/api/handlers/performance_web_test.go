@@ -432,35 +432,35 @@ func TestComputeNavChartData(t *testing.T) {
 			want: "[]",
 		},
 		{
-			name: "single point — 100%",
+			name: "single point — actual NAV",
 			in: []position.EquityCurvePoint{
-				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(920000, 6))},
 			},
-			want: `[{"date":"2024-01-15","value":100}]`,
+			want: `[{"date":"2024-01-15","value":0.92}]`,
 		},
 		{
-			name: "growth from 100k to 120k",
+			name: "NAV growth over time",
+			in: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(900000, 6))},
+				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(910000, 6))},
+				{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(920000, 6))},
+			},
+			want: `[{"date":"2024-01-01","value":0.9},{"date":"2024-06-01","value":0.91},{"date":"2024-12-01","value":0.92}]`,
+		},
+		{
+			name: "NAV decline",
+			in: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(920000, 6))},
+				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(8000000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(880000, 6))},
+			},
+			want: `[{"date":"2024-01-01","value":0.92},{"date":"2024-06-01","value":0.88}]`,
+		},
+		{
+			name: "nil NavPerUnit produces zero",
 			in: []position.EquityCurvePoint{
 				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2)},
-				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11000000, 2)},
-				{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2)},
 			},
-			want: `[{"date":"2024-01-01","value":100},{"date":"2024-06-01","value":110},{"date":"2024-12-01","value":120}]`,
-		},
-		{
-			name: "decline from 100k to 80k",
-			in: []position.EquityCurvePoint{
-				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2)},
-				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(8000000, 2)},
-			},
-			want: `[{"date":"2024-01-01","value":100},{"date":"2024-06-01","value":80}]`,
-		},
-		{
-			name: "zero start value",
-			in: []position.EquityCurvePoint{
-				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(0, 2)},
-			},
-			want: "[]",
+			want: `[{"date":"2024-01-01","value":0}]`,
 		},
 	}
 
@@ -1528,4 +1528,10 @@ func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
 			chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
 	}
 
+}
+
+// ptrDecimal returns a pointer to the given decimal, useful for setting
+// optional pointer fields in test fixtures.
+func ptrDecimal(d decimal.Decimal) *decimal.Decimal {
+	return &d
 }

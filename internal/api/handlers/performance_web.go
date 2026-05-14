@@ -484,30 +484,25 @@ func buildModeURLs(portfolioID, period, benchmark, selectedMode string) map[stri
 
 // navChartDataPoint is the JSON-serializable format for NAV-mode ECharts.
 type navChartDataPoint struct {
-	Date  string `json:"date"`
-	Value float64 `json:"value"` // percentage normalized to 100 at inception
+	Date  string  `json:"date"`
+	Value float64 `json:"value"` // NAV per unit (actual value)
 }
 
 // computeNavChartData converts equity curve points to NAV-mode chart data
-// normalized to 100% at inception. Each point's value is
-// (PortfolioValue / firstPortfolioValue) * 100, rounded to 2 decimal places.
+// using the actual NavPerUnit value on each point.
 func computeNavChartData(points []position.EquityCurvePoint) string {
 	if len(points) == 0 {
 		return "[]"
 	}
-	startValue, _ := points[0].PortfolioValue.Float64()
-	if startValue == 0 {
-		return "[]"
-	}
 	data := make([]navChartDataPoint, len(points))
 	for i, p := range points {
-		val, _ := p.PortfolioValue.Float64()
-		pct := (val / startValue) * 100
-		// Round to 2 decimal places to avoid floating point artifacts.
-		pct = float64(int(pct*100+0.5)) / 100
+		var val float64
+		if p.NavPerUnit != nil {
+			val, _ = p.NavPerUnit.Float64()
+		}
 		data[i] = navChartDataPoint{
 			Date:  p.Date.Format("2006-01-02"),
-			Value: pct,
+			Value: val,
 		}
 	}
 	b, err := json.Marshal(data)
