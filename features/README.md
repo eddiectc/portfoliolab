@@ -24,4 +24,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f010 | Portfolio Performance | done | f009 |
 | f011 | Historical Market Data Caching | done | f010, f009, f004 |
 | f012 | Performance Benchmark | done | f010, f011 |
-| f013 | Unitization | planning | f010, f012 |
+| f013 | Unitization | done | f010, f012 |
