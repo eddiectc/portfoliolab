@@ -7,6 +7,12 @@ created: 2026-05-02
 
 A self-hosted investment portfolio management platform for personal investors to track stocks and ETFs across multiple accounts and currencies.
 
+## Documentation
+
+- [API Reference](API.md) — REST API endpoints, request/response schemas
+- [Conventions](docs/CONVENTIONS.md) — coding standards and architecture principles
+- [Features](features/) — feature specs, plans, and retrospectives
+
 ## Problem Statement
 
 Personal investors lack a simple, self-hosted tool to aggregate and analyze their investment portfolios across multiple brokers and currencies. Existing solutions are either cloud-based (privacy concerns), overly complex, or focused on institutional use cases. Arch Portfolio Lab fills this gap with a lightweight, privacy-first platform that provides deep P&L analytics without relying on third-party services.
