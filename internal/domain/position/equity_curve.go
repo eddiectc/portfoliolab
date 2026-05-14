@@ -260,7 +260,16 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 		)
 	}
 
-	// 16. Build NavSummary from the final NAV state.
+	// 16. Compute additional metrics from the sliced (period-filtered) curve.
+	// Daily returns, risk metrics, drawdown, and yearly performance are
+	// computed on the visible period so they align with the selected window.
+	navPoints := convertToNavPoints(points)
+	dailyReturns := ComputeDailyReturns(points)
+	riskMetrics := ComputeRiskMetrics(dailyReturns, nil)
+	drawdownAnalysis := ComputeDrawdownAnalysis(navPoints)
+	yearlyPerformance := ComputeYearlyPerformance(navPoints)
+
+	// 17. Build NavSummary from the final NAV state.
 	var navSummary *NavSummary
 	if navHistory != nil && len(navHistory) > 0 {
 		lastNav := navHistory[len(navHistory)-1]
@@ -273,11 +282,14 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters PerformanceFil
 	}
 
 	return &PerformanceResult{
-		EquityCurve:   points,
-		ReturnMetrics: returnMetrics,
-		BaseCurrency:  baseCurrency,
-		Warnings:      warnings,
-		NavSummary:    navSummary,
+		EquityCurve:       points,
+		ReturnMetrics:     returnMetrics,
+		BaseCurrency:      baseCurrency,
+		Warnings:          warnings,
+		NavSummary:        navSummary,
+		RiskMetrics:       riskMetrics,
+		DrawdownAnalysis:  drawdownAnalysis,
+		YearlyPerformance: yearlyPerformance,
 	}, nil
 }
 
@@ -400,6 +412,29 @@ func filterBreakpointsForPeriod(bps []twrBreakpoint, points []EquityCurvePoint, 
 			continue
 		}
 		result = append(result, bp)
+	}
+	return result
+}
+
+// convertToNavPoints converts EquityCurvePoint slices to NavPoint slices
+// for use with drawdown and yearly performance computation.
+func convertToNavPoints(points []EquityCurvePoint) []NavPoint {
+	result := make([]NavPoint, len(points))
+	for i, p := range points {
+		navPerUnit := decimal.Zero
+		units := decimal.Zero
+		if p.NavPerUnit != nil {
+			navPerUnit = *p.NavPerUnit
+		}
+		if p.Units != nil {
+			units = *p.Units
+		}
+		result[i] = NavPoint{
+			Date:           p.Date,
+			NavPerUnit:     navPerUnit,
+			Units:          units,
+			PortfolioValue: p.PortfolioValue,
+		}
 	}
 	return result
 }
