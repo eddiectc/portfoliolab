@@ -83,25 +83,30 @@ func TestBuildRefreshURL(t *testing.T) {
 		name        string
 		portfolioID string
 		benchmark   string
+		mode        string
 		want        string
 	}{
-		{"no filter", "", "", "/performance/refresh"},
-		{"portfolio only", "3", "", "/performance/refresh?portfolio_id=3"},
-		{"benchmark only", "", "^GSPC", "/performance/refresh?benchmark=^GSPC"},
-		{"portfolio + benchmark", "3", "^GSPC", "/performance/refresh?portfolio_id=3&benchmark=^GSPC"},
+		{"no filter", "", "", "", "/performance/refresh"},
+		{"portfolio only", "3", "", "", "/performance/refresh?portfolio_id=3"},
+		{"benchmark only", "", "^GSPC", "", "/performance/refresh?benchmark=^GSPC"},
+		{"portfolio + benchmark", "3", "^GSPC", "", "/performance/refresh?portfolio_id=3&benchmark=^GSPC"},
+		{"mode nav", "", "", "nav", "/performance/refresh?mode=nav"},
+		{"portfolio + mode nav", "3", "", "nav", "/performance/refresh?portfolio_id=3&mode=nav"},
+		{"all params", "3", "^GSPC", "nav", "/performance/refresh?portfolio_id=3&benchmark=^GSPC&mode=nav"},
+		{"mode equity omitted", "3", "", "equity", "/performance/refresh?portfolio_id=3"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildRefreshURL(tt.portfolioID, tt.benchmark)
+			got := buildRefreshURL(tt.portfolioID, tt.benchmark, tt.mode)
 			if got != tt.want {
-				t.Errorf("buildRefreshURL(%q, %q) = %q, want %q", tt.portfolioID, tt.benchmark, got, tt.want)
+				t.Errorf("buildRefreshURL(%q, %q, %q) = %q, want %q", tt.portfolioID, tt.benchmark, tt.mode, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestBuildPeriodURLs(t *testing.T) {
-	urls := buildPeriodURLs("", "", "")
+	urls := buildPeriodURLs("", "", "", "")
 	if urls["All"] != "/performance" {
 		t.Errorf("All = %q, want /performance", urls["All"])
 	}
@@ -109,7 +114,7 @@ func TestBuildPeriodURLs(t *testing.T) {
 		t.Errorf("1W = %q, want /performance?period=1W", urls["1W"])
 	}
 
-	urls2 := buildPeriodURLs("5", "1Y", "")
+	urls2 := buildPeriodURLs("5", "1Y", "", "")
 	if urls2["All"] != "/performance?portfolio_id=5" {
 		t.Errorf("All = %q, want /performance?portfolio_id=5", urls2["All"])
 	}
@@ -118,7 +123,7 @@ func TestBuildPeriodURLs(t *testing.T) {
 	}
 
 	// With benchmark — should be preserved in all period URLs.
-	urls3 := buildPeriodURLs("5", "1Y", "^GSPC")
+	urls3 := buildPeriodURLs("5", "1Y", "^GSPC", "")
 	if urls3["All"] != "/performance?portfolio_id=5&benchmark=^GSPC" {
 		t.Errorf("All = %q, want /performance?portfolio_id=5&benchmark=^GSPC", urls3["All"])
 	}
@@ -130,12 +135,33 @@ func TestBuildPeriodURLs(t *testing.T) {
 	}
 
 	// Benchmark only, no portfolio.
-	urls4 := buildPeriodURLs("", "", "^IXIC")
+	urls4 := buildPeriodURLs("", "", "^IXIC", "")
 	if urls4["All"] != "/performance?benchmark=^IXIC" {
 		t.Errorf("All = %q, want /performance?benchmark=^IXIC", urls4["All"])
 	}
 	if urls4["1W"] != "/performance?period=1W&benchmark=^IXIC" {
 		t.Errorf("1W = %q, want /performance?period=1W&benchmark=^IXIC", urls4["1W"])
+	}
+
+	// With mode=nav — should be preserved in all period URLs.
+	urls5 := buildPeriodURLs("5", "1Y", "", "nav")
+	if urls5["All"] != "/performance?portfolio_id=5&mode=nav" {
+		t.Errorf("All = %q, want /performance?portfolio_id=5&mode=nav", urls5["All"])
+	}
+	if urls5["1M"] != "/performance?portfolio_id=5&period=1M&mode=nav" {
+		t.Errorf("1M = %q, want /performance?portfolio_id=5&period=1M&mode=nav", urls5["1M"])
+	}
+
+	// Mode=equity omitted from URLs.
+	urls6 := buildPeriodURLs("5", "1Y", "", "equity")
+	if urls6["All"] != "/performance?portfolio_id=5" {
+		t.Errorf("All = %q, want /performance?portfolio_id=5", urls6["All"])
+	}
+
+	// All params: portfolio, period, benchmark, mode.
+	urls7 := buildPeriodURLs("5", "1Y", "^GSPC", "nav")
+	if urls7["3M"] != "/performance?portfolio_id=5&period=3M&benchmark=^GSPC&mode=nav" {
+		t.Errorf("3M = %q, want /performance?portfolio_id=5&period=3M&benchmark=^GSPC&mode=nav", urls7["3M"])
 	}
 }
 
@@ -301,8 +327,8 @@ func TestPerformanceTemplate_ErrorState(t *testing.T) {
 // --- buildBenchmarkURLs tests ---
 
 func TestBuildBenchmarkURLs(t *testing.T) {
-	// No portfolio, no period.
-	urls := buildBenchmarkURLs("", "", "")
+	// No portfolio, no period, no mode.
+	urls := buildBenchmarkURLs("", "", "", "")
 	if urls["None"] != "/performance" {
 		t.Errorf("None = %q, want /performance", urls["None"])
 	}
@@ -311,7 +337,7 @@ func TestBuildBenchmarkURLs(t *testing.T) {
 	}
 
 	// With portfolio and period — preserved.
-	urls2 := buildBenchmarkURLs("^GSPC", "5", "1Y")
+	urls2 := buildBenchmarkURLs("^GSPC", "5", "1Y", "")
 	if urls2["None"] != "/performance?portfolio_id=5&period=1Y" {
 		t.Errorf("None = %q, want /performance?portfolio_id=5&period=1Y", urls2["None"])
 	}
@@ -323,7 +349,7 @@ func TestBuildBenchmarkURLs(t *testing.T) {
 	}
 
 	// With "All" period (no period param).
-	urls3 := buildBenchmarkURLs("", "5", "All")
+	urls3 := buildBenchmarkURLs("", "5", "All", "")
 	if urls3["None"] != "/performance?portfolio_id=5" {
 		t.Errorf("None = %q, want /performance?portfolio_id=5", urls3["None"])
 	}
@@ -332,12 +358,119 @@ func TestBuildBenchmarkURLs(t *testing.T) {
 	}
 
 	// All 5 benchmarks present.
-	urls4 := buildBenchmarkURLs("", "", "")
+	urls4 := buildBenchmarkURLs("", "", "", "")
 	expectedLabels := []string{"None", "S&P 500 (^GSPC)", "NASDAQ Composite (^IXIC)", "Vanguard FTSE All-World UCITS (VWRP.L)", "Vanguard S&P 500 UCITS (VUSA.L)", "iShares NASDAQ 100 UCITS (XNAQ.L)"}
 	for _, label := range expectedLabels {
 		if _, ok := urls4[label]; !ok {
 			t.Errorf("missing benchmark URL for %q", label)
 		}
+	}
+
+	// With mode=nav — preserved in all benchmark URLs.
+	urls5 := buildBenchmarkURLs("", "5", "1Y", "nav")
+	if urls5["None"] != "/performance?portfolio_id=5&period=1Y&mode=nav" {
+		t.Errorf("None = %q, want /performance?portfolio_id=5&period=1Y&mode=nav", urls5["None"])
+	}
+	if urls5["S&P 500 (^GSPC)"] != "/performance?portfolio_id=5&period=1Y&benchmark=^GSPC&mode=nav" {
+		t.Errorf("S&P 500 = %q, want /performance?portfolio_id=5&period=1Y&benchmark=^GSPC&mode=nav", urls5["S&P 500 (^GSPC)"])
+	}
+
+	// Mode=equity omitted from URLs.
+	urls6 := buildBenchmarkURLs("", "5", "1Y", "equity")
+	if urls6["None"] != "/performance?portfolio_id=5&period=1Y" {
+		t.Errorf("None = %q, want /performance?portfolio_id=5&period=1Y", urls6["None"])
+	}
+}
+
+// --- buildModeURLs tests ---
+
+func TestBuildModeURLs(t *testing.T) {
+	// No portfolio, no period, no benchmark.
+	urls := buildModeURLs("", "", "", "equity")
+	if urls["equity"] != "/performance" {
+		t.Errorf("equity = %q, want /performance", urls["equity"])
+	}
+	if urls["nav"] != "/performance?mode=nav" {
+		t.Errorf("nav = %q, want /performance?mode=nav", urls["nav"])
+	}
+
+	// With portfolio, period, benchmark — preserved.
+	urls2 := buildModeURLs("5", "1Y", "^GSPC", "nav")
+	if urls2["equity"] != "/performance?portfolio_id=5&period=1Y&benchmark=^GSPC" {
+		t.Errorf("equity = %q, want /performance?portfolio_id=5&period=1Y&benchmark=^GSPC", urls2["equity"])
+	}
+	if urls2["nav"] != "/performance?portfolio_id=5&period=1Y&benchmark=^GSPC&mode=nav" {
+		t.Errorf("nav = %q, want /performance?portfolio_id=5&period=1Y&benchmark=^GSPC&mode=nav", urls2["nav"])
+	}
+
+	// With "All" period (no period param).
+	urls3 := buildModeURLs("5", "All", "", "equity")
+	if urls3["equity"] != "/performance?portfolio_id=5" {
+		t.Errorf("equity = %q, want /performance?portfolio_id=5", urls3["equity"])
+	}
+	if urls3["nav"] != "/performance?portfolio_id=5&mode=nav" {
+		t.Errorf("nav = %q, want /performance?portfolio_id=5&mode=nav", urls3["nav"])
+	}
+}
+
+// --- computeNavChartData tests ---
+
+func TestComputeNavChartData(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []position.EquityCurvePoint
+		want string
+	}{
+		{
+			name: "empty nil",
+			in:   nil,
+			want: "[]",
+		},
+		{
+			name: "empty slice",
+			in:   []position.EquityCurvePoint{},
+			want: "[]",
+		},
+		{
+			name: "single point — 100%",
+			in: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2)},
+			},
+			want: `[{"date":"2024-01-15","value":100}]`,
+		},
+		{
+			name: "growth from 100k to 120k",
+			in: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(11000000, 2)},
+				{Date: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(12000000, 2)},
+			},
+			want: `[{"date":"2024-01-01","value":100},{"date":"2024-06-01","value":110},{"date":"2024-12-01","value":120}]`,
+		},
+		{
+			name: "decline from 100k to 80k",
+			in: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2)},
+				{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(8000000, 2)},
+			},
+			want: `[{"date":"2024-01-01","value":100},{"date":"2024-06-01","value":80}]`,
+		},
+		{
+			name: "zero start value",
+			in: []position.EquityCurvePoint{
+				{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(0, 2)},
+			},
+			want: "[]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := computeNavChartData(tt.in)
+			if got != tt.want {
+				t.Errorf("computeNavChartData() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

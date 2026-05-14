@@ -44,12 +44,14 @@ type yearReturnData struct {
 type performancePageData struct {
 	web.PageData
 	Result              *position.PerformanceResult
-	ChartData           string // pre-serialized JSON for ECharts
+	ChartData           string // pre-serialized JSON for ECharts (equity mode)
+	NavChartData        string // pre-serialized JSON for ECharts (NAV mode, normalized to 100%)
 	CurrentValue        string // last equity curve point's portfolio value
 	CurrentNetDeposit   string // last equity curve point's net deposit
 	Portfolios          []portfolio.Portfolio
 	SelectedPeriod      string
 	SelectedPortfolioID string
+	SelectedMode        string // "equity" (default) or "nav"
 	Error               string
 	// Cache status for the aggregate status indicator.
 	CacheStatus     marketcache.CacheStatus
@@ -59,6 +61,7 @@ type performancePageData struct {
 	// Pre-built URLs for template safety (Go html/template is strict about expressions in URLs).
 	RefreshURL  string
 	PeriodURLs  map[string]string // period label -> full URL
+	ModeURLs    map[string]string // mode label -> full URL
 	// Benchmark fields.
 	SelectedBenchmark   string
 	BenchmarkNames      map[string]string // ticker -> display name for dropdown
@@ -108,6 +111,12 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		benchmark = ""
 	}
 
+	// Resolve selected mode for UI state.
+	mode := filters.Mode
+	if mode != "nav" && mode != "equity" {
+		mode = "equity"
+	}
+
 	// Resolve selected portfolio ID for UI state.
 	var selectedPortfolioID string
 	if filters.PortfolioID != nil {
@@ -133,15 +142,17 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 			Portfolios:          h.fetchPortfolios(r.Context()),
 			SelectedPeriod:      filters.Period,
 			SelectedPortfolioID: selectedPortfolioID,
+			SelectedMode:        mode,
 			SelectedBenchmark:   benchmark,
 			BenchmarkNames:      comparison.GetPredefined(),
 			Error:               userFriendlyPerformanceError(err),
 			CacheStatus:         cacheStatus,
 			HasCacheStatus:      hasCacheStatus,
 			LastRefreshText:     lastRefreshText,
-			RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark),
-			PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark),
-			BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period),
+			RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark, mode),
+			PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark, mode),
+			BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period, mode),
+			ModeURLs:            buildModeURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		}
 		if err := h.renderer.Render(w, "performance/index", data); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -189,21 +200,30 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 	// Compute monthly returns for heatmap.
 	monthlyReturns := computeMonthlyReturnsFromCurve(result.EquityCurve, benchmarkPrices, benchmark)
 
+	// Compute NAV chart data for NAV mode.
+	var navChartData string
+	if mode == "nav" {
+		navChartData = computeNavChartData(result.EquityCurve)
+	}
+
 	data := performancePageData{
 		PageData:            web.PageData{Title: "Performance", Flash: getFlash(w, r)},
 		Result:              result,
 		ChartData:           serializeChartData(result.EquityCurve),
+		NavChartData:        navChartData,
 		CurrentValue:        currentValue,
 		CurrentNetDeposit:   currentNetDeposit,
 		Portfolios:          h.fetchPortfolios(r.Context()),
 		SelectedPeriod:      filters.Period,
 		SelectedPortfolioID: selectedPortfolioID,
+		SelectedMode:        mode,
 		CacheStatus:         cacheStatus,
 		HasCacheStatus:      hasCacheStatus,
 		LastRefreshText:     lastRefreshText,
 		StaleSymbols:        staleSymbols,
-		RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark),
-		PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark),
+		RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark, mode),
+		PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark, mode),
+		ModeURLs:            buildModeURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		// Benchmark fields.
 		SelectedBenchmark:   benchmark,
 		BenchmarkNames:      comparison.GetPredefined(),
@@ -212,7 +232,7 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		BenchmarkMWRPct:     benchmarkMWRPct,
 		BenchmarkCurrency:   benchmarkCurrency,
 		BenchmarkWarning:    benchmarkWarning,
-		BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period),
+		BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period, mode),
 		MonthlyReturns:      monthlyReturns,
 	}
 
@@ -397,7 +417,7 @@ func serializeChartData(points []position.EquityCurvePoint) string {
 }
 
 // buildRefreshURL constructs the POST target for the refresh button.
-func buildRefreshURL(portfolioID, benchmark string) string {
+func buildRefreshURL(portfolioID, benchmark, mode string) string {
 	url := "/performance/refresh"
 	hasQuery := false
 	if portfolioID != "" {
@@ -409,9 +429,92 @@ func buildRefreshURL(portfolioID, benchmark string) string {
 			url += "&benchmark=" + benchmark
 		} else {
 			url += "?benchmark=" + benchmark
+			hasQuery = true
+		}
+	}
+	if mode != "" && mode != "equity" {
+		if hasQuery {
+			url += "&mode=" + mode
+		} else {
+			url += "?mode=" + mode
 		}
 	}
 	return url
+}
+
+// buildModeURLs pre-builds the URL for each mode tab, preserving
+// portfolio_id, period, and benchmark params.
+func buildModeURLs(portfolioID, period, benchmark, selectedMode string) map[string]string {
+	urls := make(map[string]string)
+	for _, m := range []string{"equity", "nav"} {
+		url := "/performance"
+		hasQuery := false
+		if portfolioID != "" {
+			url += "?portfolio_id=" + portfolioID
+			hasQuery = true
+		}
+		if period != "" && period != "All" {
+			if hasQuery {
+				url += "&period=" + period
+			} else {
+				url += "?period=" + period
+				hasQuery = true
+			}
+		}
+		if benchmark != "" {
+			if hasQuery {
+				url += "&benchmark=" + benchmark
+			} else {
+				url += "?benchmark=" + benchmark
+				hasQuery = true
+			}
+		}
+		if m != "equity" {
+			if hasQuery {
+				url += "&mode=" + m
+			} else {
+				url += "?mode=" + m
+			}
+		}
+		urls[m] = url
+	}
+	_ = selectedMode // used by template for active state
+	return urls
+}
+
+// navChartDataPoint is the JSON-serializable format for NAV-mode ECharts.
+type navChartDataPoint struct {
+	Date  string `json:"date"`
+	Value float64 `json:"value"` // percentage normalized to 100 at inception
+}
+
+// computeNavChartData converts equity curve points to NAV-mode chart data
+// normalized to 100% at inception. Each point's value is
+// (PortfolioValue / firstPortfolioValue) * 100, rounded to 2 decimal places.
+func computeNavChartData(points []position.EquityCurvePoint) string {
+	if len(points) == 0 {
+		return "[]"
+	}
+	startValue, _ := points[0].PortfolioValue.Float64()
+	if startValue == 0 {
+		return "[]"
+	}
+	data := make([]navChartDataPoint, len(points))
+	for i, p := range points {
+		val, _ := p.PortfolioValue.Float64()
+		pct := (val / startValue) * 100
+		// Round to 2 decimal places to avoid floating point artifacts.
+		pct = float64(int(pct*100+0.5)) / 100
+		data[i] = navChartDataPoint{
+			Date:  p.Date.Format("2006-01-02"),
+			Value: pct,
+		}
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
 }
 
 // extractStaleSymbols extracts symbol names from staleness warnings.
@@ -455,8 +558,8 @@ func formatLastRefresh(t time.Time) string {
 }
 
 // buildPeriodURLs pre-builds the URL for each period button, preserving
-// portfolio_id and benchmark params.
-func buildPeriodURLs(portfolioID, selectedPeriod, benchmark string) map[string]string {
+// portfolio_id, benchmark, and mode params.
+func buildPeriodURLs(portfolioID, selectedPeriod, benchmark, mode string) map[string]string {
 	urls := make(map[string]string)
 	for _, p := range []string{"1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"} {
 		url := "/performance"
@@ -478,6 +581,14 @@ func buildPeriodURLs(portfolioID, selectedPeriod, benchmark string) map[string]s
 				url += "&benchmark=" + benchmark
 			} else {
 				url += "?benchmark=" + benchmark
+				hasQuery = true
+			}
+		}
+		if mode != "" && mode != "equity" {
+			if hasQuery {
+				url += "&mode=" + mode
+			} else {
+				url += "?mode=" + mode
 			}
 		}
 		urls[p] = url
@@ -487,8 +598,8 @@ func buildPeriodURLs(portfolioID, selectedPeriod, benchmark string) map[string]s
 }
 
 // buildBenchmarkURLs pre-builds the URL for each benchmark option in the
-// dropdown, preserving portfolio_id and period params.
-func buildBenchmarkURLs(selectedBenchmark, portfolioID, period string) map[string]string {
+// dropdown, preserving portfolio_id, period, and mode params.
+func buildBenchmarkURLs(selectedBenchmark, portfolioID, period, mode string) map[string]string {
 	urls := make(map[string]string)
 	predefined := comparison.GetPredefined()
 
@@ -504,6 +615,14 @@ func buildBenchmarkURLs(selectedBenchmark, portfolioID, period string) map[strin
 			url += "&period=" + period
 		} else {
 			url += "?period=" + period
+			hasQuery = true
+		}
+	}
+	if mode != "" && mode != "equity" {
+		if hasQuery {
+			url += "&mode=" + mode
+		} else {
+			url += "?mode=" + mode
 			hasQuery = true
 		}
 	}
@@ -529,6 +648,9 @@ func buildBenchmarkURLs(selectedBenchmark, portfolioID, period string) map[strin
 			url += "&benchmark=" + ticker
 		} else {
 			url += "?benchmark=" + ticker
+		}
+		if mode != "" && mode != "equity" {
+			url += "&mode=" + mode
 		}
 		labels := name + " (" + ticker + ")"
 		urls[labels] = url
