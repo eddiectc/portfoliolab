@@ -73,7 +73,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - Running peak tracking, current drawdown from peak
   - **Tests**: `drawdown_test.go` — no drawdown, full drawdown, recovering drawdown, current drawdown duration
 
-- [ ] **Task 2.2**: Create `internal/domain/position/yearly_performance.go` with calendar-year return breakdown
+- [x] **Task 2.2**: Create `internal/domain/position/yearly_performance.go` with calendar-year return breakdown
   - `ComputeYearlyPerformance(navPoints) → []YearlyReturn`
   - `YearlyReturn`: `Year`, `ReturnPct`
   - Group by calendar year, first/last NAV per year
