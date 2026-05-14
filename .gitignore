@@ -37,3 +37,4 @@ coverage.html
 # Temporary files
 *.tmp
 .ctags
+.ctags.d/
