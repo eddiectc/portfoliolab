@@ -79,7 +79,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - Group by calendar year, first/last NAV per year
   - **Tests**: `yearly_performance_test.go` — single year, multiple years, partial years, cross-year boundary
 
-- [ ] **Task 2.3**: Create `internal/domain/position/risk_metrics.go` with volatility, Sharpe, Sortino
+- [x] **Task 2.3**: Create `internal/domain/position/risk_metrics.go` with volatility, Sharpe, Sortino
   - `ComputeRiskMetrics(dailyReturns, riskFreeRatePct) → RiskMetrics`
   - `RiskMetrics`: `AnnualizedVolatilityPct`, `SharpeRatio`, `SortinoRatio`
   - Annualized vol = std-dev of daily returns × sqrt(252)
