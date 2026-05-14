@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http/httptest"
@@ -1360,139 +1359,102 @@ func TestPerformanceTemplate_HeatmapEmptyData(t *testing.T) {
 	}
 }
 
-// --- computeBenchmarkResult tests ---
+// --- clipToPortfolioRange tests ---
 
-func TestComputeBenchmarkResult_ChartClippedToPortfolioRange(t *testing.T) {
-	// Verify that chart data is clipped to the portfolio date range so the
-	// benchmark aligns with the portfolio for easy comparison.
-	// MWR also uses the portfolio-aligned period.
+func TestClipToPortfolioRange_ClipsToPortfolioRange(t *testing.T) {
+	// Verify that benchmark prices are clipped to the portfolio date range
+	// so the chart aligns with the portfolio for easy comparison.
 
-	// Portfolio dates: 2024-06-01 to 2024-12-31
-	portfolioFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
-	portfolioTo := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+	curve := []performance.EquityCurvePoint{
+		{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)},
+		{Date: time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)},
+	}
 
-	// Filter period: "All" → 2000-01-01 to now
-	dateFrom := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	dateTo := time.Now().UTC()
-
-	// Generate benchmark prices spanning 2000-now
 	var prices []market.HistoricalPrice
-	for d := time.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC); !d.After(dateTo); d = d.AddDate(0, 0, 1) {
-		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
-			continue
+	for y := 2000; y <= 2026; y++ {
+		for m := 1; m <= 12; m++ {
+			d := time.Date(y, time.Month(m), 15, 0, 0, 0, 0, time.UTC)
+			if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+				continue
+			}
+			prices = append(prices, market.HistoricalPrice{
+				Date: d, Close: decimal.MustParse("1000.00"), Currency: "USD",
+			})
 		}
-		// Price increases ~10% per year
-		years := d.Sub(time.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC)).Hours() / (365.25 * 24)
-		closeVal := 1000 * (1 + 0.10*years)
+	}
+
+	clipped := clipToPortfolioRange(prices, curve)
+
+	if len(clipped) == 0 {
+		t.Fatal("clipped should not be empty")
+	}
+
+	if clipped[0].Date.Before(time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("first point %s is before portfolio start", clipped[0].Date.Format("2006-01-02"))
+	}
+	if clipped[len(clipped)-1].Date.After(time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("last point %s is after portfolio end", clipped[len(clipped)-1].Date.Format("2006-01-02"))
+	}
+}
+
+func TestClipToPortfolioRange_EmptyCurve(t *testing.T) {
+	var prices []market.HistoricalPrice
+	for d := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC); d.Before(time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)); d = d.AddDate(0, 0, 1) {
 		prices = append(prices, market.HistoricalPrice{
-			Date: d, Close: decimal.MustParse(fmt.Sprintf("%.2f", closeVal)), Currency: "USD",
+			Date: d, Close: decimal.MustParse("1000.00"), Currency: "USD",
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+	clipped := clipToPortfolioRange(prices, nil)
 
-	// Parse chart data JSON
-	var chartData []struct{ Date string; Price string }
-	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
-		t.Fatalf("failed to parse chart data: %v", err)
-	}
-
-	if len(chartData) == 0 {
-		t.Fatal("chart data should not be empty")
-	}
-
-	// Chart should be clipped to portfolio range
-	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
-	if firstDate.Before(portfolioFrom) {
-		t.Errorf("first chart point %s is before portfolio start %s", chartData[0].Date, portfolioFrom.Format("2006-01-02"))
-	}
-	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
-	if lastDate.After(portfolioTo) {
-		t.Errorf("last chart point %s is after portfolio end %s", chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
-	}
-
-	// MWR should be calculated over portfolio period (2024-06-01 to 2024-12-31)
-	if result.mwrPct == nil {
-		t.Error("MWR should not be nil")
+	// With empty curve, all prices are returned unchanged
+	if len(clipped) != len(prices) {
+		t.Errorf("expected %d prices, got %d", len(prices), len(clipped))
 	}
 }
 
-func TestComputeBenchmarkResult_1YPeriod(t *testing.T) {
-	// Verify that chart data is clipped to portfolio range even when
-	// the filter period (1Y) is wider than the portfolio dates.
+func TestClipToPortfolioRange_1YPeriod(t *testing.T) {
+	// Verify clipping works when filter period is wider than portfolio dates.
 
-	dateFrom := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	dateTo := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+	curve := []performance.EquityCurvePoint{
+		{Date: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)},
+		{Date: time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)},
+	}
 
-	// Portfolio dates: 2024-06-01 to 2024-12-31 (within filter period)
-	portfolioFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
-	portfolioTo := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
-
-	// Generate prices spanning the full filter period
 	var prices []market.HistoricalPrice
-	for d := dateFrom; !d.After(dateTo); d = d.AddDate(0, 0, 1) {
+	for d := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC); !d.After(time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)); d = d.AddDate(0, 0, 1) {
 		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
 			continue
 		}
-		daysSinceStart := int(d.Sub(dateFrom).Hours() / 24)
-		closeVal := 5000.0 + float64(daysSinceStart)*2
 		prices = append(prices, market.HistoricalPrice{
-			Date: d, Close: decimal.MustParse(fmt.Sprintf("%.2f", closeVal)), Currency: "USD",
+			Date: d, Close: decimal.MustParse("5000.00"), Currency: "USD",
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+	clipped := clipToPortfolioRange(prices, curve)
 
-	var chartData []struct{ Date string; Price string }
-	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
-		t.Fatalf("failed to parse chart data: %v", err)
+	if len(clipped) == 0 {
+		t.Fatal("clipped should not be empty")
 	}
 
-	if len(chartData) == 0 {
-		t.Fatal("chart data should not be empty")
+	if clipped[0].Date.Before(time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("first point %s is before portfolio start", clipped[0].Date.Format("2006-01-02"))
 	}
-
-	// Chart clipped to portfolio range
-	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
-	if firstDate.Before(portfolioFrom) {
-		t.Errorf("first chart point %s is before portfolio start %s", chartData[0].Date, portfolioFrom.Format("2006-01-02"))
-	}
-	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
-	if lastDate.After(portfolioTo) {
-		t.Errorf("last chart point %s is after portfolio end %s", chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
-	}
-
-}
-
-func TestComputeBenchmarkResult_EmptyPrices(t *testing.T) {
-	result := computeBenchmarkResult(nil, time.Time{}, time.Time{}, time.Time{}, time.Time{})
-
-	if result.chartData != "[]" {
-		t.Errorf("expected empty chart data, got %s", result.chartData)
-	}
-	if result.warning == "" {
-		t.Error("expected warning for empty prices")
-	}
-	if result.prices != nil {
-		t.Error("expected nil prices")
+	if clipped[len(clipped)-1].Date.After(time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("last point %s is after portfolio end", clipped[len(clipped)-1].Date.Format("2006-01-02"))
 	}
 }
 
-func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
-	// Verify that chart data is clipped to the filter period, not
-	// showing prices outside the selected range.
-	// This is the bug: when period is "5Y" but prices span 2000-now,
-	// the chart should only show the 5Y window.
+func TestClipToPortfolioRange_5YPeriod(t *testing.T) {
+	// Verify that chart data is clipped to portfolio range, not filter period.
 
 	now := time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC)
-	dateFrom := now.AddDate(-5, 0, 0) // 2021-05-13
-	dateTo := now
 
-	// Portfolio dates within the 5Y window
-	portfolioFrom := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	portfolioTo := now
+	curve := []performance.EquityCurvePoint{
+		{Date: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{Date: now},
+	}
 
-	// Generate prices spanning 2000-now (wider than the 5Y filter)
 	var prices []market.HistoricalPrice
 	for d := time.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC); !d.After(now); d = d.AddDate(0, 0, 1) {
 		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
@@ -1505,30 +1467,20 @@ func TestComputeBenchmarkResult_FiltersByPeriod(t *testing.T) {
 		})
 	}
 
-	result := computeBenchmarkResult(prices, dateFrom, dateTo, portfolioFrom, portfolioTo)
+	clipped := clipToPortfolioRange(prices, curve)
 
-	var chartData []struct{ Date string; Price string }
-	if err := json.Unmarshal([]byte(result.chartData), &chartData); err != nil {
-		t.Fatalf("failed to parse chart data: %v", err)
+	if len(clipped) == 0 {
+		t.Fatal("clipped should not be empty")
 	}
 
-	if len(chartData) == 0 {
-		t.Fatal("chart data should not be empty")
+	if clipped[0].Date.Before(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("first point %s is before portfolio start",
+			clipped[0].Date.Format("2006-01-02"))
 	}
-
-	// Chart clipped to portfolio range (2023-01-01 to now), not filter period (5Y)
-	firstDate, _ := time.Parse("2006-01-02", chartData[0].Date)
-	if firstDate.Before(portfolioFrom) {
-		t.Errorf("first chart point %s is before portfolio start %s",
-			chartData[0].Date, portfolioFrom.Format("2006-01-02"))
+	if clipped[len(clipped)-1].Date.After(now) {
+		t.Errorf("last point %s is after portfolio end",
+			clipped[len(clipped)-1].Date.Format("2006-01-02"))
 	}
-
-	lastDate, _ := time.Parse("2006-01-02", chartData[len(chartData)-1].Date)
-	if lastDate.After(portfolioTo) {
-		t.Errorf("last chart point %s is after portfolio end %s",
-			chartData[len(chartData)-1].Date, portfolioTo.Format("2006-01-02"))
-	}
-
 }
 
 // ptrDecimal returns a pointer to the given decimal, useful for setting

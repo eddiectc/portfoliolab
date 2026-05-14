@@ -5,14 +5,18 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
 // PerformanceHandler handles HTTP requests for portfolio performance analytics.
@@ -36,10 +40,12 @@ func (h *PerformanceHandler) RegisterRoutes(r *chi.Mux) {
 }
 
 // HandlePerformance handles GET /api/performance.
-// Query params: portfolio_id (optional), period (optional), benchmark (optional).
-// Returns the equity curve, return metrics, base currency, benchmark data, and any warnings.
+// Query params: portfolio_id (optional), period (optional), benchmark (optional), mode (optional), fields (optional).
+// Returns the equity curve, return metrics, base currency, benchmark data, monthly returns, and any warnings.
+// Use ?fields= to request subsets: equity_curve,metrics,risk,drawdown,yearly,monthly,benchmark,nav
 func (h *PerformanceHandler) HandlePerformance(w http.ResponseWriter, r *http.Request) {
 	filters := parsePerformanceFilters(r.URL.Query())
+	fields := parseFields(r.URL.Query())
 
 	// Validate benchmark ticker if provided.
 	if filters.Benchmark != "" && !comparison.IsValidPredefined(filters.Benchmark) {
@@ -47,18 +53,37 @@ func (h *PerformanceHandler) HandlePerformance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	result, err := h.positionSvc.ComputeEquityCurve(r.Context(), filters)
+	result, err := h.computeResult(r.Context(), filters)
 	if err != nil {
 		h.handlePerformanceError(w, err)
 		return
 	}
 
-	// Fetch benchmark data if requested.
-	if filters.Benchmark != "" && h.marketService != nil {
-		h.addBenchmarkData(r.Context(), result, filters)
+	// Filter fields if requested.
+	if len(fields) > 0 {
+		filterPerformanceResult(result, fields)
 	}
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+// computeResult computes the full PerformanceResult including equity curve,
+// benchmark data, and monthly returns. Used by both API and web handlers.
+func (h *PerformanceHandler) computeResult(ctx context.Context, filters performance.PerformanceFilters) (*performance.PerformanceResult, error) {
+	result, err := h.positionSvc.ComputeEquityCurve(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch benchmark data if requested.
+	if filters.Benchmark != "" && h.marketService != nil {
+		h.addBenchmarkData(ctx, result, filters)
+	}
+
+	// Compute monthly returns (needs benchmark prices if benchmark selected).
+	result.MonthlyReturns = computeMonthlyReturnsFromCurve(result.EquityCurve, result.BenchmarkPrices, filters.Benchmark)
+
+	return result, nil
 }
 
 // HandleRefresh handles POST /api/performance/refresh.
@@ -129,6 +154,57 @@ func (h *PerformanceHandler) addBenchmarkData(ctx context.Context, result *perfo
 	result.BenchmarkMWRPct = mwr
 }
 
+// parseFields parses the fields query parameter into a set of field group names.
+// Empty return means "all fields".
+func parseFields(query url.Values) map[string]bool {
+	v := query.Get("fields")
+	if v == "" {
+		return nil
+	}
+	fields := make(map[string]bool)
+	for _, f := range strings.Split(v, ",") {
+		f = strings.TrimSpace(f)
+		if f != "" {
+			fields[f] = true
+		}
+	}
+	return fields
+}
+
+// filterPerformanceResult zeroes out fields not in the requested set.
+func filterPerformanceResult(result *performance.PerformanceResult, fields map[string]bool) {
+	if !fields["equity_curve"] {
+		result.EquityCurve = nil
+	}
+	if !fields["metrics"] {
+		result.ReturnMetrics = performance.ReturnMetrics{}
+		result.BaseCurrency = ""
+		result.Warnings = nil
+	}
+	if !fields["risk"] {
+		result.RiskMetrics = performance.RiskMetrics{}
+	}
+	if !fields["drawdown"] {
+		result.DrawdownAnalysis = performance.DrawdownAnalysis{}
+	}
+	if !fields["yearly"] {
+		result.YearlyPerformance = nil
+	}
+	if !fields["monthly"] {
+		result.MonthlyReturns = nil
+	}
+	if !fields["benchmark"] {
+		result.BenchmarkTicker = ""
+		result.BenchmarkPrices = nil
+		result.BenchmarkMWRPct = nil
+		result.BenchmarkCurrency = ""
+		result.BenchmarkWarning = ""
+	}
+	if !fields["nav"] {
+		result.NavSummary = nil
+	}
+}
+
 // determineDateRange parses the period string into a date range, mirroring
 // the logic in position/equity_curve.go.
 func determineDateRange(filters performance.PerformanceFilters) (time.Time, time.Time) {
@@ -197,5 +273,216 @@ func parsePerformanceFilters(query url.Values) performance.PerformanceFilters {
 		filters.Mode = v
 	}
 
+	if v := query.Get("date_from"); v != "" {
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			filters.DateFrom = &t
+		}
+	}
+
+	if v := query.Get("date_to"); v != "" {
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			filters.DateTo = &t
+		}
+	}
+
 	return filters
+}
+
+// computeMonthlyTWR computes the Time-Weighted Return for a single month
+// from its equity curve points. It detects cash flow dates by finding
+// changes in NetDeposit between consecutive points, computes the pre-cash-flow
+// portfolio value (PV - incremental_net_deposit), and geometrically links
+// sub-period returns.
+//
+// Sub-periods: start → pre-CF[0], post-CF[0] → pre-CF[1], ..., post-CF[n] → end.
+// The post-CF value on a cash flow date is the PortfolioValue from the equity
+// curve (which includes the cash flow). The pre-CF value is PV - delta_ND.
+//
+// Returns nil if the month has fewer than 2 points or the start value is
+// non-positive.
+func computeMonthlyTWR(points []performance.EquityCurvePoint) *decimal.Decimal {
+	if len(points) < 2 {
+		return nil
+	}
+
+	startPV := points[0].PortfolioValue
+	if !startPV.IsPos() {
+		return nil
+	}
+
+	startPVF, _ := startPV.Float64()
+	endPVF, _ := points[len(points)-1].PortfolioValue.Float64()
+
+	// Detect cash flow indices: points where NetDeposit changed from previous.
+	var cfIndices []int
+	prevND, _ := points[0].NetDeposit.Float64()
+	for i := 1; i < len(points); i++ {
+		nd, _ := points[i].NetDeposit.Float64()
+		if nd != prevND {
+			cfIndices = append(cfIndices, i)
+			prevND = nd
+		}
+	}
+
+	// No cash flows: simple return.
+	if len(cfIndices) == 0 {
+		if startPVF <= 0 {
+			return nil
+		}
+		ratio := endPVF / startPVF
+		retPct, _ := decimal.NewFromFloat64((ratio - 1.0) * 100.0)
+		result := retPct.Round(2)
+		return &result
+	}
+
+	// Geometrically link sub-period return ratios.
+	var product float64 = 1.0
+
+	// Previous "from" value for sub-period computation.
+	// Initially the start of the month.
+	var fromVal float64 = startPVF
+
+	for _, cfIdx := range cfIndices {
+		// Pre-cash-flow PV: PV_on_day - incremental_net_deposit.
+		// incremental_ND = ND[cfIdx] - ND[cfIdx-1]
+		// pre_CF_PV = PV[cfIdx] - (ND[cfIdx] - ND[cfIdx-1])
+		cfPV, _ := points[cfIdx].PortfolioValue.Float64()
+		cfND, _ := points[cfIdx].NetDeposit.Float64()
+		var prevCFND float64
+		if cfIdx > 0 {
+			prevCFND, _ = points[cfIdx-1].NetDeposit.Float64()
+		}
+		incrementalND := cfND - prevCFND
+		preCFPV := cfPV - incrementalND
+
+		// Sub-period return: fromVal → preCFPV.
+		if fromVal > 0 && preCFPV > 0 {
+			product *= preCFPV / fromVal
+		} else {
+			return nil
+		}
+
+		// Next sub-period starts from the post-cash-flow PV (includes the CF).
+		fromVal = cfPV
+	}
+
+	// Final sub-period: last post-CF (or start if no CFs reached) → end of month.
+	if fromVal > 0 && endPVF > 0 {
+		product *= endPVF / fromVal
+	} else {
+		return nil
+	}
+
+	// TWR = product - 1, expressed as percentage.
+	twrPct, _ := decimal.NewFromFloat64((product - 1.0) * 100.0)
+	result := twrPct.Round(2)
+	return &result
+}
+
+// computeMonthlyReturnsFromCurve computes monthly returns for the portfolio
+// equity curve and optionally for the benchmark. Produces yearReturnData
+// rows (one per year) for the heatmap template.
+//
+// Portfolio monthly return: Time-Weighted Return (TWR) that isolates
+// investment performance from deposit/withdrawal timing by splitting
+// the month at cash flow dates and geometrically linking sub-period returns.
+// Benchmark monthly return: uses comparison.ComputeMonthlyReturns on benchmark prices.
+// Diff: portfolio return - benchmark return (empty string if no benchmark).
+func computeMonthlyReturnsFromCurve(curve []performance.EquityCurvePoint, benchPrices []market.HistoricalPrice, benchmarkTicker string) []performance.YearlyMonthlyReturns {
+	if len(curve) == 0 {
+		return nil
+	}
+
+	// Group equity curve points by year-month for TWR computation.
+	portfolioMonths := make(map[string][]performance.EquityCurvePoint)
+	for _, pt := range curve {
+		key := pt.Date.Format("2006-01")
+		portfolioMonths[key] = append(portfolioMonths[key], pt)
+	}
+
+	// Compute benchmark monthly returns if benchmark selected.
+	var benchMonthly map[string]*decimal.Decimal
+	if benchmarkTicker != "" && len(benchPrices) > 0 {
+		benchMonthly = comparison.ComputeMonthlyReturns(benchPrices)
+	}
+
+	// Only include months that have portfolio data.
+	// Benchmark-only months (before portfolio started) are excluded.
+	monthSet := make(map[string]bool)
+	for key := range portfolioMonths {
+		monthSet[key] = true
+	}
+
+	// Sort month keys.
+	months := make([]string, 0, len(monthSet))
+	for key := range monthSet {
+		months = append(months, key)
+	}
+	sort.Strings(months)
+
+	// Group month data by year.
+	type monthCell struct {
+		portfolioRet string
+		benchRet     string
+		diff         string
+	}
+	yearMonths := make(map[int]map[int]monthCell) // year -> month -> cell
+	for _, key := range months {
+		year, _ := strconv.Atoi(key[:4])
+		month, _ := strconv.Atoi(key[5:7])
+
+		if yearMonths[year] == nil {
+			yearMonths[year] = make(map[int]monthCell)
+		}
+
+		cell := monthCell{}
+
+		// Portfolio return — TWR scoped to this month.
+		if pts, ok := portfolioMonths[key]; ok {
+			if twr := computeMonthlyTWR(pts); twr != nil {
+				cell.portfolioRet = twr.String()
+			}
+		}
+
+		// Benchmark return.
+		if benchmarkTicker != "" {
+			if bRet, ok := benchMonthly[key]; ok {
+				cell.benchRet = bRet.String()
+				// Diff = portfolio - benchmark.
+				if cell.portfolioRet != "" {
+					pRet, _ := decimal.Parse(cell.portfolioRet)
+					diff, _ := pRet.Sub(*bRet)
+					diffRounded := diff.Round(2)
+					cell.diff = diffRounded.String()
+				}
+			}
+		}
+
+		yearMonths[year][month] = cell
+	}
+
+	// Build result rows sorted by year.
+	years := make([]int, 0, len(yearMonths))
+	for y := range yearMonths {
+		years = append(years, y)
+	}
+	sort.Ints(years)
+
+	result := make([]performance.YearlyMonthlyReturns, 0, len(years))
+	for _, year := range years {
+		monthsMap := make(map[int]performance.MonthlyReturn)
+		for month, cell := range yearMonths[year] {
+			monthsMap[month] = performance.MonthlyReturn{
+				PortfolioReturn: cell.portfolioRet,
+				BenchmarkReturn: cell.benchRet,
+				Diff:            cell.diff,
+			}
+		}
+		result = append(result, performance.YearlyMonthlyReturns{
+			Year:   year,
+			Months: monthsMap,
+		})
+	}
+
+	return result
 }
