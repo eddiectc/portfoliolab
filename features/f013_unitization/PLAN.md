@@ -127,7 +127,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - Ensure new fields serialize correctly in JSON response
   - **Tests**: Update `performance_test.go` with mode parameter tests
 
-- [ ] **Task 4.2**: Update `performance_web.go` handler
+- [x] **Task 4.2**: Update `performance_web.go` handler
   - Parse `mode` query parameter
   - Add `SelectedMode` to `performancePageData`
   - Compute NAV-mode chart data (normalized to 100% at inception)

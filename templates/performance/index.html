@@ -46,6 +46,16 @@
             </select>
         </div>
 
+        {{if .ModeURLs}}
+        <div class="filter-group">
+            <label>Mode</label>
+            <div class="period-buttons">
+                <a href="{{index .ModeURLs "equity"}}" class="tab {{if eq .SelectedMode "equity"}}active{{end}}">Total Return</a>
+                <a href="{{index .ModeURLs "nav"}}" class="tab {{if eq .SelectedMode "nav"}}active{{end}}">NAV Mode</a>
+            </div>
+        </div>
+        {{end}}
+
         <div class="filter-group filter-actions">
             <button type="submit" class="btn btn-sm">Apply</button>
             {{if .HasCacheStatus}}
@@ -137,6 +147,13 @@
 
 {{/* Chart data — passed as JSON for ECharts */}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+{{/* NAV chart data (normalized to 100% at inception) — available when mode is "nav" */}}
+<script>
+var navRawData = [];
+{{if .NavChartData}}
+try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []; }
+{{end}}
+</script>
 <script>
 (function() {
     try {
