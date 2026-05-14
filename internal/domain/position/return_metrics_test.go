@@ -196,7 +196,7 @@ func TestComputePeriodReturn_SameDate(t *testing.T) {
 	}
 }
 
-func TestComputeSimpleReturn(t *testing.T) {
+func TestComputeValueReturn(t *testing.T) {
 	first := EquityCurvePoint{
 		Date:           mustTime("2023-01-01"),
 		PortfolioValue: dec(1000000, 2),
@@ -208,7 +208,7 @@ func TestComputeSimpleReturn(t *testing.T) {
 		NetDeposit:     dec(1000000, 2),
 	}
 
-	result := computeSimpleReturn(first, last)
+	result := computeValueReturn(first, last)
 	if result == nil {
 		t.Fatal("result is nil")
 	}
@@ -218,7 +218,7 @@ func TestComputeSimpleReturn(t *testing.T) {
 	}
 }
 
-func TestComputeSimpleReturn_ZeroBegin(t *testing.T) {
+func TestComputeValueReturn_ZeroBegin(t *testing.T) {
 	first := EquityCurvePoint{
 		Date:           mustTime("2023-01-01"),
 		PortfolioValue: decimal.Zero,
@@ -230,7 +230,7 @@ func TestComputeSimpleReturn_ZeroBegin(t *testing.T) {
 		NetDeposit:     dec(1000000, 2),
 	}
 
-	result := computeSimpleReturn(first, last)
+	result := computeValueReturn(first, last)
 	if result != nil {
 		t.Errorf("expected nil, got %s", result.String())
 	}
@@ -710,7 +710,7 @@ func TestComputeMWR_NegativeReturn(t *testing.T) {
 	}
 }
 
-func TestComputeSimpleReturn_Public(t *testing.T) {
+func TestComputeSimpleReturn(t *testing.T) {
 	tests := []struct {
 		name         string
 		first        EquityCurvePoint
@@ -823,7 +823,7 @@ func TestComputeSimpleReturn_Public(t *testing.T) {
 	}
 }
 
-func TestComputeAnnualizedSimpleReturn_Public(t *testing.T) {
+func TestComputeAnnualizedSimpleReturn(t *testing.T) {
 	tests := []struct {
 		name         string
 		simpleReturn *decimal.Decimal
