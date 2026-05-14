@@ -139,7 +139,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
 
 ### Phase 5: Web UI
 
-- [ ] **Task 5.1**: Redesign `templates/performance/index.html`
+- [x] **Task 5.1**: Redesign `templates/performance/index.html`
   - Add mode tab selector ("NAV Mode" / "Total Return Mode")
   - Add summary table with grouped metrics:
     - NAV summary: NAV per unit, total units, total value
@@ -153,7 +153,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - Total return mode: preserve existing chart (portfolio value + net deposit + P&L)
   - **No separate test needed** — template changes verified via manual testing
 
-- [ ] **Task 5.2**: Add CSS for summary table and mode tabs
+- [x] **Task 5.2**: Add CSS for summary table and mode tabs
   - Style for `metrics-table` with grouped sections
   - Tab selector styling consistent with period buttons
   - **No separate test needed** — CSS verified via manual testing

@@ -8,7 +8,7 @@
     </div>
 </div>
 
-{{/* Filter bar: portfolio + period selectors */}}
+{{/* Filter bar: portfolio + period + mode + benchmark selectors */}}
 <form class="filter-bar" method="GET" action="/performance">
     <div class="filter-row">
         <div class="filter-group">
@@ -80,50 +80,6 @@
 <p class="empty-state">No performance data available. Add transactions to your portfolio to see performance analytics.</p>
 {{else}}
 
-{{/* Summary metrics cards */}}
-<div class="position-summary">
-    <div class="summary-card">
-        <span class="summary-label">Time-Weighted Return</span>
-        <span class="summary-value pnl {{if .Result.ReturnMetrics.TWRPct}}{{sign .Result.ReturnMetrics.TWRPct.String}}{{end}}">
-            {{if .Result.ReturnMetrics.TWRPct}}{{formatPct .Result.ReturnMetrics.TWRPct}}%{{else}}—{{end}}
-        </span>
-    </div>
-    <div class="summary-card">
-        <span class="summary-label">Annualized TWR</span>
-        <span class="summary-value pnl {{if .Result.ReturnMetrics.AnnualizedTWRPct}}{{sign .Result.ReturnMetrics.AnnualizedTWRPct.String}}{{end}}">
-            {{if .Result.ReturnMetrics.AnnualizedTWRPct}}{{formatPct .Result.ReturnMetrics.AnnualizedTWRPct}}%{{else if .Result.ReturnMetrics.HasInsufficientData}}Insufficient data{{else}}—{{end}}
-        </span>
-    </div>
-    <div class="summary-card">
-        <span class="summary-label">Money-Weighted Return</span>
-        <span class="summary-value pnl {{if .Result.ReturnMetrics.MWRPct}}{{sign .Result.ReturnMetrics.MWRPct.String}}{{end}}">
-            {{if .Result.ReturnMetrics.MWRPct}}{{formatPct .Result.ReturnMetrics.MWRPct}}%{{else}}—{{end}}
-        </span>
-    </div>
-    {{if .BenchmarkTicker}}
-    <div class="summary-card">
-        <span class="summary-label">Benchmark MWR ({{.BenchmarkCurrency}})</span>
-        <span class="summary-value pnl {{if .BenchmarkMWRPct}}{{sign .BenchmarkMWRPct.String}}{{end}}">
-            {{if .BenchmarkMWRPct}}{{formatPct .BenchmarkMWRPct}}%{{else}}—{{end}}
-        </span>
-    </div>
-    {{end}}
-    <div class="summary-card">
-        <span class="summary-label">Period Return (MWR)</span>
-        <span class="summary-value pnl {{if .Result.ReturnMetrics.HoldingPeriodMWRPct}}{{sign .Result.ReturnMetrics.HoldingPeriodMWRPct.String}}{{end}}">
-            {{if .Result.ReturnMetrics.HoldingPeriodMWRPct}}{{formatPct .Result.ReturnMetrics.HoldingPeriodMWRPct}}%{{else}}—{{end}}
-        </span>
-    </div>
-    <div class="summary-card">
-        <span class="summary-label">Current Value ({{.Result.BaseCurrency}})</span>
-        <span class="summary-value">{{if .CurrentValue}}{{formatMoney .CurrentValue}}{{else}}—{{end}}</span>
-    </div>
-    <div class="summary-card">
-        <span class="summary-label">Net Deposit ({{.Result.BaseCurrency}})</span>
-        <span class="summary-value">{{if .CurrentNetDeposit}}{{formatMoney .CurrentNetDeposit}}{{else}}—{{end}}</span>
-    </div>
-</div>
-
 {{/* Warnings */}}
 {{if .Result.Warnings}}
 <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;">
@@ -140,14 +96,175 @@
 </div>
 {{end}}
 
-{{/* Equity curve chart */}}
+{{/* Metrics summary table */}}
+<div class="metrics-panel">
+{{/* NAV Summary section */}}
+{{if .Result.NavSummary}}
+<div class="metrics-section">
+    <div class="metrics-section-header">NAV Summary</div>
+    <table class="metrics-table">
+        <tr>
+            <td class="metrics-label">NAV per Unit</td>
+            <td class="metrics-value num">{{formatMoney .Result.NavSummary.NavPerUnit}} {{.Result.BaseCurrency}}</td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Total Units</td>
+            <td class="metrics-value num">{{formatMoney .Result.NavSummary.TotalUnits}}</td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Total Value</td>
+            <td class="metrics-value num">{{formatMoney .Result.NavSummary.TotalValue}} {{.Result.BaseCurrency}}</td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Inception Date</td>
+            <td class="metrics-value">{{.Result.NavSummary.InceptionDate.Format "Jan 2, 2006"}}</td>
+        </tr>
+    </table>
+</div>
+{{end}}
+
+{{/* Returns section */}}
+<div class="metrics-section">
+    <div class="metrics-section-header">Returns</div>
+    <table class="metrics-table">
+        <tr>
+            <td class="metrics-label">Time-Weighted Return</td>
+            <td class="metrics-value num pnl {{if .Result.ReturnMetrics.TWRPct}}{{sign .Result.ReturnMetrics.TWRPct.String}}{{end}}">
+                {{if .Result.ReturnMetrics.TWRPct}}{{if gt (getSign .Result.ReturnMetrics.TWRPct.String) 0}}+{{end}}{{formatPct .Result.ReturnMetrics.TWRPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Annualized TWR</td>
+            <td class="metrics-value num pnl {{if .Result.ReturnMetrics.AnnualizedTWRPct}}{{sign .Result.ReturnMetrics.AnnualizedTWRPct.String}}{{end}}">
+                {{if .Result.ReturnMetrics.AnnualizedTWRPct}}{{if gt (getSign .Result.ReturnMetrics.AnnualizedTWRPct.String) 0}}+{{end}}{{formatPct .Result.ReturnMetrics.AnnualizedTWRPct}}%{{else if .Result.ReturnMetrics.HasInsufficientData}}Insufficient data{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Money-Weighted Return</td>
+            <td class="metrics-value num pnl {{if .Result.ReturnMetrics.MWRPct}}{{sign .Result.ReturnMetrics.MWRPct.String}}{{end}}">
+                {{if .Result.ReturnMetrics.MWRPct}}{{if gt (getSign .Result.ReturnMetrics.MWRPct.String) 0}}+{{end}}{{formatPct .Result.ReturnMetrics.MWRPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Holding Period MWR</td>
+            <td class="metrics-value num pnl {{if .Result.ReturnMetrics.HoldingPeriodMWRPct}}{{sign .Result.ReturnMetrics.HoldingPeriodMWRPct.String}}{{end}}">
+                {{if .Result.ReturnMetrics.HoldingPeriodMWRPct}}{{if gt (getSign .Result.ReturnMetrics.HoldingPeriodMWRPct.String) 0}}+{{end}}{{formatPct .Result.ReturnMetrics.HoldingPeriodMWRPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Simple Return</td>
+            <td class="metrics-value num pnl {{if .Result.ReturnMetrics.SimpleReturnPct}}{{sign .Result.ReturnMetrics.SimpleReturnPct.String}}{{end}}">
+                {{if .Result.ReturnMetrics.SimpleReturnPct}}{{if gt (getSign .Result.ReturnMetrics.SimpleReturnPct.String) 0}}+{{end}}{{formatPct .Result.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Annualized Simple Return</td>
+            <td class="metrics-value num pnl {{if .Result.ReturnMetrics.AnnualizedSimpleReturnPct}}{{sign .Result.ReturnMetrics.AnnualizedSimpleReturnPct.String}}{{end}}">
+                {{if .Result.ReturnMetrics.AnnualizedSimpleReturnPct}}{{if gt (getSign .Result.ReturnMetrics.AnnualizedSimpleReturnPct.String) 0}}+{{end}}{{formatPct .Result.ReturnMetrics.AnnualizedSimpleReturnPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        {{if .BenchmarkTicker}}
+        <tr>
+            <td class="metrics-label">Benchmark MWR ({{.BenchmarkCurrency}})</td>
+            <td class="metrics-value num pnl {{if .BenchmarkMWRPct}}{{sign .BenchmarkMWRPct.String}}{{end}}">
+                {{if .BenchmarkMWRPct}}{{if gt (getSign .BenchmarkMWRPct.String) 0}}+{{end}}{{formatPct .BenchmarkMWRPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        {{end}}
+        <tr>
+            <td class="metrics-label">Current Value</td>
+            <td class="metrics-value num">{{formatMoney .CurrentValue}} {{.Result.BaseCurrency}}</td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Net Deposit</td>
+            <td class="metrics-value num">{{formatMoney .CurrentNetDeposit}} {{.Result.BaseCurrency}}</td>
+        </tr>
+    </table>
+</div>
+
+{{/* Risk section */}}
+<div class="metrics-section">
+    <div class="metrics-section-header">Risk</div>
+    <table class="metrics-table">
+        <tr>
+            <td class="metrics-label">Annualized Volatility</td>
+            <td class="metrics-value num">
+                {{if .Result.RiskMetrics.AnnualizedVolatilityPct}}{{formatPct .Result.RiskMetrics.AnnualizedVolatilityPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Sharpe Ratio</td>
+            <td class="metrics-value num">
+                {{if .Result.RiskMetrics.SharpeRatio}}{{formatPct .Result.RiskMetrics.SharpeRatio}}{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Sortino Ratio</td>
+            <td class="metrics-value num">
+                {{if .Result.RiskMetrics.SortinoRatio}}{{formatPct .Result.RiskMetrics.SortinoRatio}}{{else}}—{{end}}
+            </td>
+        </tr>
+    </table>
+</div>
+
+{{/* Drawdown section */}}
+<div class="metrics-section">
+    <div class="metrics-section-header">Drawdown</div>
+    <table class="metrics-table">
+        <tr>
+            <td class="metrics-label">Max Drawdown</td>
+            <td class="metrics-value num pnl negative">
+                {{if .Result.DrawdownAnalysis.MaxDrawdownPct}}-{{formatPct .Result.DrawdownAnalysis.MaxDrawdownPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Current Drawdown</td>
+            <td class="metrics-value num pnl {{if .Result.DrawdownAnalysis.CurrentDrawdownPct}}{{if gt (getSign .Result.DrawdownAnalysis.CurrentDrawdownPct.String) 0}}negative{{end}}{{end}}">
+                {{if .Result.DrawdownAnalysis.CurrentDrawdownPct}}{{if gt (getSign .Result.DrawdownAnalysis.CurrentDrawdownPct.String) 0}}-{{end}}{{formatPct .Result.DrawdownAnalysis.CurrentDrawdownPct}}%{{else}}—{{end}}
+            </td>
+        </tr>
+        <tr>
+            <td class="metrics-label">Drawdown Duration</td>
+            <td class="metrics-value num">
+                {{if .Result.DrawdownAnalysis.DrawdownDurationDays}}{{.Result.DrawdownAnalysis.DrawdownDurationDays}} days{{else}}—{{end}}
+            </td>
+        </tr>
+    </table>
+</div>
+
+{{/* Yearly Performance section */}}
+{{if .Result.YearlyPerformance}}
+<div class="metrics-section">
+    <div class="metrics-section-header">Yearly Performance</div>
+    <table class="metrics-table">
+        <thead>
+            <tr>
+                <th class="metrics-label">Year</th>
+                <th class="metrics-value num">Return</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.YearlyPerformance}}
+            <tr>
+                <td class="metrics-label">{{.Year}}</td>
+                <td class="metrics-value num pnl {{sign .ReturnPct.String}}">
+                    {{if gt (getSign .ReturnPct.String) 0}}+{{end}}{{formatPct .ReturnPct}}%
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+</div>
+
+{{/* Chart */}}
 <div class="chart-container">
     <div id="equity-chart" style="width:100%;height:520px;"></div>
 </div>
 
 {{/* Chart data — passed as JSON for ECharts */}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-{{/* NAV chart data (normalized to 100% at inception) — available when mode is "nav" */}}
 <script>
 var navRawData = [];
 {{if .NavChartData}}
@@ -157,12 +274,10 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
 <script>
 (function() {
     try {
+    var mode = '{{.SelectedMode}}';
     var rawData = JSON.parse('{{.ChartData}}');
-    var portfolioData = [], depositData = [];
-    for (var i = 0; i < rawData.length; i++) {
-        portfolioData.push([rawData[i].date, parseFloat(rawData[i].portfolio_value)]);
-        depositData.push([rawData[i].date, parseFloat(rawData[i].net_deposit)]);
-    }
+    var navData = [];
+    try { navData = JSON.parse('{{.NavChartData}}'); } catch(e) {}
 
     // Benchmark data (may be empty).
     var benchRaw = [];
@@ -182,6 +297,107 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
     benchNames['{{ $ticker }}'] = '{{ $name }}';
     {{end}}
     var benchName = benchNames['{{.SelectedBenchmark}}'] || '{{.SelectedBenchmark}}';
+
+    // ---- NAV MODE ----
+    if (mode === 'nav' && navData.length > 0) {
+        var portfolioNavData = [];
+        for (var i = 0; i < navData.length; i++) {
+            portfolioNavData.push([navData[i].date, navData[i].value]);
+        }
+
+        // Normalize benchmark to 100 at portfolio inception (first nav data point).
+        var navStartTs = new Date(portfolioNavData[0][0]).getTime();
+        var navBenchData = [];
+        if (benchData.length > 0) {
+            // Find benchmark price closest to portfolio inception.
+            var benchStartIdx = 0, bestDiff = Infinity;
+            for (var i = 0; i < benchData.length; i++) {
+                var d = Math.abs(new Date(benchData[i][0]).getTime() - navStartTs);
+                if (d < bestDiff) { bestDiff = d; benchStartIdx = i; }
+            }
+            var benchStartPrice = benchData[benchStartIdx][1];
+            for (var i = 0; i < benchData.length; i++) {
+                var pct = benchStartPrice !== 0 ? (benchData[i][1] / benchStartPrice) * 100 : 0;
+                pct = Math.round(pct * 100) / 100;
+                navBenchData.push([benchData[i][0], pct]);
+            }
+        }
+
+        // Compute Y-axis range.
+        var allVals = [];
+        for (var i = 0; i < portfolioNavData.length; i++) allVals.push(portfolioNavData[i][1]);
+        for (var i = 0; i < navBenchData.length; i++) allVals.push(navBenchData[i][1]);
+        var axisMin = Math.min.apply(null, allVals);
+        var axisMax = Math.max.apply(null, allVals);
+        // Ensure 100 is visible.
+        if (axisMin > 100) axisMin = 100;
+        if (axisMax < 100) axisMax = 100;
+        if (axisMin > 0) axisMin = Math.max(0, axisMin - (axisMax - axisMin) * 0.05);
+        axisMax = axisMax + (axisMax - axisMin) * 0.05;
+
+        var legendData = ['Portfolio'];
+        var seriesList = [
+            {
+                name: 'Portfolio',
+                type: 'line',
+                data: portfolioNavData,
+                smooth: false,
+                symbol: 'none',
+                lineStyle: { width: 2 }
+            }
+        ];
+        if (hasBenchmark && navBenchData.length > 0) {
+            legendData.push(benchName);
+            seriesList.push({
+                name: benchName,
+                type: 'line',
+                data: navBenchData,
+                smooth: false,
+                symbol: 'none',
+                lineStyle: { width: 2, type: 'dashed', color: '#888' }
+            });
+        }
+
+        var chart = echarts.init(document.getElementById('equity-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    var date = new Date(params[0].axisValue);
+                    var dateStr = date.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'});
+                    var html = '<strong>' + dateStr + '</strong><br/>';
+                    for (var i = 0; i < params.length; i++) {
+                        var val = params[i].value[1];
+                        var pctStr = (val - 100);
+                        var signStr = pctStr >= 0 ? '+' : '';
+                        html += params[i].marker + params[i].seriesName + ': ' + val.toFixed(2) + ' (' + signStr + pctStr.toFixed(2) + '%)<br/>';
+                    }
+                    return html;
+                }
+            },
+            legend: { data: legendData, bottom: 0 },
+            grid: { left: '3%', right: '8%', bottom: '12%', top: '8%', containLabel: true },
+            xAxis: { type: 'time', axisLabel: { rotate: 0, interval: 'auto' } },
+            yAxis: {
+                type: 'value',
+                name: 'Normalized (100 at inception)',
+                min: axisMin,
+                max: axisMax,
+                axisLabel: { formatter: function(v) { return v.toFixed(0); } }
+            },
+            series: seriesList
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+        return;
+    }
+
+    // ---- TOTAL RETURN MODE (equity mode) ----
+    var portfolioData = [], depositData = [];
+    for (var i = 0; i < rawData.length; i++) {
+        portfolioData.push([rawData[i].date, parseFloat(rawData[i].portfolio_value)]);
+        depositData.push([rawData[i].date, parseFloat(rawData[i].net_deposit)]);
+    }
 
     // Clip portfolio data to inception (remove pre-inception zeros).
     var portfolioFirstIdx = -1;
@@ -242,11 +458,8 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
                     link: [{ xAxisIndex: 'all' }]
                 },
                 formatter: function(params) {
-                    // params only includes series from the hovered grid —
-                    // manually look up all data from the arrays by timestamp.
                     var ts = new Date(params[0].axisValue).getTime();
                     var portVal = 0, depVal = 0, retVal = 0, retPct = 0;
-                    // Find closest data point by timestamp.
                     var bestIdx = 0, bestDiff = Infinity;
                     for (var i = 0; i < clippedPortfolio.length; i++) {
                         var d = Math.abs(new Date(clippedPortfolio[i][0]).getTime() - ts);
@@ -267,10 +480,7 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
                         + '▮ Return: ' + retStr + ' {{.Result.BaseCurrency}} (' + pctStr + ')';
                 }
             },
-            legend: {
-                data: ['Portfolio Value', 'Net Deposit', 'Return'],
-                bottom: 0
-            },
+            legend: { data: ['Portfolio Value', 'Net Deposit', 'Return'], bottom: 0 },
             grid: [
                 { left: '3%', right: '4%', top: '5%', height: '55%', containLabel: true },
                 { left: '3%', right: '4%', top: '68%', height: '22%', containLabel: true }
@@ -332,10 +542,10 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
         });
 
         window.addEventListener('resize', function() { chart.resize(); });
-        return; // Done — skip benchmark chart below.
+        return;
     }
 
-    // ---- With benchmark: percentage comparison (placeholder, will be replaced by NAV/unitization) ----
+    // ---- With benchmark: percentage comparison ----
     var portfolioStart = clippedPortfolio.length > 0 ? clippedPortfolio[0][1] : 1;
     var portfolioStartDate = clippedPortfolio.length > 0 ? clippedPortfolio[0][0] : null;
 
@@ -417,7 +627,6 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
                 var html = '<strong>' + dateStr + '</strong><br/>';
                 for (var i = 0; i < params.length; i++) {
                     var name = params[i].seriesName;
-                    // data is [date, pct, raw_value]
                     var pct = params[i].value[1];
                     var raw = params[i].value[2];
                     var pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
@@ -431,21 +640,9 @@ try { navRawData = JSON.parse('{{.NavChartData}}'); } catch(e) { navRawData = []
                 return html;
             }
         },
-        legend: {
-            data: legendData,
-            bottom: 0
-        },
-        grid: {
-            left: '3%',
-            right: '8%',
-            bottom: '12%',
-            top: '8%',
-            containLabel: true
-        },
-        xAxis: {
-            type: 'time',
-            axisLabel: { rotate: 0, interval: 'auto' }
-        },
+        legend: { data: legendData, bottom: 0 },
+        grid: { left: '3%', right: '8%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: { type: 'time', axisLabel: { rotate: 0, interval: 'auto' } },
         yAxis: {
             type: 'value',
             name: 'Return',
