@@ -63,3 +63,18 @@
 - [ ] Add `staticcheck` or `govet` to CI pipeline to catch variable shadowing bugs earlier
 - [ ] For future analytics features: add a result caching layer (keyed by portfolio_id + period + last_updated) to avoid recomputing equity curves on every request
 - [ ] Evaluate ECharts data downsampling for periods > 1 year to reduce JSON payload size
+
+## Post-Retro Changes
+
+### Simple Return Formula Correction (2026-05-14)
+
+The `SimpleReturnPct` metric was changed from a raw value-based return (`end_pv / begin_pv - 1`) to profit-over-total-deposits (`(end_pv - end_nd) / end_nd × 100`).
+
+**Why:** The old formula produced misleadingly large numbers for portfolios with significant deposits. For example, a portfolio that started at £9k and grew to £495k through £453k of deposits showed a "5404% return" — which just echoed the fact that the user deposited a lot of money, not that the investments performed well. The new formula returns ~9.7% for the same data, answering "for every £1 deposited, how much profit was made?"
+
+**Changes:**
+- `ComputePeriodReturn` now computes simple return as `(end_pv - end_nd) / end_nd × 100`
+- `ComputeAnnualizedSimpleReturn` annualizes the new simple return
+- Removed unused `ComputeSimpleReturn` function (P&L-delta version that was never called from `ComputePeriodReturn`)
+- Updated `ReturnMetrics` field docs to match the new formula
+- Updated tests to verify the new behavior

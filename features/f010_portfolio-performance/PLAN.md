@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build portfolio-level performance analytics: an equity curve chart (portfolio market value vs. cumulative net deposits over time) and summary return metrics (total return %, CAGR). Supports single-portfolio and all-portfolio views, multi-currency FX conversion, period selection, and manual data refresh. Data is computed on-demand from transactions and cached market data.
+Build portfolio-level performance analytics: an equity curve chart (portfolio market value vs. cumulative net deposits over time) and summary return metrics (TWR, MWR, simple return, and their annualized counterparts). Supports single-portfolio and all-portfolio views, multi-currency FX conversion, period selection, and manual data refresh. Data is computed on-demand from transactions and cached market data.
 
 ## Task Dependencies
 
@@ -119,28 +119,33 @@ Tasks 2 and 3 can be worked in parallel after Task 1. Tasks 4 and 5 are independ
 
 **Corresponds to:** Scenario: View summary return metrics
 
-**Description:** Compute total return % and annualized return (CAGR) from the equity curve data.
+**Description:** Compute return metrics from the equity curve data: Time-Weighted Return (TWR), Money-Weighted Return (MWR), and Simple Return (profit / net deposit), plus annualized versions.
 
-- [x] Add `ComputeReturnMetrics(equityCurve []EquityCurvePoint, baseCurrency string) ReturnMetrics` function (pure function, no dependencies)
-- [x] Total return = (current_value - net_deposit) / net_deposit × 100
-  - Handle zero net deposit → N/A
-  - Handle negative net deposit → N/A with meaningful message
-- [x] CAGR = (end_value / begin_value)^(365 / days) - 1
-  - Use first and last equity curve points
+- [x] Add `ComputePeriodReturn` function (pure function, no dependencies) — computes TWR, MWR, and simple return from equity curve and TWR breakpoints
+- [x] TWR: geometrically links sub-period returns between cash flow breakpoints
+  - No cash flows → degenerates to simple value return `(end / begin) - 1`
+- [x] MWR: bisection-based IRR solver on cash flows derived from NetDeposit column
+  - Added `MWRPct` (annualized) and `HoldingPeriodMWRPct` (period return)
+- [x] Simple return: `(end_pv - end_nd) / end_nd × 100` — "for every unit deposited, how much profit was made?"
+  - Added `SimpleReturnPct` and `AnnualizedSimpleReturnPct`
+  - Handle zero net deposit → nil
+- [x] Annualized versions use `math.Pow(1+r, 365/days) - 1` for all metrics
   - Handle < 2 data points → insufficient data flag
-  - Annualize over actual days (not just full years)
-- [x] Use `decimal.Decimal` for all calculations; use `decimal.One.Add(pct).PowExponent(days/365)` or equivalent for CAGR
-  - Note: govalues/decimal doesn't have a built-in `Pow` — implement using `ln/exp` approximation or use a simple power function
+  - Handle zero days → nil annualized
 - [x] Write table-driven unit tests:
   - Standard case: positive return over 1+ years
   - Less than 1 year (still annualized)
-  - Zero net deposit (N/A)
-  - Negative net deposit (N/A)
+  - Zero net deposit (simple return nil)
   - Fewer than 2 data points (insufficient data)
   - Zero return (value == deposit)
   - Negative return (value < deposit)
+  - Multiple cash flows with known TWR
+  - MWR with known IRR
+  - Simple return with intermediate deposits
 
 **Verification:** Return metrics are correctly computed for all edge cases; decimal precision is maintained.
+
+**Deviation from plan:** The plan specified `TotalReturnPct = (current_value - net_deposit) / net_deposit` and `AnnualizedReturnPct` (CAGR). During implementation, TWR was chosen as the primary metric because it isolates investment performance from the timing and magnitude of deposits/withdrawals. MWR was added post-retro to complement TWR. Simple return was added and later corrected (2026-05-14) from raw value-based return to profit-over-deposits.
 
 **Technical Decision C — CAGR calculation with decimal.Decimal:**
 
@@ -264,9 +269,11 @@ For MVP, Option A is sufficient. The equity curve uses current prices for the mo
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Historical price fetching | `multi.Download` with `AutoAdjust: false` | Shared HTTP client; parallel downloads; unadjusted prices for accurate valuation; date range via Start/End |
+| Historical price fetching | `multi.NewTickers` + per-ticker `History()` with `AutoAdjust: false` | Per-ticker `History()` caches `ChartMeta` (including currency) via `GetHistoryMetadata()`, which `multi.Download` doesn't return |
 | Performance logic location | Methods on `position.Service` | Reuses existing deps (FxConverter, AccountLister, TransactionRepository); co-located with position analytics |
-| CAGR calculation | `math.Pow` for exponentiation, convert back to decimal | Simpler; sufficient precision for display metrics |
+| Return metrics | TWR + MWR + simple return | TWR isolates investment performance; MWR shows actual investor experience; simple return answers "profit per unit deposited" |
+| Simple return formula | `(end_pv - end_nd) / end_nd × 100` | Profit over total net deposit; always defined when deposits > 0; distinct from TWR/MWR |
+| Annualization | `math.Pow` for exponentiation, convert back to decimal | Simpler; sufficient precision for display metrics |
 | Refresh scope | Current prices + FX rates only | Simple MVP; historical accuracy can be improved later |
 | Equity curve interpolation | Carry forward last known value | Matches spec; simple; no speculative interpolation |
 | Chart library | ECharts (client-side) | Consistent with existing project; interactive tooltips |
