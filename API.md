@@ -607,6 +607,7 @@ Same as IBKR add broker symbol.
 {
   "equity_curve": [{"date": "2024-01-15T00:00:00Z", "portfolio_value": 1000000, "net_deposit": 1000000}, ...],
   "return_metrics": {
+    "profit_loss": 255000,
     "twr_pct": 24.80,
     "annualized_twr_pct": 12.75,
     "mwr_pct": 23.90,

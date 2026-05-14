@@ -24,6 +24,9 @@ type EquityCurvePoint struct {
 }
 
 // ReturnMetrics holds summary return calculations derived from the equity curve.
+// ProfitLoss is the absolute profit or loss: current portfolio value minus
+// total net deposit. Positive means the portfolio gained money, negative
+// means it lost money. Always available when there are at least 2 data points.
 // TWRPct is the Time-Weighted Return: geometrically links sub-period returns
 // between cash flow events, isolating investment performance from deposit/
 // withdrawal timing. Nil when insufficient data or all sub-period values are
@@ -44,7 +47,8 @@ type EquityCurvePoint struct {
 // Nil when the simple return is nil or zero days elapsed.
 // HasInsufficientData is true when fewer than 2 data points are available.
 type ReturnMetrics struct {
-	TWRPct                  *decimal.Decimal `json:"twr_pct,omitempty"`
+	ProfitLoss                *decimal.Decimal `json:"profit_loss,omitempty"`
+	TWRPct                    *decimal.Decimal `json:"twr_pct,omitempty"`
 	AnnualizedTWRPct        *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
 	MWRPct                  *decimal.Decimal `json:"mwr_pct,omitempty"`
 	HoldingPeriodMWRPct     *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
