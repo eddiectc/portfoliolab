@@ -106,7 +106,7 @@ Introduce mutual-fund-style unitization (units + NAV per unit) for cash-flow-ind
   - Extend `PerformanceResult` with: `NavSummary`, `RiskMetrics`, `DrawdownAnalysis`, `YearlyPerformance`, `SimpleReturnPct`, `AnnualizedSimpleReturnPct`
   - Extend `PerformanceFilters` with `Mode` field ("equity" or "nav")
 
-- [ ] **Task 3.2**: Integrate unitization into `ComputeEquityCurve` in `equity_curve.go`
+- [x] **Task 3.2**: Integrate unitization into `ComputeEquityCurve` in `equity_curve.go`
   - After building equity curve points, call `ComputeNavHistory` using pre-cash-flow values
   - Populate `NavPerUnit` and `Units` on each `EquityCurvePoint`
   - Compute `NavSummary` from final state

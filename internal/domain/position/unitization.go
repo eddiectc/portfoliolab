@@ -82,10 +82,18 @@ func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []navBreakpoi
 			if bp, exists := bpMap[dateKey]; exists {
 				// Pre-cash-flow NAV: value before the cash flow / current units.
 				// The breakpoint captures market value just before the deposit/withdrawal.
-				preCashFlowNAV, _ := bp.value.Quo(units)
+				// For deposits-only portfolios (no positions), the pre-cash-flow snapshot
+				// yields zero because there are no positions to value. In that case,
+				// fall back to the previous equity curve point's portfolio value,
+				// which represents the portfolio value before the cash flow.
+				preValue := bp.value
+				if !preValue.IsPos() && i > 0 {
+					preValue = equityCurve[i-1].PortfolioValue
+				}
+				preCashFlowNAV, _ := preValue.Quo(units)
 
 				if preCashFlowNAV.IsPos() {
-					cashFlow, _ := point.PortfolioValue.Sub(bp.value)
+					cashFlow, _ := point.PortfolioValue.Sub(preValue)
 					if cashFlow.IsPos() {
 						// Deposit: buy new units at pre-cash-flow NAV.
 						newUnits, _ := cashFlow.Quo(preCashFlowNAV)

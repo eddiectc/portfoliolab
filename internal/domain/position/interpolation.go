@@ -103,6 +103,8 @@ func interpolateDaily(
 				Date:           d,
 				PortfolioValue: lastPoint.PortfolioValue,
 				NetDeposit:     lastNetDeposit,
+				NavPerUnit:     lastPoint.NavPerUnit,
+				Units:          lastPoint.Units,
 			})
 		} else if lastPoint != nil {
 			// Beyond last transaction: compute portfolio value from
@@ -112,6 +114,8 @@ func interpolateDaily(
 				Date:           d,
 				PortfolioValue: portfolioValue,
 				NetDeposit:     lastNetDeposit,
+				NavPerUnit:     lastPoint.NavPerUnit,
+				Units:          lastPoint.Units,
 			})
 		}
 	}

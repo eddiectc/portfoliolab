@@ -11,6 +11,9 @@
 ## Implementation Notes
 - 2026-05-14 (Task 3.1): `RiskMetrics` and `DrawdownAnalysis` were **not re-declared** in `performance_types.go` — they already exist in `risk_metrics.go` and `drawdown.go` respectively (from Tasks 2.3 and 2.1). `PerformanceResult` references them directly. `YearlyPerformance` is a type alias (`[]YearlyReturn`) rather than a new struct.
 - Private `computeValueReturn` (formerly `computeSimpleReturn`) computes `end/begin - 1` on PortfolioValue — used as the TWR no-cash-flow fallback. Public `ComputeSimpleReturn` computes P&L-based return. Renamed to avoid confusion.
+- 2026-05-14 (Task 3.2): **Deposits-only fallback in `ComputeNavHistory`**: For portfolios with only deposits (no positions), pre-cash-flow snapshots yield zero portfolio value because there are no positions to value and cash hasn't been deposited yet. Added a fallback: when `bp.value` is zero, use the previous equity curve point's `PortfolioValue` as the pre-cash-flow value. This correctly computes NAV for deposits-only portfolios.
+- 2026-05-14 (Task 3.2): **Breakpoint computation moved earlier**: `computePreCashFlowValues` is now called before interpolation (step 10 instead of step 11) so breakpoints are available for NAV history computation. The same breakpoints are reused for both NAV and TWR, avoiding duplicate computation.
+- 2026-05-14 (Task 3.2): **NAV fields in interpolation**: `interpolateDaily` now carries forward `NavPerUnit` and `Units` for non-transaction days, ensuring NAV data is present on all equity curve points.
 
 ## Future Improvements
 - None yet.
