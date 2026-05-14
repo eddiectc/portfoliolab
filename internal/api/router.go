@@ -172,7 +172,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		transactionWebHandler.RegisterRoutes(r)
 
 		// Position web pages
-		positionWebHandler := handlers.NewPositionWebHandler(positionSvc, accountSvc, portfolioSvc, marketCache, renderer)
+		positionWebHandler := handlers.NewPositionWebHandler(positionHandler, positionSvc, accountSvc, portfolioSvc, marketCache, renderer)
 		positionWebHandler.RegisterRoutes(r)
 
 		// IBKR import web pages

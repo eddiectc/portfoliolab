@@ -25,7 +25,9 @@ func NewPositionHandler(service *position.Service) *PositionHandler {
 // RegisterRoutes mounts position routes on the given router.
 func (h *PositionHandler) RegisterRoutes(r *chi.Mux) {
 	r.Get("/api/positions", h.HandleListOpen)
+	r.Get("/api/positions/summary", h.HandleOpenSummary)
 	r.Get("/api/positions/closed", h.HandleListClosed)
+	r.Get("/api/positions/closed/summary", h.HandleClosedSummary)
 	r.Post("/api/positions/recalculate", h.HandleRecalculate)
 	r.Get("/api/lots/{lot_id}", h.HandleGetLot)
 }
@@ -52,6 +54,19 @@ func (h *PositionHandler) HandleListOpen(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, enriched)
 }
 
+// HandleOpenSummary handles GET /api/positions/summary (aggregated totals for open positions).
+func (h *PositionHandler) HandleOpenSummary(w http.ResponseWriter, r *http.Request) {
+	filters, _, _ := parsePositionListParams(r.URL.Query())
+
+	summary, err := h.service.GetOpenPositionsSummary(r.Context(), filters, "")
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute summary")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, summary)
+}
+
 // HandleListClosed handles GET /api/positions/closed (closed positions).
 func (h *PositionHandler) HandleListClosed(w http.ResponseWriter, r *http.Request) {
 	filters, limit, offset := parsePositionListParams(r.URL.Query())
@@ -67,6 +82,19 @@ func (h *PositionHandler) HandleListClosed(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, items)
+}
+
+// HandleClosedSummary handles GET /api/positions/closed/summary (aggregated totals for closed positions).
+func (h *PositionHandler) HandleClosedSummary(w http.ResponseWriter, r *http.Request) {
+	filters, _, _ := parsePositionListParams(r.URL.Query())
+
+	summary, err := h.service.GetClosedPositionsSummary(r.Context(), filters, "")
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute summary")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, summary)
 }
 
 // HandleGetLot handles GET /api/lots/{lot_id}.
@@ -90,43 +118,57 @@ func (h *PositionHandler) HandleGetLot(w http.ResponseWriter, r *http.Request) {
 // Accepts optional query params: account_id, portfolio_id.
 // If neither is provided, recalculates all accounts.
 func (h *PositionHandler) HandleRecalculate(w http.ResponseWriter, r *http.Request) {
+	_, scope, err := h.doRecalculate(r)
+	if err != nil {
+		if parseErr(err) {
+			writeJSONError(w, http.StatusBadRequest, "INVALID_ID", err.Error())
+			return
+		}
+		h.handleRecalcError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "recalculated", "scope": scope})
+}
+
+// parseErr checks if the error is a parse error (invalid ID) vs a service error.
+func parseErr(err error) bool {
+	return err != nil && (strings.Contains(err.Error(), "invalid account_id") || strings.Contains(err.Error(), "invalid portfolio_id"))
+}
+
+// doRecalculate executes the recalculation based on query params.
+// Returns (id int64, scope string, error). The web handler can call this
+// to reuse the same logic with flash messages instead of JSON responses.
+// id is the account_id or portfolio_id if specified, 0 otherwise.
+func (h *PositionHandler) doRecalculate(r *http.Request) (int64, string, error) {
 	query := r.URL.Query()
 
 	if v := query.Get("account_id"); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "INVALID_ID", "invalid account_id")
-			return
+			return 0, "", errors.New("invalid account_id")
 		}
 		if err := h.service.RecalculateAccount(r.Context(), id); err != nil {
-			h.handleRecalcError(w, err)
-			return
+			return 0, "", err
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"status": "recalculated", "account_id": v})
-		return
+		return id, "account " + v, nil
 	}
 
 	if v := query.Get("portfolio_id"); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "INVALID_ID", "invalid portfolio_id")
-			return
+			return 0, "", errors.New("invalid portfolio_id")
 		}
 		if err := h.service.RecalculatePortfolio(r.Context(), id); err != nil {
-			h.handleRecalcError(w, err)
-			return
+			return 0, "", err
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"status": "recalculated", "portfolio_id": v})
-		return
+		return id, "portfolio " + v, nil
 	}
 
 	// No filter → recalculate all.
 	if err := h.service.RecalculateAll(r.Context()); err != nil {
-		h.handleRecalcError(w, err)
-		return
+		return 0, "", err
 	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"status": "recalculated", "scope": "all"})
+	return 0, "all accounts", nil
 }
 
 func (h *PositionHandler) handleLotError(w http.ResponseWriter, err error) {

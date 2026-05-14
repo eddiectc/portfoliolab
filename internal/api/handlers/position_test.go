@@ -497,8 +497,8 @@ func TestPosHandleRecalculate_Portfolio(t *testing.T) {
 
 	var resp map[string]string
 	json.NewDecoder(w.Body).Decode(&resp)
-	if resp["portfolio_id"] != "1" {
-		t.Errorf("expected portfolio_id '1', got %q", resp["portfolio_id"])
+	if resp["scope"] != "portfolio 1" {
+		t.Errorf("expected scope 'portfolio 1', got %q", resp["scope"])
 	}
 }
 
@@ -535,8 +535,8 @@ func TestPosHandleRecalculate_All(t *testing.T) {
 
 	var resp map[string]string
 	json.NewDecoder(w.Body).Decode(&resp)
-	if resp["scope"] != "all" {
-		t.Errorf("expected scope 'all', got %q", resp["scope"])
+	if resp["scope"] != "all accounts" {
+		t.Errorf("expected scope 'all accounts', got %q", resp["scope"])
 	}
 }
 
@@ -553,6 +553,45 @@ func TestPosHandleRecalculate_InvalidAccountID(t *testing.T) {
 	}
 }
 
+// --- Summary Endpoint Tests ---
+
+func TestPosHandleOpenSummary_Success(t *testing.T) {
+	handler, _, _ := setupPositionHandler(t, []int64{1}, []int64{1})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/positions/summary", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleOpenSummary(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	var resp position.OpenPositionSummary
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.TotalCostBasisBase.Equal(decimal.Zero) == false || resp.TotalMktValueBase.Equal(decimal.Zero) == false {
+		// Summary has values — that's fine, just checking it doesn't error
+	}
+}
+
+func TestPosHandleClosedSummary_Success(t *testing.T) {
+	handler, _, _ := setupPositionHandler(t, []int64{1}, []int64{1})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/positions/closed/summary", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleClosedSummary(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	var resp position.ClosedPositionSummary
+	json.NewDecoder(w.Body).Decode(&resp)
+	// Just checking it returns without error
+	_ = resp
+}
+
 // --- Route Registration Tests ---
 
 func TestPosRoutesRegistered(t *testing.T) {
@@ -565,7 +604,9 @@ func TestPosRoutesRegistered(t *testing.T) {
 		method, path string
 	}{
 		{http.MethodGet, "/api/positions"},
+		{http.MethodGet, "/api/positions/summary"},
 		{http.MethodGet, "/api/positions/closed"},
+		{http.MethodGet, "/api/positions/closed/summary"},
 		{http.MethodPost, "/api/positions/recalculate"},
 	}
 
