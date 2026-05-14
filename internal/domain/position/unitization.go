@@ -28,6 +28,9 @@ type NavPoint struct {
 // curve and cash flow breakpoints. It is a pure function with no external
 // dependencies.
 //
+// Unitization starts on the inceptionDate (the date of the first deposit).
+// Points before the inceptionDate are not unitized (0 units, 0 NAV).
+//
 // Unitization works like a mutual fund: the portfolio is divided into units,
 // and NAV per unit tracks cash-flow-independent performance. When the investor
 // deposits money, new units are created at the current NAV. When the investor
@@ -35,7 +38,8 @@ type NavPoint struct {
 // changes only due to market movements.
 //
 // The algorithm:
-//   - Start with fixedUnits (10000) at the first equity curve point
+//   - Ignore points before inceptionDate
+//   - At inceptionDate: start with fixedUnits (10000)
 //   - For each subsequent point, check for a cash flow breakpoint
 //   - If a breakpoint exists: compute pre-cash-flow NAV from breakpoint value,
 //     then compute new/redeemed units = cashFlow / preCashFlowNAV
@@ -47,13 +51,8 @@ type NavPoint struct {
 // breakpoints are the pre-cash-flow portfolio values at each deposit/withdrawal
 // date (excluding the initial deposit, which is handled by the fixed-units
 // initialization). Breakpoints on the same date are deduplicated (first kept).
-func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []navBreakpoint) []NavPoint {
-	if len(equityCurve) == 0 {
-		return nil
-	}
-
-	first := equityCurve[0]
-	if !first.PortfolioValue.IsPos() {
+func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []navBreakpoint, inceptionDate time.Time) []NavPoint {
+	if len(equityCurve) == 0 || inceptionDate.IsZero() {
 		return nil
 	}
 
@@ -69,25 +68,40 @@ func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []navBreakpoi
 	}
 
 	const fixedUnits int64 = 10000
-	units := decimal.MustNew(fixedUnits, 0)
+	units := decimal.Zero
+	unitized := false
 
 	var navHistory []NavPoint
 
 	for i, point := range equityCurve {
 		dateKey := point.Date.Format("2006-01-02")
 
-		// Check if there's a cash flow (breakpoint) on this date.
-		// Skip the first point — it's the initial deposit, handled by fixed units.
-		if i > 0 {
-			if bp, exists := bpMap[dateKey]; exists {
+		// Check if we should start unitization.
+		if !unitized {
+			if point.Date.Before(inceptionDate) {
+				// Not yet unitized.
+				navHistory = append(navHistory, NavPoint{
+					Date:           point.Date,
+					NavPerUnit:     decimal.Zero,
+					Units:          decimal.Zero,
+					PortfolioValue: point.PortfolioValue,
+				})
+				continue
+			}
+			// First point on or after inception date triggers unitization.
+			unitized = true
+			units = decimal.MustNew(fixedUnits, 0)
+		}
+
+		// Now we are unitized. Handle cash flow breakpoints.
+		if bp, exists := bpMap[dateKey]; exists {
+			// If this is the very first point of unitization, it's the initial
+			// deposit. We already initialized units to 10000. We don't treat
+			// the first deposit as a "new units" event.
+			if i > 0 {
 				// Pre-cash-flow NAV: value before the cash flow / current units.
-				// The breakpoint captures market value just before the deposit/withdrawal.
-				// For deposits-only portfolios (no positions), the pre-cash-flow snapshot
-				// yields zero because there are no positions to value. In that case,
-				// fall back to the previous equity curve point's portfolio value,
-				// which represents the portfolio value before the cash flow.
 				preValue := bp.value
-				if !preValue.IsPos() && i > 0 {
+				if !preValue.IsPos() {
 					preValue = equityCurve[i-1].PortfolioValue
 				}
 				preCashFlowNAV, _ := preValue.Quo(units)
