@@ -64,10 +64,10 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** Scenario: Create symbol with benchmark flag, Toggle benchmark flag
 **Description:** Update the symbol mapping API handler to accept and return the `is_benchmark` field.
 
-- [ ] `HandleCreate`: pass `req.IsBenchmark` through to service (already handled by CreateRequest)
-- [ ] `HandleUpdate`: pass `req.IsBenchmark` through to service (already handled by UpdateRequest)
-- [ ] `HandleGet`, `HandleList`: `IsBenchmark` is already on the SymbolMapping struct — serializes automatically via json tags
-- [ ] Write tests:
+- [x] `HandleCreate`: pass `req.IsBenchmark` through to service (already handled by CreateRequest)
+- [x] `HandleUpdate`: pass `req.IsBenchmark` through to service (already handled by UpdateRequest)
+- [x] `HandleGet`, `HandleList`: `IsBenchmark` is already on the SymbolMapping struct — serializes automatically via json tags
+- [x] Write tests:
   - `TestHandleCreate_WithBenchmark_ReturnsTrue` — POST with `is_benchmark: true` returns it in response
   - `TestHandleCreate_WithoutBenchmark_ReturnsFalse` — POST without flag returns `false`
   - `TestHandleUpdate_EnableBenchmark` — PATCH with `is_benchmark: true` updates correctly
