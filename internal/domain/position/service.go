@@ -363,7 +363,7 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 	var isFallback bool
 	if s.marketService != nil {
 		if isClosed {
-			// Closed position: try historical rate for the open date.
+			// Closed position: historical rate for the close date (forward-fill).
 			rate, _ = s.marketService.GetHistoricalFxRate(ctx, p.Currency, baseCurrency, date)
 		} else {
 			// Open position: try current spot rate.
@@ -393,17 +393,19 @@ func ConvertPnlToBase(pnl decimal.Decimal, positionCurrency, baseCurrency string
 		return pnl, nil, false
 	}
 
-	// No rate available — return original P&L as fallback.
+	// No rate available — return zero, not the unconverted value.
+	// Returning raw USD as GBP would silently corrupt totals.
+	// Matches the equity curve's behavior (convertWithFxLookup returns 0, false).
 	if rate == nil {
-		return pnl, nil, true
+		return decimal.Zero, nil, true
 	}
 
 	// Convert: pnl is in positionCurrency, rate is positionCurrency/baseCurrency.
 	// pnl_in_base = pnl * rate.
 	converted, err := pnl.Mul(rate.Rate)
 	if err != nil {
-		// On decimal error, return original as fallback.
-		return pnl, &rate.Rate, true
+		// On decimal error, return zero as fallback.
+		return decimal.Zero, &rate.Rate, true
 	}
 	return converted, &rate.Rate, isFallback
 }

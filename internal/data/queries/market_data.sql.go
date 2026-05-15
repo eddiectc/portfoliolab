@@ -90,6 +90,44 @@ func (q *Queries) GetDistinctCachedSymbols(ctx context.Context, db DBTX) ([]GetD
 	return items, nil
 }
 
+const getHistoricalFxRateOnOrBefore = `-- name: GetHistoricalFxRateOnOrBefore :one
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND date <= ?
+  AND date != ''
+  AND data_type = 'fx'
+  AND source = ?
+ORDER BY date DESC
+LIMIT 1
+`
+
+type GetHistoricalFxRateOnOrBeforeParams struct {
+	Symbol string `db:"symbol"`
+	Date   string `db:"date"`
+	Source string `db:"source"`
+}
+
+// Latest FX rate on or before the given date (forward-fill).
+// Used for position P&L conversion to match the equity curve's FX methodology.
+func (q *Queries) GetHistoricalFxRateOnOrBefore(ctx context.Context, db DBTX, arg GetHistoricalFxRateOnOrBeforeParams) (MarketDatum, error) {
+	row := db.QueryRowContext(ctx, getHistoricalFxRateOnOrBefore, arg.Symbol, arg.Date, arg.Source)
+	var i MarketDatum
+	err := row.Scan(
+		&i.ID,
+		&i.Symbol,
+		&i.Price,
+		&i.Currency,
+		&i.DataType,
+		&i.Source,
+		&i.Date,
+		&i.FetchedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getHistoricalPricesBySymbolAndRange = `-- name: GetHistoricalPricesBySymbolAndRange :many
 SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
 FROM market_data

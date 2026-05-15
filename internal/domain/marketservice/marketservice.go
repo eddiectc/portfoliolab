@@ -29,6 +29,7 @@ type MarketDataRepository interface {
 	GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time
 	GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error)
 	GetBySourceAndDate(ctx context.Context, symbol, source, date string) (*market.MarketData, error)
+	GetHistoricalFxRateOnOrBefore(ctx context.Context, symbol, source, date string) (*market.MarketData, error)
 	Upsert(ctx context.Context, m *market.MarketData) error
 }
 
@@ -138,14 +139,15 @@ func (s *Service) GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurre
 }
 
 // GetHistoricalFxRate returns the FX rate from cache for a specific date.
-// Returns nil if no rate is cached for that date.
+// Uses forward-fill: finds the latest cached rate on or before the given date.
+// Returns nil if no rate is available.
 func (s *Service) GetHistoricalFxRate(ctx context.Context, baseCurrency, quoteCurrency string, date time.Time) (*market.FxRate, error) {
 	if s.repo == nil {
 		return nil, nil
 	}
 	pair := market.FormatFxPair(baseCurrency, quoteCurrency)
 	dateStr := date.Format("2006-01-02")
-	md, err := s.repo.GetBySourceAndDate(ctx, pair, "yahoo", dateStr)
+	md, err := s.repo.GetHistoricalFxRateOnOrBefore(ctx, pair, "yahoo", dateStr)
 	if err != nil {
 		return nil, err
 	}

@@ -123,12 +123,14 @@ func TestConvertPnlToBase_ConvertsToBase(t *testing.T) {
 	}
 }
 
-func TestConvertPnlToBase_NoRateReturnsFallback(t *testing.T) {
-	pnl := decimal.MustNew(10000, 2)
+func TestConvertPnlToBase_NoRateReturnsZero(t *testing.T) {
+	pnl := decimal.MustNew(10000, 2) // 100.00 GBP
 	converted, rateUsed, isFallback := ConvertPnlToBase(pnl, "GBP", "USD", nil, false)
 
-	if !converted.Equal(pnl) {
-		t.Errorf("expected original P&L %s, got %s", pnl.String(), converted.String())
+	// No rate available: returns zero, NOT the unconverted value.
+	// Returning raw GBP as USD would silently corrupt totals.
+	if !converted.Equal(decimal.Zero) {
+		t.Errorf("expected zero, got %s", converted.String())
 	}
 	if rateUsed != nil {
 		t.Errorf("expected nil rate, got %v", rateUsed)

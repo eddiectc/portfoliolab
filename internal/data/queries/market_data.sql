@@ -70,6 +70,19 @@ WHERE symbol = ?
   AND date != ''
   AND data_type = 'stock';
 
+-- name: GetHistoricalFxRateOnOrBefore :one
+-- Latest FX rate on or before the given date (forward-fill).
+-- Used for position P&L conversion to match the equity curve's FX methodology.
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND date <= ?
+  AND date != ''
+  AND data_type = 'fx'
+  AND source = ?
+ORDER BY date DESC
+LIMIT 1;
+
 -- name: GetDistinctCachedSymbols :many
 -- Distinct symbols with cached data (stock or fx), with the latest cached date.
 SELECT DISTINCT symbol, data_type, MAX(date) AS latest_date
