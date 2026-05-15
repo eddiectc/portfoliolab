@@ -625,6 +625,34 @@ func TestPosHandleOpenSummary_NoPortfolio(t *testing.T) {
 	}
 }
 
+func TestPosHandleOpenSummary_MixedCurrencies(t *testing.T) {
+	posRepo := newMockPosRepo()
+	txnRepo := newMockTxnRepo()
+	svc := position.NewService(posRepo, txnRepo,
+		newMockPosAccountChecker(), newMockPosPortfolioChecker(),
+		newMockPosAccountLister(), nil)
+	portfolioSvc := &mockPortfolioSvc{portfolios: []portfolio.Portfolio{
+		{ID: 1, Name: "UK", Currency: "GBP"},
+		{ID: 2, Name: "US", Currency: "USD"},
+	}}
+	handler := NewPositionHandler(svc, portfolioSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/positions/summary", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleOpenSummary(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "NO_BASE_CURRENCY" {
+		t.Errorf("expected NO_BASE_CURRENCY, got %q", errResp.Code)
+	}
+}
+
 func TestPosHandleClosedSummary_Success(t *testing.T) {
 	handler, _, _ := setupPositionHandler(t, []int64{1}, []int64{1})
 
