@@ -59,6 +59,7 @@
 - Use standard HTTP status codes
 - Paginate list endpoints with `?limit=&offset=` or cursor-based
 - Return ETags for cacheable resources
+- **Explicit errors, no silent fallbacks** — if a required prerequisite can't be resolved (e.g., no base currency, missing portfolio), return an explicit error response. Never silently return zeros, empty data, or degraded results that mask the underlying failure. The caller must know *why* something failed.
 
 ## API-First Architecture
 

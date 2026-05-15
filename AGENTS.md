@@ -149,6 +149,7 @@ Feature index: `features/README.md`.
 - Use standard HTTP status codes
 - Paginate list endpoints with `?limit=&offset=` or cursor-based
 - Return ETags for cacheable resources
+- **Explicit errors, no silent fallbacks** — if a prerequisite can't be resolved (e.g., no base currency, missing portfolio), return an explicit error. Never silently return zeros or degraded results that mask the failure.
 
 ### Database (SQLite)
 - Use `sqlc` for type-safe queries — write SQL, generate Go

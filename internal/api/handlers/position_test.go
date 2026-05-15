@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -12,11 +13,34 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // --- Mocks (mirroring service_test.go patterns) ---
+
+type mockPortfolioSvc struct {
+	portfolios []portfolio.Portfolio
+}
+
+func (m *mockPortfolioSvc) List(_ context.Context, _, _ int) ([]portfolio.Portfolio, error) {
+	if m.portfolios == nil {
+		return []portfolio.Portfolio{}, nil
+	}
+	result := make([]portfolio.Portfolio, len(m.portfolios))
+	copy(result, m.portfolios)
+	return result, nil
+}
+
+func (m *mockPortfolioSvc) Get(_ context.Context, id int64) (portfolio.Portfolio, error) {
+	for _, p := range m.portfolios {
+		if p.ID == id {
+			return p, nil
+		}
+	}
+	return portfolio.Portfolio{}, errors.New("not found")
+}
 
 type mockPosRepo struct {
 	mu              sync.RWMutex
@@ -224,7 +248,8 @@ func setupPositionHandler(t *testing.T, accountIDs []int64, portfolioIDs []int64
 		accountLister.allAccounts[i] = position.AccountRef{ID: id, Name: "Account " + string(rune('A'+i)), PortfolioID: 1}
 	}
 	svc := position.NewService(posRepo, txnRepo, accounts, portfolios, accountLister, nil)
-	return NewPositionHandler(svc), posRepo, accountLister
+	portfolioSvc := &mockPortfolioSvc{portfolios: []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "GBP"}}}
+	return NewPositionHandler(svc, portfolioSvc), posRepo, accountLister
 }
 
 func setupPositionRouter(t *testing.T, accountIDs []int64, portfolioIDs []int64) (*chi.Mux, *mockPosRepo) {
@@ -247,7 +272,8 @@ func setupPositionHandlerForRouter(t *testing.T, accountIDs []int64, portfolioID
 		accountLister.allAccounts[i] = position.AccountRef{ID: id, Name: "Account " + string(rune('A'+i)), PortfolioID: 1}
 	}
 	svc := position.NewService(posRepo, txnRepo, accounts, portfolios, accountLister, nil)
-	h := NewPositionHandler(svc)
+	portfolioSvc := &mockPortfolioSvc{portfolios: []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "GBP"}}}
+	h := NewPositionHandler(svc, portfolioSvc)
 	h.RegisterRoutes(r)
 	return h, posRepo
 }
@@ -571,6 +597,31 @@ func TestPosHandleOpenSummary_Success(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&resp)
 	if resp.TotalCostBasisBase.Equal(decimal.Zero) == false || resp.TotalMktValueBase.Equal(decimal.Zero) == false {
 		// Summary has values — that's fine, just checking it doesn't error
+	}
+}
+
+func TestPosHandleOpenSummary_NoPortfolio(t *testing.T) {
+	posRepo := newMockPosRepo()
+	txnRepo := newMockTxnRepo()
+	svc := position.NewService(posRepo, txnRepo,
+		newMockPosAccountChecker(), newMockPosPortfolioChecker(),
+		newMockPosAccountLister(), nil)
+	portfolioSvc := &mockPortfolioSvc{} // empty — no portfolios
+	handler := NewPositionHandler(svc, portfolioSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/positions/summary", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleOpenSummary(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "NO_BASE_CURRENCY" {
+		t.Errorf("expected NO_BASE_CURRENCY, got %q", errResp.Code)
 	}
 }
 

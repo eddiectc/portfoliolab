@@ -122,7 +122,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	transactionHandler.RegisterRoutes(r)
 
 	// Position API
-	positionHandler := handlers.NewPositionHandler(positionSvc)
+	positionHandler := handlers.NewPositionHandler(positionSvc, portfolioSvc)
 	positionHandler.RegisterRoutes(r)
 
 	// Performance API
