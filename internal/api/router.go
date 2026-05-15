@@ -109,6 +109,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 
 	// Create market cache (needs position service as SymbolDiscoverer).
 	marketCache := marketcache.New(yahooFetcher, marketDataRepo, positionSvc, logger)
+	marketCache.WithBenchmarkLister(symbolMappingRepo)
 	// Wire market cache into position service for scheduling.
 	positionSvc.WithMarketCache(marketCache)
 
@@ -127,6 +128,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 
 	// Performance API
 	performanceHandler := handlers.NewPerformanceHandler(positionSvc, marketSvc)
+	performanceHandler.WithBenchmarkValidator(symbolMappingRepo)
 	performanceHandler.RegisterRoutes(r)
 
 	// Market data cache API

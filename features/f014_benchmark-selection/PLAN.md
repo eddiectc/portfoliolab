@@ -175,15 +175,15 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** All scenarios (cross-cutting integration)
 **Description:** Wire the new dependencies in `router.go` so all components are connected.
 
-- [ ] Pass `symbolMappingRepo` to `marketCache` via `WithBenchmarkLister`:
+- [x] Pass `symbolMappingRepo` to `marketCache` via `WithBenchmarkLister`:
   ```go
   marketCache.WithBenchmarkLister(symbolMappingRepo)
   ```
-- [ ] Pass `symbolMappingRepo` to `performanceHandler` via `WithBenchmarkValidator`
-- [ ] Pass `symbolMappingRepo` to `performanceWebHandler` via new constructor param
-- [ ] Verify `symbolMappingRepo` is created before consumers (it is — created early in router)
-- [ ] Verify `go build ./...` compiles cleanly
-- [ ] Verify no circular imports
+- [x] Pass `symbolMappingRepo` to `performanceHandler` via `WithBenchmarkValidator`
+- [x] Pass `symbolMappingRepo` to `performanceWebHandler` via new constructor param
+- [x] Verify `symbolMappingRepo` is created before consumers (it is — created early in router)
+- [x] Verify `go build ./...` compiles cleanly
+- [x] Verify no circular imports
 
 **Verification:** Full build succeeds, no circular dependencies, all handlers wired correctly.
 
