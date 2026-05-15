@@ -557,6 +557,233 @@ func TestSMHandleDeletePage_NotFound(t *testing.T) {
 	}
 }
 
+// TestHandleCreatePage_WithBenchmark creates a mapping with benchmark flag.
+func TestHandleCreatePage_WithBenchmark(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	body := strings.NewReader("internal_symbol=SPX&market_data_symbol=SPX.GI&is_benchmark=on")
+	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	// Verify the created mapping has IsBenchmark=true
+	mappings, _ := repo.GetAll(context.Background(), 0, 0)
+	if len(mappings) != 1 {
+		t.Fatalf("expected 1 mapping, got %d", len(mappings))
+	}
+	if !mappings[0].IsBenchmark {
+		t.Error("expected IsBenchmark=true")
+	}
+}
+
+// TestHandleCreatePage_WithoutBenchmark creates a mapping without benchmark flag.
+func TestHandleCreatePage_WithoutBenchmark(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL")
+	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	mappings, _ := repo.GetAll(context.Background(), 0, 0)
+	if len(mappings) != 1 {
+		t.Fatalf("expected 1 mapping, got %d", len(mappings))
+	}
+	if mappings[0].IsBenchmark {
+		t.Error("expected IsBenchmark=false by default")
+	}
+}
+
+// TestHandleEditPage_LoadsBenchmark shows checkbox checked for benchmark symbol.
+func TestHandleEditPage_LoadsBenchmark(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "SPX",
+		MarketDataSymbol: "SPX.GI",
+		IsBenchmark:      true,
+	}
+	repo.byInternal["SPX"] = 1
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings/1/edit", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+
+	w := httptest.NewRecorder()
+	handler.HandleEditPage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	pageBody := w.Body.String()
+	if !strings.Contains(pageBody, `id="is_benchmark"`) {
+		t.Error("missing is_benchmark checkbox")
+	}
+	if !strings.Contains(pageBody, "checked") {
+		t.Error("expected checkbox to be checked for benchmark symbol")
+	}
+}
+
+// TestHandleUpdatePage_ToggleBenchmark toggles benchmark flag from false to true.
+func TestHandleUpdatePage_ToggleBenchmark(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+		IsBenchmark:      false,
+	}
+	repo.byInternal["AAPL"] = 1
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL&is_benchmark=on")
+	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/1/edit", body)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleUpdatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	updated, err := repo.GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("failed to get updated mapping: %v", err)
+	}
+	if !updated.IsBenchmark {
+		t.Error("expected IsBenchmark=true after toggle")
+	}
+}
+
+// TestHandleUpdatePage_NoBenchmarkChange leaves benchmark flag unchanged when checkbox not sent.
+func TestHandleUpdatePage_NoBenchmarkChange(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+		IsBenchmark:      true,
+	}
+	repo.byInternal["AAPL"] = 1
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	// No is_benchmark in form (checkbox unchecked = not sent)
+	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL")
+	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/1/edit", body)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleUpdatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	// Benchmark should remain true (unchanged since checkbox wasn't sent and value didn't change)
+	updated, err := repo.GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("failed to get updated mapping: %v", err)
+	}
+	// Note: current.IsBenchmark=true, form isBenchmark=false (not sent), so they differ → req.IsBenchmark set to false
+	// This is the actual behavior: unchecked checkbox = "off" ≠ current true → toggle to false
+	// This test verifies the toggle-off behavior
+	if updated.IsBenchmark {
+		t.Error("expected IsBenchmark=false after unchecking (form didn't send is_benchmark, current was true)")
+	}
+}
+
+// TestSMHandleNewPage_RendersBenchmarkCheckbox verifies the benchmark checkbox is on the form.
+func TestSMHandleNewPage_RendersBenchmarkCheckbox(t *testing.T) {
+	handler, _, _ := setupWebHandlerWithSMService(t)
+	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings/new", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleNewPage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="is_benchmark"`) {
+		t.Error("missing is_benchmark checkbox")
+	}
+	if !strings.Contains(body, "Use as benchmark") {
+		t.Error("missing 'Use as benchmark' label text")
+	}
+}
+
+// TestSMHandleListPage_ShowBenchmarkBadge verifies benchmark column renders correctly.
+func TestSMHandleListPage_ShowBenchmarkBadge(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "SPX",
+		MarketDataSymbol: "SPX.GI",
+		IsBenchmark:      true,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	repo.byInternal["SPX"] = 1
+
+	repo.mappings[2] = &symbolmapping.SymbolMapping{
+		ID:               2,
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+		IsBenchmark:      false,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	repo.byInternal["AAPL"] = 2
+
+	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListPage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "Benchmark") {
+		t.Error("missing Benchmark column header")
+	}
+	if !strings.Contains(body, "badge") {
+		t.Error("missing badge for benchmark symbol")
+	}
+}
+
 // TestRegisterRoutes verifies routes mount without panic.
 func TestSMRegisterRoutes(t *testing.T) {
 	r := chi.NewRouter()

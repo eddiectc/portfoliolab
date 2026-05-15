@@ -17,6 +17,7 @@ type symbolMappingFormPageData struct {
 	web.PageData
 	InternalSymbol   string
 	MarketDataSymbol string
+	IsBenchmark      bool
 	BrokerSymbols    []symbolmapping.BrokerSymbolRequest
 	PreviewName      string
 	PreviewExchange  string
@@ -135,11 +136,13 @@ func parseBrokerSymbols(r *http.Request) []symbolmapping.BrokerSymbolRequest {
 func (h *SymbolMappingWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Request) {
 	internalSymbol := r.FormValue("internal_symbol")
 	marketDataSymbol := r.FormValue("market_data_symbol")
+	isBenchmark := r.FormValue("is_benchmark") == "on"
 	brokerSymbols := parseBrokerSymbols(r)
 
 	req := symbolmapping.CreateRequest{
 		InternalSymbol:   internalSymbol,
 		MarketDataSymbol: marketDataSymbol,
+		IsBenchmark:      isBenchmark,
 		BrokerSymbols:    brokerSymbols,
 	}
 
@@ -151,6 +154,7 @@ func (h *SymbolMappingWebHandler) HandleCreatePage(w http.ResponseWriter, r *htt
 		}, "/symbol-mappings", "Create Mapping", "/symbol-mappings")
 		data.InternalSymbol = internalSymbol
 		data.MarketDataSymbol = marketDataSymbol
+		data.IsBenchmark = isBenchmark
 		data.BrokerSymbols = brokerSymbols
 
 		if renderErr := h.renderer.Render(w, "symbol_mapping/form", data); renderErr != nil {
@@ -195,6 +199,7 @@ func (h *SymbolMappingWebHandler) HandleEditPage(w http.ResponseWriter, r *http.
 	}, editAction, "Save Changes", cancelHref)
 	data.InternalSymbol = sm.InternalSymbol
 	data.MarketDataSymbol = sm.MarketDataSymbol
+	data.IsBenchmark = sm.IsBenchmark
 	data.BrokerSymbols = brokerReqs
 
 	if err := h.renderer.Render(w, "symbol_mapping/form", data); err != nil {
@@ -213,6 +218,7 @@ func (h *SymbolMappingWebHandler) HandleUpdatePage(w http.ResponseWriter, r *htt
 
 	internalSymbol := r.FormValue("internal_symbol")
 	marketDataSymbol := r.FormValue("market_data_symbol")
+	isBenchmark := r.FormValue("is_benchmark") == "on"
 
 	req := symbolmapping.UpdateRequest{}
 
@@ -229,6 +235,9 @@ func (h *SymbolMappingWebHandler) HandleUpdatePage(w http.ResponseWriter, r *htt
 	if marketDataSymbol != current.MarketDataSymbol {
 		req.MarketDataSymbol = &marketDataSymbol
 	}
+	if isBenchmark != current.IsBenchmark {
+		req.IsBenchmark = &isBenchmark
+	}
 
 	_, err = h.service.Update(r.Context(), id, req)
 	if err != nil {
@@ -244,6 +253,7 @@ func (h *SymbolMappingWebHandler) HandleUpdatePage(w http.ResponseWriter, r *htt
 		}, editAction, "Save Changes", cancelHref)
 		data.InternalSymbol = internalSymbol
 		data.MarketDataSymbol = marketDataSymbol
+		data.IsBenchmark = isBenchmark
 		data.BrokerSymbols = brokerSymbols
 
 		if renderErr := h.renderer.Render(w, "symbol_mapping/form", data); renderErr != nil {
