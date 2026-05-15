@@ -235,8 +235,8 @@ func (h *PositionHandler) handleRecalcError(w http.ResponseWriter, err error) {
 	writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 }
 
-// resolveBaseCurrency determines the base currency from the first portfolio.
-// Returns an error if no portfolios exist.
+// resolveBaseCurrency determines the base currency from portfolios.
+// Returns an error if no portfolios exist or if portfolios have different currencies.
 func (h *PositionHandler) resolveBaseCurrency(ctx context.Context) (string, error) {
 	portfolios, err := h.portfolioSvc.List(ctx, 0, 0)
 	if err != nil {
@@ -245,7 +245,14 @@ func (h *PositionHandler) resolveBaseCurrency(ctx context.Context) (string, erro
 	if len(portfolios) == 0 {
 		return "", errors.New("no base currency available — add a portfolio first")
 	}
-	return portfolios[0].Currency, nil
+	// All portfolios must share the same base currency.
+	baseCurrency := portfolios[0].Currency
+	for _, p := range portfolios[1:] {
+		if p.Currency != baseCurrency {
+			return "", errors.New("portfolios have different base currencies — specify base_currency parameter")
+		}
+	}
+	return baseCurrency, nil
 }
 
 // parsePositionListParams extracts filters and pagination from query params.
