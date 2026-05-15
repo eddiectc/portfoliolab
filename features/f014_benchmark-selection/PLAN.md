@@ -102,34 +102,24 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** Scenario: Manual refresh all includes benchmark symbols, Background refresh includes benchmark symbols
 **Description:** Replace the hardcoded `comparison.GetPredefined()` with a query against symbol mappings where `is_benchmark=1`. Add `FetchBenchmarkHistorical` method for on-demand full fetch.
 
-- [ ] Add `BenchmarkSymbolLister` interface to `marketcache` package:
-  ```go
-  type BenchmarkSymbolLister interface {
-      ListBenchmarks(ctx context.Context) ([]symbolmapping.SymbolMapping, error)
-  }
-  ```
-- [ ] Add `WithBenchmarkLister(lister BenchmarkSymbolLister) *MarketCache` option on `MarketCache`
-- [ ] Add `FetchBenchmarkHistorical(symbol string)` method to `MarketCache` — fetches full history from 2000 to now, uses internal context with timeout, runs synchronously:
-  ```go
-  func (m *MarketCache) FetchBenchmarkHistorical(symbol string) {
-      ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-      defer cancel()
-      fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-      now := time.Now().UTC()
-      m.fetchBenchmarkDirect(ctx, symbol, fromDate, now)
-  }
-  ```
-- [ ] Update `RefreshPredefinedBenchmarks()` → rename to `RefreshBenchmarks()`, query `benchmarkLister.ListBenchmarks()` instead of `comparison.GetPredefined()`, iterate over user-defined symbols (use `market_data_symbol` for fetching)
-- [ ] Update `gapFillBenchmarks()` → query `benchmarkLister.ListBenchmarks()` instead of `comparison.GetPredefined()`, same gap-fill logic
-- [ ] Update `doRefreshAll()` → call `RefreshBenchmarks()` (renamed) instead of `RefreshPredefinedBenchmarks()`
-- [ ] Write tests:
+- [x] Add `BenchmarkSymbolLister` interface to `marketcache` package
+- [x] Add `WithBenchmarkLister(lister BenchmarkSymbolLister) *MarketCache` option on `MarketCache`
+- [x] Add `FetchBenchmarkHistorical(symbol string)` method to `MarketCache` — fetches full history from 2000 to now, uses internal context with timeout, runs synchronously
+- [x] Update `RefreshPredefinedBenchmarks()` → rename to `RefreshBenchmarks()`, query `benchmarkLister.ListBenchmarks()` instead of `comparison.GetPredefined()`, iterate over user-defined symbols (use `market_data_symbol` for fetching)
+- [x] Update `gapFillBenchmarks()` → query `benchmarkLister.ListBenchmarks()` instead of `comparison.GetPredefined()`, same gap-fill logic
+- [x] Update `doRefreshAll()` → call `RefreshBenchmarks()` (renamed) instead of `RefreshPredefinedBenchmarks()`
+- [x] Write tests:
   - `TestFetchBenchmarkHistorical_FetchesFullHistory` — verifies full fetch from 2000
-  - `TestRefreshBenchmarks_UserDefined` — refresh uses user-defined benchmarks
-  - `TestGapFillBenchmarks_UserDefined` — gap-fill uses user-defined benchmarks
-  - `TestRefreshAll_IncludesUserBenchmarks` — full refresh includes user benchmarks
+  - `TestRefreshBenchmarks_AllFetched` — refresh uses user-defined benchmarks
+  - `TestRefreshBenchmarks_PartialFailure` — partial failure handled correctly
+  - `TestRefreshAll_IncludesBenchmarks` — full refresh includes user benchmarks
   - `TestRefreshBenchmarks_NoLister_Skips` — graceful degradation when no lister configured
+  - `TestGapFillBenchmarks_NoLister_Skips` — gap-fill skips when no lister
+  - `TestRefreshBenchmarks_ListError_LogsAndContinues` — list error handled gracefully
+  - `TestRefreshAll_NoBenchmarks` — refresh-all works with no benchmarks
+  - Updated existing tests to use mock benchmark lister instead of hardcoded 5 benchmarks
 
-**Verification:** Market cache compiles, tests pass, benchmark refresh uses user-defined symbols.
+**Verification:** Market cache compiles, all 32 tests pass, benchmark refresh uses user-defined symbols.
 
 ### Task 6: Performance API handler — accept user-defined benchmarks [PRIORITY: HIGH]
 **Corresponds to:** Scenario: Multiple benchmarks selected, Benchmark historical data unavailable
