@@ -43,6 +43,7 @@ func toSymbolMapping(sm queries.SymbolMapping) (*symbolmapping.SymbolMapping, er
 		ID:               sm.ID,
 		InternalSymbol:   sm.InternalSymbol,
 		MarketDataSymbol: sm.MarketDataSymbol,
+		IsBenchmark:      sm.IsBenchmark,
 		CreatedAt:        createdAt,
 		UpdatedAt:        updatedAt,
 	}, nil
@@ -69,6 +70,7 @@ func (r *SymbolMappingRepository) Create(ctx context.Context, sm *symbolmapping.
 	result, err := r.q.CreateSymbolMapping(ctx, r.db, queries.CreateSymbolMappingParams{
 		InternalSymbol:   sm.InternalSymbol,
 		MarketDataSymbol: sm.MarketDataSymbol,
+		IsBenchmark:      sm.IsBenchmark,
 		CreatedAt:        sm.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        sm.UpdatedAt.Format(time.RFC3339),
 	})
@@ -150,6 +152,7 @@ func (r *SymbolMappingRepository) Update(ctx context.Context, sm *symbolmapping.
 	_, err := r.q.UpdateSymbolMapping(ctx, r.db, queries.UpdateSymbolMappingParams{
 		InternalSymbol:   sm.InternalSymbol,
 		MarketDataSymbol: sm.MarketDataSymbol,
+		IsBenchmark:      sm.IsBenchmark,
 		UpdatedAt:        sm.UpdatedAt.Format(time.RFC3339),
 		ID:               sm.ID,
 	})
@@ -198,6 +201,24 @@ func (r *SymbolMappingRepository) GetBrokerSymbolByBroker(ctx context.Context, b
 		return nil, fmt.Errorf("get broker symbol %q/%q: %w", brokerName, brokerSymbol, err)
 	}
 	return toBrokerSymbol(bsm)
+}
+
+// ListBenchmarks retrieves all symbol mappings marked as benchmarks.
+func (r *SymbolMappingRepository) ListBenchmarks(ctx context.Context) ([]symbolmapping.SymbolMapping, error) {
+	sms, err := r.q.ListBenchmarkSymbols(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("list benchmark symbols: %w", err)
+	}
+
+	mappings := make([]symbolmapping.SymbolMapping, len(sms))
+	for i, sm := range sms {
+		d, err := toSymbolMapping(sm)
+		if err != nil {
+			return nil, fmt.Errorf("parse symbol mapping %d: %w", sm.ID, err)
+		}
+		mappings[i] = *d
+	}
+	return mappings, nil
 }
 
 // HasReferencingTransactions checks if any transactions reference this symbol mapping.

@@ -23,6 +23,7 @@ CREATE TABLE symbol_mappings (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     internal_symbol     TEXT    NOT NULL UNIQUE,
     market_data_symbol  TEXT    NOT NULL,
+    is_benchmark        BOOLEAN NOT NULL DEFAULT 0,
     created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
 );

@@ -41,14 +41,15 @@ func (q *Queries) AddBrokerSymbol(ctx context.Context, db DBTX, arg AddBrokerSym
 }
 
 const createSymbolMapping = `-- name: CreateSymbolMapping :one
-INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, created_at, updated_at)
-VALUES (?, ?, ?, ?)
-RETURNING id, internal_symbol, market_data_symbol, created_at, updated_at
+INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at
 `
 
 type CreateSymbolMappingParams struct {
 	InternalSymbol   string `db:"internal_symbol"`
 	MarketDataSymbol string `db:"market_data_symbol"`
+	IsBenchmark      bool   `db:"is_benchmark"`
 	CreatedAt        string `db:"created_at"`
 	UpdatedAt        string `db:"updated_at"`
 }
@@ -57,6 +58,7 @@ func (q *Queries) CreateSymbolMapping(ctx context.Context, db DBTX, arg CreateSy
 	row := db.QueryRowContext(ctx, createSymbolMapping,
 		arg.InternalSymbol,
 		arg.MarketDataSymbol,
+		arg.IsBenchmark,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -65,6 +67,7 @@ func (q *Queries) CreateSymbolMapping(ctx context.Context, db DBTX, arg CreateSy
 		&i.ID,
 		&i.InternalSymbol,
 		&i.MarketDataSymbol,
+		&i.IsBenchmark,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -164,7 +167,7 @@ func (q *Queries) GetBrokerSymbolsByMappingID(ctx context.Context, db DBTX, symb
 }
 
 const getSymbolMapping = `-- name: GetSymbolMapping :one
-SELECT id, internal_symbol, market_data_symbol, created_at, updated_at FROM symbol_mappings WHERE id = ?
+SELECT id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at FROM symbol_mappings WHERE id = ?
 `
 
 func (q *Queries) GetSymbolMapping(ctx context.Context, db DBTX, id int64) (SymbolMapping, error) {
@@ -174,6 +177,7 @@ func (q *Queries) GetSymbolMapping(ctx context.Context, db DBTX, id int64) (Symb
 		&i.ID,
 		&i.InternalSymbol,
 		&i.MarketDataSymbol,
+		&i.IsBenchmark,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -181,7 +185,7 @@ func (q *Queries) GetSymbolMapping(ctx context.Context, db DBTX, id int64) (Symb
 }
 
 const getSymbolMappingByInternalSymbol = `-- name: GetSymbolMappingByInternalSymbol :one
-SELECT id, internal_symbol, market_data_symbol, created_at, updated_at FROM symbol_mappings WHERE internal_symbol = ?
+SELECT id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at FROM symbol_mappings WHERE internal_symbol = ?
 `
 
 func (q *Queries) GetSymbolMappingByInternalSymbol(ctx context.Context, db DBTX, internalSymbol string) (SymbolMapping, error) {
@@ -191,14 +195,49 @@ func (q *Queries) GetSymbolMappingByInternalSymbol(ctx context.Context, db DBTX,
 		&i.ID,
 		&i.InternalSymbol,
 		&i.MarketDataSymbol,
+		&i.IsBenchmark,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const listBenchmarkSymbols = `-- name: ListBenchmarkSymbols :many
+SELECT id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at FROM symbol_mappings WHERE is_benchmark = 1 ORDER BY internal_symbol
+`
+
+func (q *Queries) ListBenchmarkSymbols(ctx context.Context, db DBTX) ([]SymbolMapping, error) {
+	rows, err := db.QueryContext(ctx, listBenchmarkSymbols)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SymbolMapping{}
+	for rows.Next() {
+		var i SymbolMapping
+		if err := rows.Scan(
+			&i.ID,
+			&i.InternalSymbol,
+			&i.MarketDataSymbol,
+			&i.IsBenchmark,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSymbolMappings = `-- name: ListSymbolMappings :many
-SELECT id, internal_symbol, market_data_symbol, created_at, updated_at FROM symbol_mappings
+SELECT id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at FROM symbol_mappings
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
@@ -221,6 +260,7 @@ func (q *Queries) ListSymbolMappings(ctx context.Context, db DBTX, arg ListSymbo
 			&i.ID,
 			&i.InternalSymbol,
 			&i.MarketDataSymbol,
+			&i.IsBenchmark,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -239,14 +279,15 @@ func (q *Queries) ListSymbolMappings(ctx context.Context, db DBTX, arg ListSymbo
 
 const updateSymbolMapping = `-- name: UpdateSymbolMapping :one
 UPDATE symbol_mappings
-SET internal_symbol = ?, market_data_symbol = ?, updated_at = ?
+SET internal_symbol = ?, market_data_symbol = ?, is_benchmark = ?, updated_at = ?
 WHERE id = ?
-RETURNING id, internal_symbol, market_data_symbol, created_at, updated_at
+RETURNING id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at
 `
 
 type UpdateSymbolMappingParams struct {
 	InternalSymbol   string `db:"internal_symbol"`
 	MarketDataSymbol string `db:"market_data_symbol"`
+	IsBenchmark      bool   `db:"is_benchmark"`
 	UpdatedAt        string `db:"updated_at"`
 	ID               int64  `db:"id"`
 }
@@ -255,6 +296,7 @@ func (q *Queries) UpdateSymbolMapping(ctx context.Context, db DBTX, arg UpdateSy
 	row := db.QueryRowContext(ctx, updateSymbolMapping,
 		arg.InternalSymbol,
 		arg.MarketDataSymbol,
+		arg.IsBenchmark,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -263,6 +305,7 @@ func (q *Queries) UpdateSymbolMapping(ctx context.Context, db DBTX, arg UpdateSy
 		&i.ID,
 		&i.InternalSymbol,
 		&i.MarketDataSymbol,
+		&i.IsBenchmark,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
