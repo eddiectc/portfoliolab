@@ -191,14 +191,14 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** All scenarios (remove legacy code)
 **Description:** Remove the hardcoded predefined benchmark list and all references to it.
 
-- [ ] Delete `Predefined` map, `IsValidPredefined`, `GetPredefined` from `internal/domain/comparison/comparison.go`
-- [ ] Remove `comparison` import from `performance.go` (API handler)
-- [ ] Remove `comparison` import from `performance_web.go` (web handler)
-- [ ] Remove `comparison` import from `marketcache.go`
-- [ ] Delete or update tests in `comparison/comparison_test.go`
-- [ ] Check for any remaining references to `comparison.Predefined`, `comparison.GetPredefined`, `comparison.IsValidPredefined` across the codebase
-- [ ] If `comparison` package has other useful code (e.g., `ComputeMWRForPeriod`), keep the package but remove benchmark-specific code
-- [ ] Update any remaining test files that reference predefined benchmarks
+- [x] Delete `Predefined` map, `IsValidPredefined`, `GetPredefined` from `internal/domain/comparison/comparison.go`
+- [x] Remove `comparison` import from `performance.go` (API handler)
+- [x] Remove `comparison` import from `performance_web.go` (web handler)
+- [x] Remove `comparison` import from `marketcache.go`
+- [x] Delete or update tests in `comparison/comparison_test.go`
+- [x] Check for any remaining references to `comparison.Predefined`, `comparison.GetPredefined`, `comparison.IsValidPredefined` across the codebase
+- [x] If `comparison` package has other useful code (e.g., `ComputeMWRForPeriod`), keep the package but remove benchmark-specific code
+- [x] Update any remaining test files that reference predefined benchmarks
 
 **Verification:** `go build ./...` compiles, no references to `comparison.Predefined` remain, all tests pass.
 
