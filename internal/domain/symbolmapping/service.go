@@ -91,6 +91,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*SymbolMapping
 	sm := &SymbolMapping{
 		InternalSymbol:   internalSymbol,
 		MarketDataSymbol: marketDataSymbol,
+		IsBenchmark:      req.IsBenchmark,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
@@ -170,6 +171,11 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Sym
 			return nil, ErrInvalidSymbol
 		}
 		sm.MarketDataSymbol = newSymbol
+		changed = true
+	}
+
+	if req.IsBenchmark != nil {
+		sm.IsBenchmark = *req.IsBenchmark
 		changed = true
 	}
 

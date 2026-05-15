@@ -49,9 +49,9 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** Scenario: Create symbol with benchmark flag, Toggle benchmark flag (enable/disable)
 **Description:** Update the symbol mapping service to persist the benchmark flag. No background fetch triggered — the market cache handles data population via its existing refresh cycle.
 
-- [ ] Update `Create()`: pass `req.IsBenchmark` to repo.Create (already handled via SymbolMapping struct)
-- [ ] Update `Update()`: handle `IsBenchmark` pointer — if non-nil, set on symbol mapping before calling repo.Update
-- [ ] Write unit tests:
+- [x] Update `Create()`: pass `req.IsBenchmark` to repo.Create (already handled via SymbolMapping struct)
+- [x] Update `Update()`: handle `IsBenchmark` pointer — if non-nil, set on symbol mapping before calling repo.Update
+- [x] Write unit tests:
   - `TestServiceCreate_WithBenchmark_PersistsFlag` — IsBenchmark=true saved correctly
   - `TestServiceCreate_WithoutBenchmark_DefaultsFalse` — IsBenchmark=false saved correctly
   - `TestServiceUpdate_EnableBenchmark` — toggle from false → true persisted
