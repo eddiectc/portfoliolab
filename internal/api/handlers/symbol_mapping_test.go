@@ -229,6 +229,48 @@ func TestSymbolHandleCreate_EmptyInternalSymbol(t *testing.T) {
 	}
 }
 
+func TestSymbolHandleCreate_WithBenchmark_ReturnsTrue(t *testing.T) {
+	handler, _ := setupSymbolMappingHandler(t)
+
+	body := `{"internal_symbol": "^GSPC", "market_data_symbol": "^GSPC", "is_benchmark": true}`
+	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreate(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	var sm symbolmapping.SymbolMapping
+	json.NewDecoder(w.Body).Decode(&sm)
+	if !sm.IsBenchmark {
+		t.Error("expected is_benchmark to be true")
+	}
+}
+
+func TestSymbolHandleCreate_WithoutBenchmark_ReturnsFalse(t *testing.T) {
+	handler, _ := setupSymbolMappingHandler(t)
+
+	body := `{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreate(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	var sm symbolmapping.SymbolMapping
+	json.NewDecoder(w.Body).Decode(&sm)
+	if sm.IsBenchmark {
+		t.Error("expected is_benchmark to be false by default")
+	}
+}
+
 func TestSymbolHandleCreate_DuplicateInternalSymbol(t *testing.T) {
 	handler, repo := setupSymbolMappingHandler(t)
 
@@ -454,6 +496,60 @@ func TestSymbolHandleUpdate_DuplicateInternalSymbol(t *testing.T) {
 
 	if w.Code != http.StatusConflict {
 		t.Errorf("expected 409, got %d", w.Code)
+	}
+}
+
+func TestSymbolHandleUpdate_EnableBenchmark(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "^GSPC", MarketDataSymbol: "^GSPC", IsBenchmark: false}
+	repo.byInternal["^GSPC"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	r := chi.NewRouter()
+	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+
+	body := `{"is_benchmark": true}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var sm symbolmapping.SymbolMapping
+	json.NewDecoder(w.Body).Decode(&sm)
+	if !sm.IsBenchmark {
+		t.Error("expected is_benchmark to be true after enabling")
+	}
+}
+
+func TestSymbolHandleUpdate_DisableBenchmark(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "^GSPC", MarketDataSymbol: "^GSPC", IsBenchmark: true}
+	repo.byInternal["^GSPC"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	r := chi.NewRouter()
+	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+
+	body := `{"is_benchmark": false}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var sm symbolmapping.SymbolMapping
+	json.NewDecoder(w.Body).Decode(&sm)
+	if sm.IsBenchmark {
+		t.Error("expected is_benchmark to be false after disabling")
 	}
 }
 
