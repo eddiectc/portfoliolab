@@ -206,19 +206,19 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** All scenarios (cross-cutting quality gate)
 **Description:** After implementation tasks are complete, validate the feature end-to-end before declaring it done.
 
-- [ ] Run all tests (`go test ./...`) — not just `-short`
-- [ ] Verify each spec scenario manually or via integration test
-- [ ] Check edge cases from the spec against actual behavior:
+- [x] Run all tests (`go test ./...`) — not just `-short`
+- [x] Verify each spec scenario manually or via integration test
+- [x] Check edge cases from the spec against actual behavior:
   - Symbol marked as benchmark but not found on Yahoo — warning shown on performance page
   - Benchmark symbol deleted — no longer available as benchmark
   - Provider symbol changed on active benchmark — data refreshed on next "Refresh All"
   - Re-submitting with benchmark already enabled — no side effects
   - No benchmarks configured — performance page shows "no benchmarks" message
-- [ ] Run `go vet ./...` and linter
-- [ ] Review for cross-layer consistency (data types stored match data types read)
-- [ ] Verify `is_benchmark` field appears in all read paths (API list, API get, web list, web edit)
-- [ ] Verify no TODOs, FIXMEs, or temporary workarounds remain
-- [ ] Verify autocomplete UX works (datalist suggestions appear, selection works)
+- [x] Run `go vet ./...` and linter
+- [x] Review for cross-layer consistency (data types stored match data types read)
+- [x] Verify `is_benchmark` field appears in all read paths (API list, API get, web list, web edit)
+- [x] Verify no TODOs, FIXMEs, or temporary workarounds remain
+- [x] Verify autocomplete UX works (datalist suggestions appear, selection works)
 
 **Verification:** All tests pass, all spec scenarios validated, no unresolved issues.
 
