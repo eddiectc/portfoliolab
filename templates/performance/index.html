@@ -37,13 +37,16 @@
 
         <div class="filter-group">
             <label for="benchmark">Benchmark</label>
-            <select id="benchmark" name="benchmark" onchange="if(this.dataset.url) window.location=this.dataset.url">
-                <option value="" data-url="{{index .BenchmarkURLs "None"}}" {{if not .SelectedBenchmark}}selected{{end}}>None</option>
+            {{if .BenchmarkNames}}
+            <input type="text" id="benchmark" name="benchmark" list="benchmark-list" value="{{.SelectedBenchmark}}" placeholder="Select a benchmark..." onchange="handleBenchmarkChange(this)">
+            <datalist id="benchmark-list">
                 {{range $ticker, $name := .BenchmarkNames}}
-                {{ $label := printf "%s (%s)" $name $ticker }}
-                <option value="{{$ticker}}" data-url="{{index $.BenchmarkURLs $label}}" {{if eq $.SelectedBenchmark $ticker}}selected{{end}}>{{ $label }}</option>
+                <option value="{{$ticker}}">{{ $name }} ({{$ticker}})</option>
                 {{end}}
-            </select>
+            </datalist>
+            {{else}}
+            <span class="no-benchmark-msg">No benchmarks configured. <a href="/symbol-mappings">Create one</a>.</span>
+            {{end}}
         </div>
 
         {{if .ModeURLs}}
@@ -320,6 +323,23 @@
 
 {{/* Chart data — passed as JSON for ECharts */}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>
+// Benchmark change handler — navigate to the URL with the selected benchmark.
+function handleBenchmarkChange(input) {
+    var url = window.location.pathname;
+    var params = new URLSearchParams(window.location.search);
+    if (input.value) {
+        params.set('benchmark', input.value);
+    } else {
+        params.delete('benchmark');
+    }
+    var query = params.toString();
+    if (query) {
+        url += '?' + query;
+    }
+    window.location = url;
+}
+</script>
 <script>
 // Breakdown toggle
 (function() {

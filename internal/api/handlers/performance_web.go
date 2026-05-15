@@ -12,11 +12,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
@@ -61,21 +61,29 @@ type performancePageData struct {
 	MonthlyReturns      []performance.YearlyMonthlyReturns
 }
 
+// benchmarkSymbolLister exposes the subset of symbol mapping repository needed
+// to list user-defined benchmarks.
+type benchmarkSymbolLister interface {
+	ListBenchmarks(ctx context.Context) ([]symbolmapping.SymbolMapping, error)
+}
+
 // PerformanceWebHandler handles server-rendered performance pages.
 type PerformanceWebHandler struct {
-	apiHandler    *PerformanceHandler
-	portfolioSvc  *portfolio.Service
-	marketCache   cacheStatusProvider
-	renderer      *web.Renderer
+	apiHandler        *PerformanceHandler
+	portfolioSvc      *portfolio.Service
+	marketCache       cacheStatusProvider
+	benchmarkLister   benchmarkSymbolLister
+	renderer          *web.Renderer
 }
 
 // NewPerformanceWebHandler creates a new performance web handler.
-func NewPerformanceWebHandler(apiHandler *PerformanceHandler, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, renderer *web.Renderer) *PerformanceWebHandler {
+func NewPerformanceWebHandler(apiHandler *PerformanceHandler, portfolioSvc *portfolio.Service, marketCache cacheStatusProvider, benchmarkLister benchmarkSymbolLister, renderer *web.Renderer) *PerformanceWebHandler {
 	return &PerformanceWebHandler{
-		apiHandler:    apiHandler,
-		portfolioSvc:  portfolioSvc,
-		marketCache:   marketCache,
-		renderer:      renderer,
+		apiHandler:      apiHandler,
+		portfolioSvc:    portfolioSvc,
+		marketCache:     marketCache,
+		benchmarkLister: benchmarkLister,
+		renderer:        renderer,
 	}
 }
 
@@ -89,11 +97,16 @@ func (h *PerformanceWebHandler) RegisterRoutes(r *chi.Mux) {
 func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http.Request) {
 	filters := parsePerformanceFilters(r.URL.Query())
 
+	// Build benchmark names map from user-defined benchmarks.
+	benchmarkNames := h.loadBenchmarkNames(r.Context())
+
 	// Validate benchmark if provided.
 	benchmark := filters.Benchmark
-	if benchmark != "" && !comparison.IsValidPredefined(benchmark) {
-		// Silently drop invalid benchmark — just show no benchmark.
-		benchmark = ""
+	if benchmark != "" {
+		// Silently drop if not in user-defined benchmarks.
+		if _, ok := benchmarkNames[benchmark]; !ok {
+			benchmark = ""
+		}
 	}
 
 	// Resolve selected mode for UI state.
@@ -129,14 +142,14 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 			SelectedPortfolioID: selectedPortfolioID,
 			SelectedMode:        mode,
 			SelectedBenchmark:   benchmark,
-			BenchmarkNames:      comparison.GetPredefined(),
+			BenchmarkNames:      benchmarkNames,
 			Error:               userFriendlyPerformanceError(err),
 			CacheStatus:         cacheStatus,
 			HasCacheStatus:      hasCacheStatus,
 			LastRefreshText:     lastRefreshText,
 			RefreshURL:          buildRefreshURL(selectedPortfolioID, benchmark, mode),
 			PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark, mode),
-			BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period, mode),
+			BenchmarkURLs:       buildBenchmarkURLs(benchmarkNames, benchmark, selectedPortfolioID, filters.Period, mode),
 			ModeURLs:            buildModeURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		}
 		if err := h.renderer.Render(w, "performance/index", data); err != nil {
@@ -200,16 +213,16 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		ModeURLs:            buildModeURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		// Benchmark fields (from result, computed by API handler).
-		SelectedBenchmark:   benchmark,
-		BenchmarkNames:      comparison.GetPredefined(),
-		BenchmarkTicker:     result.BenchmarkTicker,
+			SelectedBenchmark:   benchmark,
+			BenchmarkNames:      benchmarkNames,
+			BenchmarkTicker:     result.BenchmarkTicker,
 		BenchmarkChartData:  benchmarkChartData,
 		BenchmarkMWRPct:     result.BenchmarkMWRPct,
 		BenchmarkCurrency:   result.BenchmarkCurrency,
 		BenchmarkWarning:    result.BenchmarkWarning,
-		BenchmarkURLs:       buildBenchmarkURLs(benchmark, selectedPortfolioID, filters.Period, mode),
-		MonthlyReturns:      result.MonthlyReturns,
-	}
+		BenchmarkURLs:       buildBenchmarkURLs(benchmarkNames, benchmark, selectedPortfolioID, filters.Period, mode),
+			MonthlyReturns:      result.MonthlyReturns,
+		}
 
 	if err := h.renderer.Render(w, "performance/index", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -257,6 +270,23 @@ func serializeBenchmarkChartData(prices []market.HistoricalPrice) string {
 		return "[]"
 	}
 	return string(b)
+}
+
+// loadBenchmarkNames queries user-defined benchmarks and returns a map of
+// market_data_symbol → display name (internal_symbol).
+func (h *PerformanceWebHandler) loadBenchmarkNames(ctx context.Context) map[string]string {
+	names := make(map[string]string)
+	if h.benchmarkLister == nil {
+		return names
+	}
+	mappings, err := h.benchmarkLister.ListBenchmarks(ctx)
+	if err != nil {
+		return names // gracefully degrade on error
+	}
+	for _, m := range mappings {
+		names[m.MarketDataSymbol] = m.InternalSymbol
+	}
+	return names
 }
 
 // HandleRefresh handles POST /performance/refresh (manual full market data refresh).
@@ -500,11 +530,11 @@ func buildPeriodURLs(portfolioID, selectedPeriod, benchmark, mode string) map[st
 	return urls
 }
 
-// buildBenchmarkURLs pre-builds the URL for each benchmark option in the
-// dropdown, preserving portfolio_id, period, and mode params.
-func buildBenchmarkURLs(selectedBenchmark, portfolioID, period, mode string) map[string]string {
+// buildBenchmarkURLs pre-builds the URL for each benchmark option,
+// preserving portfolio_id, period, and mode params.
+// benchmarkNames maps market_data_symbol → display name (internal_symbol).
+func buildBenchmarkURLs(benchmarkNames map[string]string, selectedBenchmark, portfolioID, period, mode string) map[string]string {
 	urls := make(map[string]string)
-	predefined := comparison.GetPredefined()
 
 	// "None" option — no benchmark param.
 	url := "/performance"
@@ -531,8 +561,8 @@ func buildBenchmarkURLs(selectedBenchmark, portfolioID, period, mode string) map
 	}
 	urls["None"] = url
 
-	// Each predefined benchmark.
-	for ticker, name := range predefined {
+	// Each user-defined benchmark.
+	for ticker, name := range benchmarkNames {
 		url := "/performance"
 		hasQuery := false
 		if portfolioID != "" {
