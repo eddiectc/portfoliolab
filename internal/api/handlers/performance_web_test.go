@@ -17,6 +17,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
@@ -327,8 +328,10 @@ func TestPerformanceTemplate_ErrorState(t *testing.T) {
 // --- buildBenchmarkURLs tests ---
 
 func TestBuildBenchmarkURLs(t *testing.T) {
+	benchNames := map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"}
+
 	// No portfolio, no period, no mode.
-	urls := buildBenchmarkURLs("", "", "", "")
+	urls := buildBenchmarkURLs(benchNames, "", "", "", "")
 	if urls["None"] != "/performance" {
 		t.Errorf("None = %q, want /performance", urls["None"])
 	}
@@ -337,7 +340,7 @@ func TestBuildBenchmarkURLs(t *testing.T) {
 	}
 
 	// With portfolio and period — preserved.
-	urls2 := buildBenchmarkURLs("^GSPC", "5", "1Y", "")
+	urls2 := buildBenchmarkURLs(benchNames, "^GSPC", "5", "1Y", "")
 	if urls2["None"] != "/performance?portfolio_id=5&period=1Y" {
 		t.Errorf("None = %q, want /performance?portfolio_id=5&period=1Y", urls2["None"])
 	}
@@ -349,7 +352,7 @@ func TestBuildBenchmarkURLs(t *testing.T) {
 	}
 
 	// With "All" period (no period param).
-	urls3 := buildBenchmarkURLs("", "5", "All", "")
+	urls3 := buildBenchmarkURLs(benchNames, "", "5", "All", "")
 	if urls3["None"] != "/performance?portfolio_id=5" {
 		t.Errorf("None = %q, want /performance?portfolio_id=5", urls3["None"])
 	}
@@ -357,17 +360,8 @@ func TestBuildBenchmarkURLs(t *testing.T) {
 		t.Errorf("S&P 500 = %q, want /performance?portfolio_id=5&benchmark=^GSPC", urls3["S&P 500 (^GSPC)"])
 	}
 
-	// All 5 benchmarks present.
-	urls4 := buildBenchmarkURLs("", "", "", "")
-	expectedLabels := []string{"None", "S&P 500 (^GSPC)", "NASDAQ Composite (^IXIC)", "Vanguard FTSE All-World UCITS (VWRP.L)", "Vanguard S&P 500 UCITS (VUSA.L)", "iShares NASDAQ 100 UCITS (XNAQ.L)"}
-	for _, label := range expectedLabels {
-		if _, ok := urls4[label]; !ok {
-			t.Errorf("missing benchmark URL for %q", label)
-		}
-	}
-
 	// With mode=nav — preserved in all benchmark URLs.
-	urls5 := buildBenchmarkURLs("", "5", "1Y", "nav")
+	urls5 := buildBenchmarkURLs(benchNames, "", "5", "1Y", "nav")
 	if urls5["None"] != "/performance?portfolio_id=5&period=1Y&mode=nav" {
 		t.Errorf("None = %q, want /performance?portfolio_id=5&period=1Y&mode=nav", urls5["None"])
 	}
@@ -376,9 +370,18 @@ func TestBuildBenchmarkURLs(t *testing.T) {
 	}
 
 	// Mode=equity omitted from URLs.
-	urls6 := buildBenchmarkURLs("", "5", "1Y", "equity")
+	urls6 := buildBenchmarkURLs(benchNames, "", "5", "1Y", "equity")
 	if urls6["None"] != "/performance?portfolio_id=5&period=1Y" {
 		t.Errorf("None = %q, want /performance?portfolio_id=5&period=1Y", urls6["None"])
+	}
+
+	// Empty benchmark names — only None option.
+	urls7 := buildBenchmarkURLs(map[string]string{}, "", "", "", "")
+	if len(urls7) != 1 {
+		t.Errorf("expected 1 URL (None), got %d", len(urls7))
+	}
+	if urls7["None"] != "/performance" {
+		t.Errorf("None = %q, want /performance", urls7["None"])
 	}
 }
 
@@ -540,6 +543,17 @@ func (m *mockMarketDataServiceForWeb) RefreshQuotes(_ context.Context, _ []strin
 func (m *mockMarketDataServiceForWeb) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) { return nil, nil }
 func (m *mockMarketDataServiceForWeb) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) { return nil, nil }
 func (m *mockMarketDataServiceForWeb) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult { return marketservice.FxRefreshResult{} }
+
+// mockBenchmarkLister implements benchmarkSymbolLister for tests.
+type mockBenchmarkLister struct {
+	mappings []symbolmapping.SymbolMapping
+}
+
+func (m *mockBenchmarkLister) ListBenchmarks(_ context.Context) ([]symbolmapping.SymbolMapping, error) {
+	result := make([]symbolmapping.SymbolMapping, len(m.mappings))
+	copy(result, m.mappings)
+	return result, nil
+}
 
 // --- extractStaleSymbols tests ---
 
@@ -996,27 +1010,27 @@ func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
 
 	body := w.Body.String()
 
-	// data-url attributes use %5e for ^ (URL-encoded in attribute values).
-	if !strings.Contains(body, `data-url="/performance?period=1Y&amp;benchmark=%5eIXIC"`) {
-		t.Error("expected NASDAQ benchmark URL in data-url attribute")
-	}
-
-	// Switching to S&P 500 should have correct URL.
-	if !strings.Contains(body, `data-url="/performance?period=1Y&amp;benchmark=%5eGSPC"`) {
-		t.Error("expected S&P 500 benchmark URL in data-url attribute")
-	}
-
-	// None option should have empty value (clears benchmark on form submit).
-	if !strings.Contains(body, `value=""`) {
-		t.Error("expected empty value for None option")
-	}
-
-	// Benchmark options use ticker as value (for form submit path), URL in data-url (for onchange).
+	// Text input with selected benchmark as value.
 	if !strings.Contains(body, `value="^IXIC"`) {
-		t.Error("expected ticker value ^IXIC for NASDAQ option")
+		t.Error("expected selected benchmark value ^IXIC on input")
 	}
-	if !strings.Contains(body, `value="^GSPC"`) {
-		t.Error("expected ticker value ^GSPC for S&P 500 option")
+
+	// Datalist with benchmark options.
+	if !strings.Contains(body, `id="benchmark-list"`) {
+		t.Error("expected datalist with id=benchmark-list")
+	}
+
+	// Datalist options contain ticker values.
+	if !strings.Contains(body, `<option value="^GSPC">`) {
+		t.Error("expected S&P 500 option in datalist")
+	}
+	if !strings.Contains(body, `<option value="^IXIC">`) {
+		t.Error("expected NASDAQ option in datalist")
+	}
+
+	// JS handler for benchmark change.
+	if !strings.Contains(body, `handleBenchmarkChange`) {
+		t.Error("expected handleBenchmarkChange JS function")
 	}
 }
 
@@ -1496,6 +1510,148 @@ func TestClipToPortfolioRange_5YPeriod(t *testing.T) {
 	if clipped[len(clipped)-1].Date.After(now) {
 		t.Errorf("last point %s is after portfolio end",
 			clipped[len(clipped)-1].Date.Format("2006-01-02"))
+	}
+}
+
+// --- Task 7: User-defined benchmark tests ---
+
+func TestLoadBenchmarkNames(t *testing.T) {
+	tests := []struct {
+		name     string
+		lister   *mockBenchmarkLister
+		wantLen  int
+		wantKey  string
+		wantName string
+	}{
+		{
+			name: "multiple benchmarks",
+			lister: &mockBenchmarkLister{
+				mappings: []symbolmapping.SymbolMapping{
+					{InternalSymbol: "S&P 500", MarketDataSymbol: "^GSPC"},
+					{InternalSymbol: "NASDAQ", MarketDataSymbol: "^IXIC"},
+				},
+			},
+			wantLen:  2,
+			wantKey:  "^GSPC",
+			wantName: "S&P 500",
+		},
+		{
+			name:     "no benchmarks",
+			lister:   &mockBenchmarkLister{mappings: []symbolmapping.SymbolMapping{}},
+			wantLen:  0,
+			wantKey:  "",
+			wantName: "",
+		},
+		{
+			name:     "nil lister returns empty",
+			lister:   nil, // typed nil *mockBenchmarkLister
+			wantLen:  0,
+			wantKey:  "",
+			wantName: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var handler *PerformanceWebHandler
+			if tt.lister == nil {
+				// Use empty struct — benchmarkLister is truly nil (no type)
+				handler = &PerformanceWebHandler{}
+			} else {
+				handler = &PerformanceWebHandler{
+					benchmarkLister: tt.lister,
+				}
+			}
+			names := handler.loadBenchmarkNames(context.Background())
+			if len(names) != tt.wantLen {
+				t.Errorf("got %d names, want %d", len(names), tt.wantLen)
+			}
+			if tt.wantKey != "" {
+				if name, ok := names[tt.wantKey]; !ok {
+					t.Errorf("missing key %q", tt.wantKey)
+				} else if name != tt.wantName {
+					t.Errorf("name for %q = %q, want %q", tt.wantKey, name, tt.wantName)
+				}
+			}
+		})
+	}
+}
+
+func TestPerformanceTemplate_NoBenchmarks(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Portfolios:          []portfolio.Portfolio{},
+		BenchmarkNames:      nil, // No benchmarks configured.
+		BenchmarkURLs:       map[string]string{"None": "/performance"},
+		PeriodURLs:          map[string]string{"All": "/performance"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	// Shows "no benchmarks" message with link to create one.
+	if !strings.Contains(body, "No benchmarks configured") {
+		t.Error("expected 'No benchmarks configured' message")
+	}
+	if !strings.Contains(body, `/symbol-mappings"`) {
+		t.Error("expected link to /symbol-mappings")
+	}
+	// Should NOT show the datalist or input.
+	if strings.Contains(body, `id="benchmark-list"`) {
+		t.Error("should not show datalist when no benchmarks")
+	}
+}
+
+func TestPerformanceTemplate_WithBenchmarkInput(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	curve := []performance.EquityCurvePoint{
+		{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), PortfolioValue: decimal.MustNew(10000000, 2), NetDeposit: decimal.MustNew(10000000, 2)},
+	}
+	result := &performance.PerformanceResult{
+		EquityCurve:  curve,
+		BaseCurrency: "USD",
+	}
+
+	data := performancePageData{
+		PageData:            web.PageData{Title: "Performance"},
+		Result:              result,
+		ChartData:           serializeChartData(curve),
+		CurrentValue:        "100000.00",
+		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedBenchmark:   "^GSPC",
+		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
+		BenchmarkURLs:       map[string]string{"None": "/performance", "S&P 500 (^GSPC)": "/performance?benchmark=^GSPC"},
+		PeriodURLs:          map[string]string{"All": "/performance?benchmark=^GSPC"},
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "performance/index", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	// Text input with selected value.
+	if !strings.Contains(body, `id="benchmark"`) {
+		t.Error("expected benchmark input")
+	}
+	if !strings.Contains(body, `value="^GSPC"`) {
+		t.Error("expected selected benchmark value")
+	}
+	// Datalist present.
+	if !strings.Contains(body, `id="benchmark-list"`) {
+		t.Error("expected datalist")
+	}
+	// JS handler present.
+	if !strings.Contains(body, `handleBenchmarkChange`) {
+		t.Error("expected handleBenchmarkChange JS function")
 	}
 }
 

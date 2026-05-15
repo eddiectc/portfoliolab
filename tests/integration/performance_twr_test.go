@@ -100,6 +100,16 @@ func setupPerf(t *testing.T, baseCurrency, acctCurrency string) (*sql.DB, http.H
 		}
 	}
 
+	// Benchmark symbol mapping (^GSPC for S&P 500)
+	body = json.RawMessage(`{"internal_symbol":"S&P 500","market_data_symbol":"^GSPC","is_benchmark":true}`)
+	req = httptest.NewRequest("POST", "/api/symbol-mappings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated && w.Code != http.StatusConflict {
+		t.Fatalf("symbol mapping ^GSPC: %d %s", w.Code, w.Body.String())
+	}
+
 	return db, router, p.ID, a.ID
 }
 

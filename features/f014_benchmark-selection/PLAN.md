@@ -144,30 +144,32 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** Scenario: Multiple benchmarks selected, No benchmarks configured, Switch benchmark on performance page
 **Description:** Replace the benchmark `<select>` dropdown with a text input that provides autocomplete suggestions from user-defined benchmarks. Server validates the submitted symbol.
 
-- [ ] Add `BenchmarkSymbolLister` dependency to `PerformanceWebHandler`:
+- [x] Add `BenchmarkSymbolLister` dependency to `PerformanceWebHandler`:
   ```go
   type benchmarkSymbolLister interface {
       ListBenchmarks(ctx context.Context) ([]symbolmapping.SymbolMapping, error)
   }
   ```
-- [ ] Update `NewPerformanceWebHandler` to accept lister as required param
-- [ ] Update `HandlePerformance`:
+- [x] Update `NewPerformanceWebHandler` to accept lister as required param
+- [x] Update `HandlePerformance`:
   - Query `h.benchmarkLister.ListBenchmarks(ctx)` to build `BenchmarkNames` map (market_data_symbol → display name using internal_symbol)
   - Validate selected benchmark against the list (silently drop if not found)
   - If no benchmarks configured, set empty map and show message
-- [ ] Update `buildBenchmarkURLs`: build URLs from user-defined benchmark list
-- [ ] Update `templates/performance/index.html`:
+- [x] Update `buildBenchmarkURLs`: build URLs from user-defined benchmark list
+- [x] Update `templates/performance/index.html`:
   - Replace `<select>` with `<input type="text" id="benchmark" name="benchmark" list="benchmark-list" value="{{.SelectedBenchmark}}" placeholder="Select a benchmark...">`
   - Add `<datalist id="benchmark-list">` with `<option>` entries for each user-defined benchmark
-  - Add JS to auto-submit on selection (or use form submit button)
+  - Add JS `handleBenchmarkChange()` to navigate on selection
   - Show "No benchmarks configured. <a href="/symbol-mappings">Create one</a>." when list is empty
-- [ ] Write tests:
-  - `TestHandlePerformance_UserDefinedBenchmarks` — autocomplete populated from symbol mappings
-  - `TestHandlePerformance_NoBenchmarks` — shows "no benchmarks" message
-  - `TestHandlePerformance_InvalidBenchmark_Dropped` — non-benchmark symbol silently dropped
-  - `TestBuildBenchmarkURLs_UserDefined` — URLs built from user benchmarks
+- [x] Write tests:
+  - `TestLoadBenchmarkNames` — loads from lister, handles nil/empty/error
+  - `TestPerformanceTemplate_NoBenchmarks` — shows "no benchmarks" message
+  - `TestPerformanceTemplate_WithBenchmarkInput` — text input + datalist rendered
+  - Updated `TestBuildBenchmarkURLs` — URLs built from user benchmarks
+  - Updated `TestPerformanceTemplate_BenchmarkSelectorURLs` — datalist options
+  - Updated `tests/integration/setupPerf` — creates ^GSPC as benchmark symbol
 
-**Verification:** Performance page shows text input with autocomplete, switching works, empty state handled.
+**Verification:** Performance page shows text input with autocomplete, switching works, empty state handled. All tests pass.
 
 ### Task 8: Router wiring — connect all new dependencies [PRIORITY: HIGH]
 **Corresponds to:** All scenarios (cross-cutting integration)
