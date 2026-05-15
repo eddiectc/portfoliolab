@@ -53,13 +53,14 @@
     </div>
     <div class="summary-card">
         <span class="summary-label">Unrealized P&L ({{.BaseCurrency}})</span>
-        <span class="summary-value pnl {{sign .Summary.TotalUnrealizedPnLB}}">{{formatMoney .Summary.TotalUnrealizedPnLB}}</span>
+        <span class="summary-value pnl {{sign .Summary.TotalUnrealizedPnLB}}">{{formatMoney .Summary.TotalUnrealizedPnLB}}{{if .Summary.HasFxErrors}} <span class="error-text" title="Some positions missing FX rate — total may be incomplete">⚠ FX incomplete</span>{{end}}</span>
     </div>
     <div class="summary-card">
         <span class="summary-label">Unrealized P&L %</span>
         <span class="summary-value pnl {{sign .Summary.TotalUnrealizedPnLP}}">{{if .Summary.TotalUnrealizedPnLP}}{{formatPct .Summary.TotalUnrealizedPnLP}}%{{else}}—{{end}}</span>
     </div>
 </div>
+<p class="info-text">Foreign currency positions converted at current spot FX rate. See <a href="/help/fx">FX conventions</a> for details.</p>
 {{end}}
 
 <table class="table table-compact">

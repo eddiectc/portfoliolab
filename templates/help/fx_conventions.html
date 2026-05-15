@@ -1,0 +1,117 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>FX Conventions</h1>
+    <div class="header-actions">
+        <a href="/positions" class="btn btn-sm">Back to Positions</a>
+    </div>
+</div>
+
+<div class="help-content">
+    <h2>Summary</h2>
+    <table class="table table-compact">
+        <thead>
+            <tr>
+                <th>Context</th>
+                <th>FX Rate Used</th>
+                <th>Rationale</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Equity curve — portfolio value</td>
+                <td>Valuation-date FX rate</td>
+                <td>What was my portfolio worth in base currency on this date?</td>
+            </tr>
+            <tr>
+                <td>Equity curve — net deposit</td>
+                <td>Valuation-date FX rate</td>
+                <td>Consistent with portfolio value on the same date; enables reconciliation with position summaries</td>
+            </tr>
+            <tr>
+                <td>Open positions (unrealized P&amp;L)</td>
+                <td>Current spot FX rate</td>
+                <td>What is this position worth in base currency today?</td>
+            </tr>
+            <tr>
+                <td>Closed positions (realized P&amp;L)</td>
+                <td>Current spot FX rate</td>
+                <td>What is the realized cash (still in foreign currency) worth in base currency today?</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Why Spot FX for Closed Positions?</h2>
+    <p>
+        When you sell a foreign currency position, the proceeds remain as <strong>foreign currency cash</strong>
+        in your account until you explicitly convert it. The base currency value of that cash changes with
+        FX rates — it's not locked in at the close date.
+    </p>
+    <p>
+        Using the current spot FX rate answers: "what would this realized gain/loss be worth in base currency
+        if I converted today?" This keeps the position summaries consistent with the equity curve's last point.
+    </p>
+
+    <h2>Reconciliation</h2>
+    <p>
+        The <code>profit_loss</code> metric is computed from the equity curve's last point:
+    </p>
+    <div class="formula-block">
+        <code>profit_loss = portfolio_value(spot) − net_deposit(spot)</code>
+    </div>
+    <p>
+        This represents <strong>total portfolio return</strong> — it includes capital gains (price movements),
+        dividends, interest, fees, and taxes.
+    </p>
+    <p>
+        The position summary's <code>unrealized + realized</code> only captures <strong>capital gains</strong>
+        (price movements). To reconcile:
+    </p>
+    <div class="formula-block">
+        <code>profit_loss = unrealized + realized + dividends + interest − fees − taxes</code>
+    </div>
+
+    <h2>Why Valuation-Date FX for Net Deposit?</h2>
+    <p>
+        If you deposit USD, it stays as USD in your account — converting it to GBP at the transaction date's
+        rate doesn't represent anything real. Using the valuation date's FX rate answers:
+        "if I converted everything to GBP on this date, what would my net investment be?"
+    </p>
+    <p>
+        This is consistent with how portfolio value is computed, and it means the equity curve's last point
+        (which uses today's spot FX for both portfolio value and net deposit) reconciles with the position
+        summaries (which also use spot FX).
+    </p>
+
+    <h2>Currency Conversions</h2>
+    <p>
+        When you convert foreign currency cash to base currency, record it as:
+    </p>
+    <ol>
+        <li>A <strong>withdrawal transaction</strong> in the foreign currency (e.g., -$5,000 USD)</li>
+        <li>A <strong>deposit transaction</strong> in the base currency (e.g., +£3,950 GBP)</li>
+    </ol>
+    <p>
+        The equity curve naturally captures the FX gain/loss from that conversion because it sees both
+        transactions on that date at that day's rate. No special "currency conversion" transaction type is needed.
+    </p>
+
+    <h2>What This Means</h2>
+    <ul>
+        <li>
+            <strong>Realized P&amp;L in base currency changes daily</strong> as FX rates move.
+            This is correct — the foreign currency cash is still exposed to FX risk until you convert it.
+        </li>
+        <li>
+            <strong>The equity curve is the single source of truth for historical performance.</strong>
+            It tells you exactly how your portfolio performed on each past date, including FX effects.
+        </li>
+        <li>
+            <strong>Position summaries tell you what's driving current profit.</strong>
+            Unrealized (price movement on open positions) and realized (locked-in gains from closed positions),
+            both valued at today's FX rates.
+        </li>
+    </ul>
+</div>
+{{end}}
+
+{{template "base" .}}

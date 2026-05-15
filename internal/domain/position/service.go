@@ -335,7 +335,14 @@ func (s *Service) convertPnlToBase(ctx context.Context, result *CalculateResult,
 
 // convertPositionPnl converts a single position's realized P&L to base currency
 // and sets FxRateUsed / FxRateFallback.
-func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx context.Context, isClosed bool) {
+//
+// Both open and closed positions use the current spot FX rate. This is because
+// the realized P&L remains as foreign currency cash in the account until
+// explicitly converted (recorded as a withdrawal+deposit pair). Using spot FX
+// answers "what is this worth in base currency today?" and keeps the
+// position summaries consistent with the equity curve's last point.
+// See docs/FX_CONVENTIONS.md for the full rationale.
+func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx context.Context, _isClosed bool) {
 	// Skip cash positions.
 	if isCashPosition(p.Symbol) {
 		return
@@ -350,25 +357,12 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 		return
 	}
 
-	// Determine the date to use for the FX rate.
-	var date time.Time
-	if p.CloseDate != nil {
-		date = *p.CloseDate
-	} else {
-		date = p.OpenDate
-	}
-
-	// Get the FX rate from cache (no live fetch fallback).
+	// Both open and closed positions use current spot FX rate.
+	// The realized P&L sits as foreign currency cash until explicitly converted.
 	var rate *market.FxRate
 	var isFallback bool
 	if s.marketService != nil {
-		if isClosed {
-			// Closed position: historical rate for the close date (forward-fill).
-			rate, _ = s.marketService.GetHistoricalFxRate(ctx, p.Currency, baseCurrency, date)
-		} else {
-			// Open position: try current spot rate.
-			rate, _ = s.marketService.GetCurrentFxRate(ctx, p.Currency, baseCurrency)
-		}
+		rate, _ = s.marketService.GetCurrentFxRate(ctx, p.Currency, baseCurrency)
 		if rate == nil {
 			isFallback = true
 		}
@@ -377,6 +371,12 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 	converted, rateUsed, fallback := ConvertPnlToBase(
 		p.RealizedPnL, p.Currency, baseCurrency, rate, isFallback,
 	)
+	if fallback {
+		// FX rate unavailable — leave RealizedPnlBase nil so the UI
+		// shows an explicit error, not a misleading zero.
+		p.FxRateFallback = true
+		return
+	}
 	p.RealizedPnlBase = &converted
 	p.FxRateUsed = rateUsed
 	p.FxRateFallback = fallback
@@ -384,7 +384,9 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 
 // ConvertPnlToBase converts realized P&L from the position currency to the
 // base currency using the given FX rate. Returns the converted value, the
-// rate used (nil if same currency), and whether a fallback was applied.
+// rate used (nil if same currency), and whether the conversion failed.
+// If no FX rate is available, returns (Zero, nil, true) — the caller should
+// treat this as a missing value, not a zero P&L.
 func ConvertPnlToBase(pnl decimal.Decimal, positionCurrency, baseCurrency string,
 	rate *market.FxRate, isFallback bool) (decimal.Decimal, *decimal.Decimal, bool) {
 
@@ -393,9 +395,8 @@ func ConvertPnlToBase(pnl decimal.Decimal, positionCurrency, baseCurrency string
 		return pnl, nil, false
 	}
 
-	// No rate available — return zero, not the unconverted value.
-	// Returning raw USD as GBP would silently corrupt totals.
-	// Matches the equity curve's behavior (convertWithFxLookup returns 0, false).
+	// No rate available — return zero with error flag.
+	// Caller must NOT use this value; it signals "conversion unavailable".
 	if rate == nil {
 		return decimal.Zero, nil, true
 	}
@@ -404,7 +405,6 @@ func ConvertPnlToBase(pnl decimal.Decimal, positionCurrency, baseCurrency string
 	// pnl_in_base = pnl * rate.
 	converted, err := pnl.Mul(rate.Rate)
 	if err != nil {
-		// On decimal error, return zero as fallback.
 		return decimal.Zero, &rate.Rate, true
 	}
 	return converted, &rate.Rate, isFallback
@@ -645,6 +645,7 @@ func (s *Service) GetClosedPositionsFiltered(ctx context.Context, filters ListFi
 // ClosedPositionSummary aggregates realized P&L across all closed positions.
 type ClosedPositionSummary struct {
 	TotalRealizedPnLB decimal.Decimal
+	HasFxErrors       bool // true if any position missing FX rate
 }
 
 // OpenPositionSummary aggregates totals across all open positions.
@@ -652,6 +653,7 @@ type OpenPositionSummary struct {
 	TotalCostBasisBase  decimal.Decimal
 	TotalMktValueBase   decimal.Decimal
 	TotalUnrealizedPnLB decimal.Decimal
+	HasFxErrors         bool // true if any position missing FX rate
 }
 
 // GetClosedPositionsSummary computes the summary from ALL closed positions
@@ -669,6 +671,9 @@ func (s *Service) GetClosedPositionsSummary(ctx context.Context, filters ListFil
 			return ClosedPositionSummary{}, fmt.Errorf("get closed positions for account %d: %w", id, err)
 		}
 		for _, p := range items {
+			if p.FxRateFallback {
+				summary.HasFxErrors = true
+			}
 			if p.RealizedPnlBase != nil {
 				summary.TotalRealizedPnLB, _ = summary.TotalRealizedPnLB.Add(*p.RealizedPnlBase)
 			}
@@ -701,6 +706,9 @@ func (s *Service) GetOpenPositionsSummary(ctx context.Context, filters ListFilte
 	for _, p := range enriched {
 		if !p.MarketDataAvailable {
 			continue
+		}
+		if p.FxRateFallback {
+			summary.HasFxErrors = true
 		}
 		if p.CostBasisBase != nil {
 			summary.TotalCostBasisBase, _ = summary.TotalCostBasisBase.Add(*p.CostBasisBase)
@@ -869,8 +877,8 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 			entry.MarketValueBase, entry.UnrealizedPnLBase = convertValuesToBase(ctx, s.marketService, p.Currency, baseCurrency, marketValue, unrealizedPnL)
 			// Cost basis in base currency: CostBasis.Abs() × FX rate.
 			if entry.MarketValueBase != nil {
-				// Derive rate from MarketValueBase / MarketValue, then apply to cost basis.
-				rate, _ := entry.MarketValueBase.Quo(marketValue)
+				// Derive FX rate from |MarketValueBase| / |MarketValue|, then apply to cost basis.
+				rate, _ := entry.MarketValueBase.Abs().Quo(marketValue.Abs())
 				cbBase, _ := p.CostBasis.Abs().Mul(rate)
 				entry.CostBasisBase = &cbBase
 			}

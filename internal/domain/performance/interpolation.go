@@ -60,6 +60,7 @@ func InterpolateDaily(
 	positions map[string]decimal.Decimal,
 	positionCurrency map[string]string,
 	cashBalance map[string]decimal.Decimal,
+	netDeposit map[string]decimal.Decimal,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
 	marketProvider MarketDataProvider,
@@ -81,7 +82,7 @@ func InterpolateDaily(
 	ff := buildPriceLookupFF(priceLookup)
 
 	// Build FX forward-fill lookup for the extended date range.
-	fxPairs := collectFxPairsForInterpolation(positionCurrency, cashBalance, baseCurrency)
+	fxPairs := collectFxPairsForInterpolation(positionCurrency, cashBalance, netDeposit, baseCurrency)
 	fxLookup := buildFxLookupForInterpolation(ctx, marketProvider, fxPairs, points, dateTo)
 
 	dateFrom := points[0].Date
@@ -109,11 +110,15 @@ func InterpolateDaily(
 		} else if lastPoint != nil {
 			// Beyond last transaction: compute portfolio value from
 			// current positions + cash + cached historical prices.
+			// Net deposit is reconverted at this date's FX rate so that
+			// profit = portfolio_value − net_deposit uses the same FX
+			// convention for both sides (valuation-date FX).
 			portfolioValue := computePortfolioValue(positions, positionCurrency, cashBalance, ff, fxLookup, baseCurrency, d)
+			netDepBase := computeNetDeposit(netDeposit, fxLookup, baseCurrency, d)
 			result = append(result, EquityCurvePoint{
 				Date:           d,
 				PortfolioValue: portfolioValue,
-				NetDeposit:     lastNetDeposit,
+				NetDeposit:     netDepBase,
 				NavPerUnit:     lastPoint.NavPerUnit,
 				Units:          lastPoint.Units,
 			})
@@ -170,4 +175,27 @@ func computePortfolioValue(
 	}
 
 	return portfolioValue
+}
+
+// computeNetDeposit converts the cumulative net deposit (by currency) to
+// base currency using the given date's FX rate. This ensures the equity
+// curve's net deposit uses valuation-date FX, consistent with portfolio value.
+func computeNetDeposit(
+	netDeposit map[string]decimal.Decimal,
+	fxLookup map[string]*fxLookupFF,
+	baseCurrency string,
+	date time.Time,
+) decimal.Decimal {
+	var netDepBase decimal.Decimal
+	for currency, deposit := range netDeposit {
+		if currency != baseCurrency {
+			converted, ok := convertWithFxLookup(fxLookup, currency, baseCurrency, deposit, date)
+			if !ok {
+				continue // skip — can't include unconverted value
+			}
+			deposit = converted
+		}
+		netDepBase, _ = netDepBase.Add(deposit)
+	}
+	return netDepBase
 }

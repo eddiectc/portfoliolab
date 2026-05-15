@@ -124,7 +124,8 @@ func ComputeEquityCurve(
 	lastSnap := finalState
 	points = InterpolateDaily(
 		points, dateTo, lastSnap.positions, lastSnap.positionCurrency,
-		lastSnap.cashBalance, pricesBySymbol, baseCurrency, marketProvider, ctx,
+		lastSnap.cashBalance, lastSnap.netDeposit, pricesBySymbol, baseCurrency,
+		marketProvider, ctx,
 	)
 
 	if logger != nil {

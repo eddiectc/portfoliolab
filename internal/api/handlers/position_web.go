@@ -71,6 +71,7 @@ type positionListPageData struct {
 // closedPositionSummary holds aggregated totals for the closed positions summary panel.
 type closedPositionSummary struct {
 	TotalRealizedPnLB string // total realized P&L in base currency
+	HasFxErrors       bool   // true if any position missing FX rate
 }
 
 // positionSummary holds aggregated totals for the open positions summary panel.
@@ -79,6 +80,7 @@ type positionSummary struct {
 	TotalMktValueBase   string
 	TotalUnrealizedPnLB string
 	TotalUnrealizedPnLP string // total unrealized P&L %
+	HasFxErrors         bool   // true if any position missing FX rate
 }
 
 // openPositionListPageData is the data struct for the open positions template,
@@ -378,6 +380,7 @@ func toPositionSummary(s position.OpenPositionSummary) positionSummary {
 		TotalMktValueBase:   s.TotalMktValueBase.String(),
 		TotalUnrealizedPnLB: s.TotalUnrealizedPnLB.String(),
 		TotalUnrealizedPnLP: pnlPct,
+		HasFxErrors:         s.HasFxErrors,
 	}
 }
 
@@ -386,5 +389,6 @@ func toPositionSummary(s position.OpenPositionSummary) positionSummary {
 func toClosedPositionSummary(s position.ClosedPositionSummary) closedPositionSummary {
 	return closedPositionSummary{
 		TotalRealizedPnLB: s.TotalRealizedPnLB.String(),
+		HasFxErrors:       s.HasFxErrors,
 	}
 }
