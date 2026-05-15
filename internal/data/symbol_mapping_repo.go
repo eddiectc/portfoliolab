@@ -221,6 +221,20 @@ func (r *SymbolMappingRepository) ListBenchmarks(ctx context.Context) ([]symbolm
 	return mappings, nil
 }
 
+// IsBenchmark checks if the given market_data_symbol is marked as a benchmark.
+func (r *SymbolMappingRepository) IsBenchmark(ctx context.Context, marketDataSymbol string) (bool, error) {
+	benchmarks, err := r.ListBenchmarks(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, bm := range benchmarks {
+		if bm.MarketDataSymbol == marketDataSymbol {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // HasReferencingTransactions checks if any transactions reference this symbol mapping.
 // Stub: returns false until the transaction feature (f004) is implemented.
 // TODO(f004): Replace with actual check against transactions table.

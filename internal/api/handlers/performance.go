@@ -19,10 +19,16 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
+// benchmarkValidator checks if a market data symbol is a user-defined benchmark.
+type benchmarkValidator interface {
+	IsBenchmark(ctx context.Context, marketDataSymbol string) (bool, error)
+}
+
 // PerformanceHandler handles HTTP requests for portfolio performance analytics.
 type PerformanceHandler struct {
 	positionSvc   *position.Service
 	marketService position.MarketDataService
+	validator     benchmarkValidator
 }
 
 // NewPerformanceHandler creates a new performance HTTP handler.
@@ -31,6 +37,11 @@ func NewPerformanceHandler(positionSvc *position.Service, marketService position
 		positionSvc:   positionSvc,
 		marketService: marketService,
 	}
+}
+
+// WithBenchmarkValidator sets the benchmark validator for the handler.
+func (h *PerformanceHandler) WithBenchmarkValidator(v benchmarkValidator) {
+	h.validator = v
 }
 
 // RegisterRoutes mounts performance routes on the given router.
@@ -48,9 +59,20 @@ func (h *PerformanceHandler) HandlePerformance(w http.ResponseWriter, r *http.Re
 	fields := parseFields(r.URL.Query())
 
 	// Validate benchmark ticker if provided.
-	if filters.Benchmark != "" && !comparison.IsValidPredefined(filters.Benchmark) {
-		writeJSONError(w, http.StatusBadRequest, "INVALID_BENCHMARK", "benchmark ticker is not a predefined benchmark")
-		return
+	if filters.Benchmark != "" {
+		if h.validator == nil {
+			writeJSONError(w, http.StatusBadRequest, "INVALID_BENCHMARK", "benchmark validation not configured")
+			return
+		}
+		ok, err := h.validator.IsBenchmark(r.Context(), filters.Benchmark)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to validate benchmark")
+			return
+		}
+		if !ok {
+			writeJSONError(w, http.StatusBadRequest, "INVALID_BENCHMARK", "benchmark ticker is not a user-defined benchmark")
+			return
+		}
 	}
 
 	result, err := h.computeResult(r.Context(), filters)

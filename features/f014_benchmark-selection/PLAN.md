@@ -125,15 +125,15 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** Scenario: Multiple benchmarks selected, Benchmark historical data unavailable
 **Description:** Remove the `comparison.IsValidPredefined` validation. Validate benchmark against user-defined benchmarks from symbol mappings.
 
-- [ ] Add optional `BenchmarkValidator` interface to `PerformanceHandler`:
+- [x] Add optional `BenchmarkValidator` interface to `PerformanceHandler`:
   ```go
   type benchmarkValidator interface {
       IsBenchmark(ctx context.Context, marketDataSymbol string) bool
   }
   ```
-- [ ] Add `WithBenchmarkValidator(v benchmarkValidator) *PerformanceHandler` option
-- [ ] Replace `comparison.IsValidPredefined` check in `HandlePerformance` with `h.validator.IsBenchmark(ctx, filters.Benchmark)` (if validator nil, reject with error)
-- [ ] Write tests:
+- [x] Add `WithBenchmarkValidator(v benchmarkValidator) *PerformanceHandler` option
+- [x] Replace `comparison.IsValidPredefined` check in `HandlePerformance` with `h.validator.IsBenchmark(ctx, filters.Benchmark)` (if validator nil, reject with error)
+- [x] Write tests:
   - `TestHandlePerformance_ValidBenchmark` — benchmark from symbol mappings accepted
   - `TestHandlePerformance_InvalidBenchmark` — symbol not marked as benchmark rejected
   - `TestHandlePerformance_NoBenchmark` — empty benchmark works (no comparison)
