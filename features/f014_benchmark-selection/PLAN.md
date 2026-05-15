@@ -79,18 +79,18 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** Scenario: Create symbol with benchmark flag, Toggle benchmark flag, Multiple benchmarks selected
 **Description:** Add a "Use as benchmark" checkbox to the symbol mapping create/edit forms and display benchmark status in the list view. Checkbox is a regular form field — saves on submit alongside all other fields.
 
-- [ ] Update `symbolMappingFormPageData` struct: add `IsBenchmark bool`
-- [ ] Update `HandleNewPage`: initialize `IsBenchmark` to false
-- [ ] Update `HandleCreatePage`: read `r.FormValue("is_benchmark")` (checkbox sends "on" or nothing), set `req.IsBenchmark` accordingly
-- [ ] Update `HandleEditPage`: populate `IsBenchmark` from existing symbol mapping
-- [ ] Update `HandleUpdatePage`: read checkbox value, compare with current, set `req.IsBenchmark` (pointer — only send if changed)
-- [ ] Update `HandleListPage`: pass benchmark info to template
-- [ ] Update `templates/symbol_mapping/form.html`:
+- [x] Update `symbolMappingFormPageData` struct: add `IsBenchmark bool`
+- [x] Update `HandleNewPage`: initialize `IsBenchmark` to false
+- [x] Update `HandleCreatePage`: read `r.FormValue("is_benchmark")` (checkbox sends "on" or nothing), set `req.IsBenchmark` accordingly
+- [x] Update `HandleEditPage`: populate `IsBenchmark` from existing symbol mapping
+- [x] Update `HandleUpdatePage`: read checkbox value, compare with current, set `req.IsBenchmark` (pointer — only send if changed)
+- [x] Update `HandleListPage`: pass benchmark info to template
+- [x] Update `templates/symbol_mapping/form.html`:
   - Add checkbox: `<input type="checkbox" id="is_benchmark" name="is_benchmark" {{if .IsBenchmark}}checked{{end}}> Use as benchmark`
   - Add help text: "Enables full historical price caching for portfolio performance comparison"
-- [ ] Update `templates/symbol_mapping/list.html`:
+- [x] Update `templates/symbol_mapping/list.html`:
   - Add "Benchmark" column with a badge/indicator for benchmark symbols
-- [ ] Write web tests:
+- [x] Write web tests:
   - `TestHandleCreatePage_WithBenchmark` — form submission with checkbox checked creates benchmark
   - `TestHandleCreatePage_WithoutBenchmark` — form submission without checkbox creates non-benchmark
   - `TestHandleEditPage_LoadsBenchmark` — edit page shows checkbox checked for benchmark symbol

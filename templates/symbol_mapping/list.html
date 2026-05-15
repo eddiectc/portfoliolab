@@ -13,6 +13,7 @@
         <tr>
             <th>Internal Symbol</th>
             <th>Market Data Symbol</th>
+            <th>Benchmark</th>
             <th>Broker Symbols</th>
             <th>Actions</th>
         </tr>
@@ -22,6 +23,7 @@
         <tr>
             <td><strong>{{.InternalSymbol}}</strong></td>
             <td>{{.MarketDataSymbol}}</td>
+            <td>{{if .IsBenchmark}}<span class="badge badge-primary">Yes</span>{{else}}—{{end}}</td>
             <td>
                 {{if .BrokerSymbols}}
                 {{range .BrokerSymbols}}
