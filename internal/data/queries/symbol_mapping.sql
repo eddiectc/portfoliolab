@@ -1,6 +1,6 @@
 -- name: CreateSymbolMapping :one
-INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, created_at, updated_at)
-VALUES (?, ?, ?, ?)
+INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetSymbolMapping :one
@@ -16,7 +16,7 @@ LIMIT ? OFFSET ?;
 
 -- name: UpdateSymbolMapping :one
 UPDATE symbol_mappings
-SET internal_symbol = ?, market_data_symbol = ?, updated_at = ?
+SET internal_symbol = ?, market_data_symbol = ?, is_benchmark = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
 
@@ -43,3 +43,6 @@ DELETE FROM broker_symbol_mappings WHERE id = ?;
 
 -- name: DeleteBrokerSymbolsByMappingID :exec
 DELETE FROM broker_symbol_mappings WHERE symbol_mapping_id = ?;
+
+-- name: ListBenchmarkSymbols :many
+SELECT * FROM symbol_mappings WHERE is_benchmark = 1 ORDER BY internal_symbol;

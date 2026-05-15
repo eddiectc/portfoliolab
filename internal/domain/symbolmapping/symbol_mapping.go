@@ -17,6 +17,7 @@ type SymbolMapping struct {
 	ID               int64          `json:"id"`
 	InternalSymbol   string         `json:"internal_symbol"`
 	MarketDataSymbol string         `json:"market_data_symbol"`
+	IsBenchmark      bool           `json:"is_benchmark"`
 	BrokerSymbols    []BrokerSymbol `json:"broker_symbols"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
@@ -26,6 +27,7 @@ type SymbolMapping struct {
 type CreateRequest struct {
 	InternalSymbol   string                `json:"internal_symbol"`
 	MarketDataSymbol string                `json:"market_data_symbol"`
+	IsBenchmark      bool                  `json:"is_benchmark"`
 	BrokerSymbols    []BrokerSymbolRequest `json:"broker_symbols,omitempty"`
 }
 
@@ -39,4 +41,5 @@ type BrokerSymbolRequest struct {
 type UpdateRequest struct {
 	InternalSymbol   *string `json:"internal_symbol,omitempty"`
 	MarketDataSymbol *string `json:"market_data_symbol,omitempty"`
+	IsBenchmark      *bool   `json:"is_benchmark,omitempty"`
 }

@@ -27,17 +27,17 @@ Tasks 2-5 can be implemented in parallel after Task 1. Tasks 6-7 depend on their
 **Corresponds to:** All scenarios (foundation)
 **Description:** Add `is_benchmark` boolean column to the `symbol_mappings` table, update sqlc queries, regenerate types, and add the field to domain models and DTOs.
 
-- [ ] Create migration `015_add_is_benchmark_to_symbol_mappings.sql` (ADD COLUMN `is_benchmark BOOLEAN NOT NULL DEFAULT 0`; down migration drops it)
-- [ ] Update `internal/data/queries/symbol_mapping.sql`:
+- [x] Create migration `015_add_is_benchmark_to_symbol_mappings.sql` (ADD COLUMN `is_benchmark BOOLEAN NOT NULL DEFAULT 0`; down migration drops it)
+- [x] Update `internal/data/queries/symbol_mapping.sql`:
   - `CreateSymbolMapping`: add `is_benchmark` to INSERT columns and VALUES
   - `UpdateSymbolMapping`: add `is_benchmark` to SET clause
   - Add new query `ListBenchmarkSymbols`: `SELECT * FROM symbol_mappings WHERE is_benchmark = 1 ORDER BY internal_symbol`
-- [ ] Run `sqlc generate` to regenerate Go types
-- [ ] Update `internal/domain/symbolmapping/symbol_mapping.go`:
+- [x] Run `sqlc generate` to regenerate Go types
+- [x] Update `internal/domain/symbolmapping/symbol_mapping.go`:
   - Add `IsBenchmark bool` to `SymbolMapping` struct
   - Add `IsBenchmark bool` to `CreateRequest` struct
   - Add `IsBenchmark *bool` to `UpdateRequest` struct (pointer for omit-on-nil semantics)
-- [ ] Update `internal/data/symbol_mapping_repo.go`:
+- [x] Update `internal/data/symbol_mapping_repo.go`:
   - `toSymbolMapping()`: map `IsBenchmark` from sqlc model
   - `Create()`: pass `IsBenchmark` in params
   - `Update()`: pass `IsBenchmark` in params

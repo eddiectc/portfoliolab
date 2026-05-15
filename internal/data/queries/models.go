@@ -96,6 +96,7 @@ type SymbolMapping struct {
 	ID               int64  `db:"id"`
 	InternalSymbol   string `db:"internal_symbol"`
 	MarketDataSymbol string `db:"market_data_symbol"`
+	IsBenchmark      bool   `db:"is_benchmark"`
 	CreatedAt        string `db:"created_at"`
 	UpdatedAt        string `db:"updated_at"`
 }
