@@ -320,6 +320,23 @@ func (m *mockPerfMarketService) RefreshFxRates(_ context.Context, _ []marketserv
 	return marketservice.FxRefreshResult{}
 }
 
+// mockBenchmarkValidator implements benchmarkValidator for tests.
+type mockBenchmarkValidator struct {
+	benchmarks map[string]bool
+}
+
+func newMockBenchmarkValidator(tickers ...string) *mockBenchmarkValidator {
+	m := &mockBenchmarkValidator{benchmarks: make(map[string]bool)}
+	for _, t := range tickers {
+		m.benchmarks[t] = true
+	}
+	return m
+}
+
+func (m *mockBenchmarkValidator) IsBenchmark(_ context.Context, symbol string) (bool, error) {
+	return m.benchmarks[symbol], nil
+}
+
 // --- Test helpers ---
 
 func perfTxn(accountID int64, date time.Time, typ, symbol, currency string, qty, price, netCash int64) transaction.Transaction {
@@ -719,7 +736,9 @@ func TestPerfHandlePerformance_InvalidBenchmark(t *testing.T) {
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
+	validator := newMockBenchmarkValidator("^GSPC")
 	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=AAPL", nil)
 	w := httptest.NewRecorder()
@@ -743,7 +762,9 @@ func TestPerfHandlePerformance_ValidBenchmarkNoData(t *testing.T) {
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
+	validator := newMockBenchmarkValidator("^GSPC")
 	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^GSPC", nil)
 	w := httptest.NewRecorder()
@@ -778,7 +799,9 @@ func TestPerfHandlePerformance_ValidBenchmarkWithData(t *testing.T) {
 		perfHistPrice(perfTime(2025, 1, 2), 58000, "USD"),
 	})
 
+	validator := newMockBenchmarkValidator("^GSPC")
 	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^GSPC", nil)
 	w := httptest.NewRecorder()
@@ -820,7 +843,9 @@ func TestPerfHandlePerformance_BenchmarkWithPeriod(t *testing.T) {
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
+	validator := newMockBenchmarkValidator("^GSPC")
 	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^GSPC&period=1Y", nil)
 	w := httptest.NewRecorder()
@@ -844,7 +869,9 @@ func TestPerfParseFilters_Benchmark(t *testing.T) {
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
+	validator := newMockBenchmarkValidator("^IXIC")
 	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^IXIC", nil)
 	w := httptest.NewRecorder()
@@ -913,7 +940,9 @@ func TestPerfParseFilters_Mode_WithBenchmarkAndPeriod(t *testing.T) {
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
+	validator := newMockBenchmarkValidator("^GSPC")
 	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&mode=nav&benchmark=^GSPC&period=1Y", nil)
 	w := httptest.NewRecorder()
@@ -1229,22 +1258,96 @@ func TestPerfHandlePerformance_FieldsMultiple(t *testing.T) {
 	}
 }
 
-func TestPerfHandlePerformance_AllPredefinedBenchmarks(t *testing.T) {
+func TestHandlePerformance_ValidBenchmark(t *testing.T) {
 	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
 	accountLister.accountsByPortfolio[1] = []position.AccountRef{
 		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
 	}
 
+	validator := newMockBenchmarkValidator("^GSPC", "^IXIC")
 	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
 
-	// All 5 predefined tickers should be accepted (200, not 400)
-	benchmarks := []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"}
-	for _, bm := range benchmarks {
+	for _, bm := range []string{"^GSPC", "^IXIC"} {
 		req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark="+bm, nil)
 		w := httptest.NewRecorder()
 		handler.HandlePerformance(w, req)
 		if w.Code != http.StatusOK {
 			t.Errorf("expected 200 for benchmark %s, got %d", bm, w.Code)
 		}
+	}
+}
+
+func TestHandlePerformance_InvalidBenchmark(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	validator := newMockBenchmarkValidator("^GSPC")
+	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=MSFT", nil)
+	w := httptest.NewRecorder()
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "INVALID_BENCHMARK" {
+		t.Errorf("expected INVALID_BENCHMARK, got %q", errResp.Code)
+	}
+}
+
+func TestHandlePerformance_NoBenchmark(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	validator := newMockBenchmarkValidator("^GSPC")
+	handler := NewPerformanceHandler(svc, marketSvc)
+	handler.WithBenchmarkValidator(validator)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1", nil)
+	w := httptest.NewRecorder()
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var result performance.PerformanceResult
+	json.NewDecoder(w.Body).Decode(&result)
+	if result.BenchmarkTicker != "" {
+		t.Errorf("expected empty benchmark ticker, got %q", result.BenchmarkTicker)
+	}
+}
+
+func TestHandlePerformance_NoValidator_RejectsBenchmark(t *testing.T) {
+	svc, _, accountLister, _, _, marketSvc := newPerfService([]int64{1}, []int64{})
+	accountLister.accountsByPortfolio[1] = []position.AccountRef{
+		{ID: 1, Name: "Test", PortfolioID: 1, PortfolioCurrency: "USD"},
+	}
+
+	// Handler without benchmark validator
+	handler := NewPerformanceHandler(svc, marketSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/performance?portfolio_id=1&benchmark=^GSPC", nil)
+	w := httptest.NewRecorder()
+	handler.HandlePerformance(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "INVALID_BENCHMARK" {
+		t.Errorf("expected INVALID_BENCHMARK, got %q", errResp.Code)
 	}
 }
