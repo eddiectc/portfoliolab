@@ -403,6 +403,40 @@ func TestService_Create_SkipsEmptyBrokerSymbols(t *testing.T) {
 	}
 }
 
+// --- Create Benchmark Tests ---
+
+func TestService_Create_WithBenchmark_PersistsFlag(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "SPX",
+		MarketDataSymbol: "^GSPC",
+		IsBenchmark:      true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !sm.IsBenchmark {
+		t.Error("expected IsBenchmark to be true")
+	}
+}
+
+func TestService_Create_WithoutBenchmark_DefaultsFalse(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+		IsBenchmark:      false,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.IsBenchmark {
+		t.Error("expected IsBenchmark to be false")
+	}
+}
+
 // --- Get Tests ---
 
 func TestService_Get(t *testing.T) {
@@ -625,6 +659,69 @@ func TestService_Update_SymbolTrimming(t *testing.T) {
 	}
 	if sm.InternalSymbol != "AAPL" {
 		t.Errorf("expected trimmed internal symbol 'AAPL', got %q", sm.InternalSymbol)
+	}
+}
+
+func TestService_Update_EnableBenchmark(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	repo.mappings[1] = &SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "SPX",
+		MarketDataSymbol: "^GSPC",
+		IsBenchmark:      false,
+	}
+	repo.byInternal["SPX"] = 1
+
+	enable := true
+	sm, err := svc.Update(context.Background(), 1, UpdateRequest{IsBenchmark: &enable})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !sm.IsBenchmark {
+		t.Error("expected IsBenchmark to be true after enabling")
+	}
+}
+
+func TestService_Update_DisableBenchmark(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	repo.mappings[1] = &SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "SPX",
+		MarketDataSymbol: "^GSPC",
+		IsBenchmark:      true,
+	}
+	repo.byInternal["SPX"] = 1
+
+	disable := false
+	sm, err := svc.Update(context.Background(), 1, UpdateRequest{IsBenchmark: &disable})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.IsBenchmark {
+		t.Error("expected IsBenchmark to be false after disabling")
+	}
+}
+
+func TestService_Update_IsBenchmarkNil_NoChange(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	repo.mappings[1] = &SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "SPX",
+		MarketDataSymbol: "^GSPC",
+		IsBenchmark:      true,
+	}
+	repo.byInternal["SPX"] = 1
+
+	// Send empty UpdateRequest (IsBenchmark is nil) — flag should stay unchanged
+	sm, err := svc.Update(context.Background(), 1, UpdateRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !sm.IsBenchmark {
+		t.Error("expected IsBenchmark to remain true when nil in update request")
 	}
 }
 
