@@ -229,6 +229,69 @@ func TestMarketDataRepository_GetCurrentFxRate_NotFound(t *testing.T) {
 	}
 }
 
+func TestMarketDataRepository_GetHistoricalFxRateOnOrBefore(t *testing.T) {
+	db := setupMarketDataDB(t)
+	repo := NewMarketDataRepository(db)
+
+	// Insert FX rates for multiple dates.
+	rates := []struct {
+		date  string
+		price float64
+	}{
+		{"2024-01-10", 1.2700},
+		{"2024-01-12", 1.2750},
+		{"2024-01-15", 1.2800},
+	}
+	for _, r := range rates {
+		price, _ := decimal.NewFromFloat64(r.price)
+		md := &market.MarketData{
+			Symbol:   "GBP/USD",
+			Price:    price,
+			Currency: "USD",
+			DataType: "fx",
+			Source:   "yahoo",
+			Date:     r.date,
+			FetchedAt: time.Now(),
+		}
+		repo.Upsert(context.Background(), md)
+	}
+
+	// Exact match.
+	got, err := repo.GetHistoricalFxRateOnOrBefore(context.Background(), "GBP/USD", "yahoo", "2024-01-15")
+	if err != nil {
+		t.Fatalf("GetHistoricalFxRateOnOrBefore: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected non-nil result for exact match")
+	}
+	want, _ := decimal.NewFromFloat64(1.2800)
+	if !got.Price.Equal(want) {
+		t.Errorf("Price = %s, want %s", got.Price.String(), want.String())
+	}
+
+	// Forward-fill: query Jan 14, should return Jan 12 rate.
+	got, err = repo.GetHistoricalFxRateOnOrBefore(context.Background(), "GBP/USD", "yahoo", "2024-01-14")
+	if err != nil {
+		t.Fatalf("GetHistoricalFxRateOnOrBefore: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected non-nil result for forward-fill")
+	}
+	want, _ = decimal.NewFromFloat64(1.2750)
+	if !got.Price.Equal(want) {
+		t.Errorf("Price = %s, want %s (forward-fill from Jan 12)", got.Price.String(), want.String())
+	}
+
+	// Before all data: should return nil.
+	got, err = repo.GetHistoricalFxRateOnOrBefore(context.Background(), "GBP/USD", "yahoo", "2024-01-01")
+	if err != nil {
+		t.Fatalf("GetHistoricalFxRateOnOrBefore: %v", err)
+	}
+	if got != nil {
+		t.Errorf("expected nil for date before all data, got %+v", got)
+	}
+}
+
 func TestMarketDataRepository_MultipleSources(t *testing.T) {
 	db := setupMarketDataDB(t)
 	repo := NewMarketDataRepository(db)

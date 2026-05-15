@@ -2,6 +2,7 @@ package marketservice
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -130,6 +131,27 @@ func (m *mockRepo) GetBySourceAndDate(_ context.Context, symbol, _, date string)
 		return md, nil
 	}
 	return nil, nil
+}
+
+func (m *mockRepo) GetHistoricalFxRateOnOrBefore(_ context.Context, symbol, _, date string) (*market.MarketData, error) {
+	if m.fxRates == nil {
+		return nil, nil
+	}
+	// Forward-fill: find latest entry on or before the given date.
+	// Keys are "BASE/QUOTE:date" format.
+	var best *market.MarketData
+	for key, md := range m.fxRates {
+		if !strings.HasPrefix(key, symbol+":") {
+			continue
+		}
+		entryDate := strings.TrimPrefix(key, symbol+":")
+		if entryDate <= date && entryDate != "" {
+			if best == nil || entryDate > best.Date {
+				best = md
+			}
+		}
+	}
+	return best, nil
 }
 
 // --- GetQuotes tests ---
@@ -425,6 +447,27 @@ func TestGetHistoricalFxRate_NotCached(t *testing.T) {
 	}
 	if fx != nil {
 		t.Errorf("expected nil, got %v", fx)
+	}
+}
+
+func TestGetHistoricalFxRate_ForwardFill(t *testing.T) {
+	// Cached rate for Jan 10, query for Jan 15 — should forward-fill from Jan 10.
+	rate := decimal.MustNew(12700, 2)
+	svc := New(nil, &mockRepo{
+		fxRates: map[string]*market.MarketData{
+			"GBP/USD:2024-01-10": {Symbol: "GBP/USD", Price: rate, Currency: "USD", DataType: "fx", Date: "2024-01-10"},
+		},
+	})
+
+	fx, err := svc.GetHistoricalFxRate(ctx, "GBP", "USD", time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fx == nil {
+		t.Fatal("expected non-nil rate (forward-fill from Jan 10)")
+	}
+	if !fx.Rate.Equal(rate) {
+		t.Errorf("expected rate %s, got %s", rate.String(), fx.Rate.String())
 	}
 }
 

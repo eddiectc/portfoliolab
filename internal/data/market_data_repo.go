@@ -80,6 +80,23 @@ func (r *MarketDataRepository) GetBySourceAndDate(ctx context.Context, symbol, s
 	return toMarketDatum(m)
 }
 
+// GetHistoricalFxRateOnOrBefore retrieves the latest FX rate on or before the
+// given date (forward-fill). Returns nil if no rate found.
+func (r *MarketDataRepository) GetHistoricalFxRateOnOrBefore(ctx context.Context, symbol, source, date string) (*market.MarketData, error) {
+	m, err := r.q.GetHistoricalFxRateOnOrBefore(ctx, r.db, queries.GetHistoricalFxRateOnOrBeforeParams{
+		Symbol: symbol,
+		Date:   date,
+		Source: source,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get historical FX rate on or before %s/%s/%s: %w", symbol, source, date, err)
+	}
+	return toMarketDatum(m)
+}
+
 // Upsert inserts or updates a market data entry. Uses ON CONFLICT(symbol,
 // source, date) to update price/currency/data_type/fetched_at when a duplicate
 // is found.
