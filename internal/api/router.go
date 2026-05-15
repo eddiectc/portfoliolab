@@ -191,6 +191,11 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/portfolios", http.StatusSeeOther)
 		})
+
+		// Help pages
+		r.Get("/help/fx", func(w http.ResponseWriter, r *http.Request) {
+			renderer.Render(w, "help/fx_conventions", web.PageData{Title: "FX Conventions"})
+		})
 	}
 
 	return r, marketCache

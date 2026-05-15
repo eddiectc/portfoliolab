@@ -9,6 +9,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/govalues/decimal"
 )
 
 // ComputeEquityCurve computes the portfolio equity curve for the given filters.
@@ -102,10 +103,98 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters performance.Pe
 	}
 
 	// 6. Delegate to performance package for computation.
-	return performance.ComputeEquityCurve(
+	result, err := performance.ComputeEquityCurve(
 		ctx, allTxns, pricesBySymbol, baseCurrency,
 		dateFrom, dateTo, s, s.logger,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 7. Compute profit breakdown so the numbers reconcile:
+	//    profit_loss = unrealized + realized + dividends + interest - fees - taxes
+	listFilters := ListFilters{AccountIDs: &accountIDs}
+
+	// Position P&L from summaries.
+	openSummary, errOpen := s.GetOpenPositionsSummary(ctx, listFilters, baseCurrency)
+	closedSummary, errClosed := s.GetClosedPositionsSummary(ctx, listFilters, baseCurrency)
+	if errOpen == nil {
+		result.ReturnMetrics.UnrealizedPnL = &openSummary.TotalUnrealizedPnLB
+	}
+	if errClosed == nil {
+		result.ReturnMetrics.RealizedPnL = &closedSummary.TotalRealizedPnLB
+	}
+
+	// Aggregate dividends, interest, fees, taxes from transactions.
+	result.ReturnMetrics.Dividends, result.ReturnMetrics.Interest,
+		result.ReturnMetrics.Fees, result.ReturnMetrics.Taxes =
+		aggregateCashFlowTransactions(allTxns, baseCurrency, s)
+
+	return result, nil
+}
+
+// aggregateCashFlowTransactions sums dividends, interest, fees, and taxes from
+// all transactions, converting foreign currency amounts to base currency.
+// Returns (dividends, interest, fees, taxes) — fees and taxes are negative values.
+func aggregateCashFlowTransactions(txns []transaction.Transaction, baseCurrency string, svc *Service) (*decimal.Decimal, *decimal.Decimal, *decimal.Decimal, *decimal.Decimal) {
+	var dividends, interest, fees, taxes decimal.Decimal
+
+	// Collect unique foreign currencies for FX lookup.
+	fxCurrencies := make(map[string]bool)
+	for _, t := range txns {
+		if t.Currency != baseCurrency && t.Currency != "" {
+			fxCurrencies[t.Currency] = true
+		}
+	}
+
+	// Fetch spot FX rates for foreign currencies.
+	fxRates := make(map[string]decimal.Decimal)
+	if svc.marketService != nil {
+		ctx := context.Background()
+		for cur := range fxCurrencies {
+			rate, err := svc.marketService.GetCurrentFxRate(ctx, cur, baseCurrency)
+			if err == nil && rate != nil {
+				fxRates[cur] = rate.Rate
+			}
+		}
+	}
+
+	for _, t := range txns {
+		var amount decimal.Decimal
+		switch t.Type {
+		case "dividend":
+			amount = t.NetCash
+		case "interest":
+			amount = t.NetCash
+		case "fee":
+			amount = t.NetCash // already negative
+		case "tax":
+			amount = t.NetCash // already negative
+		default:
+			continue
+		}
+
+		// Convert to base currency if needed.
+		if t.Currency != baseCurrency {
+			if rate, ok := fxRates[t.Currency]; ok {
+				amount, _ = amount.Mul(rate)
+			}
+			// If no FX rate available, skip (don't silently drop — but don't fail either)
+		}
+
+		switch t.Type {
+		case "dividend":
+			dividends, _ = dividends.Add(amount)
+		case "interest":
+			interest, _ = interest.Add(amount)
+		case "fee":
+			fees, _ = fees.Add(amount)
+		case "tax":
+			taxes, _ = taxes.Add(amount)
+		}
+	}
+
+	return &dividends, &interest, &fees, &taxes
 }
 
 // resolveAccountsForPerformance resolves account IDs from performance filters.

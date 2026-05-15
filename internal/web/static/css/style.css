@@ -888,6 +888,24 @@ legend {
     text-decoration: none;
 }
 
+/* Error text — used for missing FX rates and other data issues */
+.error-text {
+    color: #dc3545;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+/* Info text — used for explanatory notes below summary panels */
+.info-text {
+    color: #6c757d;
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+    margin-bottom: 1rem;
+}
+.info-text a {
+    color: #0066cc;
+}
+
 /* Period selector buttons */
 .period-buttons {
     display: flex;
@@ -1037,6 +1055,61 @@ legend {
 }
 
 .metrics-value.num {
+    text-align: right;
+}
+
+/* Profit breakdown toggle */
+.breakdown-toggle-btn {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0 0.2rem;
+    margin-left: 0.2rem;
+    font-family: inherit;
+    line-height: 1;
+    vertical-align: middle;
+    transition: color 0.15s;
+}
+
+.breakdown-toggle-btn:hover {
+    color: #555;
+}
+
+/* Profit breakdown table */
+.metrics-breakdown {
+    background: transparent;
+}
+
+.metrics-breakdown td {
+    padding: 0.25rem 0.75rem 0.5rem 1.5rem !important;
+}
+
+.breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.breakdown-table tr:hover {
+    background: transparent;
+}
+
+.breakdown-label {
+    color: #888;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.75rem;
+}
+
+.breakdown-value {
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    padding: 0.1rem 0.5rem;
+}
+
+.breakdown-value.num {
     text-align: right;
 }
 

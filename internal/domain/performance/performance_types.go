@@ -54,6 +54,15 @@ type ReturnMetrics struct {
 	HoldingPeriodMWRPct     *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
 	SimpleReturnPct         *decimal.Decimal `json:"simple_return_pct,omitempty"`         // Total profit / total net deposit (%). Nil when net deposit ≤ 0.
 	AnnualizedSimpleReturnPct *decimal.Decimal `json:"annualized_simple_return_pct,omitempty"` // Annualized simple return. Nil when simple return is nil or zero days elapsed.
+	// Profit breakdown — sum of these equals profit_loss.
+	// UnrealizedPnL and RealizedPnL come from position summaries (capital gains only).
+	// Dividends, Interest, Fees, Taxes come from transaction aggregation.
+	UnrealizedPnL    *decimal.Decimal `json:"unrealized_pnl,omitempty"`    // Open position price gains/losses
+	RealizedPnL      *decimal.Decimal `json:"realized_pnl,omitempty"`      // Closed position locked-in gains/losses
+	Dividends        *decimal.Decimal `json:"dividends,omitempty"`         // Dividend income
+	Interest         *decimal.Decimal `json:"interest,omitempty"`          // Interest income
+	Fees             *decimal.Decimal `json:"fees,omitempty"`              // Transaction and other fees (negative)
+	Taxes            *decimal.Decimal `json:"taxes,omitempty"`             // Tax withholdings (negative)
 	HasInsufficientData     bool             `json:"has_insufficient_data"`
 }
 

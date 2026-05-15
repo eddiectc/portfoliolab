@@ -103,7 +103,7 @@ func TestWalkTxns_DepositSharesDateWithBuy(t *testing.T) {
 // --- Tests for InterpolateDaily ---
 
 func TestInterpolateDaily_NoPoints(t *testing.T) {
-	result := InterpolateDaily(nil, testTime(2024, 1, 20), nil, nil, nil, nil, "USD", nil, context.Background())
+	result := InterpolateDaily(nil, testTime(2024, 1, 20), nil, nil, nil, nil, nil, "USD", nil, context.Background())
 	if result != nil {
 		t.Error("expected nil, got non-nil")
 	}
@@ -113,7 +113,7 @@ func TestInterpolateDaily_SinglePoint(t *testing.T) {
 	points := []EquityCurvePoint{
 		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustParse("1000.00"), NetDeposit: decimal.MustParse("1000.00")},
 	}
-	result := InterpolateDaily(points, testTime(2024, 1, 15), nil, nil, nil, nil, "USD", nil, context.Background())
+	result := InterpolateDaily(points, testTime(2024, 1, 15), nil, nil, nil, nil, nil, "USD", nil, context.Background())
 	if len(result) != 1 {
 		t.Errorf("expected 1 point, got %d", len(result))
 	}
@@ -132,7 +132,7 @@ func TestInterpolateDaily_FillsGaps(t *testing.T) {
 		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustParse("1500.00"), NetDeposit: decimal.MustParse("1000.00")},
 		{Date: testTime(2024, 1, 17), PortfolioValue: decimal.MustParse("1550.00"), NetDeposit: decimal.MustParse("1000.00")},
 	}
-	result := InterpolateDaily(points, testTime(2024, 1, 17), positions, positionCurrency, cashBalance, prices, "USD", nil, context.Background())
+	result := InterpolateDaily(points, testTime(2024, 1, 17), positions, positionCurrency, cashBalance, nil, prices, "USD", nil, context.Background())
 	// Should have 3 points (15th, 16th, 17th)
 	if len(result) < 3 {
 		t.Errorf("expected at least 3 points, got %d", len(result))

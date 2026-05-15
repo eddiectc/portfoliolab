@@ -162,10 +162,11 @@ func ConvertToBase(
 }
 
 // collectFxPairsForInterpolation returns unique FX pairs needed for the
-// interpolation extension phase (positions + cash, excluding base currency).
+// interpolation extension phase (positions + cash + net deposit, excluding base currency).
 func collectFxPairsForInterpolation(
 	positionCurrency map[string]string,
 	cashBalance map[string]decimal.Decimal,
+	netDeposit map[string]decimal.Decimal,
 	baseCurrency string,
 ) []string {
 	set := make(map[string]bool)
@@ -175,6 +176,11 @@ func collectFxPairsForInterpolation(
 		}
 	}
 	for currency := range cashBalance {
+		if currency != baseCurrency {
+			set[market.FormatFxPair(currency, baseCurrency)] = true
+		}
+	}
+	for currency := range netDeposit {
 		if currency != baseCurrency {
 			set[market.FormatFxPair(currency, baseCurrency)] = true
 		}

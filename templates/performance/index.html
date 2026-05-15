@@ -128,11 +128,60 @@
     <div class="metrics-section-header">Returns</div>
     <table class="metrics-table">
         <tr>
-            <td class="metrics-label">Profit / Loss</td>
+            <td class="metrics-label">
+                Profit / Loss
+                {{if or .Result.ReturnMetrics.UnrealizedPnL .Result.ReturnMetrics.RealizedPnL .Result.ReturnMetrics.Dividends .Result.ReturnMetrics.Interest .Result.ReturnMetrics.Fees .Result.ReturnMetrics.Taxes}}
+                <button class="breakdown-toggle-btn" data-target="breakdown-panel" aria-expanded="false">▼</button>
+                {{end}}
+            </td>
             <td class="metrics-value num pnl {{if .Result.ReturnMetrics.ProfitLoss}}{{sign .Result.ReturnMetrics.ProfitLoss.String}}{{end}}">
                 {{if .Result.ReturnMetrics.ProfitLoss}}{{if gt (getSign .Result.ReturnMetrics.ProfitLoss.String) 0}}+{{end}}{{formatMoney .Result.ReturnMetrics.ProfitLoss}} {{.Result.BaseCurrency}}{{else}}—{{end}}
             </td>
         </tr>
+        {{if or .Result.ReturnMetrics.UnrealizedPnL .Result.ReturnMetrics.RealizedPnL .Result.ReturnMetrics.Dividends .Result.ReturnMetrics.Interest .Result.ReturnMetrics.Fees .Result.ReturnMetrics.Taxes}}
+        <tr class="metrics-breakdown" id="breakdown-panel" hidden>
+            <td colspan="2">
+                <table class="breakdown-table">
+                    <tr>
+                        <td class="breakdown-label">Capital gains (unrealized)</td>
+                        <td class="breakdown-value num pnl {{if .Result.ReturnMetrics.UnrealizedPnL}}{{sign .Result.ReturnMetrics.UnrealizedPnL.String}}{{end}}">
+                            {{if .Result.ReturnMetrics.UnrealizedPnL}}{{if gt (getSign .Result.ReturnMetrics.UnrealizedPnL.String) 0}}+{{end}}{{formatMoney .Result.ReturnMetrics.UnrealizedPnL}} {{.Result.BaseCurrency}}{{else}}—{{end}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="breakdown-label">Capital gains (realized)</td>
+                        <td class="breakdown-value num pnl {{if .Result.ReturnMetrics.RealizedPnL}}{{sign .Result.ReturnMetrics.RealizedPnL.String}}{{end}}">
+                            {{if .Result.ReturnMetrics.RealizedPnL}}{{if gt (getSign .Result.ReturnMetrics.RealizedPnL.String) 0}}+{{end}}{{formatMoney .Result.ReturnMetrics.RealizedPnL}} {{.Result.BaseCurrency}}{{else}}—{{end}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="breakdown-label">Dividends</td>
+                        <td class="breakdown-value num {{if .Result.ReturnMetrics.Dividends}}{{sign .Result.ReturnMetrics.Dividends.String}}{{end}}">
+                            {{if .Result.ReturnMetrics.Dividends}}{{if gt (getSign .Result.ReturnMetrics.Dividends.String) 0}}+{{end}}{{formatMoney .Result.ReturnMetrics.Dividends}} {{.Result.BaseCurrency}}{{else}}—{{end}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="breakdown-label">Interest</td>
+                        <td class="breakdown-value num {{if .Result.ReturnMetrics.Interest}}{{sign .Result.ReturnMetrics.Interest.String}}{{end}}">
+                            {{if .Result.ReturnMetrics.Interest}}{{if gt (getSign .Result.ReturnMetrics.Interest.String) 0}}+{{end}}{{formatMoney .Result.ReturnMetrics.Interest}} {{.Result.BaseCurrency}}{{else}}—{{end}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="breakdown-label">Fees</td>
+                        <td class="breakdown-value num {{if .Result.ReturnMetrics.Fees}}{{sign .Result.ReturnMetrics.Fees.String}}{{end}}">
+                            {{if .Result.ReturnMetrics.Fees}}{{formatMoney .Result.ReturnMetrics.Fees}} {{.Result.BaseCurrency}}{{else}}—{{end}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="breakdown-label">Taxes</td>
+                        <td class="breakdown-value num {{if .Result.ReturnMetrics.Taxes}}{{sign .Result.ReturnMetrics.Taxes.String}}{{end}}">
+                            {{if .Result.ReturnMetrics.Taxes}}{{formatMoney .Result.ReturnMetrics.Taxes}} {{.Result.BaseCurrency}}{{else}}—{{end}}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        {{end}}
         <tr>
             <td class="metrics-label">Time-Weighted Return</td>
             <td class="metrics-value num pnl {{if .Result.ReturnMetrics.TWRPct}}{{sign .Result.ReturnMetrics.TWRPct.String}}{{end}}">
@@ -271,6 +320,21 @@
 
 {{/* Chart data — passed as JSON for ECharts */}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>
+// Breakdown toggle
+(function() {
+    const btn = document.querySelector('.breakdown-toggle-btn');
+    if (!btn) return;
+    const target = document.getElementById(btn.dataset.target);
+    if (!target) return;
+    btn.addEventListener('click', function() {
+        const hidden = target.hidden;
+        target.hidden = !hidden;
+        btn.setAttribute('aria-expanded', hidden ? 'true' : 'false');
+        btn.textContent = hidden ? '▲' : '▼';
+    });
+})();
+</script>
 <script>
 (function() {
     try {

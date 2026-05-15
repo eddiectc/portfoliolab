@@ -33,9 +33,10 @@
 <div class="position-summary">
     <div class="summary-card">
         <span class="summary-label">Realized P&L ({{.BaseCurrency}})</span>
-        <span class="summary-value pnl {{sign .Summary.TotalRealizedPnLB}}">{{formatMoney .Summary.TotalRealizedPnLB}}</span>
+        <span class="summary-value pnl {{sign .Summary.TotalRealizedPnLB}}">{{formatMoney .Summary.TotalRealizedPnLB}}{{if .Summary.HasFxErrors}} <span class="error-text" title="Some positions missing FX rate — total may be incomplete">⚠ FX incomplete</span>{{end}}</span>
     </div>
 </div>
+<p class="info-text">Converted at current spot FX rate — the realized cash remains in its original currency until you convert it. See <a href="/help/fx">FX conventions</a> for details.</p>
 {{end}}
 
 <table class="table table-compact">
@@ -69,11 +70,12 @@
                 {{if .RealizedPnlPct}}{{formatPct .RealizedPnlPct}}%{{else}}—{{end}}
             </td>
             {{if $.BaseCurrency}}
-            <td class="num pnl {{if and .RealizedPnlBase .RealizedPnlBase.IsPos}}positive{{else if and .RealizedPnlBase .RealizedPnlBase.IsNeg}}negative{{end}}">
+            <td class="num">
                 {{if .RealizedPnlBase}}
-                {{formatMoney .RealizedPnlBase}}
-                {{if .FxRateFallback}}<span class="fx-warning" title="FX rate was estimated (current spot used instead of historical rate)">⚠</span>{{end}}
-                {{else}}—{{end}}
+                <span class="pnl {{if .RealizedPnlBase.IsPos}}positive{{else if .RealizedPnlBase.IsNeg}}negative{{end}}">{{formatMoney .RealizedPnlBase}}</span>
+                {{else}}
+                <span class="error-text">FX rate unavailable</span>
+                {{end}}
             </td>
             <td class="num">{{fxRateDisplay .Currency $.BaseCurrency .FxRateUsed}}</td>
             {{end}}
