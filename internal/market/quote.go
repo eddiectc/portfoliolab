@@ -256,6 +256,14 @@ func (f *YahooFinanceFetcher) FetchHistoricalPricesBatch(_ context.Context, symb
 				f.logger.Debug("failed to convert close price", "symbol", sym, "close", bar.Close, "error", convErr)
 				continue
 			}
+			// Skip bars with zero close — Yahoo/go-yfinance sometimes return
+			// Close=0 for recent dates when the market hasn't closed yet or
+			// the data is incomplete. Skipping prevents overwriting good cached
+			// data with stale zeros.
+			if bar.Close == 0 {
+				f.logger.Debug("skipping bar with zero close", "symbol", sym, "date", bar.Date.Format("2006-01-02"))
+				continue
+			}
 			if isPence {
 				close, _ = close.Quo(decimal.MustNew(100, 0))
 			}
