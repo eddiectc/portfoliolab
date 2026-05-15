@@ -2,7 +2,7 @@
 
 ## Description
 
-Replace the hardcoded list of five pre-defined benchmarks with a user-driven approach: any symbol in the user's symbol mappings can be marked as a benchmark via a checkbox on the symbol create/edit forms. When a symbol is marked as a benchmark, it triggers the same historical price caching (from 2000 to present) that the current predefined benchmark system uses. The performance comparison UI (chart overlay, MWR stats, monthly heatmap) continues to work but draws from user-selected benchmarks instead of the hardcoded list.
+Replace the hardcoded list of five pre-defined benchmarks with a user-driven approach: any symbol in the user's symbol mappings can be marked as a benchmark via a checkbox on the symbol create/edit forms. When a symbol is marked as a benchmark, it triggers the same full historical price caching that the current predefined benchmark system uses. The performance comparison UI (chart overlay, MWR stats, monthly heatmap) continues to work but draws from user-selected benchmarks instead of the hardcoded list.
 
 Multiple symbols can be marked as benchmarks simultaneously. The user selects which one(s) to compare against on the performance page.
 
@@ -15,7 +15,7 @@ As a user creating a new symbol mapping, I want to optionally mark it as a bench
 As a user editing an existing symbol mapping, I want to toggle the benchmark flag so that I can add or remove it from the benchmark set.
 
 ### US-3: Historical Price Caching for Benchmarks
-As a user, when I mark a symbol as a benchmark, I want its historical prices (from 2000 to present) to be fetched and cached automatically so that comparison data is available.
+As a user, when I mark a symbol as a benchmark, I want its full historical prices to be fetched and cached automatically so that comparison data is available.
 
 ### US-4: Select Benchmark(s) on Performance Page
 As a user viewing portfolio performance, I want to select from my benchmark symbols so that I can compare my portfolio against them.
@@ -30,9 +30,9 @@ As a user, I want to unmark a symbol as a benchmark so that it's no longer avail
 
 ### Scenario: Create symbol with benchmark flag
 **Given** I am creating a new symbol mapping
-**When** I fill in the internal symbol and market data provider symbol and check the "Use as benchmark" checkbox
+**When** I fill in the internal symbol and provider symbol and check the "Use as benchmark" checkbox
 **Then** the symbol mapping is saved with the benchmark flag set
-**And** historical price fetching (2000 to present) is triggered in the background
+**And** full historical price fetching is triggered in the background
 **And** if the historical fetch fails, the symbol is still created and marked as benchmark (fetch failure is non-blocking)
 
 ### Scenario: Create symbol without benchmark flag
@@ -45,7 +45,7 @@ As a user, I want to unmark a symbol as a benchmark so that it's no longer avail
 **Given** symbol `WMGG.L` exists and is not marked as a benchmark
 **When** I edit the symbol and check the "Use as benchmark" checkbox
 **Then** the symbol is updated with the benchmark flag set
-**And** historical price fetching (2000 to present) is triggered in the background
+**And** full historical price fetching is triggered in the background
 
 ### Scenario: Toggle benchmark flag on existing symbol (disable)
 **Given** symbol `^GSPC` exists and is marked as a benchmark
@@ -53,6 +53,28 @@ As a user, I want to unmark a symbol as a benchmark so that it's no longer avail
 **Then** the symbol is updated with the benchmark flag cleared
 **And** it is no longer included in benchmark background refreshes
 **And** existing cached price data is preserved (not deleted)
+
+### Scenario: Delete a benchmark symbol
+**Given** symbol `^GSPC` exists and is marked as a benchmark
+**When** I delete the symbol mapping
+**Then** the symbol is removed
+**And** it is no longer available as a benchmark option
+**And** existing cached price data is preserved (not deleted)
+
+### Scenario: Change provider symbol of an active benchmark
+**Given** symbol `WMGG.L` is marked as a benchmark with provider symbol `VMG.L`
+**And** historical data is cached under `VMG.L`
+**When** I edit the symbol and change the provider symbol to `WMGG.L`
+**Then** the symbol mapping is updated with the new provider symbol
+**And** the benchmark flag remains set
+**And** a full historical price fetch is triggered with the new provider symbol
+**And** previously cached data (under the old provider symbol) is preserved until overwritten
+
+### Scenario: Manual refresh all includes benchmark symbols
+**Given** symbols `^GSPC` and `WMGG.L` are marked as benchmarks
+**When** I trigger a full market data refresh (manual "refresh all")
+**Then** full historical prices for both benchmark symbols are fetched
+**And** the refresh also includes normal position symbols and FX pairs (existing behavior preserved)
 
 ### Scenario: Multiple benchmarks selected
 **Given** symbols `^GSPC`, `WMGG.L`, and `VWRP.L` are all marked as benchmarks
@@ -73,12 +95,14 @@ As a user, I want to unmark a symbol as a benchmark so that it's no longer avail
 **Then** the portfolio performance data is shown normally
 **And** the benchmark comparison shows a warning that no data is available
 **And** the benchmark line is not rendered on the chart
+**And** benchmark MWR stats show a warning or are hidden
+**And** the monthly heatmap shows portfolio data only (no benchmark comparison column)
 
 ### Scenario: Background refresh includes benchmark symbols
 **Given** symbols `^GSPC` and `WMGG.L` are marked as benchmarks
 **When** the background market data refresh job runs
 **Then** historical prices for both benchmark symbols are gap-filled (latest cached date to present)
-**And** if data is current, the fetch is skipped
+**And** if the latest cached date covers through the end of the previous trading day, the fetch is skipped
 
 ### Scenario: Background refresh excludes non-benchmark symbols
 **Given** symbol `AAPL` is not marked as a benchmark
@@ -98,10 +122,12 @@ As a user, I want to unmark a symbol as a benchmark so that it's no longer avail
 
 - **Symbol marked as benchmark but not found on Yahoo**: Historical fetch fails — symbol remains marked as benchmark, cached data is empty, warning shown on performance page
 - **Benchmark symbol deleted**: If a symbol marked as benchmark is deleted, the benchmark flag is removed (cascading)
-- **Benchmark symbol's market data provider symbol changed**: Historical data is still keyed by the provider symbol — existing cached data may become stale; next background refresh fetches with the new provider symbol
+- **Benchmark symbol's provider symbol changed**: Historical data is still keyed by the provider symbol — existing cached data may become stale; next background refresh fetches with the new provider symbol
 - **Index symbols (e.g., `^GSPC`, `^IXIC`)**: Treated the same as any other symbol — historical prices fetched and cached normally
 - **Very old benchmark (data from 2000)**: Large initial fetch — handled in background, non-blocking
 - **Concurrent benchmark toggles**: Rapidly enabling and disabling the benchmark flag — last write wins, fetch is idempotent
+- **Re-submitting with benchmark already enabled**: Editing a symbol that is already marked as benchmark and submitting with the checkbox still checked — no-op, no redundant fetch triggered
+- **Multiple symbols marked as benchmarks in quick succession**: Each triggers its own background fetch; fetches are handled concurrently or queued without blocking the UI or each other
 - **Currency mismatch**: Benchmark in different currency from portfolio — comparison is return-based (percentage), so no conversion needed
 
 ## Constraints
@@ -109,10 +135,11 @@ As a user, I want to unmark a symbol as a benchmark so that it's no longer avail
 - **Benchmark flag**: A boolean field on the symbol mapping model (`is_benchmark`)
 - **Multiple benchmarks**: User can mark any number of symbols as benchmarks
 - **Selection on performance page**: User selects which benchmark(s) to display; the existing single-benchmark selection UI is preserved (one at a time), but the source of available benchmarks changes from hardcoded to user-defined
-- **Historical fetch**: When a symbol is marked as benchmark, historical prices are fetched from 2000-01-01 to present, using the existing market data fetch and caching infrastructure (same as current predefined benchmarks)
-- **Background refresh**: Benchmark symbols are included in the periodic gap-fill cycle (same logic as current `gapFillBenchmarks`), checking latest cached date and fetching gaps
+- **Historical fetch**: When a symbol is marked as benchmark, full historical prices are fetched, using the existing market data fetch and caching infrastructure (same as current predefined benchmarks)
+- **Background refresh**: Benchmark symbols are included in the periodic gap-fill cycle (same gap-fill logic as the current predefined benchmark system), checking latest cached date and fetching gaps
+- **Refresh threshold**: The background job considers data "current" when the latest cached date covers through the end of the previous trading day
+- **Manual refresh**: The user-triggered "refresh all" (e.g., `POST /api/market-data/refresh`) fetches full history for all user-defined benchmarks, replacing the current predefined benchmark refresh
 - **Removal**: Unchecking the benchmark flag stops future refreshes but preserves existing cached data
-- **Error responses**: `{"error": "message", "code": "ERROR_CODE"}`
 
 ## Non-Goals
 
