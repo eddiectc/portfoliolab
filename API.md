@@ -239,12 +239,21 @@ Returns positions enriched with current market data (price, market value, unreal
 ### Open Positions Summary
 
 ```
-GET /api/positions/summary?account_id=&portfolio_id=&account_ids=
+GET /api/positions/summary?account_id=&portfolio_id=&account_ids=&base_currency=
 ```
 
 Returns aggregated totals across all open positions (not paginated).
 
-**Query params:** Same filters as list open positions.
+**Query params:**
+
+| Param | Type | Description |
+|---|---|---|
+| `account_id` | int64 | Filter by account |
+| `portfolio_id` | int64 | Filter by portfolio |
+| `account_ids` | int64[] | Filter by multiple accounts |
+| `base_currency` | string | Override base currency (auto-resolves from first portfolio if omitted) |
+
+**Error:** `400 Bad Request` — `NO_BASE_CURRENCY` if no portfolios exist to resolve currency from.
 
 **Response:** `200 OK` — `OpenPositionSummary`
 
@@ -269,12 +278,21 @@ GET /api/positions/closed?account_id=&portfolio_id=&account_ids=&limit=&offset=
 ### Closed Positions Summary
 
 ```
-GET /api/positions/closed/summary?account_id=&portfolio_id=&account_ids=
+GET /api/positions/closed/summary?account_id=&portfolio_id=&account_ids=&base_currency=
 ```
 
 Returns aggregated totals across all closed positions (not paginated).
 
-**Query params:** Same filters as list closed positions.
+**Query params:**
+
+| Param | Type | Description |
+|---|---|---|
+| `account_id` | int64 | Filter by account |
+| `portfolio_id` | int64 | Filter by portfolio |
+| `account_ids` | int64[] | Filter by multiple accounts |
+| `base_currency` | string | Override base currency (auto-resolves from first portfolio if omitted) |
+
+**Error:** `400 Bad Request` — `NO_BASE_CURRENCY` if no portfolios exist to resolve currency from.
 
 **Response:** `200 OK` — `ClosedPositionSummary`
 

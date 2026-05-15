@@ -1,9 +1,0 @@
---recurse
---fields=+neKS
---extras=+q
---output-format=u-ctags
---exclude=.git
---exclude=vendor
---exclude=node_modules
---exclude=features
---exclude=.pi

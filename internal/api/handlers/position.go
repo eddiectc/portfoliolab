@@ -10,17 +10,24 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 )
 
+// portfolioLister abstracts portfolio listing for base currency resolution.
+type portfolioLister interface {
+	List(ctx context.Context, limit, offset int) ([]portfolio.Portfolio, error)
+}
+
 // PositionHandler handles HTTP requests for position queries and recalculation.
 type PositionHandler struct {
-	service *position.Service
+	service      *position.Service
+	portfolioSvc portfolioLister
 }
 
 // NewPositionHandler creates a new position HTTP handler.
-func NewPositionHandler(service *position.Service) *PositionHandler {
-	return &PositionHandler{service: service}
+func NewPositionHandler(service *position.Service, portfolioSvc portfolioLister) *PositionHandler {
+	return &PositionHandler{service: service, portfolioSvc: portfolioSvc}
 }
 
 // RegisterRoutes mounts position routes on the given router.
@@ -62,10 +69,21 @@ func (h *PositionHandler) computeOpenPositions(ctx context.Context, filters posi
 }
 
 // HandleOpenSummary handles GET /api/positions/summary (aggregated totals for open positions).
+// Optional query param: base_currency (auto-resolves from first portfolio if omitted).
 func (h *PositionHandler) HandleOpenSummary(w http.ResponseWriter, r *http.Request) {
 	filters, _, _ := parsePositionListParams(r.URL.Query())
 
-	summary, err := h.service.GetOpenPositionsSummary(r.Context(), filters, "")
+	baseCurrency := r.URL.Query().Get("base_currency")
+	if baseCurrency == "" {
+		var err error
+		baseCurrency, err = h.resolveBaseCurrency(r.Context())
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "NO_BASE_CURRENCY", err.Error())
+			return
+		}
+	}
+
+	summary, err := h.service.GetOpenPositionsSummary(r.Context(), filters, baseCurrency)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute summary")
 		return
@@ -100,10 +118,21 @@ func (h *PositionHandler) computeClosedPositions(ctx context.Context, filters po
 }
 
 // HandleClosedSummary handles GET /api/positions/closed/summary (aggregated totals for closed positions).
+// Optional query param: base_currency (auto-resolves from first portfolio if omitted).
 func (h *PositionHandler) HandleClosedSummary(w http.ResponseWriter, r *http.Request) {
 	filters, _, _ := parsePositionListParams(r.URL.Query())
 
-	summary, err := h.service.GetClosedPositionsSummary(r.Context(), filters, "")
+	baseCurrency := r.URL.Query().Get("base_currency")
+	if baseCurrency == "" {
+		var err error
+		baseCurrency, err = h.resolveBaseCurrency(r.Context())
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "NO_BASE_CURRENCY", err.Error())
+			return
+		}
+	}
+
+	summary, err := h.service.GetClosedPositionsSummary(r.Context(), filters, baseCurrency)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute summary")
 		return
@@ -204,6 +233,19 @@ func (h *PositionHandler) handleRecalcError(w http.ResponseWriter, err error) {
 		return
 	}
 	writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+}
+
+// resolveBaseCurrency determines the base currency from the first portfolio.
+// Returns an error if no portfolios exist.
+func (h *PositionHandler) resolveBaseCurrency(ctx context.Context) (string, error) {
+	portfolios, err := h.portfolioSvc.List(ctx, 0, 0)
+	if err != nil {
+		return "", errors.New("failed to resolve base currency")
+	}
+	if len(portfolios) == 0 {
+		return "", errors.New("no base currency available — add a portfolio first")
+	}
+	return portfolios[0].Currency, nil
 }
 
 // parsePositionListParams extracts filters and pagination from query params.
