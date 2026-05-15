@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
@@ -47,6 +47,11 @@ type MarketDataFetcher interface {
 	FetchHistoricalPricesBatch(ctx context.Context, symbols []string, start, end time.Time) (map[string][]market.HistoricalPrice, []string)
 }
 
+// BenchmarkSymbolLister finds user-defined benchmark symbols.
+type BenchmarkSymbolLister interface {
+	ListBenchmarks(ctx context.Context) ([]symbolmapping.SymbolMapping, error)
+}
+
 // CacheStatus holds the current state of the market data cache.
 type CacheStatus struct {
 	LastRefresh   time.Time `json:"last_refresh"`
@@ -66,11 +71,12 @@ type fetchRequest struct {
 // rates. It runs a channel-based worker for on-demand fetches and a periodic
 // ticker for current quotes and historical gap-fill.
 type MarketCache struct {
-	fetcher      MarketDataFetcher
-	repo         MarketDataRepository
-	discoverer   SymbolDiscoverer
-	logger       *slog.Logger
-	tickerInterval time.Duration
+	fetcher          MarketDataFetcher
+	repo             MarketDataRepository
+	discoverer       SymbolDiscoverer
+	benchmarkLister  BenchmarkSymbolLister
+	logger           *slog.Logger
+	tickerInterval   time.Duration
 
 	mu                   sync.RWMutex
 	inProgress           map[string]bool
@@ -99,6 +105,12 @@ func New(fetcher MarketDataFetcher, repo MarketDataRepository, discoverer Symbol
 		failedSymbols:  make(map[string]string),
 		fetchCh:        make(chan fetchRequest, 100),
 	}
+}
+
+// WithBenchmarkLister sets the benchmark symbol lister for user-defined benchmarks.
+func (m *MarketCache) WithBenchmarkLister(lister BenchmarkSymbolLister) *MarketCache {
+	m.benchmarkLister = lister
+	return m
 }
 
 // Start launches the background worker and periodic ticker. It is non-blocking:
@@ -544,18 +556,44 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 	}
 }
 
-// RefreshPredefinedBenchmarks fetches historical prices for all predefined
-// benchmark tickers from 2000 to now. Used by RefreshAll (manual full refresh).
-func (m *MarketCache) RefreshPredefinedBenchmarks(ctx context.Context) {
-	predefined := comparison.GetPredefined()
+// FetchBenchmarkHistorical fetches full historical prices for a single benchmark
+// symbol from 2000 to now. Runs synchronously with its own timeout context.
+func (m *MarketCache) FetchBenchmarkHistorical(symbol string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
+	m.fetchBenchmarkDirect(ctx, symbol, fromDate, now)
+}
+
+// RefreshBenchmarks fetches historical prices for all user-defined benchmark
+// symbols from 2000 to now. Used by RefreshAll (manual full refresh).
+// If no benchmark lister is configured, it is a no-op.
+func (m *MarketCache) RefreshBenchmarks(ctx context.Context) {
+	if m.benchmarkLister == nil {
+		if m.logger != nil {
+			m.logger.Debug("benchmark refresh skipped (no lister configured)")
+		}
+		return
+	}
+
+	benchmarks, err := m.benchmarkLister.ListBenchmarks(ctx)
+	if err != nil {
+		if m.logger != nil {
+			m.logger.Warn("failed to list benchmarks", "error", err)
+		}
+		return
+	}
+
 	if m.logger != nil {
-		m.logger.Info("refreshing predefined benchmarks (full)", "count", len(predefined))
+		m.logger.Info("refreshing benchmarks (full)", "count", len(benchmarks))
 	}
 
 	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	now := time.Now().UTC()
 
-	for ticker := range predefined {
+	for _, bm := range benchmarks {
+		ticker := bm.MarketDataSymbol
 		m.mu.Lock()
 		m.inProgress[ticker] = true
 		m.mu.Unlock()
@@ -568,16 +606,31 @@ func (m *MarketCache) RefreshPredefinedBenchmarks(ctx context.Context) {
 	}
 
 	if m.logger != nil {
-		m.logger.Info("benchmark refresh completed", "count", len(predefined))
+		m.logger.Info("benchmark refresh completed", "count", len(benchmarks))
 	}
 }
 
 // gapFillBenchmarks fetches missing or stale benchmark data only.
 // Used on startup to avoid fetching everything when cache is current.
+// If no benchmark lister is configured, it is a no-op.
 func (m *MarketCache) gapFillBenchmarks(ctx context.Context) {
-	predefined := comparison.GetPredefined()
+	if m.benchmarkLister == nil {
+		if m.logger != nil {
+			m.logger.Debug("benchmark gap-fill skipped (no lister configured)")
+		}
+		return
+	}
+
+	benchmarks, err := m.benchmarkLister.ListBenchmarks(ctx)
+	if err != nil {
+		if m.logger != nil {
+			m.logger.Warn("failed to list benchmarks for gap-fill", "error", err)
+		}
+		return
+	}
+
 	if m.logger != nil {
-		m.logger.Info("gap-fill benchmarks", "count", len(predefined))
+		m.logger.Info("gap-fill benchmarks", "count", len(benchmarks))
 	}
 
 	now := time.Now().UTC()
@@ -585,13 +638,14 @@ func (m *MarketCache) gapFillBenchmarks(ctx context.Context) {
 	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Check latest cached dates for all benchmarks.
-	tickers := make([]string, 0, len(predefined))
-	for ticker := range predefined {
-		tickers = append(tickers, ticker)
+	tickers := make([]string, 0, len(benchmarks))
+	for _, bm := range benchmarks {
+		tickers = append(tickers, bm.MarketDataSymbol)
 	}
 	latestDates := m.repo.GetLatestPriceDatePerSymbol(ctx, tickers)
 
-	for ticker := range predefined {
+	for _, bm := range benchmarks {
+		ticker := bm.MarketDataSymbol
 		latestDate, hasCache := latestDates[ticker]
 
 		var fetchStart time.Time
@@ -626,7 +680,7 @@ func (m *MarketCache) gapFillBenchmarks(ctx context.Context) {
 	}
 
 	if m.logger != nil {
-		m.logger.Info("benchmark gap-fill completed", "count", len(predefined))
+		m.logger.Info("benchmark gap-fill completed", "count", len(benchmarks))
 	}
 }
 
@@ -727,8 +781,8 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 		m.mu.Unlock()
 	}
 
-	// Fetch historical for predefined benchmarks.
-	m.RefreshPredefinedBenchmarks(ctx)
+	// Fetch historical for user-defined benchmarks.
+	m.RefreshBenchmarks(ctx)
 
 	if m.logger != nil {
 		m.logger.Info("refresh-all: completed")

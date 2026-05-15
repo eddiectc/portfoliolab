@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
@@ -37,20 +38,18 @@ func (m *mockFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[
 	return result
 }
 
-// benchPricesToday returns a slice of HistoricalPrice for all 5 predefined
-// benchmarks with today's date, so gap-fill sees current cache and skips.
-func benchPricesToday() map[string][]market.HistoricalPrice {
+// benchPricesToday returns a slice of HistoricalPrice for the given benchmark
+// symbols with today's date, so gap-fill sees current cache and skips.
+func benchPricesToday(symbols []string) map[string][]market.HistoricalPrice {
 	nowDate := time.Date(time.Now().UTC().Year(), time.Now().UTC().Month(), time.Now().UTC().Day(), 0, 0, 0, 0, time.UTC)
 	prices := []market.HistoricalPrice{
 		{Date: nowDate, Close: decimal.MustNew(500000, 2), Currency: "USD"},
 	}
-	return map[string][]market.HistoricalPrice{
-		"^GSPC":  prices,
-		"^IXIC":  prices,
-		"VWRP.L": prices,
-		"VUSA.L": prices,
-		"XNAQ.L": prices,
+	result := make(map[string][]market.HistoricalPrice, len(symbols))
+	for _, sym := range symbols {
+		result[sym] = prices
 	}
+	return result
 }
 
 func (m *mockFetcher) FetchHistoricalPricesBatch(_ context.Context, symbols []string, start, end time.Time) (map[string][]market.HistoricalPrice, []string) {
@@ -251,6 +250,46 @@ func (m *mockDiscoverer) ActiveFxPairs(_ context.Context) (map[string]time.Time,
 	return result, nil
 }
 
+type mockBenchmarkLister struct {
+	mu         sync.RWMutex
+	benchmarks []symbolmapping.SymbolMapping
+	err        error
+}
+
+func (m *mockBenchmarkLister) SetBenchmarks(benchmarks []symbolmapping.SymbolMapping) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.benchmarks = benchmarks
+}
+
+func (m *mockBenchmarkLister) SetError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.err = err
+}
+
+func (m *mockBenchmarkLister) ListBenchmarks(_ context.Context) ([]symbolmapping.SymbolMapping, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	result := make([]symbolmapping.SymbolMapping, len(m.benchmarks))
+	copy(result, m.benchmarks)
+	return result, nil
+}
+
+func makeBenchmarkSymbols(marketDataSymbols ...string) []symbolmapping.SymbolMapping {
+	benchmarks := make([]symbolmapping.SymbolMapping, len(marketDataSymbols))
+	for i, sym := range marketDataSymbols {
+		benchmarks[i] = symbolmapping.SymbolMapping{
+			MarketDataSymbol: sym,
+			IsBenchmark:      true,
+		}
+	}
+	return benchmarks
+}
+
 // --- Test helpers ---
 
 func waitBackground(t *testing.T, duration time.Duration) {
@@ -302,8 +341,12 @@ func TestScheduleSymbolFetch_ConcurrentProtection(t *testing.T) {
 	}
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
+	benchmarkLister := &mockBenchmarkLister{}
+	benchmarkLister.SetBenchmarks(makeBenchmarkSymbols("^GSPC"))
+	fetcher.historical["^GSPC"] = prices
 
 	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithBenchmarkLister(benchmarkLister)
 	cache.Start(ctx)
 	defer cache.Stop()
 
@@ -313,10 +356,10 @@ func TestScheduleSymbolFetch_ConcurrentProtection(t *testing.T) {
 
 	waitBackground(t, 100*time.Millisecond)
 
-	// Only one scheduled fetch should have been processed (plus 5 benchmark fetches on startup).
+	// Only one scheduled fetch should have been processed (plus 1 benchmark fetch on startup).
 	calls := fetcher.HistoricalCalls()
-	if calls != 6 {
-		t.Errorf("expected 6 historical fetch calls (1 scheduled + 5 benchmarks), got %d", calls)
+	if calls != 2 {
+		t.Errorf("expected 2 historical fetch calls (1 scheduled + 1 benchmark), got %d", calls)
 	}
 }
 
@@ -413,6 +456,7 @@ func TestScheduleFxPairFetch_ConcurrentProtection(t *testing.T) {
 	}
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
+	// No benchmark lister → no benchmark fetches.
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.Start(ctx)
@@ -424,8 +468,8 @@ func TestScheduleFxPairFetch_ConcurrentProtection(t *testing.T) {
 	waitBackground(t, 100*time.Millisecond)
 
 	calls := fetcher.HistoricalCalls()
-	if calls != 6 {
-		t.Errorf("expected 6 historical fetch calls (1 FX + 5 benchmarks), got %d", calls)
+	if calls != 1 {
+		t.Errorf("expected 1 historical fetch call (1 FX), got %d", calls)
 	}
 }
 
@@ -641,6 +685,7 @@ func TestPeriodicTicker_EmptyPortfolio(t *testing.T) {
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
 	// Empty — no symbols.
+	// No benchmark lister → no benchmark fetches.
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.tickerInterval = 50 * time.Millisecond
@@ -650,10 +695,10 @@ func TestPeriodicTicker_EmptyPortfolio(t *testing.T) {
 	// Wait for a periodic tick.
 	waitBackground(t, 150*time.Millisecond)
 
-	// Only benchmark fetches (5) should have been made.
+	// No fetches at all (no symbols, no benchmarks).
 	calls := fetcher.HistoricalCalls()
-	if calls != 5 {
-		t.Errorf("expected 5 historical fetch calls (benchmarks only), got %d", calls)
+	if calls != 0 {
+		t.Errorf("expected 0 historical fetch calls, got %d", calls)
 	}
 
 	status := cache.GetStatus()
@@ -874,6 +919,7 @@ func TestGapFill_FullCache_SkipsFetch(t *testing.T) {
 	discoverer.SetAllSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -30)})
 	discoverer.SetActiveSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -30)})
 
+	// No benchmark lister → no benchmark fetches.
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.tickerInterval = 50 * time.Millisecond
 	cache.Start(ctx)
@@ -882,10 +928,10 @@ func TestGapFill_FullCache_SkipsFetch(t *testing.T) {
 	// Wait for periodic tick.
 	waitBackground(t, 150*time.Millisecond)
 
-	// No gap-fill fetches (only 5 benchmark fetches on startup).
+	// No fetches at all (cache current, no benchmarks).
 	calls := fetcher.HistoricalCalls()
-	if calls != 5 {
-		t.Errorf("expected 5 historical fetch calls (benchmarks only), got %d", calls)
+	if calls != 0 {
+		t.Errorf("expected 0 historical fetch calls, got %d", calls)
 	}
 }
 
@@ -947,20 +993,17 @@ func TestPeriodicTicker_FxQuotes(t *testing.T) {
 	}
 }
 
-func TestRefreshPredefinedBenchmarks_AllFetched(t *testing.T) {
+func TestRefreshBenchmarks_AllFetched(t *testing.T) {
 	now := time.Now().UTC()
 	prices := []market.HistoricalPrice{
 		{Date: now.AddDate(0, 0, -30), Close: decimal.MustNew(50000, 2), Currency: "USD"},
 		{Date: now, Close: decimal.MustNew(52000, 2), Currency: "USD"},
 	}
 
-	// Pre-populate fetcher with prices for all 5 benchmark tickers.
+	// Pre-populate fetcher with prices for user-defined benchmark tickers.
 	historical := map[string][]market.HistoricalPrice{
 		"^GSPC":  prices,
-		"^IXIC":  prices,
 		"VWRP.L": prices,
-		"VUSA.L": prices,
-		"XNAQ.L": prices,
 	}
 
 	fetcher := &mockFetcher{
@@ -969,15 +1012,18 @@ func TestRefreshPredefinedBenchmarks_AllFetched(t *testing.T) {
 	}
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
+	benchmarkLister := &mockBenchmarkLister{}
+	benchmarkLister.SetBenchmarks(makeBenchmarkSymbols("^GSPC", "VWRP.L"))
 
 	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithBenchmarkLister(benchmarkLister)
 	cache.Start(ctx)
 	defer cache.Stop()
 
-	cache.RefreshPredefinedBenchmarks(ctx)
+	cache.RefreshBenchmarks(ctx)
 
-	// All 5 benchmarks should be cached.
-	for _, ticker := range []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"} {
+	// Both benchmarks should be cached.
+	for _, ticker := range []string{"^GSPC", "VWRP.L"} {
 		if !repo.HasHistorical(ticker) {
 			t.Errorf("expected %s to be cached", ticker)
 		}
@@ -990,21 +1036,18 @@ func TestRefreshPredefinedBenchmarks_AllFetched(t *testing.T) {
 	}
 }
 
-func TestRefreshPredefinedBenchmarks_PartialFailure(t *testing.T) {
+func TestRefreshBenchmarks_PartialFailure(t *testing.T) {
 	now := time.Now().UTC()
 	prices := []market.HistoricalPrice{
 		{Date: now.AddDate(0, 0, -30), Close: decimal.MustNew(50000, 2), Currency: "USD"},
 		{Date: now, Close: decimal.MustNew(52000, 2), Currency: "USD"},
 	}
 
-	// Only some tickers succeed; ^IXIC and VWRP.L fail.
+	// Only some tickers succeed; VWRP.L fails.
 	historical := map[string][]market.HistoricalPrice{
-		"^GSPC":  prices,
-		"VUSA.L": prices,
-		"XNAQ.L": prices,
+		"^GSPC": prices,
 	}
 	historicalFail := map[string]bool{
-		"^IXIC":  true,
 		"VWRP.L": true,
 	}
 
@@ -1015,34 +1058,28 @@ func TestRefreshPredefinedBenchmarks_PartialFailure(t *testing.T) {
 	}
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
+	benchmarkLister := &mockBenchmarkLister{}
+	benchmarkLister.SetBenchmarks(makeBenchmarkSymbols("^GSPC", "VWRP.L"))
 
 	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithBenchmarkLister(benchmarkLister)
 	cache.Start(ctx)
 	defer cache.Stop()
 
-	cache.RefreshPredefinedBenchmarks(ctx)
+	cache.RefreshBenchmarks(ctx)
 
-	// Successful tickers should be cached.
-	for _, ticker := range []string{"^GSPC", "VUSA.L", "XNAQ.L"} {
-		if !repo.HasHistorical(ticker) {
-			t.Errorf("expected %s to be cached", ticker)
-		}
+	// Successful ticker should be cached.
+	if !repo.HasHistorical("^GSPC") {
+		t.Error("expected ^GSPC to be cached")
 	}
 
-	// Failed tickers should appear in failed symbols.
+	// Failed ticker should appear in failed symbols.
 	status := cache.GetStatus()
-	if len(status.FailedSymbols) != 2 {
-		t.Errorf("expected 2 failed symbols, got %d: %v", len(status.FailedSymbols), status.FailedSymbols)
+	if len(status.FailedSymbols) != 1 {
+		t.Errorf("expected 1 failed symbol, got %d: %v", len(status.FailedSymbols), status.FailedSymbols)
 	}
-	failedSet := make(map[string]bool)
-	for _, s := range status.FailedSymbols {
-		failedSet[s] = true
-	}
-	if !failedSet["^IXIC"] {
-		t.Error("expected ^IXIC in failed symbols")
-	}
-	if !failedSet["VWRP.L"] {
-		t.Error("expected VWRP.L in failed symbols")
+	if status.FailedSymbols[0] != "VWRP.L" {
+		t.Errorf("expected VWRP.L in failed symbols, got %s", status.FailedSymbols[0])
 	}
 }
 
@@ -1053,14 +1090,11 @@ func TestRefreshAll_IncludesBenchmarks(t *testing.T) {
 		{Date: now, Close: decimal.MustNew(52000, 2), Currency: "USD"},
 	}
 
-	// Portfolio symbol + all benchmark tickers.
+	// Portfolio symbol + user-defined benchmark tickers.
 	historical := map[string][]market.HistoricalPrice{
 		"AAPL":   prices,
 		"^GSPC":  prices,
-		"^IXIC":  prices,
 		"VWRP.L": prices,
-		"VUSA.L": prices,
-		"XNAQ.L": prices,
 	}
 
 	fetcher := &mockFetcher{
@@ -1073,8 +1107,11 @@ func TestRefreshAll_IncludesBenchmarks(t *testing.T) {
 	discoverer := &mockDiscoverer{}
 	discoverer.SetAllSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
 	discoverer.SetActiveSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
+	benchmarkLister := &mockBenchmarkLister{}
+	benchmarkLister.SetBenchmarks(makeBenchmarkSymbols("^GSPC", "VWRP.L"))
 
 	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithBenchmarkLister(benchmarkLister)
 	cache.Start(ctx)
 	defer cache.Stop()
 
@@ -1086,18 +1123,18 @@ func TestRefreshAll_IncludesBenchmarks(t *testing.T) {
 		t.Error("expected AAPL to be cached")
 	}
 
-	// All 5 benchmarks should be cached.
-	for _, ticker := range []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"} {
+	// Both benchmarks should be cached.
+	for _, ticker := range []string{"^GSPC", "VWRP.L"} {
 		if !repo.HasHistorical(ticker) {
 			t.Errorf("expected %s to be cached after RefreshAll", ticker)
 		}
 	}
 
 	// RefreshAll should have called FetchHistoricalPricesBatch multiple times:
-	// 1 for AAPL + 5 for benchmarks = at least 6 calls.
+	// 1 for AAPL + 2 for benchmarks = at least 3 calls.
 	calls := fetcher.HistoricalCalls()
-	if calls < 6 {
-		t.Errorf("expected at least 6 historical fetch calls (1 portfolio + 5 benchmarks), got %d", calls)
+	if calls < 3 {
+		t.Errorf("expected at least 3 historical fetch calls (1 portfolio + 2 benchmarks), got %d", calls)
 	}
 
 	status := cache.GetStatus()
@@ -1107,37 +1144,30 @@ func TestRefreshAll_IncludesBenchmarks(t *testing.T) {
 }
 
 func TestGapFillBenchmarks_CurrentCacheSkips(t *testing.T) {
-	now := time.Now().UTC()
-	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	benchmarkSymbols := []string{"^GSPC", "VWRP.L"}
 
 	// Pre-seed the mock fetcher with benchmark data so gap-fill can fetch.
-	benchPrices := []market.HistoricalPrice{
-		{Date: nowDate, Close: decimal.MustNew(500000, 2), Currency: "USD"},
-	}
 	fetcher := &mockFetcher{
-		quotes: map[string]*market.MarketData{},
-		historical: map[string][]market.HistoricalPrice{
-			"^GSPC":  benchPrices,
-			"^IXIC":  benchPrices,
-			"VWRP.L": benchPrices,
-			"VUSA.L": benchPrices,
-			"XNAQ.L": benchPrices,
-		},
+		quotes:     map[string]*market.MarketData{},
+		historical: benchPricesToday(benchmarkSymbols),
 	}
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
+	benchmarkLister := &mockBenchmarkLister{}
+	benchmarkLister.SetBenchmarks(makeBenchmarkSymbols(benchmarkSymbols...))
 
 	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithBenchmarkLister(benchmarkLister)
 	cache.Start(ctx)
 	defer cache.Stop()
 
-	// First gap-fill: no cache → fetches all 5 benchmarks.
+	// First gap-fill: no cache → fetches both benchmarks.
 	cache.gapFillBenchmarks(ctx)
 
-	// Verify all 5 benchmarks were fetched and stored.
-	latestDates := repo.GetLatestPriceDatePerSymbol(ctx, []string{"^GSPC", "^IXIC", "VWRP.L", "VUSA.L", "XNAQ.L"})
-	if len(latestDates) != 5 {
-		t.Fatalf("expected 5 benchmarks cached, got %d", len(latestDates))
+	// Verify both benchmarks were fetched and stored.
+	latestDates := repo.GetLatestPriceDatePerSymbol(ctx, benchmarkSymbols)
+	if len(latestDates) != 2 {
+		t.Fatalf("expected 2 benchmarks cached, got %d", len(latestDates))
 	}
 
 	callsAfterFirst := fetcher.HistoricalCalls()
@@ -1156,6 +1186,7 @@ func TestGapFillBenchmarks_StaleCacheFetchesGap(t *testing.T) {
 	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	oldDate := nowDate.AddDate(0, 0, -30) // 30 days ago
 	newDate := nowDate.AddDate(0, 0, -1)  // yesterday
+	benchmarkSymbols := []string{"^GSPC", "VWRP.L"}
 
 	// Old benchmark data (30 days ago).
 	oldPrices := []market.HistoricalPrice{
@@ -1169,21 +1200,25 @@ func TestGapFillBenchmarks_StaleCacheFetchesGap(t *testing.T) {
 	fetcher := &mockFetcher{
 		quotes: map[string]*market.MarketData{},
 		historical: map[string][]market.HistoricalPrice{
-			"^GSPC": newPrices,
+			"^GSPC":  newPrices,
+			"VWRP.L": newPrices,
 		},
 	}
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
+	benchmarkLister := &mockBenchmarkLister{}
+	benchmarkLister.SetBenchmarks(makeBenchmarkSymbols(benchmarkSymbols...))
 
 	// Pre-seed repo with old data for ^GSPC so gap-fill detects it as stale.
 	repo.UpsertHistoricalPrices(ctx, "^GSPC", oldPrices, "stock")
 
 	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithBenchmarkLister(benchmarkLister)
 	cache.Start(ctx)
 	defer cache.Stop()
 
 	// Gap-fill: ^GSPC is stale (30 days ago) → fetches gap.
-	// Other 4 benchmarks have no cache → fetches from 2000.
+	// VWRP.L has no cache → fetches from 2000.
 	cache.gapFillBenchmarks(ctx)
 
 	// Verify ^GSPC has both old and new data.
@@ -1193,5 +1228,155 @@ func TestGapFillBenchmarks_StaleCacheFetchesGap(t *testing.T) {
 	}
 	if _, ok := gspcDates[newDate.Format("2006-01-02")]; !ok {
 		t.Error("expected new ^GSPC date added to cache")
+	}
+
+	// Verify VWRP.L was fetched (from 2000, but mock only returns newDate range).
+	if !repo.HasHistorical("VWRP.L") {
+		t.Error("expected VWRP.L to be cached")
+	}
+}
+
+func TestFetchBenchmarkHistorical_FetchesFullHistory(t *testing.T) {
+	now := time.Now().UTC()
+	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	prices := []market.HistoricalPrice{
+		{Date: fromDate, Close: decimal.MustNew(100000, 2), Currency: "USD"},
+		{Date: now, Close: decimal.MustNew(520000, 2), Currency: "USD"},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{"^GSPC": prices},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	cache.FetchBenchmarkHistorical("^GSPC")
+
+	if !repo.HasHistorical("^GSPC") {
+		t.Error("expected ^GSPC to be cached")
+	}
+
+	// Verify full range was fetched (from 2000).
+	gspcDates := repo.historicalPrices["^GSPC"]
+	if _, ok := gspcDates[fromDate.Format("2006-01-02")]; !ok {
+		t.Error("expected price from 2000-01-01 in cache")
+	}
+}
+
+func TestRefreshBenchmarks_NoLister_Skips(t *testing.T) {
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	// No benchmark lister set.
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	// Should not panic, just skip.
+	cache.RefreshBenchmarks(ctx)
+
+	// No fetches should have been made.
+	calls := fetcher.HistoricalCalls()
+	if calls != 0 {
+		t.Errorf("expected 0 historical fetch calls, got %d", calls)
+	}
+}
+
+func TestGapFillBenchmarks_NoLister_Skips(t *testing.T) {
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	// No benchmark lister set.
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	// Should not panic, just skip.
+	cache.gapFillBenchmarks(ctx)
+
+	// No fetches should have been made.
+	calls := fetcher.HistoricalCalls()
+	if calls != 0 {
+		t.Errorf("expected 0 historical fetch calls, got %d", calls)
+	}
+}
+
+func TestRefreshBenchmarks_ListError_LogsAndContinues(t *testing.T) {
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	benchmarkLister := &mockBenchmarkLister{}
+	benchmarkLister.SetError(fmt.Errorf("database unavailable"))
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithBenchmarkLister(benchmarkLister)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	// Should not panic, just log and skip.
+	cache.RefreshBenchmarks(ctx)
+
+	// No fetches should have been made.
+	calls := fetcher.HistoricalCalls()
+	if calls != 0 {
+		t.Errorf("expected 0 historical fetch calls, got %d", calls)
+	}
+}
+
+func TestRefreshAll_NoBenchmarks(t *testing.T) {
+	now := time.Now().UTC()
+	prices := []market.HistoricalPrice{
+		{Date: now.AddDate(0, 0, -1), Close: decimal.MustNew(17000, 2), Currency: "USD"},
+		{Date: now, Close: decimal.MustNew(17500, 2), Currency: "USD"},
+	}
+
+	fetcher := &mockFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17500, 2), Currency: "USD"},
+		},
+		historical: map[string][]market.HistoricalPrice{"AAPL": prices},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	discoverer.SetAllSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
+	discoverer.SetActiveSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
+	// No benchmark lister → no benchmark fetches.
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	cache.RefreshAll(ctx)
+	waitBackground(t, 100*time.Millisecond)
+
+	// Only portfolio symbol should be fetched (1 call).
+	calls := fetcher.HistoricalCalls()
+	if calls != 1 {
+		t.Errorf("expected 1 historical fetch call (portfolio only), got %d", calls)
+	}
+
+	if !repo.HasHistorical("AAPL") {
+		t.Error("expected AAPL to be cached")
+	}
+
+	status := cache.GetStatus()
+	if status.Refreshing {
+		t.Error("expected Refreshing=false after RefreshAll completes")
 	}
 }
