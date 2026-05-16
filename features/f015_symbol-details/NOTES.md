@@ -7,6 +7,8 @@
 - 2026-05-16: `ListStaleSymbolDetails` uses an INNER JOIN with `symbol_mappings` — symbols without a mapping are excluded from stale list (they can't be refreshed without a market_data_symbol).
 - 2026-05-16 (Task 4): `SymbolGetResponse` is a separate struct from `SymbolMapping` to include the optional `SymbolDetails` field without changing the domain model. `HandleList` still returns `[]SymbolMapping` (lean, no details).
 - 2026-05-16 (Task 4): Route rename from `symbol-mappings` to `symbols` required updating integration tests and templates that hardcoded the old API path.
+- 2026-05-16 (Task 5): Web handler pre-formats all percentage/number values (holdings %, sector %, net assets with B/M suffix) into the display struct, since Go templates lack `printf`/`mul` functions. This keeps templates simple and follows the API-first pattern of computing in the handler layer.
+- 2026-05-16 (Task 5): `SymbolDetailsWebHandler` accepts `nil` for optional dependencies (detailsSvc, fetcher) and gracefully skips enrichment when they're absent. The symbolMappingSvc is required and returns 500 if nil.
 
 ## Deviations from Plan
 - Task 2: Initially created `YahooSymbolDetailsFetcher` as a separate type, then refactored to consolidate under `YahooFinanceFetcher` per user feedback. `YahooFinanceFetcher` now implements both `MarketDataFetcher` and `SymbolDetailsFetcher`. The direct HTTP logic (crumb/cookie auth, quoteSummary parsing) lives in `symbol_details.go` as methods on `YahooFinanceFetcher`, keeping the go-yfinance code in `quote.go` separate. Single fetcher type, single wiring point in router.

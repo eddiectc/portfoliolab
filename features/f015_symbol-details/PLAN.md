@@ -85,11 +85,11 @@ All → Task 9 (validation)
 **Corresponds to:** View symbol details in web UI (generic/ETF/no data)
 **Description:** Read-only page at `/symbols/{id}/details` showing cached details + live price.
 
-- [ ] Rename web routes from `symbol-mappings` to `symbols` in handler (`symbol_mapping_web.go` → `symbol_web.go`)
-- [ ] Rename handler struct from `SymbolMappingWebHandler` to `SymbolWebHandler`
-- [ ] Create `internal/api/handlers/symbol_details_web.go` with `SymbolDetailsWebHandler`
-- [ ] Implement `HandleDetailsPage` for `GET /symbols/{id}/details` — resolve symbol, fetch cached details + live price, render template
-- [ ] Create `templates/symbol_details/view.html` with sections:
+- [x] Rename web routes from `symbol-mappings` to `symbols` in handler (`symbol_mapping_web.go` → `symbol_web.go`)
+- [x] Rename handler struct from `SymbolMappingWebHandler` to `SymbolWebHandler`
+- [x] Create `internal/api/handlers/symbol_details_web.go` with `SymbolDetailsWebHandler`
+- [x] Implement `HandleDetailsPage` for `GET /symbols/{id}/details` — resolve symbol, fetch cached details + live price, render template
+- [x] Create `templates/symbol_details/view.html` with sections:
   - Header: symbol name, exchange, live price (with currency)
   - "Last updated" timestamp (stale indicator if >7 days)
   - Top 10 holdings table (symbol, name, % allocation) — only for ETFs
@@ -97,9 +97,9 @@ All → Task 9 (validation)
   - Aggregate positions (stock %, bond %, cash %, etc.) — only for ETFs
   - Fund profile (family, legal type, net assets, expense ratio) — only for ETFs
   - "No details available" message when cache is empty
-- [ ] Add "Details" link to symbol list page (`templates/symbol/list.html`)
-- [ ] Register route on router
-- [ ] Write web handler tests
+- [x] Add "Details" link to symbol list page (`templates/symbol/list.html`)
+- [x] Register route on router
+- [x] Write web handler tests
 
 **Verification:** Page renders correctly for ETF/generic/no-data scenarios; live price shown; stale indicator displayed.
 
