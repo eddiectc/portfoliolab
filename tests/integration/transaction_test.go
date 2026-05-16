@@ -49,7 +49,7 @@ func setupTx(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64, 
 
 	// Create symbol mapping for AAPL
 	body = json.RawMessage(`{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`)
-	req = httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -362,7 +362,7 @@ func TestTransaction_FilterBySymbol(t *testing.T) {
 
 	// Create another symbol mapping for MSFT
 	smBody := json.RawMessage(`{"internal_symbol": "MSFT", "market_data_symbol": "MSFT"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewReader(smBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewReader(smBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)

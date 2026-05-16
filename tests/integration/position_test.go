@@ -51,7 +51,7 @@ func setupPos(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64,
 
 	// Create symbol mapping for AAPL
 	body = json.RawMessage(`{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`)
-	req = httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)

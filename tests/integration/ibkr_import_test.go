@@ -83,7 +83,7 @@ func setupIBKR(t *testing.T) (db *sql.DB, router http.Handler, accountID int64) 
 	// Create symbol mappings for symbols in the sample XML: AAPL, STHY
 	for _, sym := range []string{"AAPL", "STHY"} {
 		smBody := json.RawMessage(fmt.Sprintf(`{"internal_symbol": "%s", "market_data_symbol": "%s"}`, sym, sym))
-		req = httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewReader(smBody))
+		req = httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewReader(smBody))
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -497,7 +497,7 @@ func TestIBKRImport_BrokerSymbolMapping(t *testing.T) {
 
 	// Create internal symbol "AAPL" but NO broker symbol mapping
 	smBody := json.RawMessage(`{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`)
-	req = httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewReader(smBody))
+	req = httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewReader(smBody))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)

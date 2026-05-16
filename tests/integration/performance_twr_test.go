@@ -91,7 +91,7 @@ func setupPerf(t *testing.T, baseCurrency, acctCurrency string) (*sql.DB, http.H
 	// Symbol mappings
 	for _, sym := range []string{"USDSTK", "GBPSTK"} {
 		body = json.RawMessage(`{"internal_symbol":"` + sym + `","market_data_symbol":"` + sym + `"}`)
-		req = httptest.NewRequest("POST", "/api/symbol-mappings", bytes.NewReader(body))
+		req = httptest.NewRequest("POST", "/api/symbols", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -102,7 +102,7 @@ func setupPerf(t *testing.T, baseCurrency, acctCurrency string) (*sql.DB, http.H
 
 	// Benchmark symbol mapping (^GSPC for S&P 500)
 	body = json.RawMessage(`{"internal_symbol":"S&P 500","market_data_symbol":"^GSPC","is_benchmark":true}`)
-	req = httptest.NewRequest("POST", "/api/symbol-mappings", bytes.NewReader(body))
+	req = httptest.NewRequest("POST", "/api/symbols", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)

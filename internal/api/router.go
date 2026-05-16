@@ -20,6 +20,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/trading212import"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -80,12 +81,16 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	accountHandler := handlers.NewAccountHandler(accountSvc)
 	accountHandler.RegisterRoutes(r)
 
-	// Symbol mapping CRUD (API)
+	// Symbol CRUD (API)
 	symbolMappingRepo := data.NewSymbolMappingRepository(db)
 	yahooFetcher := market.NewYahooFinanceFetcher(logger)
 	symbolMappingSvc := symbolmapping.NewService(symbolMappingRepo, symbolmapping.WithMarketDataFetcher(yahooFetcher))
-	symbolMappingHandler := handlers.NewSymbolMappingHandler(symbolMappingSvc)
-	symbolMappingHandler.RegisterRoutes(r)
+
+	// Symbol details (API enrichment)
+	symbolDetailsRepo := data.NewSymbolDetailsRepository(db)
+	symbolDetailsSvc := symbols.NewService(symbolDetailsRepo, yahooFetcher)
+	symbolHandler := handlers.NewSymbolHandler(symbolMappingSvc, symbolDetailsSvc)
+	symbolHandler.RegisterRoutes(r)
 
 	// Transaction CRUD (API)
 	transactionRepo := data.NewTransactionRepository(db)
