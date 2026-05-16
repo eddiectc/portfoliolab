@@ -7,24 +7,24 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // --- Mock Repository ---
 
 type mockRepo struct {
-	details map[string]*market.SymbolDetails
-	stale   []market.StaleSymbol
+	details map[string]*symbol.SymbolDetails
+	stale   []symbol.StaleSymbol
 	err     error
 }
 
 func newMockRepo() *mockRepo {
 	return &mockRepo{
-		details: make(map[string]*market.SymbolDetails),
+		details: make(map[string]*symbol.SymbolDetails),
 	}
 }
 
-func (m *mockRepo) Upsert(_ context.Context, d *market.SymbolDetails) error {
+func (m *mockRepo) Upsert(_ context.Context, d *symbol.SymbolDetails) error {
 	if m.err != nil {
 		return m.err
 	}
@@ -32,7 +32,7 @@ func (m *mockRepo) Upsert(_ context.Context, d *market.SymbolDetails) error {
 	return nil
 }
 
-func (m *mockRepo) GetByInternalSymbol(_ context.Context, internalSymbol string) (*market.SymbolDetails, error) {
+func (m *mockRepo) GetByInternalSymbol(_ context.Context, internalSymbol string) (*symbol.SymbolDetails, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -44,11 +44,11 @@ func (m *mockRepo) GetByInternalSymbol(_ context.Context, internalSymbol string)
 	return &cp, nil
 }
 
-func (m *mockRepo) ListStale(_ context.Context, _ time.Time) ([]market.StaleSymbol, error) {
+func (m *mockRepo) ListStale(_ context.Context, _ time.Time) ([]symbol.StaleSymbol, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	result := make([]market.StaleSymbol, len(m.stale))
+	result := make([]symbol.StaleSymbol, len(m.stale))
 	copy(result, m.stale)
 	return result, nil
 }
@@ -56,11 +56,11 @@ func (m *mockRepo) ListStale(_ context.Context, _ time.Time) ([]market.StaleSymb
 // --- Mock Fetcher ---
 
 type mockFetcher struct {
-	details *market.SymbolDetails
+	details *symbol.SymbolDetails
 	err     error
 }
 
-func (m *mockFetcher) FetchSymbolDetails(_ context.Context, _ string) (*market.SymbolDetails, error) {
+func (m *mockFetcher) FetchSymbolDetails(_ context.Context, _ string) (*symbol.SymbolDetails, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -82,7 +82,7 @@ func newTestService() (*Service, *mockRepo, *mockFetcher) {
 func TestService_FetchAndStore_Success(t *testing.T) {
 	svc, repo, fetcher := newTestService()
 
-	fetcher.details = &market.SymbolDetails{
+	fetcher.details = &symbol.SymbolDetails{
 		ShortName:  "Vanguard S&P 500 ETF",
 		LongName:   "Vanguard S&P 500 ETF",
 		Exchange:   "PCX",
@@ -129,7 +129,7 @@ func TestService_FetchAndStore_FetchFails(t *testing.T) {
 func TestService_FetchAndStore_StoreFails(t *testing.T) {
 	svc, repo, fetcher := newTestService()
 
-	fetcher.details = &market.SymbolDetails{
+	fetcher.details = &symbol.SymbolDetails{
 		ShortName:  "Test",
 		FetchedAt:  time.Now(),
 	}
@@ -145,7 +145,7 @@ func TestService_FetchAndStore_PartialData(t *testing.T) {
 	svc, repo, fetcher := newTestService()
 
 	// Simulate partial data (no ETF-specific fields)
-	fetcher.details = &market.SymbolDetails{
+	fetcher.details = &symbol.SymbolDetails{
 		ShortName:  "Apple Inc.",
 		LongName:   "Apple Inc.",
 		Exchange:   "NMS",
@@ -176,7 +176,7 @@ func TestService_FetchAndStore_PartialData(t *testing.T) {
 func TestService_GetByInternalSymbol_Success(t *testing.T) {
 	svc, repo, _ := newTestService()
 
-	repo.details["VOO"] = &market.SymbolDetails{
+	repo.details["VOO"] = &symbol.SymbolDetails{
 		InternalSymbol: "VOO",
 		ShortName:      "Vanguard S&P 500 ETF",
 		Exchange:       "PCX",
@@ -211,7 +211,7 @@ func TestService_GetByInternalSymbol_NotFound(t *testing.T) {
 func TestService_GetStaleSymbols_HasStale(t *testing.T) {
 	svc, repo, _ := newTestService()
 
-	repo.stale = []market.StaleSymbol{
+	repo.stale = []symbol.StaleSymbol{
 		{InternalSymbol: "VOO", MarketDataSymbol: "VOO", FetchedAt: time.Now().AddDate(0, 0, -8)},
 		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: time.Now().AddDate(0, 0, -10)},
 	}
@@ -234,7 +234,7 @@ func TestService_GetStaleSymbols_HasStale(t *testing.T) {
 func TestService_GetStaleSymbols_NoneStale(t *testing.T) {
 	svc, repo, _ := newTestService()
 
-	repo.stale = []market.StaleSymbol{}
+	repo.stale = []symbol.StaleSymbol{}
 
 	stale, err := svc.GetStaleSymbols(context.Background())
 	if err != nil {
@@ -262,14 +262,14 @@ func TestService_RefreshSymbol_Success(t *testing.T) {
 	svc, repo, fetcher := newTestService()
 
 	// Initially stale data
-	repo.details["VOO"] = &market.SymbolDetails{
+	repo.details["VOO"] = &symbol.SymbolDetails{
 		InternalSymbol: "VOO",
 		ShortName:      "Old Name",
 		FetchedAt:      time.Now().AddDate(0, 0, -8),
 	}
 
 	// Fetcher returns fresh data
-	fetcher.details = &market.SymbolDetails{
+	fetcher.details = &symbol.SymbolDetails{
 		ShortName:  "Updated Name",
 		Exchange:   "PCX",
 		Currency:   "USD",
@@ -293,7 +293,7 @@ func TestService_RefreshSymbol_FetchFails(t *testing.T) {
 	svc, repo, fetcher := newTestService()
 
 	// Existing data
-	repo.details["VOO"] = &market.SymbolDetails{
+	repo.details["VOO"] = &symbol.SymbolDetails{
 		InternalSymbol: "VOO",
 		ShortName:      "Existing Data",
 		FetchedAt:      time.Now().AddDate(0, 0, -8),

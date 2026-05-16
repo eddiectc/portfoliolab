@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // Yahoo Finance endpoint URLs. Package-level vars (not consts) so they can be
@@ -18,80 +20,10 @@ var (
 	yahooQuoteSummary = "https://query2.finance.yahoo.com/v10/finance/quoteSummary"
 )
 
-// SymbolDetails holds cached metadata about a symbol fetched from Yahoo Finance.
-// Generic fields (name, exchange) are populated for all symbols.
-// ETF-specific fields (holdings, sectors, etc.) are only populated for ETFs.
-type SymbolDetails struct {
-	// Generic fields
-	InternalSymbol string
-	ShortName      string
-	LongName       string
-	Exchange       string
-	Currency       string
-	QuoteType      string // e.g. "ETF", "EQUITY"
-
-	// ETF-specific fields (JSON in DB, deserialized here)
-	TopHoldings        []TopHolding
-	SectorWeightings   []SectorWeighting
-	AggregatePositions *AggregatePositions
-	FundProfile        *FundProfile
-	EquityValuation    *EquityValuation
-
-	// Metadata
-	FetchedAt time.Time
-}
-
-// TopHolding represents a single holding in an ETF's portfolio.
-type TopHolding struct {
-	Symbol    string
-	Name      string
-	Percent   float64 // e.g. 0.01399 = 1.399%
-}
-
-// SectorWeighting represents the allocation to a single sector.
-type SectorWeighting struct {
-	Sector  string // e.g. "technology", "financial_services"
-	Percent float64
-}
-
-// AggregatePositions represents the broad asset class breakdown of an ETF.
-type AggregatePositions struct {
-	Stock       float64
-	Bond        float64
-	Cash        float64
-	Convertible float64
-	Preferred   float64
-	Other       float64
-}
-
-// FundProfile represents fund-level metadata from Yahoo Finance.
-type FundProfile struct {
-	Family                   string
-	LegalType                string
-	TotalNetAssets           float64
-	AnnualExpenseRatio       float64
-	AnnualHoldingsTurnover   float64
-}
-
-// EquityValuation represents aggregate valuation ratios of an ETF's equity holdings.
-type EquityValuation struct {
-	PriceToEarnings  float64
-	PriceToBook      float64
-	PriceToCashflow  float64
-	PriceToSales     float64
-}
-
-// StaleSymbol represents a symbol whose details need refreshing.
-type StaleSymbol struct {
-	InternalSymbol   string
-	MarketDataSymbol string
-	FetchedAt        time.Time
-}
-
 // SymbolDetailsFetcher fetches rich symbol metadata (holdings, sectors, fund
 // profile) from a market data provider.
 type SymbolDetailsFetcher interface {
-	FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*SymbolDetails, error)
+	FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*symbol.SymbolDetails, error)
 }
 
 // quoteSummaryResponse is the top-level response from Yahoo's quoteSummary API.
@@ -114,16 +46,16 @@ type quoteSummaryResult struct {
 
 // topHoldingsModule contains ETF holdings data.
 type topHoldingsModule struct {
-	Holdings         []topHoldingItem    `json:"holdings"`
-	StockPosition    float64             `json:"stockPosition"`
-	BondPosition     float64             `json:"bondPosition"`
-	CashPosition     float64             `json:"cashPosition"`
-	ConvertiblePos   float64             `json:"convertiblePosition"`
-	PreferredPosition float64            `json:"preferredPosition"`
-	OtherPosition    float64             `json:"otherPosition"`
-	EquityHoldings   *equityHoldingsData `json:"equityHoldings"`
-	SectorWeightings []sectorWeightItem  `json:"sectorWeightings"`
-	MaxAge           int                 `json:"maxAge"`
+	Holdings          []topHoldingItem    `json:"holdings"`
+	StockPosition     float64             `json:"stockPosition"`
+	BondPosition      float64             `json:"bondPosition"`
+	CashPosition      float64             `json:"cashPosition"`
+	ConvertiblePos    float64             `json:"convertiblePosition"`
+	PreferredPosition float64             `json:"preferredPosition"`
+	OtherPosition     float64             `json:"otherPosition"`
+	EquityHoldings    *equityHoldingsData `json:"equityHoldings"`
+	SectorWeightings  []sectorWeightItem  `json:"sectorWeightings"`
+	MaxAge            int                 `json:"maxAge"`
 }
 
 type topHoldingItem struct {
@@ -133,18 +65,18 @@ type topHoldingItem struct {
 }
 
 type equityHoldingsData struct {
-	PriceToEarnings  float64 `json:"priceToEarnings"`
-	PriceToBook      float64 `json:"priceToBook"`
-	PriceToCashflow  float64 `json:"priceToCashflow"`
-	PriceToSales     float64 `json:"priceToSales"`
+	PriceToEarnings float64 `json:"priceToEarnings"`
+	PriceToBook     float64 `json:"priceToBook"`
+	PriceToCashflow float64 `json:"priceToCashflow"`
+	PriceToSales    float64 `json:"priceToSales"`
 }
 
 type sectorWeightItem map[string]float64
 
 // fundProfileModule contains fund-level metadata.
 type fundProfileModule struct {
-	Family      string `json:"family"`
-	LegalType   string `json:"legalType"`
+	Family     string `json:"family"`
+	LegalType  string `json:"legalType"`
 	FeesExpenses struct {
 		TotalNetAssets           float64 `json:"totalNetAssets"`
 		AnnualReportExpenseRatio float64 `json:"annualReportExpenseRatio"`
@@ -154,12 +86,12 @@ type fundProfileModule struct {
 
 // assetProfileModule contains generic symbol info.
 type assetProfileModule struct {
-	ShortName  string `json:"shortName"`
-	LongName   string `json:"longName"`
-	Exchange   string `json:"exchange"`
-	Currency   string `json:"currency"`
-	QuoteType  string `json:"quoteType"`
-	MaxAge     int    `json:"maxAge"`
+	ShortName string `json:"shortName"`
+	LongName  string `json:"longName"`
+	Exchange  string `json:"exchange"`
+	Currency  string `json:"currency"`
+	QuoteType string `json:"quoteType"`
+	MaxAge    int    `json:"maxAge"`
 }
 
 // FetchSymbolDetails fetches rich metadata for a symbol from Yahoo Finance.
@@ -167,7 +99,7 @@ type assetProfileModule struct {
 // topHoldings, fundProfile, and assetProfile modules, and returns a populated
 // SymbolDetails struct. Partial data is returned gracefully — if some modules
 // are missing, the available fields are still populated.
-func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*SymbolDetails, error) {
+func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*symbol.SymbolDetails, error) {
 	client := f.httpClient()
 
 	// Step 1: Get cookie
@@ -235,7 +167,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 	result := quoteResp.QuoteSummary.Result[0]
 
 	// Step 4: Build SymbolDetails from available modules
-	details := &SymbolDetails{
+	details := &symbol.SymbolDetails{
 		FetchedAt: time.Now(),
 	}
 
@@ -250,7 +182,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 	if result.TopHoldings != nil {
 		details.TopHoldings = parseTopHoldings(result.TopHoldings.Holdings)
 		details.SectorWeightings = parseSectorWeightings(result.TopHoldings.SectorWeightings)
-		details.AggregatePositions = &AggregatePositions{
+		details.AggregatePositions = &symbol.AggregatePositions{
 			Stock:       result.TopHoldings.StockPosition,
 			Bond:        result.TopHoldings.BondPosition,
 			Cash:        result.TopHoldings.CashPosition,
@@ -259,7 +191,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 			Other:       result.TopHoldings.OtherPosition,
 		}
 		if result.TopHoldings.EquityHoldings != nil {
-			details.EquityValuation = &EquityValuation{
+			details.EquityValuation = &symbol.EquityValuation{
 				PriceToEarnings: result.TopHoldings.EquityHoldings.PriceToEarnings,
 				PriceToBook:     result.TopHoldings.EquityHoldings.PriceToBook,
 				PriceToCashflow: result.TopHoldings.EquityHoldings.PriceToCashflow,
@@ -269,7 +201,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 	}
 
 	if result.FundProfile != nil {
-		details.FundProfile = &FundProfile{
+		details.FundProfile = &symbol.FundProfile{
 			Family:                 result.FundProfile.Family,
 			LegalType:              result.FundProfile.LegalType,
 			TotalNetAssets:         result.FundProfile.FeesExpenses.TotalNetAssets,
@@ -331,13 +263,13 @@ func (f *YahooFinanceFetcher) getCrumb(ctx context.Context, client *http.Client,
 	return strings.TrimSpace(string(body)), nil
 }
 
-func parseTopHoldings(items []topHoldingItem) []TopHolding {
+func parseTopHoldings(items []topHoldingItem) []symbol.TopHolding {
 	if len(items) == 0 {
 		return nil
 	}
-	holdings := make([]TopHolding, len(items))
+	holdings := make([]symbol.TopHolding, len(items))
 	for i, item := range items {
-		holdings[i] = TopHolding{
+		holdings[i] = symbol.TopHolding{
 			Symbol:  item.Symbol,
 			Name:    item.HoldingName,
 			Percent: item.HoldingPercent,
@@ -346,14 +278,14 @@ func parseTopHoldings(items []topHoldingItem) []TopHolding {
 	return holdings
 }
 
-func parseSectorWeightings(items []sectorWeightItem) []SectorWeighting {
+func parseSectorWeightings(items []sectorWeightItem) []symbol.SectorWeighting {
 	if len(items) == 0 {
 		return nil
 	}
-	weightings := make([]SectorWeighting, 0, len(items))
+	weightings := make([]symbol.SectorWeighting, 0, len(items))
 	for _, item := range items {
 		for sector, pct := range item {
-			weightings = append(weightings, SectorWeighting{
+			weightings = append(weightings, symbol.SectorWeighting{
 				Sector:  sector,
 				Percent: pct,
 			})
