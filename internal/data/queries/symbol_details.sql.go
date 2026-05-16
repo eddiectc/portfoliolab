@@ -113,17 +113,17 @@ func (q *Queries) InsertSymbolDetails(ctx context.Context, db DBTX, arg InsertSy
 }
 
 const listStaleSymbolDetails = `-- name: ListStaleSymbolDetails :many
-SELECT sd.internal_symbol, sm.market_data_symbol, sd.fetched_at
-FROM symbol_details sd
-JOIN symbol_mappings sm ON sd.internal_symbol = sm.internal_symbol
-WHERE sd.fetched_at < ?
+SELECT sm.internal_symbol, sm.market_data_symbol, sd.fetched_at
+FROM symbol_mappings sm
+LEFT JOIN symbol_details sd ON sm.internal_symbol = sd.internal_symbol
+WHERE sd.fetched_at IS NULL OR sd.fetched_at < ?
 ORDER BY sd.fetched_at ASC
 `
 
 type ListStaleSymbolDetailsRow struct {
-	InternalSymbol   string `db:"internal_symbol"`
-	MarketDataSymbol string `db:"market_data_symbol"`
-	FetchedAt        string `db:"fetched_at"`
+	InternalSymbol   string         `db:"internal_symbol"`
+	MarketDataSymbol string         `db:"market_data_symbol"`
+	FetchedAt        sql.NullString `db:"fetched_at"`
 }
 
 func (q *Queries) ListStaleSymbolDetails(ctx context.Context, db DBTX, fetchedAt string) ([]ListStaleSymbolDetailsRow, error) {

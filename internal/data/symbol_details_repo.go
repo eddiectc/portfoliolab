@@ -155,9 +155,16 @@ func (r *SymbolDetailsRepository) ListStale(ctx context.Context, olderThan time.
 
 	stale := make([]symbol.StaleSymbol, len(rows))
 	for i, row := range rows {
-		fetchedAt, err := parseTime(row.FetchedAt)
-		if err != nil {
-			return nil, fmt.Errorf("parse fetched_at for %s: %w", row.InternalSymbol, err)
+		var fetchedAt time.Time
+		if row.FetchedAt.Valid {
+			var err error
+			fetchedAt, err = parseTime(row.FetchedAt.String)
+			if err != nil {
+				return nil, fmt.Errorf("parse fetched_at for %s: %w", row.InternalSymbol, err)
+			}
+		} else {
+			// No details row exists — zero time indicates missing (not stale)
+			fetchedAt = time.Time{}
 		}
 		stale[i] = symbol.StaleSymbol{
 			InternalSymbol:   row.InternalSymbol,

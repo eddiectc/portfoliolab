@@ -23,8 +23,8 @@ RETURNING *;
 SELECT * FROM symbol_details WHERE internal_symbol = ?;
 
 -- name: ListStaleSymbolDetails :many
-SELECT sd.internal_symbol, sm.market_data_symbol, sd.fetched_at
-FROM symbol_details sd
-JOIN symbol_mappings sm ON sd.internal_symbol = sm.internal_symbol
-WHERE sd.fetched_at < ?
+SELECT sm.internal_symbol, sm.market_data_symbol, sd.fetched_at
+FROM symbol_mappings sm
+LEFT JOIN symbol_details sd ON sm.internal_symbol = sd.internal_symbol
+WHERE sd.fetched_at IS NULL OR sd.fetched_at < ?
 ORDER BY sd.fetched_at ASC;
