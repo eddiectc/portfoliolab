@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/govalues/decimal"
@@ -56,6 +57,14 @@ type YahooFinanceFetcher struct {
 // NewYahooFinanceFetcher creates a new YahooFinanceFetcher.
 func NewYahooFinanceFetcher(logger *slog.Logger) *YahooFinanceFetcher {
 	return &YahooFinanceFetcher{logger: logger}
+}
+
+// httpClient returns an HTTP client for direct Yahoo Finance API calls
+// (used by FetchSymbolDetails for the quoteSummary endpoint).
+func (f *YahooFinanceFetcher) httpClient() *http.Client {
+	return &http.Client{
+		Timeout: 15 * time.Second,
+	}
 }
 
 // FetchQuote fetches the current quote for a symbol from Yahoo Finance.

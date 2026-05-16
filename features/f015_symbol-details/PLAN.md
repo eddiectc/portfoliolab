@@ -37,17 +37,17 @@ All → Task 9 (validation)
 **Corresponds to:** Fetch generic/ETF details scenarios
 **Description:** Add `FetchSymbolDetails()` to `YahooFinanceFetcher` using direct HTTP to the `quoteSummary` endpoint. See `features/f015_symbol-details/RESEARCH.md` for endpoint details, auth flow, and response structure.
 
-- [ ] Define domain models in `internal/domain/symbols/symbol_details.go`:
+- [x] Define domain models in `internal/domain/symbols/symbol_details.go`:
   - `SymbolDetails` struct (shortName, longName, exchange, currency, quoteType, topHoldings, sectorWeightings, aggregatePositions, fundProfile, equityValuation, fetchedAt)
   - Sub-structs: `TopHolding`, `SectorWeighting`, `AggregatePositions`, `FundProfile`, `EquityValuation`
-- [ ] Add `FetchSymbolDetails(ctx, marketDataSymbol) (*SymbolDetails, error)` to `YahooFinanceFetcher` in `internal/market/quote.go`
-- [ ] Implement crumb/cookie auth flow (same pattern as go-yfinance's AuthManager)
-- [ ] Parse `quoteSummary` JSON for `topHoldings` module (holdings, sectorWeightings, aggregate positions, equityHoldings)
-- [ ] Parse `fundProfile` module (family, legalType, netAssets, expenseRatio, turnover)
-- [ ] Parse `assetProfile` module for generic info (shortName, longName, exchange, currency)
-- [ ] Handle partial data gracefully (store whatever fields are available)
-- [ ] Write unit tests for response parsing (with hardcoded JSON fixtures from RESEARCH.md)
-- [ ] Write integration-style test for fetcher (mock HTTP server returning known JSON)
+- [x] Add `FetchSymbolDetails(ctx, marketDataSymbol) (*SymbolDetails, error)` to `YahooFinanceFetcher` in `internal/market/quote.go`
+- [x] Implement crumb/cookie auth flow (same pattern as go-yfinance's AuthManager)
+- [x] Parse `quoteSummary` JSON for `topHoldings` module (holdings, sectorWeightings, aggregate positions, equityHoldings)
+- [x] Parse `fundProfile` module (family, legalType, netAssets, expenseRatio, turnover)
+- [x] Parse `assetProfile` module for generic info (shortName, longName, exchange, currency)
+- [x] Handle partial data gracefully (store whatever fields are available)
+- [x] Write unit tests for response parsing (with hardcoded JSON fixtures from RESEARCH.md)
+- [x] Write integration-style test for fetcher (mock HTTP server returning known JSON)
 
 **Verification:** Fetcher compiles, tests pass with fixtures, parses all expected fields.
 
