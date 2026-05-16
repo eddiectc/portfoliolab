@@ -1,6 +1,8 @@
 # Notes: Symbol Details
 
 ## Decisions
+- 2026-05-16 (Task 6): Plan says "`symbols.Service` (the symbol CRUD service)" but `symbols.Service` is the details service — the CRUD service is `symbolmapping.Service`. Followed the intent (CRUD service). Defined a new `SymbolDetailsFetcher` interface in `symbolmapping` (with `FetchAndStore`) rather than reusing `market.SymbolDetailsFetcher` (with `FetchSymbolDetails`), since the CRUD service needs the full fetch-and-store orchestration, not just the raw fetch.
+- 2026-05-16 (Task 6): Background goroutine in `Create()` uses `context.Background()` (not the incoming `ctx`) so the details fetch survives if the HTTP caller disconnects before the goroutine runs.
 - 2026-05-16: Domain model (`internal/domain/symbols/symbol_details.go`) created ahead of Task 2 (fetcher) because the repository needed a target type. The structs mirror the RESEARCH.md response structure and will be populated by the fetcher in Task 2.
 - 2026-05-16: Yahoo endpoint URLs are package-level vars (not consts) in `symbol_details.go` so they can be overridden in tests with a mock server.
 - 2026-05-16: JSON columns in SQLite stored as TEXT; repo handles marshal/unmarshal. Empty/nil values stored as NULL (sql.NullString).
