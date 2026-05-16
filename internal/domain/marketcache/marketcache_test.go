@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 	"github.com/govalues/decimal"
 )
 
@@ -1311,6 +1312,234 @@ func TestGapFillBenchmarks_NoLister_Skips(t *testing.T) {
 	calls := fetcher.HistoricalCalls()
 	if calls != 0 {
 		t.Errorf("expected 0 historical fetch calls, got %d", calls)
+	}
+}
+
+// --- Symbol Details Refresh mocks and tests ---
+
+type mockSymbolDetailsRefresh struct {
+	mu            sync.RWMutex
+	staleSymbols  []symbol.StaleSymbol
+	refreshErrors map[string]bool // keyed by internalSymbol
+	refreshCalls  int
+}
+
+func (m *mockSymbolDetailsRefresh) SetStaleSymbols(symbols []symbol.StaleSymbol) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.staleSymbols = symbols
+}
+
+func (m *mockSymbolDetailsRefresh) SetRefreshError(internalSymbol string, fail bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.refreshErrors == nil {
+		m.refreshErrors = make(map[string]bool)
+	}
+	m.refreshErrors[internalSymbol] = fail
+}
+
+func (m *mockSymbolDetailsRefresh) GetStaleSymbols(_ context.Context) ([]symbol.StaleSymbol, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	result := make([]symbol.StaleSymbol, len(m.staleSymbols))
+	copy(result, m.staleSymbols)
+	return result, nil
+}
+
+func (m *mockSymbolDetailsRefresh) RefreshSymbol(_ context.Context, internalSymbol, _ string) error {
+	m.mu.Lock()
+	m.refreshCalls++
+	fail := m.refreshErrors[internalSymbol]
+	m.mu.Unlock()
+	if fail {
+		return fmt.Errorf("fetch failed for %s", internalSymbol)
+	}
+	return nil
+}
+
+func (m *mockSymbolDetailsRefresh) RefreshCalls() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.refreshCalls
+}
+
+func TestRefreshStaleSymbolDetails_NoSource_Skips(t *testing.T) {
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	// No symbol details refresh source set.
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	// Should not panic — nil source is a no-op.
+	cache.refreshStaleSymbolDetails(ctx)
+}
+
+func TestRefreshStaleSymbolDetails_NoStaleSymbols_Skips(t *testing.T) {
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(nil)
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	cache.refreshStaleSymbolDetails(ctx)
+
+	calls := source.RefreshCalls()
+	if calls != 0 {
+		t.Errorf("expected 0 refresh calls, got %d", calls)
+	}
+}
+
+func TestRefreshStaleSymbolDetails_RefreshesStale(t *testing.T) {
+	now := time.Now().UTC()
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: now.AddDate(0, 0, -10)},
+		{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT", FetchedAt: now.AddDate(0, 0, -8)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+	// Don't Start() — call refreshStaleSymbolDetails directly to avoid
+	// the periodic ticker's immediate first pass interfering with the count.
+	cache.refreshStaleSymbolDetails(ctx)
+
+	calls := source.RefreshCalls()
+	if calls != 2 {
+		t.Errorf("expected 2 refresh calls, got %d", calls)
+	}
+}
+
+func TestRefreshStaleSymbolDetails_PartialFailure(t *testing.T) {
+	now := time.Now().UTC()
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: now.AddDate(0, 0, -10)},
+		{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT", FetchedAt: now.AddDate(0, 0, -8)},
+		{InternalSymbol: "GOOG", MarketDataSymbol: "GOOG", FetchedAt: now.AddDate(0, 0, -14)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+	source.SetRefreshError("MSFT", true) // MSFT fails
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+	// Don't Start() — call directly to isolate this test.
+	cache.refreshStaleSymbolDetails(ctx)
+
+	// All 3 should be attempted (failure doesn't stop the batch).
+	calls := source.RefreshCalls()
+	if calls != 3 {
+		t.Errorf("expected 3 refresh calls (all attempted despite partial failure), got %d", calls)
+	}
+}
+
+func TestRefreshStaleSymbolDetails_RateLimiting(t *testing.T) {
+	now := time.Now().UTC()
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: now.AddDate(0, 0, -10)},
+		{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT", FetchedAt: now.AddDate(0, 0, -8)},
+		{InternalSymbol: "GOOG", MarketDataSymbol: "GOOG", FetchedAt: now.AddDate(0, 0, -14)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+
+	// With 3 symbols and 500ms delay between them, should take ~1s total.
+	start := time.Now()
+	cache.refreshStaleSymbolDetails(ctx)
+	duration := time.Since(start)
+
+	// Should be at least 1s (2 delays of 500ms) and less than 2s.
+	if duration < 900*time.Millisecond {
+		t.Errorf("expected rate limiting (>= 1s), got %v", duration)
+	}
+	if duration > 2*time.Second {
+		t.Errorf("refresh took too long (%v), expected ~1s", duration)
+	}
+}
+
+func TestRefreshStaleSymbolDetails_PeriodicTickerIntegration(t *testing.T) {
+	now := time.Now().UTC()
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: now.AddDate(0, 0, -10)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17500, 2), Currency: "USD"},
+		},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	discoverer.SetActiveSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
+	discoverer.SetAllSymbols(map[string]time.Time{"AAPL": now.AddDate(0, 0, -10)})
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+	cache.tickerInterval = 50 * time.Millisecond
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	// Wait for the periodic ticker's immediate first pass + 500ms rate limit delay.
+	waitBackground(t, 1200*time.Millisecond)
+
+	// Symbol details refresh should have been called at least once by the periodic ticker.
+	calls := source.RefreshCalls()
+	if calls < 1 {
+		t.Errorf("expected at least 1 refresh call from periodic ticker, got %d", calls)
+	}
+
+	// Clear stale symbols so subsequent ticks don't refresh again.
+	source.SetStaleSymbols(nil)
+
+	// Wait for another tick cycle.
+	waitBackground(t, 200*time.Millisecond)
+
+	// No additional calls after clearing stale symbols.
+	callsAfterClear := source.RefreshCalls()
+	if callsAfterClear != calls {
+		t.Errorf("expected no additional refresh calls after clearing stale, got %d (was %d, now %d)", callsAfterClear, calls, callsAfterClear)
 	}
 }
 

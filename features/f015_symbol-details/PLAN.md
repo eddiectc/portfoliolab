@@ -119,13 +119,13 @@ All → Task 9 (validation)
 **Corresponds to:** Background refresh scenarios (stale/fresh/failure)
 **Description:** Integrate symbol details refresh into the MarketCache periodic ticker.
 
-- [ ] Add `SymbolDetailsRefreshRepository` and `SymbolDetailsRefreshFetcher` interfaces to `marketcache` package
-- [ ] Add `WithSymbolDetailsRefresh(detailsRepo, detailsFetcher, symbolMappingRepo)` option to MarketCache
-- [ ] In `periodicTicker` / `doRefresh()`, after existing refresh logic, call `GetStaleSymbols()` and refresh each
-- [ ] Serialize fetches with ~500ms delay between symbols (per RESEARCH.md rate limiting guidance)
-- [ ] Preserve existing cached data on fetch failure (log warning, continue to next symbol)
-- [ ] Other symbols in the refresh batch are not affected by individual failures
-- [ ] Write tests: stale symbols refreshed, fresh symbols skipped, fetch failure handled gracefully
+- [x] Add `SymbolDetailsRefreshSource` interface to `marketcache` package
+- [x] Add `WithSymbolDetailsRefresh(source)` option to MarketCache
+- [x] In `periodicTicker` / `doRefresh()`, after existing refresh logic, call `GetStaleSymbols()` and refresh each
+- [x] Serialize fetches with ~500ms delay between symbols (per RESEARCH.md rate limiting guidance)
+- [x] Preserve existing cached data on fetch failure (log warning, continue to next symbol)
+- [x] Other symbols in the refresh batch are not affected by individual failures
+- [x] Write tests: stale symbols refreshed, fresh symbols skipped, fetch failure handled gracefully
 
 **Verification:** Background refresh picks up stale symbols, skips fresh ones, handles failures gracefully.
 
