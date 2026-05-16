@@ -55,14 +55,14 @@ All → Task 9 (validation)
 **Corresponds to:** All scenarios
 **Description:** Service that orchestrates fetch → store, stale detection, and retrieval.
 
-- [ ] Create `internal/domain/symbols/service.go`
-- [ ] Define interfaces: `SymbolDetailsRepository`, `SymbolDetailsFetcher`
-- [ ] Implement `FetchAndStore(ctx, internalSymbol, marketDataSymbol) error` — resolve ticker, fetch from Yahoo, upsert to DB
-- [ ] Implement `GetByInternalSymbol(ctx, internalSymbol) (*SymbolDetails, error)` — retrieve cached details
-- [ ] Implement `GetStaleSymbols(ctx) ([]StaleSymbol, error)` — find symbols needing refresh (returns internal_symbol + market_data_symbol pairs)
-- [ ] Implement `RefreshSymbol(ctx, internalSymbol, marketDataSymbol) error` — re-fetch and update
-- [ ] Write service tests with hand-written mocks (following `account/service_test.go` pattern)
-- [ ] Test edge cases: fetch failure (returns error, no DB change), partial data stored, stale detection threshold
+- [x] Create `internal/domain/symbols/service.go`
+- [x] Define interfaces: `SymbolDetailsRepository`, `SymbolDetailsFetcher`
+- [x] Implement `FetchAndStore(ctx, internalSymbol, marketDataSymbol) error` — resolve ticker, fetch from Yahoo, upsert to DB
+- [x] Implement `GetByInternalSymbol(ctx, internalSymbol) (*SymbolDetails, error)` — retrieve cached details
+- [x] Implement `GetStaleSymbols(ctx) ([]StaleSymbol, error)` — find symbols needing refresh (returns internal_symbol + market_data_symbol pairs)
+- [x] Implement `RefreshSymbol(ctx, internalSymbol, marketDataSymbol) error` — re-fetch and update
+- [x] Write service tests with hand-written mocks (following `account/service_test.go` pattern)
+- [x] Test edge cases: fetch failure (returns error, no DB change), partial data stored, stale detection threshold
 
 **Verification:** Service compiles, tests pass, covers happy/error/partial paths.
 
