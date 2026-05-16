@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // ErrNotFound indicates no cached symbol details exist for the requested symbol.
@@ -18,9 +19,9 @@ const StaleThreshold = 7 * 24 * time.Hour
 
 // SymbolDetailsRepository persists and retrieves cached symbol details.
 type SymbolDetailsRepository interface {
-	Upsert(ctx context.Context, details *market.SymbolDetails) error
-	GetByInternalSymbol(ctx context.Context, internalSymbol string) (*market.SymbolDetails, error)
-	ListStale(ctx context.Context, olderThan time.Time) ([]market.StaleSymbol, error)
+	Upsert(ctx context.Context, details *symbol.SymbolDetails) error
+	GetByInternalSymbol(ctx context.Context, internalSymbol string) (*symbol.SymbolDetails, error)
+	ListStale(ctx context.Context, olderThan time.Time) ([]symbol.StaleSymbol, error)
 }
 
 // Service orchestrates fetching, caching, and retrieval of symbol details.
@@ -53,7 +54,7 @@ func (s *Service) FetchAndStore(ctx context.Context, internalSymbol, marketDataS
 
 // GetByInternalSymbol retrieves cached symbol details for a symbol.
 // Returns an error (wrapping ErrNotFound) if no details are cached.
-func (s *Service) GetByInternalSymbol(ctx context.Context, internalSymbol string) (*market.SymbolDetails, error) {
+func (s *Service) GetByInternalSymbol(ctx context.Context, internalSymbol string) (*symbol.SymbolDetails, error) {
 	details, err := s.repo.GetByInternalSymbol(ctx, internalSymbol)
 	if err != nil {
 		return nil, fmt.Errorf("get symbol details for %s: %w", internalSymbol, err)
@@ -64,7 +65,7 @@ func (s *Service) GetByInternalSymbol(ctx context.Context, internalSymbol string
 // GetStaleSymbols returns symbols whose cached details are older than the
 // stale threshold (7 days). Returns internal_symbol + market_data_symbol pairs
 // suitable for refresh.
-func (s *Service) GetStaleSymbols(ctx context.Context) ([]market.StaleSymbol, error) {
+func (s *Service) GetStaleSymbols(ctx context.Context) ([]symbol.StaleSymbol, error) {
 	olderThan := time.Now().Add(-StaleThreshold)
 	stale, err := s.repo.ListStale(ctx, olderThan)
 	if err != nil {

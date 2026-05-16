@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // SymbolDetailsRepository provides data access for cached symbol details,
@@ -27,14 +27,14 @@ func NewSymbolDetailsRepository(db *sql.DB) *SymbolDetailsRepository {
 	}
 }
 
-// toSymbolDetail converts a sqlc SymbolDetail to a market SymbolDetails.
-func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*market.SymbolDetails, error) {
+// toSymbolDetail converts a sqlc SymbolDetail to a domain SymbolDetails.
+func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*symbol.SymbolDetails, error) {
 	fetchedAt, err := parseTime(sd.FetchedAt)
 	if err != nil {
 		return nil, fmt.Errorf("parse fetched_at: %w", err)
 	}
 
-	details := &market.SymbolDetails{
+	details := &symbol.SymbolDetails{
 		InternalSymbol: sd.InternalSymbol,
 		ShortName:      nullString(sd.ShortName),
 		LongName:       nullString(sd.LongName),
@@ -109,7 +109,7 @@ func toSQLNullJSON(v interface{}) sql.NullString {
 }
 
 // Upsert inserts or updates symbol details for a symbol.
-func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *market.SymbolDetails) error {
+func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.SymbolDetails) error {
 	now := time.Now()
 	_, err := r.q.InsertSymbolDetails(ctx, r.db, queries.InsertSymbolDetailsParams{
 		InternalSymbol:     details.InternalSymbol,
@@ -134,7 +134,7 @@ func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *market.Sy
 
 // GetByInternalSymbol retrieves cached symbol details by internal symbol.
 // Returns ErrNotFound if no details exist for the symbol.
-func (r *SymbolDetailsRepository) GetByInternalSymbol(ctx context.Context, internalSymbol string) (*market.SymbolDetails, error) {
+func (r *SymbolDetailsRepository) GetByInternalSymbol(ctx context.Context, internalSymbol string) (*symbol.SymbolDetails, error) {
 	sd, err := r.q.GetSymbolDetailsByInternalSymbol(ctx, r.db, internalSymbol)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -147,19 +147,19 @@ func (r *SymbolDetailsRepository) GetByInternalSymbol(ctx context.Context, inter
 
 // ListStale retrieves symbols whose details are older than the given threshold.
 // Returns internal_symbol and market_data_symbol pairs for refresh.
-func (r *SymbolDetailsRepository) ListStale(ctx context.Context, olderThan time.Time) ([]market.StaleSymbol, error) {
+func (r *SymbolDetailsRepository) ListStale(ctx context.Context, olderThan time.Time) ([]symbol.StaleSymbol, error) {
 	rows, err := r.q.ListStaleSymbolDetails(ctx, r.db, olderThan.Format(time.RFC3339))
 	if err != nil {
 		return nil, fmt.Errorf("list stale symbol details: %w", err)
 	}
 
-	stale := make([]market.StaleSymbol, len(rows))
+	stale := make([]symbol.StaleSymbol, len(rows))
 	for i, row := range rows {
 		fetchedAt, err := parseTime(row.FetchedAt)
 		if err != nil {
 			return nil, fmt.Errorf("parse fetched_at for %s: %w", row.InternalSymbol, err)
 		}
-		stale[i] = market.StaleSymbol{
+		stale[i] = symbol.StaleSymbol{
 			InternalSymbol:   row.InternalSymbol,
 			MarketDataSymbol: row.MarketDataSymbol,
 			FetchedAt:        fetchedAt,

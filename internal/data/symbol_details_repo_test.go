@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // setupSymbolDetailsDB creates an in-memory SQLite database with the symbol
@@ -71,7 +71,7 @@ func TestSymbolDetailsRepository_UpsertAndGet(t *testing.T) {
 	repo := NewSymbolDetailsRepository(db)
 
 	now := time.Now()
-	details := &market.SymbolDetails{
+	details := &symbol.SymbolDetails{
 		InternalSymbol: "AAPL",
 		ShortName:      "Apple Inc.",
 		LongName:       "Apple Inc.",
@@ -112,33 +112,33 @@ func TestSymbolDetailsRepository_UpsertWithETFData(t *testing.T) {
 	repo := NewSymbolDetailsRepository(db)
 
 	now := time.Now()
-	details := &market.SymbolDetails{
+	details := &symbol.SymbolDetails{
 		InternalSymbol: "WMGG.L",
 		ShortName:      "WisdomTree Megatrends",
 		LongName:       "WisdomTree Megatrends UCITS ETF",
 		Exchange:       "LSE",
 		Currency:       "GBP",
 		QuoteType:      "ETF",
-		TopHoldings: []market.TopHolding{
+		TopHoldings: []symbol.TopHolding{
 			{Symbol: "BE", Name: "Bloom Energy Corp", Percent: 0.014},
 			{Symbol: "TSLA", Name: "Tesla Inc", Percent: 0.025},
 		},
-		SectorWeightings: []market.SectorWeighting{
+		SectorWeightings: []symbol.SectorWeighting{
 			{Sector: "technology", Percent: 0.212},
 			{Sector: "industrials", Percent: 0.364},
 		},
-		AggregatePositions: &market.AggregatePositions{
+		AggregatePositions: &symbol.AggregatePositions{
 			Stock: 0.993,
 			Cash:  0.006,
 			Other: 0.001,
 		},
-		FundProfile: &market.FundProfile{
+		FundProfile: &symbol.FundProfile{
 			Family:             "WisdomTree",
 			LegalType:          "Exchange Traded Fund",
 			TotalNetAssets:     21526.37,
 			AnnualExpenseRatio: 0.004,
 		},
-		EquityValuation: &market.EquityValuation{
+		EquityValuation: &symbol.EquityValuation{
 			PriceToEarnings: 0.035,
 			PriceToBook:     0.274,
 		},
@@ -191,7 +191,7 @@ func TestSymbolDetailsRepository_UpsertOverwrites(t *testing.T) {
 	repo := NewSymbolDetailsRepository(db)
 
 	now := time.Now()
-	details := &market.SymbolDetails{
+	details := &symbol.SymbolDetails{
 		InternalSymbol: "AAPL",
 		ShortName:      "Apple Inc.",
 		Exchange:       "NMS",
@@ -200,7 +200,7 @@ func TestSymbolDetailsRepository_UpsertOverwrites(t *testing.T) {
 	repo.Upsert(context.Background(), details)
 
 	// Upsert again with different data
-	updated := &market.SymbolDetails{
+	updated := &symbol.SymbolDetails{
 		InternalSymbol: "AAPL",
 		ShortName:      "Apple",
 		Exchange:       "NASDAQ",
@@ -251,7 +251,7 @@ func TestSymbolDetailsRepository_ListStale(t *testing.T) {
 	now := time.Now()
 
 	// Insert stale details (8 days ago)
-	stale := &market.SymbolDetails{
+	stale := &symbol.SymbolDetails{
 		InternalSymbol: "AAPL",
 		ShortName:      "Apple Inc.",
 		FetchedAt:      now.Add(-8 * 24 * time.Hour),
@@ -259,7 +259,7 @@ func TestSymbolDetailsRepository_ListStale(t *testing.T) {
 	repo.Upsert(ctx, stale)
 
 	// Insert fresh details (2 days ago)
-	fresh := &market.SymbolDetails{
+	fresh := &symbol.SymbolDetails{
 		InternalSymbol: "WMGG.L",
 		ShortName:      "WisdomTree Megatrends",
 		FetchedAt:      now.Add(-2 * 24 * time.Hour),
@@ -294,7 +294,7 @@ func TestSymbolDetailsRepository_ListStale_None(t *testing.T) {
 	}
 
 	now := time.Now()
-	details := &market.SymbolDetails{
+	details := &symbol.SymbolDetails{
 		InternalSymbol: "AAPL",
 		ShortName:      "Apple Inc.",
 		FetchedAt:      now,
@@ -319,7 +319,7 @@ func TestSymbolDetailsRepository_EmptyFieldsStoredAsNull(t *testing.T) {
 	repo := NewSymbolDetailsRepository(db)
 
 	now := time.Now()
-	details := &market.SymbolDetails{
+	details := &symbol.SymbolDetails{
 		InternalSymbol: "XYZ",
 		FetchedAt:      now,
 		// All other fields empty
@@ -359,7 +359,7 @@ func TestSymbolDetailsRepository_ListStale_NoMatchingMapping(t *testing.T) {
 	now := time.Now()
 
 	// Insert symbol details without a corresponding symbol mapping
-	details := &market.SymbolDetails{
+	details := &symbol.SymbolDetails{
 		InternalSymbol: "NO_MAPPING",
 		ShortName:      "No Mapping Symbol",
 		FetchedAt:      now.Add(-30 * 24 * time.Hour),
