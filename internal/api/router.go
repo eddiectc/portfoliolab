@@ -84,11 +84,15 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	// Symbol CRUD (API)
 	symbolMappingRepo := data.NewSymbolMappingRepository(db)
 	yahooFetcher := market.NewYahooFinanceFetcher(logger)
-	symbolMappingSvc := symbolmapping.NewService(symbolMappingRepo, symbolmapping.WithMarketDataFetcher(yahooFetcher))
 
 	// Symbol details (API enrichment)
 	symbolDetailsRepo := data.NewSymbolDetailsRepository(db)
 	symbolDetailsSvc := symbols.NewService(symbolDetailsRepo, yahooFetcher)
+
+	symbolMappingSvc := symbolmapping.NewService(symbolMappingRepo,
+		symbolmapping.WithMarketDataFetcher(yahooFetcher),
+		symbolmapping.WithSymbolDetailsFetcher(symbolDetailsSvc),
+		symbolmapping.WithLogger(logger))
 	symbolHandler := handlers.NewSymbolHandler(symbolMappingSvc, symbolDetailsSvc)
 	symbolHandler.RegisterRoutes(r)
 

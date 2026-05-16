@@ -970,3 +970,96 @@ func TestService_PreviewSymbol_SymbolNotFound(t *testing.T) {
 		t.Errorf("expected ErrPreviewFailed, got %v", err)
 	}
 }
+
+// --- Mock SymbolDetailsFetcher ---
+
+type mockDetailsFetcher struct {
+	calls []struct {
+		internalSymbol   string
+		marketDataSymbol string
+	}
+	err error
+}
+
+func (m *mockDetailsFetcher) FetchAndStore(_ context.Context, internalSymbol, marketDataSymbol string) error {
+	m.calls = append(m.calls, struct {
+		internalSymbol   string
+		marketDataSymbol string
+	}{internalSymbol, marketDataSymbol})
+	return m.err
+}
+
+// --- Create with SymbolDetailsFetcher Tests ---
+
+func TestService_Create_NoDetailsFetcher(t *testing.T) {
+	svc, _ := newTestService(t)
+	// No details fetcher configured — creation should succeed normally
+
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.InternalSymbol != "AAPL" {
+		t.Errorf("expected 'AAPL', got %q", sm.InternalSymbol)
+	}
+}
+
+func TestService_Create_TriggersDetailsFetch(t *testing.T) {
+	repo := newMockRepo()
+	detailsFetcher := &mockDetailsFetcher{}
+	svc := NewService(repo, WithSymbolDetailsFetcher(detailsFetcher))
+
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "VOO",
+		MarketDataSymbol: "VOO",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.InternalSymbol != "VOO" {
+		t.Errorf("expected 'VOO', got %q", sm.InternalSymbol)
+	}
+
+	// Wait briefly for goroutine to complete
+	time.Sleep(50 * time.Millisecond)
+
+	if len(detailsFetcher.calls) != 1 {
+		t.Fatalf("expected 1 details fetch call, got %d", len(detailsFetcher.calls))
+	}
+	if detailsFetcher.calls[0].internalSymbol != "VOO" {
+		t.Errorf("expected internal symbol 'VOO', got %q", detailsFetcher.calls[0].internalSymbol)
+	}
+	if detailsFetcher.calls[0].marketDataSymbol != "VOO" {
+		t.Errorf("expected market data symbol 'VOO', got %q", detailsFetcher.calls[0].marketDataSymbol)
+	}
+}
+
+func TestService_Create_DetailsFetchFailsDoesNotBlockCreation(t *testing.T) {
+	repo := newMockRepo()
+	detailsFetcher := &mockDetailsFetcher{
+		err: fmt.Errorf("yahoo finance unavailable"),
+	}
+	svc := NewService(repo, WithSymbolDetailsFetcher(detailsFetcher))
+
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "FAKE",
+		MarketDataSymbol: "FAKE",
+	})
+	if err != nil {
+		t.Fatalf("creation should succeed even when details fetch fails: %v", err)
+	}
+	if sm.InternalSymbol != "FAKE" {
+		t.Errorf("expected 'FAKE', got %q", sm.InternalSymbol)
+	}
+
+	// Wait for goroutine
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify the fetch was attempted (even though it failed)
+	if len(detailsFetcher.calls) != 1 {
+		t.Fatalf("expected 1 details fetch call, got %d", len(detailsFetcher.calls))
+	}
+}

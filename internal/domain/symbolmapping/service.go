@@ -3,6 +3,7 @@ package symbolmapping
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -45,10 +46,17 @@ var ErrInUse = fmt.Errorf("symbol mapping is in use")
 // ErrPreviewFailed indicates the market data preview could not be fetched.
 var ErrPreviewFailed = fmt.Errorf("could not fetch market data preview")
 
+// SymbolDetailsFetcher triggers a fetch-and-store of symbol details.
+type SymbolDetailsFetcher interface {
+	FetchAndStore(ctx context.Context, internalSymbol, marketDataSymbol string) error
+}
+
 // Service handles symbol mapping business logic.
 type Service struct {
-	repo    Repository
-	fetcher market.MarketDataFetcher
+	repo           Repository
+	fetcher        market.MarketDataFetcher
+	detailsFetcher SymbolDetailsFetcher
+	logger         *slog.Logger
 }
 
 // ServiceOption configures the Service.
@@ -58,6 +66,21 @@ type ServiceOption func(*Service)
 func WithMarketDataFetcher(fetcher market.MarketDataFetcher) ServiceOption {
 	return func(s *Service) {
 		s.fetcher = fetcher
+	}
+}
+
+// WithSymbolDetailsFetcher sets an optional details fetcher that triggers a
+// non-blocking symbol details fetch after a symbol mapping is created.
+func WithSymbolDetailsFetcher(fetcher SymbolDetailsFetcher) ServiceOption {
+	return func(s *Service) {
+		s.detailsFetcher = fetcher
+	}
+}
+
+// WithLogger sets an optional logger for background operations.
+func WithLogger(logger *slog.Logger) ServiceOption {
+	return func(s *Service) {
+		s.logger = logger
 	}
 }
 
@@ -98,6 +121,17 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*SymbolMapping
 
 	if err := s.repo.Create(ctx, sm); err != nil {
 		return nil, fmt.Errorf("create symbol mapping: %w", err)
+	}
+
+	// Non-blocking symbol details fetch (if configured).
+	if s.detailsFetcher != nil {
+		go func() {
+			if err := s.detailsFetcher.FetchAndStore(context.Background(), sm.InternalSymbol, sm.MarketDataSymbol); err != nil {
+				if s.logger != nil {
+					s.logger.Warn("symbol details fetch failed after creation", "symbol", sm.InternalSymbol, "error", err)
+				}
+			}
+		}()
 	}
 
 	// Add broker symbols

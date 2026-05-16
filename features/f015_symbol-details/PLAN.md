@@ -107,11 +107,11 @@ All → Task 9 (validation)
 **Corresponds to:** Fetch generic/ETF details on symbol creation, fetch fails on creation
 **Description:** Trigger non-blocking details fetch after a symbol mapping is created.
 
-- [ ] Add optional `SymbolDetailsFetcher` dependency to `symbols.Service` (the symbol CRUD service, via `ServiceOption`)
-- [ ] In `Service.Create()`, after successful DB save, spawn a goroutine that calls the details service to fetch and store
-- [ ] Goroutine logs success/failure but doesn't propagate errors
-- [ ] Wire the dependency in `router.go` (pass symbol details service to symbol CRUD service)
-- [ ] Write tests: creation succeeds when fetcher is nil, creation triggers fetch when configured, creation succeeds when fetch fails
+- [x] Add optional `SymbolDetailsFetcher` dependency to `symbols.Service` (the symbol CRUD service, via `ServiceOption`)
+- [x] In `Service.Create()`, after successful DB save, spawn a goroutine that calls the details service to fetch and store
+- [x] Goroutine logs success/failure but doesn't propagate errors
+- [x] Wire the dependency in `router.go` (pass symbol details service to symbol CRUD service)
+- [x] Write tests: creation succeeds when fetcher is nil, creation triggers fetch when configured, creation succeeds when fetch fails
 
 **Verification:** Symbol creation is non-blocking; details fetch runs in background; errors logged not surfaced.
 
