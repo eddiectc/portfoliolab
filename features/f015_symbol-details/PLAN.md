@@ -133,14 +133,14 @@ All → Task 9 (validation)
 **Corresponds to:** All scenarios (integration)
 **Description:** Wire all new components into the router, rename templates and remaining artifacts.
 
-- [ ] Rename `templates/symbol_mapping/` → `templates/symbol/` (update template names in renderer calls)
-- [ ] Create symbol details repo in `router.go`
-- [ ] Create symbol details service with repo + fetcher
-- [ ] Pass service to `SymbolHandler` (API enrich), `SymbolDetailsWebHandler`, and `symbols.Service` (creation hook)
-- [ ] Wire details refresh into MarketCache
-- [ ] Register all renamed + new routes
-- [ ] Update nav link text from "Symbol Maps" to "Symbols" in `templates/partials/nav.html`
-- [ ] Verify `go build` succeeds
+- [x] Rename `templates/symbol_mapping/` → `templates/symbol/` (update template names in renderer calls)
+- [x] Create symbol details repo in `router.go`
+- [x] Create symbol details service with repo + fetcher
+- [x] Pass service to `SymbolHandler` (API enrich), `SymbolDetailsWebHandler`, and `symbols.Service` (creation hook)
+- [x] Wire details refresh into MarketCache
+- [x] Register all renamed + new routes
+- [x] Update nav link text from "Symbol Maps" to "Symbols" in `templates/partials/nav.html`
+- [x] Verify `go build` succeeds
 
 **Verification:** Server starts without errors; all routes registered; templates render.
 
