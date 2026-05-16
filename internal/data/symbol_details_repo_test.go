@@ -366,13 +366,83 @@ func TestSymbolDetailsRepository_ListStale_NoMatchingMapping(t *testing.T) {
 	}
 	repo.Upsert(ctx, details)
 
-	// List stale — should return empty because the JOIN with symbol_mappings fails
+	// List stale — should return empty because query starts from symbol_mappings
+	// (no mapping for NO_MAPPING means it won't appear)
 	staleList, err := repo.ListStale(ctx, now)
 	if err != nil {
 		t.Fatalf("ListStale: %v", err)
 	}
 	if len(staleList) != 0 {
 		t.Errorf("expected 0 stale (no mapping), got %d", len(staleList))
+	}
+}
+
+func TestSymbolDetailsRepository_ListStale_IncludesMissing(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	ctx := context.Background()
+	now := time.Now()
+
+	// Insert symbol mappings — one with details, one without
+	_, err := db.Exec(`INSERT INTO symbol_mappings (internal_symbol, market_data_symbol) VALUES ('AAPL', 'AAPL'), ('MSFT', 'MSFT'), ('WMGG.L', 'WMGG.L')`)
+	if err != nil {
+		t.Fatalf("insert symbol mappings: %v", err)
+	}
+
+	// AAPL has stale details (8 days ago)
+	stale := &symbol.SymbolDetails{
+		InternalSymbol: "AAPL",
+		ShortName:      "Apple Inc.",
+		FetchedAt:      now.Add(-8 * 24 * time.Hour),
+	}
+	repo.Upsert(ctx, stale)
+
+	// WMGG.L has fresh details (2 days ago)
+	fresh := &symbol.SymbolDetails{
+		InternalSymbol: "WMGG.L",
+		ShortName:      "WisdomTree Megatrends",
+		FetchedAt:      now.Add(-2 * 24 * time.Hour),
+	}
+	repo.Upsert(ctx, fresh)
+
+	// MSFT has a mapping but NO details row
+
+	// List stale (older than 7 days) — should include AAPL (stale) and MSFT (missing)
+	threshold := now.Add(-7 * 24 * time.Hour)
+	staleList, err := repo.ListStale(ctx, threshold)
+	if err != nil {
+		t.Fatalf("ListStale: %v", err)
+	}
+	if len(staleList) != 2 {
+		t.Fatalf("expected 2 symbols (1 stale + 1 missing), got %d", len(staleList))
+	}
+
+	// Verify AAPL (stale) and MSFT (missing) are present
+	found := make(map[string]symbol.StaleSymbol)
+	for _, s := range staleList {
+		found[s.InternalSymbol] = s
+	}
+
+	aapl, ok := found["AAPL"]
+	if !ok {
+		t.Error("expected AAPL in stale list")
+	} else if aapl.MarketDataSymbol != "AAPL" {
+		t.Errorf("expected AAPL market_data_symbol, got %q", aapl.MarketDataSymbol)
+	}
+
+	msft, ok := found["MSFT"]
+	if !ok {
+		t.Error("expected MSFT in stale list (missing details)")
+	} else if msft.FetchedAt.IsZero() {
+		// FetchedAt should be zero for missing details
+	} else {
+		t.Errorf("expected zero FetchedAt for missing MSFT, got %v", msft.FetchedAt)
+	}
+
+	// WMGG.L should NOT be in the list (fresh)
+	if _, ok := found["WMGG.L"]; ok {
+		t.Error("WMGG.L should not be in stale list (fresh)")
 	}
 }
 
