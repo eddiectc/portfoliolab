@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // MarketCacheScheduler defines the scheduling interface for background
@@ -52,6 +53,14 @@ type BenchmarkSymbolLister interface {
 	ListBenchmarks(ctx context.Context) ([]symbolmapping.SymbolMapping, error)
 }
 
+// SymbolDetailsRefreshSource finds stale symbol details and refreshes them.
+type SymbolDetailsRefreshSource interface {
+	// GetStaleSymbols returns symbols whose cached details are stale.
+	GetStaleSymbols(ctx context.Context) ([]symbol.StaleSymbol, error)
+	// RefreshSymbol re-fetches and updates the cached details for a single symbol.
+	RefreshSymbol(ctx context.Context, internalSymbol, marketDataSymbol string) error
+}
+
 // CacheStatus holds the current state of the market data cache.
 type CacheStatus struct {
 	LastRefresh   time.Time `json:"last_refresh"`
@@ -75,6 +84,7 @@ type MarketCache struct {
 	repo             MarketDataRepository
 	discoverer       SymbolDiscoverer
 	benchmarkLister  BenchmarkSymbolLister
+	symbolDetailsRefresh SymbolDetailsRefreshSource
 	logger           *slog.Logger
 	tickerInterval   time.Duration
 
@@ -110,6 +120,13 @@ func New(fetcher MarketDataFetcher, repo MarketDataRepository, discoverer Symbol
 // WithBenchmarkLister sets the benchmark symbol lister for user-defined benchmarks.
 func (m *MarketCache) WithBenchmarkLister(lister BenchmarkSymbolLister) *MarketCache {
 	m.benchmarkLister = lister
+	return m
+}
+
+// WithSymbolDetailsRefresh sets the symbol details refresh source for
+// background refreshing of stale symbol details.
+func (m *MarketCache) WithSymbolDetailsRefresh(source SymbolDetailsRefreshSource) *MarketCache {
+	m.symbolDetailsRefresh = source
 	return m
 }
 
@@ -470,6 +487,9 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 		}
 	}
 
+	// Refresh stale symbol details.
+	m.refreshStaleSymbolDetails(ctx)
+
 	// Update status.
 	m.mu.Lock()
 	m.lastRefresh = time.Now()
@@ -786,6 +806,58 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 
 	if m.logger != nil {
 		m.logger.Info("refresh-all: completed")
+	}
+}
+
+// refreshStaleSymbolDetails finds symbols with stale cached details (>7 days)
+// and refreshes them. Fetches are serialized with ~500ms delay between symbols
+// to avoid rate limiting. Individual failures are logged but don't affect
+// other symbols in the batch.
+func (m *MarketCache) refreshStaleSymbolDetails(ctx context.Context) {
+	if m.symbolDetailsRefresh == nil {
+		return
+	}
+
+	stale, err := m.symbolDetailsRefresh.GetStaleSymbols(ctx)
+	if err != nil {
+		if m.logger != nil {
+			m.logger.Warn("failed to list stale symbol details", "error", err)
+		}
+		return
+	}
+
+	if len(stale) == 0 {
+		if m.logger != nil {
+			m.logger.Debug("no stale symbol details to refresh")
+		}
+		return
+	}
+
+	if m.logger != nil {
+		m.logger.Info("refreshing stale symbol details", "count", len(stale))
+	}
+
+	for i, s := range stale {
+		if ctx.Err() != nil {
+			return
+		}
+
+		// Rate limit: ~500ms delay between symbols (skip delay for first symbol).
+		if i > 0 {
+			time.Sleep(500 * time.Millisecond)
+		}
+
+		if err := m.symbolDetailsRefresh.RefreshSymbol(ctx, s.InternalSymbol, s.MarketDataSymbol); err != nil {
+			if m.logger != nil {
+				m.logger.Warn("failed to refresh symbol details", "symbol", s.InternalSymbol, "marketDataSymbol", s.MarketDataSymbol, "error", err)
+			}
+			// Continue to next symbol — individual failures don't affect the batch.
+			continue
+		}
+
+		if m.logger != nil {
+			m.logger.Info("refreshed symbol details", "symbol", s.InternalSymbol, "marketDataSymbol", s.MarketDataSymbol)
+		}
 	}
 }
 
