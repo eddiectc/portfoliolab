@@ -26,4 +26,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f012 | Performance Benchmark | done | f010, f011 |
 | f013 | Unitization | done | f010, f012 |
 | f014 | Benchmark Selection | done | f003, f011, f012 |
-| f015 | Symbol Details | planning | f003, f011 |
+| f015 | Symbol Details | done | f003, f011 |
