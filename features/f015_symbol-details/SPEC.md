@@ -4,7 +4,7 @@
 
 A symbol details system that fetches and caches rich metadata about each symbol from Yahoo Finance — generic info (name, exchange) for all symbols, plus ETF-specific data (top holdings, sector weightings, fund profile) for ETFs. This lays the foundation for future analysis (e.g., understanding actual underlying holdings across all ETFs in a portfolio) while giving the user a way to verify data via API and a read-only web page.
 
-Data is fetched immediately when a symbol is added to the system, and refreshed by a background job when stale (>7 days). Latest price is shown on the details page via a live Yahoo call at render time (not stored — handled by the existing price refresh job).
+Data is fetched when a symbol is added to the system, and refreshed by a background job when stale (>7 days). Latest price is obtained at display time, handled separately from the cached symbol details.
 
 ## User Stories
 
@@ -60,7 +60,8 @@ As a user viewing symbol details, I want to see the latest price alongside the s
 ### Scenario: View symbol details via API (no cached data)
 **Given** symbol `XYZ` exists but has no cached symbol details
 **When** I request the symbol details via the API
-**Then** I receive a response indicating no details are available
+**Then** I receive a 200 response with the symbol identifier and null/empty details
+**And** the response indicates details are not yet available for this symbol
 
 ### Scenario: View symbol details in web UI
 **Given** symbol `WMGG.L` has cached symbol details
@@ -81,8 +82,8 @@ As a user viewing symbol details, I want to see the latest price alongside the s
 ### Scenario: View symbol details in web UI (no cached data)
 **Given** symbol `XYZ` has no cached symbol details
 **When** I navigate to the symbol details page for `XYZ`
-**Then** I see a message indicating no details are available
-**And** the page does not error
+**Then** I see a 200 page with a message that no details are available yet
+**And** the page renders without error
 
 ### Scenario: Background refresh fetches stale symbol details
 **Given** symbol `WMGG.L` has cached symbol details that are 8 days old
@@ -122,17 +123,17 @@ As a user viewing symbol details, I want to see the latest price alongside the s
 - **Concurrent fetch**: Symbol details being fetched by background job while user views the page — user sees cached data (if any) plus live price
 - **Yahoo API rate limit**: Fetch fails with 429 — logged, not retried immediately; cached data preserved
 - **Symbol type changes**: A symbol that was previously an ETF is no longer classified as one by Yahoo — next refresh updates accordingly
+- **Nested ETFs**: An ETF holding that is itself an ETF — stored as-is (symbol, name, percent) without recursive expansion
+- **Variable holding count**: Yahoo may return fewer or more than 10 holdings — store whatever is returned (up to 10)
 
 ## Constraints
 
-- **Data source**: Yahoo Finance `quoteSummary` API (`topHoldings`, `fundProfile` modules) and `Info()` / `Quote()` for generic data
-- **Auth**: Same crumb/cookie authentication flow as existing market data
-- **Storage**: Symbol details stored in a dedicated database table (not the `market_data` table)
+- **Data source**: Yahoo Finance — generic info and ETF-specific data obtained via the same authentication pattern as existing market data
 - **Generic fields stored**: name (short name, long name), exchange, currency, quote type (ETF/stock/etc.)
 - **ETF fields stored**: top 10 holdings (symbol, name, percent), sector weightings, aggregate positions (stock/bond/cash/convertible/preferred/other), fund profile (family, legal type, net assets, expense ratio, turnover), equity valuation ratios (P/E, P/B, P/CF, P/S)
-- **Latest price**: fetched live on the details page via Yahoo call at render time; NOT stored in the symbol details table (handled by existing price refresh)
+- **Latest price**: obtained at display time, handled separately from the cached symbol details (uses existing price refresh infrastructure)
 - **Fetch on creation**: triggered after symbol mapping is saved; non-blocking — symbol creation succeeds even if details fetch fails
-- **Background refresh**: runs periodically, checks `fetched_at` timestamp, refreshes if >7 days old
+- **Background refresh**: refreshes details when stale (>7 days)
 - **Read-only UI**: symbol details page displays data only; no edit/delete controls
 - **Error responses**: `{"error": "message", "code": "ERROR_CODE"}`
 - **Number formatting**: percentages with 2 decimal places; monetary values with 2 decimal places and thousands separator
