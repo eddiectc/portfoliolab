@@ -148,13 +148,13 @@ All → Task 9 (validation)
 **Corresponds to:** All scenarios (cross-cutting quality gate)
 **Description:** After implementation tasks are complete, validate the feature end-to-end.
 
-- [ ] Run all tests (`go test ./...`) — not just `-short`
-- [ ] Verify each spec scenario manually or via integration test
-- [ ] Check edge cases from the spec against actual behavior
-- [ ] Run `go vet ./...` and linter
-- [ ] Review for cross-layer consistency (data types stored match data types read)
-- [ ] Verify no TODOs, FIXMEs, or temporary workarounds remain
-- [ ] Update `features/README.md` feature index
+- [x] Run all tests (`go test ./...`) — not just `-short`
+- [x] Verify each spec scenario manually or via integration test
+- [x] Check edge cases from the spec against actual behavior
+- [x] Run `go vet ./...` and linter
+- [x] Review for cross-layer consistency (data types stored match data types read)
+- [x] Verify no TODOs, FIXMEs, or temporary workarounds remain
+- [x] Update `features/README.md` feature index
 
 **Verification:** All tests pass, all spec scenarios validated, no unresolved issues.
 

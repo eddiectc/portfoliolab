@@ -22,3 +22,11 @@
 
 ## Known Issues
 - None.
+
+## Validation (Task 9, 2026-05-17)
+- `go test -count=1 ./...` — all 18 packages pass (0 failures)
+- `go vet ./...` — clean
+- `go build ./...` — clean
+- Cross-layer consistency verified: DB schema (TEXT columns) ↔ repo (JSON marshal/unmarshal) ↔ domain types (`internal/types/symbol/`) ↔ API response (`SymbolDetailsResponse`) ↔ web template (`view.html`) all aligned
+- Spec scenario coverage confirmed via tests: fetch on creation (service + market tests), API enrich (handler tests with details/no-details), web UI (6 web handler tests covering with-details/no-details/not-found/stale/invalid-ID/no-fetcher), background refresh (8 marketcache tests covering stale/fresh/failure/rate-limiting/integration)
+- One pre-existing TODO in `symbol_mapping_repo.go:240` (f004 stub, unrelated to this feature)
