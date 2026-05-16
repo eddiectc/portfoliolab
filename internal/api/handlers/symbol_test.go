@@ -13,8 +13,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // --- Test helpers ---
@@ -147,20 +149,20 @@ func (r *testSMRepo) HasReferencingTransactions(_ context.Context, id int64) (bo
 	return r.inUseIDs[id], nil
 }
 
-func setupSymbolMappingHandler(t *testing.T) (*SymbolMappingHandler, *testSMRepo) {
+func setupSymbolHandler(t *testing.T) (*SymbolHandler, *testSMRepo) {
 	t.Helper()
 	repo := newTestSMRepo()
 	svc := symbolmapping.NewService(repo)
-	return NewSymbolMappingHandler(svc), repo
+	return NewSymbolHandler(svc, nil), repo
 }
 
 // --- Create Tests ---
 
 func TestSymbolHandleCreate_Success(t *testing.T) {
-	handler, _ := setupSymbolMappingHandler(t)
+	handler, _ := setupSymbolHandler(t)
 
 	body := `{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -181,10 +183,10 @@ func TestSymbolHandleCreate_Success(t *testing.T) {
 }
 
 func TestSymbolHandleCreate_WithBrokerSymbols(t *testing.T) {
-	handler, _ := setupSymbolMappingHandler(t)
+	handler, _ := setupSymbolHandler(t)
 
 	body := `{"internal_symbol": "AAPL", "market_data_symbol": "AAPL", "broker_symbols": [{"broker_name": "IBKR", "broker_symbol": "AAPL.US"}]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -202,9 +204,9 @@ func TestSymbolHandleCreate_WithBrokerSymbols(t *testing.T) {
 }
 
 func TestSymbolHandleCreate_InvalidBody(t *testing.T) {
-	handler, _ := setupSymbolMappingHandler(t)
+	handler, _ := setupSymbolHandler(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString("not json"))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString("not json"))
 	w := httptest.NewRecorder()
 
 	handler.HandleCreate(w, req)
@@ -215,10 +217,10 @@ func TestSymbolHandleCreate_InvalidBody(t *testing.T) {
 }
 
 func TestSymbolHandleCreate_EmptyInternalSymbol(t *testing.T) {
-	handler, _ := setupSymbolMappingHandler(t)
+	handler, _ := setupSymbolHandler(t)
 
 	body := `{"internal_symbol": "", "market_data_symbol": "AAPL"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -230,10 +232,10 @@ func TestSymbolHandleCreate_EmptyInternalSymbol(t *testing.T) {
 }
 
 func TestSymbolHandleCreate_WithBenchmark_ReturnsTrue(t *testing.T) {
-	handler, _ := setupSymbolMappingHandler(t)
+	handler, _ := setupSymbolHandler(t)
 
 	body := `{"internal_symbol": "^GSPC", "market_data_symbol": "^GSPC", "is_benchmark": true}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -251,10 +253,10 @@ func TestSymbolHandleCreate_WithBenchmark_ReturnsTrue(t *testing.T) {
 }
 
 func TestSymbolHandleCreate_WithoutBenchmark_ReturnsFalse(t *testing.T) {
-	handler, _ := setupSymbolMappingHandler(t)
+	handler, _ := setupSymbolHandler(t)
 
 	body := `{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -272,14 +274,14 @@ func TestSymbolHandleCreate_WithoutBenchmark_ReturnsFalse(t *testing.T) {
 }
 
 func TestSymbolHandleCreate_DuplicateInternalSymbol(t *testing.T) {
-	handler, repo := setupSymbolMappingHandler(t)
+	handler, repo := setupSymbolHandler(t)
 
 	// Seed existing mapping
 	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"}
 	repo.byInternal["AAPL"] = 1
 
 	body := `{"internal_symbol": "AAPL", "market_data_symbol": "AAPL.LON"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -293,7 +295,7 @@ func TestSymbolHandleCreate_DuplicateInternalSymbol(t *testing.T) {
 // --- List Tests ---
 
 func TestSymbolHandleList(t *testing.T) {
-	handler, repo := setupSymbolMappingHandler(t)
+	handler, repo := setupSymbolHandler(t)
 
 	for i := 1; i <= 3; i++ {
 		id := int64(i)
@@ -302,7 +304,7 @@ func TestSymbolHandleList(t *testing.T) {
 		repo.byInternal[internal] = id
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleList(w, req)
@@ -319,9 +321,9 @@ func TestSymbolHandleList(t *testing.T) {
 }
 
 func TestSymbolHandleList_Empty(t *testing.T) {
-	handler, _ := setupSymbolMappingHandler(t)
+	handler, _ := setupSymbolHandler(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleList(w, req)
@@ -338,7 +340,7 @@ func TestSymbolHandleList_Empty(t *testing.T) {
 }
 
 func TestSymbolHandleList_Pagination(t *testing.T) {
-	handler, repo := setupSymbolMappingHandler(t)
+	handler, repo := setupSymbolHandler(t)
 
 	for i := 1; i <= 5; i++ {
 		id := int64(i)
@@ -347,7 +349,7 @@ func TestSymbolHandleList_Pagination(t *testing.T) {
 		repo.byInternal[internal] = id
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings?limit=2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols?limit=2", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleList(w, req)
@@ -368,9 +370,9 @@ func TestSymbolHandleGet_Success(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -391,9 +393,9 @@ func TestSymbolHandleGet_NotFound(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/999", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -408,9 +410,9 @@ func TestSymbolHandleGet_InvalidID(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/abc", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -429,10 +431,10 @@ func TestSymbolHandleUpdate_Success(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"market_data_symbol": "AAPL.LON"}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -456,10 +458,10 @@ func TestSymbolHandleUpdate_InternalSymbol(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"internal_symbol": "AAPL"}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -485,10 +487,10 @@ func TestSymbolHandleUpdate_DuplicateInternalSymbol(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"internal_symbol": "AAPL"}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -506,10 +508,10 @@ func TestSymbolHandleUpdate_EnableBenchmark(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"is_benchmark": true}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -533,10 +535,10 @@ func TestSymbolHandleUpdate_DisableBenchmark(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"is_benchmark": false}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -560,10 +562,10 @@ func TestSymbolHandleUpdate_InvalidSymbol(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"internal_symbol": ""}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/1", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -579,10 +581,10 @@ func TestSymbolHandleUpdate_NotFound(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"market_data_symbol": "NEW"}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/symbol-mappings/999", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/999", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -602,9 +604,9 @@ func TestSymbolHandleDelete_Success(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/symbol-mappings/1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/symbols/1", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -619,9 +621,9 @@ func TestSymbolHandleDelete_NotFound(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/symbol-mappings/999", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/symbols/999", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -639,9 +641,9 @@ func TestSymbolHandleDelete_InUse(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/symbol-mappings/1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/symbols/1", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -660,10 +662,10 @@ func TestSymbolHandleAddBrokerSymbol_Success(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"broker_name": "IBKR", "broker_symbol": "AAPL.US"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings/1/broker-symbols", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols/1/broker-symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -679,10 +681,10 @@ func TestSymbolHandleAddBrokerSymbol_NotFound(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"broker_name": "IBKR", "broker_symbol": "AAPL.US"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings/999/broker-symbols", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols/999/broker-symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -704,11 +706,11 @@ func TestSymbolHandleAddBrokerSymbol_DuplicateBrokerSymbol(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	// Try to add same broker symbol to mapping 2
 	body := `{"broker_name": "IBKR", "broker_symbol": "AAPL.US"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings/2/broker-symbols", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols/2/broker-symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -726,9 +728,9 @@ func TestSymbolHandleAddBrokerSymbol_InvalidBody(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings/1/broker-symbols", bytes.NewBufferString("not json"))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols/1/broker-symbols", bytes.NewBufferString("not json"))
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -743,10 +745,10 @@ func TestSymbolHandleAddBrokerSymbol_InvalidID(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
 	body := `{"broker_name": "IBKR", "broker_symbol": "AAPL.US"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/symbol-mappings/abc/broker-symbols", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/symbols/abc/broker-symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -766,17 +768,17 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 	svc := symbolmapping.NewService(repo)
 
 	r := chi.NewRouter()
-	NewSymbolMappingHandler(svc).RegisterRoutes(r)
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
 
-	// Test SYMBOL_MAPPING_NOT_FOUND
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/999", nil)
+	// Test SYMBOL_NOT_FOUND
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/999", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	var errResp APIError
 	json.NewDecoder(w.Body).Decode(&errResp)
-	if errResp.Code != "SYMBOL_MAPPING_NOT_FOUND" {
-		t.Errorf("expected error code SYMBOL_MAPPING_NOT_FOUND, got %q", errResp.Code)
+	if errResp.Code != "SYMBOL_NOT_FOUND" {
+		t.Errorf("expected error code SYMBOL_NOT_FOUND, got %q", errResp.Code)
 	}
 	if errResp.Error == "" {
 		t.Error("expected non-empty error message")
@@ -784,7 +786,7 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 
 	// Test INVALID_SYMBOL
 	body := `{"internal_symbol": "", "market_data_symbol": "X"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -796,7 +798,7 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 
 	// Test INTERNAL_SYMBOL_EXISTS
 	body = `{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/symbol-mappings", bytes.NewBufferString(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/symbols", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -806,15 +808,15 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 		t.Errorf("expected error code INTERNAL_SYMBOL_EXISTS, got %q", errResp.Code)
 	}
 
-	// Test SYMBOL_MAPPING_IN_USE
+	// Test SYMBOL_IN_USE
 	repo.inUseIDs[1] = true
-	req = httptest.NewRequest(http.MethodDelete, "/api/symbol-mappings/1", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/symbols/1", nil)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	json.NewDecoder(w.Body).Decode(&errResp)
-	if errResp.Code != "SYMBOL_MAPPING_IN_USE" {
-		t.Errorf("expected error code SYMBOL_MAPPING_IN_USE, got %q", errResp.Code)
+	if errResp.Code != "SYMBOL_IN_USE" {
+		t.Errorf("expected error code SYMBOL_IN_USE, got %q", errResp.Code)
 	}
 }
 
@@ -823,11 +825,11 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 func TestHandlePreview_MissingSymbol(t *testing.T) {
 	repo := newTestSMRepo()
 	svc := symbolmapping.NewService(repo)
-	handler := NewSymbolMappingHandler(svc)
+	handler := NewSymbolHandler(svc, nil)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/preview", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -846,11 +848,11 @@ func TestHandlePreview_NoFetcher(t *testing.T) {
 	repo := newTestSMRepo()
 	// Service without quote fetcher
 	svc := symbolmapping.NewService(repo)
-	handler := NewSymbolMappingHandler(svc)
+	handler := NewSymbolHandler(svc, nil)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAPL", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/preview?symbol=AAPL", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -914,11 +916,11 @@ func TestHandlePreview_SymbolsMatch(t *testing.T) {
 		},
 	}
 	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
-	handler := NewSymbolMappingHandler(svc)
+	handler := NewSymbolHandler(svc, nil)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAPL", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/preview?symbol=AAPL", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -945,11 +947,11 @@ func TestHandlePreview_AutoCorrectedSymbol(t *testing.T) {
 		},
 	}
 	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
-	handler := NewSymbolMappingHandler(svc)
+	handler := NewSymbolHandler(svc, nil)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAP", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/preview?symbol=AAP", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -977,12 +979,12 @@ func TestHandlePreview_CaseInsensitiveMatch(t *testing.T) {
 		},
 	}
 	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
-	handler := NewSymbolMappingHandler(svc)
+	handler := NewSymbolHandler(svc, nil)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
 	// Request uppercase, get lowercase back — should NOT be flagged as correction
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=AAPL", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/preview?symbol=AAPL", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -1003,11 +1005,11 @@ func TestHandlePreview_FetchError(t *testing.T) {
 		err: fmt.Errorf("network timeout"),
 	}
 	svc := symbolmapping.NewService(repo, symbolmapping.WithMarketDataFetcher(fetcher))
-	handler := NewSymbolMappingHandler(svc)
+	handler := NewSymbolHandler(svc, nil)
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/symbol-mappings/preview?symbol=INVALID", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/preview?symbol=INVALID", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -1019,5 +1021,220 @@ func TestHandlePreview_FetchError(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp["code"] != "PREVIEW_FAILED" {
 		t.Errorf("expected error code PREVIEW_FAILED, got %q", errResp["code"])
+	}
+}
+
+// --- Enriched Get Tests (with symbol details) ---
+
+// testDetailsRepo is a minimal in-memory mock repo for symbol details handler tests.
+type testDetailsRepo struct {
+	byInternal map[string]*symbol.SymbolDetails
+}
+
+func newTestDetailsRepo() *testDetailsRepo {
+	return &testDetailsRepo{byInternal: make(map[string]*symbol.SymbolDetails)}
+}
+
+func (r *testDetailsRepo) Upsert(_ context.Context, details *symbol.SymbolDetails) error {
+	r.byInternal[details.InternalSymbol] = details
+	return nil
+}
+
+func (r *testDetailsRepo) GetByInternalSymbol(_ context.Context, internalSymbol string) (*symbol.SymbolDetails, error) {
+	d, ok := r.byInternal[internalSymbol]
+	if !ok {
+		return nil, symbols.ErrNotFound
+	}
+	cp := *d
+	return &cp, nil
+}
+
+func (r *testDetailsRepo) ListStale(_ context.Context, _ time.Time) ([]symbol.StaleSymbol, error) {
+	return nil, nil
+}
+
+func TestHandleGet_WithDetails(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	detailsRepo.byInternal["AAPL"] = &symbol.SymbolDetails{
+		InternalSymbol: "AAPL",
+		ShortName:      "Apple Inc.",
+		LongName:       "Apple Inc.",
+		Exchange:       "NMS",
+		Currency:       "USD",
+		QuoteType:      "EQUITY",
+		FetchedAt:      time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.InternalSymbol != "AAPL" {
+		t.Errorf("expected internal symbol 'AAPL', got %q", resp.InternalSymbol)
+	}
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	if resp.SymbolDetails.ShortName != "Apple Inc." {
+		t.Errorf("expected short name 'Apple Inc.', got %q", resp.SymbolDetails.ShortName)
+	}
+	if resp.SymbolDetails.Exchange != "NMS" {
+		t.Errorf("expected exchange 'NMS', got %q", resp.SymbolDetails.Exchange)
+	}
+}
+
+func TestHandleGet_NoCachedDetails(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	// No details cached for AAPL
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.InternalSymbol != "AAPL" {
+		t.Errorf("expected internal symbol 'AAPL', got %q", resp.InternalSymbol)
+	}
+	if resp.SymbolDetails != nil {
+		t.Error("expected nil symbol_details when no cache")
+	}
+}
+
+func TestHandleGet_NoDetailsService(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	// No details service wired
+	handler := NewSymbolHandler(svc, nil)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.InternalSymbol != "AAPL" {
+		t.Errorf("expected internal symbol 'AAPL', got %q", resp.InternalSymbol)
+	}
+	if resp.SymbolDetails != nil {
+		t.Error("expected nil symbol_details when no details service")
+	}
+}
+
+func TestHandleGet_WithETFDetalis(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "VWRL", MarketDataSymbol: "VWRL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["VWRL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	detailsRepo.byInternal["VWRL"] = &symbol.SymbolDetails{
+		InternalSymbol: "VWRL",
+		ShortName:      "Vanguard FTSE All-World",
+		LongName:       "Vanguard FTSE All-World UCITS ETF",
+		Exchange:       "ILS",
+		Currency:       "GBP",
+		QuoteType:      "ETF",
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 0.035},
+			{Symbol: "MSFT", Name: "Microsoft Corp", Percent: 0.028},
+		},
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "technology", Percent: 0.25},
+			{Sector: "financial_services", Percent: 0.15},
+		},
+		AggregatePositions: &symbol.AggregatePositions{
+			Stock: 0.99,
+			Cash:  0.01,
+		},
+		FundProfile: &symbol.FundProfile{
+			Family:             "Vanguard",
+			LegalType:          "Exchange Traded Fund",
+			TotalNetAssets:     5000000000,
+			AnnualExpenseRatio: 0.0022,
+		},
+		FetchedAt: time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	if resp.SymbolDetails.QuoteType != "ETF" {
+		t.Errorf("expected quote type 'ETF', got %q", resp.SymbolDetails.QuoteType)
+	}
+	if len(resp.SymbolDetails.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(resp.SymbolDetails.TopHoldings))
+	}
+	if resp.SymbolDetails.TopHoldings[0].Symbol != "AAPL" {
+		t.Errorf("expected first holding 'AAPL', got %q", resp.SymbolDetails.TopHoldings[0].Symbol)
+	}
+	if len(resp.SymbolDetails.SectorWeightings) != 2 {
+		t.Fatalf("expected 2 sector weightings, got %d", len(resp.SymbolDetails.SectorWeightings))
+	}
+	if resp.SymbolDetails.AggregatePositions == nil {
+		t.Fatal("expected non-nil aggregate_positions")
+	}
+	if resp.SymbolDetails.AggregatePositions.Stock != 0.99 {
+		t.Errorf("expected stock position 0.99, got %f", resp.SymbolDetails.AggregatePositions.Stock)
+	}
+	if resp.SymbolDetails.FundProfile == nil {
+		t.Fatal("expected non-nil fund_profile")
+	}
+	if resp.SymbolDetails.FundProfile.Family != "Vanguard" {
+		t.Errorf("expected family 'Vanguard', got %q", resp.SymbolDetails.FundProfile.Family)
 	}
 }

@@ -228,7 +228,7 @@
     function fetchPreview(symbol) {
         showPanel('loading');
 
-        fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+        fetch('/api/symbols/preview?symbol=' + encodeURIComponent(symbol))
             .then(function(response) {
                 if (!response.ok) {
                     throw new Error('Fetch failed with status ' + response.status);
@@ -254,7 +254,7 @@
     function fetchPreviewSilent(symbol) {
         showPanel('loading');
 
-        fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+        fetch('/api/symbols/preview?symbol=' + encodeURIComponent(symbol))
             .then(function(response) {
                 if (!response.ok) {
                     throw new Error('Fetch failed with status ' + response.status);
@@ -384,7 +384,7 @@
 
         var marketDataSymbol = currentPreviewData ? currentPreviewData.symbol : typedSymbol;
 
-        fetch('/api/symbol-mappings', {
+        fetch('/api/symbols', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -433,7 +433,7 @@
         btn.disabled = true;
         btn.textContent = 'Creating...';
 
-        fetch('/api/symbol-mappings', {
+        fetch('/api/symbols', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

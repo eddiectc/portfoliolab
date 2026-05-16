@@ -290,7 +290,7 @@
 
     function fetchModalPreview(symbol) {
         showPanel('loading');
-        fetch('/api/symbol-mappings/preview?symbol=' + encodeURIComponent(symbol))
+        fetch('/api/symbols/preview?symbol=' + encodeURIComponent(symbol))
             .then(function(response) {
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 return response.json();

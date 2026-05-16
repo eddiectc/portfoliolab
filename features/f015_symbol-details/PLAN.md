@@ -70,14 +70,14 @@ All → Task 9 (validation)
 **Corresponds to:** View symbol details via API (generic/ETF/no data)
 **Description:** Add `symbol_details` to the response of `GET /api/symbols/{id}`. The existing symbol CRUD handlers are renamed from `symbol-mapping` to `symbols` (route rename only).
 
-- [ ] Rename API routes from `symbol-mappings` to `symbols` in handler (`internal/api/handlers/symbol_mapping.go` → `symbol.go`)
-- [ ] Rename handler struct from `SymbolMappingHandler` to `SymbolHandler`
-- [ ] Add `SymbolDetailsService` dependency to `SymbolHandler`
-- [ ] In `HandleGet`, after fetching the symbol mapping, enrich response with cached `symbol_details` (null if no cache)
-- [ ] In `HandleList`, keep response lean (no details) — callers fetch by ID for full data
-- [ ] Update response struct to include `SymbolDetails *SymbolDetailsResponse` field
-- [ ] Register renamed routes on router
-- [ ] Write handler tests (mock service + httptest)
+- [x] Rename API routes from `symbol-mappings` to `symbols` in handler (`internal/api/handlers/symbol_mapping.go` → `symbol.go`)
+- [x] Rename handler struct from `SymbolMappingHandler` to `SymbolHandler`
+- [x] Add `SymbolDetailsService` dependency to `SymbolHandler`
+- [x] In `HandleGet`, after fetching the symbol mapping, enrich response with cached `symbol_details` (null if no cache)
+- [x] In `HandleList`, keep response lean (no details) — callers fetch by ID for full data
+- [x] Update response struct to include `SymbolDetails *SymbolDetailsResponse` field
+- [x] Register renamed routes on router
+- [x] Write handler tests (mock service + httptest)
 
 **Verification:** `GET /api/symbols/{id}` returns mapping + details; `GET /api/symbols` returns mappings only; null details when no cache.
 

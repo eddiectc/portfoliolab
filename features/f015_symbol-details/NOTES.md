@@ -5,6 +5,8 @@
 - 2026-05-16: Yahoo endpoint URLs are package-level vars (not consts) in `symbol_details.go` so they can be overridden in tests with a mock server.
 - 2026-05-16: JSON columns in SQLite stored as TEXT; repo handles marshal/unmarshal. Empty/nil values stored as NULL (sql.NullString).
 - 2026-05-16: `ListStaleSymbolDetails` uses an INNER JOIN with `symbol_mappings` — symbols without a mapping are excluded from stale list (they can't be refreshed without a market_data_symbol).
+- 2026-05-16 (Task 4): `SymbolGetResponse` is a separate struct from `SymbolMapping` to include the optional `SymbolDetails` field without changing the domain model. `HandleList` still returns `[]SymbolMapping` (lean, no details).
+- 2026-05-16 (Task 4): Route rename from `symbol-mappings` to `symbols` required updating integration tests and templates that hardcoded the old API path.
 
 ## Deviations from Plan
 - Task 2: Initially created `YahooSymbolDetailsFetcher` as a separate type, then refactored to consolidate under `YahooFinanceFetcher` per user feedback. `YahooFinanceFetcher` now implements both `MarketDataFetcher` and `SymbolDetailsFetcher`. The direct HTTP logic (crumb/cookie auth, quoteSummary parsing) lives in `symbol_details.go` as methods on `YahooFinanceFetcher`, keeping the go-yfinance code in `quote.go` separate. Single fetcher type, single wiring point in router.
