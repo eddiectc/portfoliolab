@@ -92,6 +92,24 @@ type Position struct {
 	UpdatedAt       string         `db:"updated_at"`
 }
 
+type SymbolDetail struct {
+	ID                 int64          `db:"id"`
+	InternalSymbol     string         `db:"internal_symbol"`
+	ShortName          sql.NullString `db:"short_name"`
+	LongName           sql.NullString `db:"long_name"`
+	Exchange           sql.NullString `db:"exchange"`
+	Currency           sql.NullString `db:"currency"`
+	QuoteType          sql.NullString `db:"quote_type"`
+	TopHoldings        sql.NullString `db:"top_holdings"`
+	SectorWeightings   sql.NullString `db:"sector_weightings"`
+	AggregatePositions sql.NullString `db:"aggregate_positions"`
+	FundProfile        sql.NullString `db:"fund_profile"`
+	EquityValuation    sql.NullString `db:"equity_valuation"`
+	FetchedAt          string         `db:"fetched_at"`
+	CreatedAt          string         `db:"created_at"`
+	UpdatedAt          string         `db:"updated_at"`
+}
+
 type SymbolMapping struct {
 	ID               int64  `db:"id"`
 	InternalSymbol   string `db:"internal_symbol"`
