@@ -21,15 +21,15 @@ All → Task 9 (validation)
 **Corresponds to:** All scenarios (foundation)
 **Description:** Create the `symbol_details` table, sqlc queries, and repository layer.
 
-- [ ] Write migration `016_create_symbol_details.sql` (up + down)
-- [ ] Update `internal/data/queries/schema.sql` with the new table
-- [ ] Write sqlc queries in `symbol_details.sql`:
+- [x] Write migration `016_create_symbol_details.sql` (up + down)
+- [x] Update `internal/data/queries/schema.sql` with the new table
+- [x] Write sqlc queries in `symbol_details.sql`:
   - `InsertSymbolDetails` — upsert by internal_symbol (ON CONFLICT)
   - `GetSymbolDetailsByInternalSymbol` — lookup by internal_symbol
   - `ListStaleSymbolDetails` — internal_symbols + market_data_symbols where fetched_at > 7 days ago (JOIN with symbol_mappings)
-- [ ] Run `sqlc generate`
-- [ ] Create `internal/data/symbol_details_repo.go` with repository methods wrapping sqlc
-- [ ] Write repository tests
+- [x] Run `sqlc generate`
+- [x] Create `internal/data/symbol_details_repo.go` with repository methods wrapping sqlc
+- [x] Write repository tests
 
 **Verification:** `sqlc generate` succeeds, repo compiles, tests pass.
 

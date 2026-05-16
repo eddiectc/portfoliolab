@@ -108,6 +108,24 @@ CREATE TABLE lot_consumptions (
     FOREIGN KEY (buy_lot_id) REFERENCES lots(lot_id) ON DELETE CASCADE
 );
 
+CREATE TABLE symbol_details (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    internal_symbol     TEXT    NOT NULL UNIQUE,
+    short_name          TEXT,
+    long_name           TEXT,
+    exchange            TEXT,
+    currency            TEXT,
+    quote_type          TEXT,
+    top_holdings        TEXT,
+    sector_weightings   TEXT,
+    aggregate_positions TEXT,
+    fund_profile        TEXT,
+    equity_valuation    TEXT,
+    fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+    created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE market_data (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol      TEXT    NOT NULL,
