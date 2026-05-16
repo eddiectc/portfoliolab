@@ -170,9 +170,13 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		accountWebHandler := handlers.NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
 		accountWebHandler.RegisterRoutes(r)
 
-		// Symbol mapping web pages
-		symbolMappingWebHandler := handlers.NewSymbolMappingWebHandler(symbolMappingSvc, renderer)
-		symbolMappingWebHandler.RegisterRoutes(r)
+		// Symbol web pages
+		symbolWebHandler := handlers.NewSymbolWebHandler(symbolMappingSvc, renderer)
+		symbolWebHandler.RegisterRoutes(r)
+
+		// Symbol details web pages
+		symbolDetailsWebHandler := handlers.NewSymbolDetailsWebHandler(symbolMappingSvc, symbolDetailsSvc, yahooFetcher, renderer)
+		symbolDetailsWebHandler.RegisterRoutes(r)
 
 		// Transaction web pages
 		transactionWebHandler := handlers.NewTransactionWebHandler(transactionSvc, accountSvc, symbolMappingSvc, renderer)

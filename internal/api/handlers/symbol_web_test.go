@@ -111,12 +111,12 @@ func (r *testSMWebRepo) HasReferencingTransactions(_ context.Context, id int64) 
 	return false, nil
 }
 
-func setupWebHandlerWithSMService(t *testing.T) (*SymbolMappingWebHandler, *symbolmapping.Service, *testSMWebRepo) {
+func setupWebHandlerWithSMService(t *testing.T) (*SymbolWebHandler, *symbolmapping.Service, *testSMWebRepo) {
 	t.Helper()
 	repo := newTestSMWebRepo()
 	svc := symbolmapping.NewService(repo)
 	renderer := newTestRenderer(t)
-	return NewSymbolMappingWebHandler(svc, renderer), svc, repo
+	return NewSymbolWebHandler(svc, renderer), svc, repo
 }
 
 // --- Symbol Mapping User-Friendly Error Tests ---
@@ -167,7 +167,7 @@ func TestSymbolMappingUserFriendlyError(t *testing.T) {
 // --- Parse Broker Symbols Tests ---
 
 func TestParseBrokerSymbols(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", nil)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", nil)
 	r.PostForm = map[string][]string{
 		"broker_name":   {"IBKR", "T212", ""},
 		"broker_symbol": {"AAPL.US", "AAPLU", "EMPTY"},
@@ -190,7 +190,7 @@ func TestParseBrokerSymbols(t *testing.T) {
 }
 
 func TestParseBrokerSymbols_Empty(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", nil)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", nil)
 	r.PostForm = map[string][]string{}
 	_ = r.ParseForm()
 
@@ -201,7 +201,7 @@ func TestParseBrokerSymbols_Empty(t *testing.T) {
 }
 
 func TestParseBrokerSymbols_SkipsEmptyFields(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", nil)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", nil)
 	r.PostForm = map[string][]string{
 		"broker_name":   {"IBKR", "", "T212"},
 		"broker_symbol": {"AAPL.US", "ORPHAN", ""},
@@ -219,11 +219,11 @@ func TestParseBrokerSymbols_SkipsEmptyFields(t *testing.T) {
 
 // --- Template Rendering Tests ---
 
-// TestHandleNewPage_RendersCompleteForm verifies that GET /symbol-mappings/new
+// TestHandleNewPage_RendersCompleteForm verifies that GET /symbols/new
 // renders a complete form with all expected elements.
 func TestSMHandleNewPage_RendersCompleteForm(t *testing.T) {
 	handler, _, _ := setupWebHandlerWithSMService(t)
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings/new", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols/new", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleNewPage(w, r)
@@ -249,16 +249,16 @@ func TestSMHandleNewPage_RendersCompleteForm(t *testing.T) {
 	checkContains(t, "market data symbol input", `id="market_data_symbol"`)
 	checkContains(t, "submit button", `type="submit"`)
 	checkContains(t, "submit text", "Create Mapping")
-	checkContains(t, "cancel link", `href="/symbol-mappings"`)
+	checkContains(t, "cancel link", `href="/symbols"`)
 	checkContains(t, "closing form", "</form>")
 	checkContains(t, "closing html", "</html>")
 }
 
-// TestHandleListPage_RendersCompletePage verifies GET /symbol-mappings renders properly.
+// TestHandleListPage_RendersCompletePage verifies GET /symbols renders properly.
 func TestSMHandleListPage_RendersCompletePage(t *testing.T) {
 	handler, _, repo := setupWebHandlerWithSMService(t)
 
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleListPage(w, r)
@@ -273,7 +273,7 @@ func TestSMHandleListPage_RendersCompletePage(t *testing.T) {
 	if !strings.Contains(body, "<!DOCTYPE html>") {
 		t.Error("missing DOCTYPE")
 	}
-	if !strings.Contains(body, "Symbol Mappings") {
+	if !strings.Contains(body, "Symbols") {
 		t.Error("missing title")
 	}
 	if !strings.Contains(body, "New Symbol Mapping") {
@@ -298,7 +298,7 @@ func TestSMHandleListPage_WithMappings(t *testing.T) {
 	}
 	repo.byInternal["AAPL"] = 1
 
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleListPage(w, r)
@@ -314,7 +314,7 @@ func TestSMHandleCreatePage_ValidSubmission(t *testing.T) {
 	handler, _, repo := setupWebHandlerWithSMService(t)
 
 	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", body)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 
@@ -326,8 +326,8 @@ func TestSMHandleCreatePage_ValidSubmission(t *testing.T) {
 	}
 
 	location := resp.Header.Get("Location")
-	if location != "/symbol-mappings" {
-		t.Errorf("expected redirect to /symbol-mappings, got %q", location)
+	if location != "/symbols" {
+		t.Errorf("expected redirect to /symbols, got %q", location)
 	}
 	_ = repo
 }
@@ -337,7 +337,7 @@ func TestSMHandleCreatePage_EmptyInternalSymbol(t *testing.T) {
 	handler, _, _ := setupWebHandlerWithSMService(t)
 
 	body := strings.NewReader("internal_symbol=&market_data_symbol=AAPL")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", body)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 
@@ -371,7 +371,7 @@ func TestSMHandleCreatePage_DuplicateInternalSymbol(t *testing.T) {
 	repo.byInternal["AAPL"] = 1
 
 	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", body)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 
@@ -388,7 +388,7 @@ func TestSMHandleCreatePage_DuplicateInternalSymbol(t *testing.T) {
 	}
 }
 
-// TestHandleEditPage_RendersCompleteForm verifies GET /symbol-mappings/{id}/edit
+// TestHandleEditPage_RendersCompleteForm verifies GET /symbols/{id}/edit
 // renders a complete form with pre-filled values.
 func TestSMHandleEditPage_RendersCompleteForm(t *testing.T) {
 	handler, _, repo := setupWebHandlerWithSMService(t)
@@ -404,7 +404,7 @@ func TestSMHandleEditPage_RendersCompleteForm(t *testing.T) {
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "1")
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings/1/edit", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/edit", nil)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 
 	w := httptest.NewRecorder()
@@ -441,7 +441,7 @@ func TestSMHandleEditPage_NotFound(t *testing.T) {
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "999")
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings/999/edit", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols/999/edit", nil)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 
 	w := httptest.NewRecorder()
@@ -466,7 +466,7 @@ func TestSMHandleUpdatePage_ValidSubmission(t *testing.T) {
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "1")
 	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL.LON")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/1/edit", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols/1/edit", body)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -479,8 +479,8 @@ func TestSMHandleUpdatePage_ValidSubmission(t *testing.T) {
 	}
 
 	location := resp.Header.Get("Location")
-	if location != "/symbol-mappings" {
-		t.Errorf("expected redirect to /symbol-mappings, got %q", location)
+	if location != "/symbols" {
+		t.Errorf("expected redirect to /symbols, got %q", location)
 	}
 }
 
@@ -496,7 +496,7 @@ func TestSMHandleUpdatePage_DuplicateInternalSymbol(t *testing.T) {
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "1")
 	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/1/edit", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols/1/edit", body)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -523,7 +523,7 @@ func TestSMHandleDeletePage_Success(t *testing.T) {
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "1")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/1/delete", nil)
+	r := httptest.NewRequest(http.MethodPost, "/symbols/1/delete", nil)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 	w := httptest.NewRecorder()
 
@@ -535,8 +535,8 @@ func TestSMHandleDeletePage_Success(t *testing.T) {
 	}
 
 	location := resp.Header.Get("Location")
-	if location != "/symbol-mappings" {
-		t.Errorf("expected redirect to /symbol-mappings, got %q", location)
+	if location != "/symbols" {
+		t.Errorf("expected redirect to /symbols, got %q", location)
 	}
 }
 
@@ -546,7 +546,7 @@ func TestSMHandleDeletePage_NotFound(t *testing.T) {
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "999")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/999/delete", nil)
+	r := httptest.NewRequest(http.MethodPost, "/symbols/999/delete", nil)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 	w := httptest.NewRecorder()
 
@@ -562,7 +562,7 @@ func TestHandleCreatePage_WithBenchmark(t *testing.T) {
 	handler, _, repo := setupWebHandlerWithSMService(t)
 
 	body := strings.NewReader("internal_symbol=SPX&market_data_symbol=SPX.GI&is_benchmark=on")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", body)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 
@@ -588,7 +588,7 @@ func TestHandleCreatePage_WithoutBenchmark(t *testing.T) {
 	handler, _, repo := setupWebHandlerWithSMService(t)
 
 	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", body)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 
@@ -622,7 +622,7 @@ func TestHandleEditPage_LoadsBenchmark(t *testing.T) {
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "1")
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings/1/edit", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/edit", nil)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 
 	w := httptest.NewRecorder()
@@ -657,7 +657,7 @@ func TestHandleUpdatePage_ToggleBenchmark(t *testing.T) {
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "1")
 	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL&is_benchmark=on")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/1/edit", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols/1/edit", body)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -694,7 +694,7 @@ func TestHandleUpdatePage_NoBenchmarkChange(t *testing.T) {
 	ctx.URLParams.Add("id", "1")
 	// No is_benchmark in form (checkbox unchecked = not sent)
 	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL")
-	r := httptest.NewRequest(http.MethodPost, "/symbol-mappings/1/edit", body)
+	r := httptest.NewRequest(http.MethodPost, "/symbols/1/edit", body)
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -722,7 +722,7 @@ func TestHandleUpdatePage_NoBenchmarkChange(t *testing.T) {
 // TestSMHandleNewPage_RendersBenchmarkCheckbox verifies the benchmark checkbox is on the form.
 func TestSMHandleNewPage_RendersBenchmarkCheckbox(t *testing.T) {
 	handler, _, _ := setupWebHandlerWithSMService(t)
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings/new", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols/new", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleNewPage(w, r)
@@ -765,7 +765,7 @@ func TestSMHandleListPage_ShowBenchmarkBadge(t *testing.T) {
 	}
 	repo.byInternal["AAPL"] = 2
 
-	r := httptest.NewRequest(http.MethodGet, "/symbol-mappings", nil)
+	r := httptest.NewRequest(http.MethodGet, "/symbols", nil)
 	w := httptest.NewRecorder()
 
 	handler.HandleListPage(w, r)
@@ -787,6 +787,6 @@ func TestSMHandleListPage_ShowBenchmarkBadge(t *testing.T) {
 // TestRegisterRoutes verifies routes mount without panic.
 func TestSMRegisterRoutes(t *testing.T) {
 	r := chi.NewRouter()
-	handler := &SymbolMappingWebHandler{}
+	handler := &SymbolWebHandler{}
 	handler.RegisterRoutes(r)
 }

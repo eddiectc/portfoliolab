@@ -1,0 +1,204 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>{{if and .Details .Details.ShortName}}{{.Details.ShortName}}{{else}}{{.Symbol.InternalSymbol}}{{end}}</h1>
+    <div>
+        <a href="{{.BackHref}}" class="btn">{{.BackLabel}}</a>
+        <a href="/symbols/{{.Symbol.ID}}/edit" class="btn btn-sm">Edit Mapping</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Overview</h2>
+    </div>
+    <div class="card-body">
+        <table class="table table-details">
+            <tr>
+                <th>Internal Symbol</th>
+                <td><strong>{{.Symbol.InternalSymbol}}</strong></td>
+            </tr>
+            <tr>
+                <th>Market Data Symbol</th>
+                <td>{{.Symbol.MarketDataSymbol}}</td>
+            </tr>
+            {{if .Details}}
+            <tr>
+                <th>Name</th>
+                <td>{{if .Details.ShortName}}{{.Details.ShortName}}{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <th>Full Name</th>
+                <td>{{if .Details.LongName}}{{.Details.LongName}}{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <th>Exchange</th>
+                <td>{{if .Details.Exchange}}{{.Details.Exchange}}{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <th>Currency</th>
+                <td>{{if .Details.Currency}}{{.Details.Currency}}{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <th>Type</th>
+                <td>{{if .Details.QuoteType}}{{.Details.QuoteType}}{{else}}—{{end}}</td>
+            </tr>
+            {{end}}
+            {{if .HasQuote}}
+            <tr>
+                <th>Live Price</th>
+                <td><strong>{{.QuotePrice}} {{.QuoteCurrency}}</strong></td>
+            </tr>
+            {{end}}
+        </table>
+        {{if .HasDetails}}
+        <div class="detail-meta">
+            {{if .Stale}}
+            <span class="badge badge-warning">Stale</span>
+            {{end}}
+            <span class="text-muted">{{.FetchedText}}</span>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+{{if .HasDetails}}
+{{if .Details.TopHoldings}}
+<div class="card">
+    <div class="card-header">
+        <h2>Top 10 Holdings</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th class="text-right">Allocation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $i, $h := .Details.TopHoldings}}
+            <tr>
+                <td>{{add $i 1}}</td>
+                <td><strong>{{$h.Symbol}}</strong></td>
+                <td>{{$h.Name}}</td>
+                <td class="text-right">{{$h.Percent}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{if .Details.SectorWeightings}}
+<div class="card">
+    <div class="card-header">
+        <h2>Sector Weightings</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Sector</th>
+                <th class="text-right">Weight</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Details.SectorWeightings}}
+            <tr>
+                <td>{{.Sector}}</td>
+                <td class="text-right">{{.Percent}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{if .Details.AggregatePositions}}
+<div class="card">
+    <div class="card-header">
+        <h2>Aggregate Positions</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Asset Class</th>
+                <th class="text-right">Allocation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Stocks</td>
+                <td class="text-right">{{.Details.AggregatePositions.Stock}}</td>
+            </tr>
+            <tr>
+                <td>Bonds</td>
+                <td class="text-right">{{.Details.AggregatePositions.Bond}}</td>
+            </tr>
+            <tr>
+                <td>Cash</td>
+                <td class="text-right">{{.Details.AggregatePositions.Cash}}</td>
+            </tr>
+            {{if ne .Details.AggregatePositions.Convertible "0.00%"}}
+            <tr>
+                <td>Convertibles</td>
+                <td class="text-right">{{.Details.AggregatePositions.Convertible}}</td>
+            </tr>
+            {{end}}
+            {{if ne .Details.AggregatePositions.Preferred "0.00%"}}
+            <tr>
+                <td>Preferred</td>
+                <td class="text-right">{{.Details.AggregatePositions.Preferred}}</td>
+            </tr>
+            {{end}}
+            {{if ne .Details.AggregatePositions.Other "0.00%"}}
+            <tr>
+                <td>Other</td>
+                <td class="text-right">{{.Details.AggregatePositions.Other}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{if .Details.FundProfile}}
+<div class="card">
+    <div class="card-header">
+        <h2>Fund Profile</h2>
+    </div>
+    <table class="table table-details">
+        <tr>
+            <th>Family</th>
+            <td>{{if .Details.FundProfile.Family}}{{.Details.FundProfile.Family}}{{else}}—{{end}}</td>
+        </tr>
+        <tr>
+            <th>Legal Type</th>
+            <td>{{if .Details.FundProfile.LegalType}}{{.Details.FundProfile.LegalType}}{{else}}—{{end}}</td>
+        </tr>
+        <tr>
+            <th>Total Net Assets</th>
+            <td>{{.Details.FundProfile.NetAssets}}</td>
+        </tr>
+        <tr>
+            <th>Annual Expense Ratio</th>
+            <td>{{.Details.FundProfile.ExpenseRatio}}</td>
+        </tr>
+        <tr>
+            <th>Annual Holdings Turnover</th>
+            <td>{{.Details.FundProfile.Turnover}}</td>
+        </tr>
+    </table>
+</div>
+{{end}}
+{{else}}
+<!-- No cached details -->
+<div class="card">
+    <div class="card-body">
+        <p class="empty-state">No symbol details available. Details are fetched automatically when a symbol is created, and refreshed periodically in the background.</p>
+    </div>
+</div>
+{{end}}
+{{end}}
+
+{{template "base" .}}
