@@ -3,7 +3,6 @@
     <h1>{{if and .Details .Details.ShortName}}{{.Details.ShortName}}{{else}}{{.Symbol.InternalSymbol}}{{end}}</h1>
     <div>
         <a href="{{.BackHref}}" class="btn">{{.BackLabel}}</a>
-        <a href="/symbols/{{.Symbol.ID}}/edit" class="btn btn-sm">Edit Mapping</a>
     </div>
 </div>
 

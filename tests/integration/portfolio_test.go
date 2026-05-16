@@ -178,13 +178,36 @@ func setupTestDB(t *testing.T) *sql.DB {
 		CREATE INDEX IF NOT EXISTS idx_market_data_symbol ON market_data(symbol);
 		CREATE INDEX IF NOT EXISTS idx_market_data_symbol_date ON market_data(symbol, date);
 
+		CREATE TABLE IF NOT EXISTS symbol_details (
+			id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+			internal_symbol     TEXT    NOT NULL UNIQUE,
+			short_name          TEXT,
+			long_name           TEXT,
+			exchange            TEXT,
+			currency            TEXT,
+			quote_type          TEXT,
+			top_holdings        TEXT,
+			sector_weightings   TEXT,
+			aggregate_positions TEXT,
+			fund_profile        TEXT,
+			equity_valuation    TEXT,
+			fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_symbol_details_internal_symbol
+			ON symbol_details(internal_symbol);
+		CREATE INDEX IF NOT EXISTS idx_symbol_details_fetched_at
+			ON symbol_details(fetched_at);
+
 		CREATE TABLE IF NOT EXISTS goose_db_version (
 			id INTEGER PRIMARY KEY,
 			version_id INTEGER NOT NULL,
 			is_applied INTEGER NOT NULL DEFAULT 1,
 			tstamp TIMESTAMP DEFAULT (datetime('now'))
 		);
-		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (10, 1);
+		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (16, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)

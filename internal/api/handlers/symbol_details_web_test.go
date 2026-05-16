@@ -167,6 +167,12 @@ func TestDetailsHandleDetailsPage_WithDetails(t *testing.T) {
 			t.Errorf("page missing %s: %q", label, text)
 		}
 	}
+	checkNotContains := func(label, text string) {
+		t.Helper()
+		if strings.Contains(body, text) {
+			t.Errorf("page should not contain %s: %q", label, text)
+		}
+	}
 
 	checkContains("title", "Symbol Details — VOO")
 	checkContains("name", "Vanguard S&amp;P 500 ETF")
@@ -180,7 +186,7 @@ func TestDetailsHandleDetailsPage_WithDetails(t *testing.T) {
 	checkContains("fund profile header", "Fund Profile")
 	checkContains("family", "Vanguard")
 	checkContains("back link", "/symbols")
-	checkContains("edit link", "/symbols/1/edit")
+	checkNotContains("edit link", "/symbols/1/edit")
 }
 
 func TestDetailsHandleDetailsPage_NoDetails(t *testing.T) {
