@@ -8,6 +8,7 @@
 
 ## Deviations from Plan
 - Task 2: Initially created `YahooSymbolDetailsFetcher` as a separate type, then refactored to consolidate under `YahooFinanceFetcher` per user feedback. `YahooFinanceFetcher` now implements both `MarketDataFetcher` and `SymbolDetailsFetcher`. The direct HTTP logic (crumb/cookie auth, quoteSummary parsing) lives in `symbol_details.go` as methods on `YahooFinanceFetcher`, keeping the go-yfinance code in `quote.go` separate. Single fetcher type, single wiring point in router.
+- Task 3: Moved `SymbolDetails`, `TopHolding`, `SectorWeighting`, `AggregatePositions`, `FundProfile`, `EquityValuation`, and `StaleSymbol` types from `internal/domain/symbols/symbol_details.go` to `internal/market/symbol_details.go`. This was necessary to break an import cycle: the `market` package needed to reference `SymbolDetails` for its `SymbolDetailsFetcher` interface, but the `symbols` domain package needed to import `market` for the same interface. Moving the types to `market` (where they conceptually belong as market data, alongside `MarketData` and `HistoricalPrice`) resolves the cycle. Updated repo, service, and all tests accordingly.
 
 ## Future Improvements
 - None yet.

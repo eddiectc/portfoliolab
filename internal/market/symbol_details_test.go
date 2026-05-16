@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 )
 
 // --- JSON Fixtures (from RESEARCH.md) ---
@@ -225,7 +223,7 @@ func TestParseTopHoldings(t *testing.T) {
 		input    []topHoldingItem
 		wantNil  bool
 		wantLen  int
-		wantFirst symbols.TopHolding
+		wantFirst TopHolding
 	}{
 		{
 			name: "normal",
@@ -234,7 +232,7 @@ func TestParseTopHoldings(t *testing.T) {
 			},
 			wantNil:   false,
 			wantLen:   1,
-			wantFirst: symbols.TopHolding{Symbol: "AAPL", Name: "Apple Inc.", Percent: 0.05},
+			wantFirst: TopHolding{Symbol: "AAPL", Name: "Apple Inc.", Percent: 0.05},
 		},
 		{
 			name:    "empty",
@@ -570,7 +568,7 @@ func TestStaleThreshold(t *testing.T) {
 		t.Error("sanity check failed")
 	}
 
-	details := &symbols.SymbolDetails{
+	details := &SymbolDetails{
 		FetchedAt: sevenDaysAgo.Add(-time.Hour), // 8 days ago
 	}
 	if !details.FetchedAt.Before(sevenDaysAgo) {

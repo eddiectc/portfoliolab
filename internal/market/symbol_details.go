@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 )
 
 // Yahoo Finance endpoint URLs. Package-level vars (not consts) so they can be
@@ -20,10 +18,80 @@ var (
 	yahooQuoteSummary = "https://query2.finance.yahoo.com/v10/finance/quoteSummary"
 )
 
+// SymbolDetails holds cached metadata about a symbol fetched from Yahoo Finance.
+// Generic fields (name, exchange) are populated for all symbols.
+// ETF-specific fields (holdings, sectors, etc.) are only populated for ETFs.
+type SymbolDetails struct {
+	// Generic fields
+	InternalSymbol string
+	ShortName      string
+	LongName       string
+	Exchange       string
+	Currency       string
+	QuoteType      string // e.g. "ETF", "EQUITY"
+
+	// ETF-specific fields (JSON in DB, deserialized here)
+	TopHoldings        []TopHolding
+	SectorWeightings   []SectorWeighting
+	AggregatePositions *AggregatePositions
+	FundProfile        *FundProfile
+	EquityValuation    *EquityValuation
+
+	// Metadata
+	FetchedAt time.Time
+}
+
+// TopHolding represents a single holding in an ETF's portfolio.
+type TopHolding struct {
+	Symbol    string
+	Name      string
+	Percent   float64 // e.g. 0.01399 = 1.399%
+}
+
+// SectorWeighting represents the allocation to a single sector.
+type SectorWeighting struct {
+	Sector  string // e.g. "technology", "financial_services"
+	Percent float64
+}
+
+// AggregatePositions represents the broad asset class breakdown of an ETF.
+type AggregatePositions struct {
+	Stock       float64
+	Bond        float64
+	Cash        float64
+	Convertible float64
+	Preferred   float64
+	Other       float64
+}
+
+// FundProfile represents fund-level metadata from Yahoo Finance.
+type FundProfile struct {
+	Family                   string
+	LegalType                string
+	TotalNetAssets           float64
+	AnnualExpenseRatio       float64
+	AnnualHoldingsTurnover   float64
+}
+
+// EquityValuation represents aggregate valuation ratios of an ETF's equity holdings.
+type EquityValuation struct {
+	PriceToEarnings  float64
+	PriceToBook      float64
+	PriceToCashflow  float64
+	PriceToSales     float64
+}
+
+// StaleSymbol represents a symbol whose details need refreshing.
+type StaleSymbol struct {
+	InternalSymbol   string
+	MarketDataSymbol string
+	FetchedAt        time.Time
+}
+
 // SymbolDetailsFetcher fetches rich symbol metadata (holdings, sectors, fund
 // profile) from a market data provider.
 type SymbolDetailsFetcher interface {
-	FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*symbols.SymbolDetails, error)
+	FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*SymbolDetails, error)
 }
 
 // quoteSummaryResponse is the top-level response from Yahoo's quoteSummary API.
@@ -99,7 +167,7 @@ type assetProfileModule struct {
 // topHoldings, fundProfile, and assetProfile modules, and returns a populated
 // SymbolDetails struct. Partial data is returned gracefully — if some modules
 // are missing, the available fields are still populated.
-func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*symbols.SymbolDetails, error) {
+func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*SymbolDetails, error) {
 	client := f.httpClient()
 
 	// Step 1: Get cookie
@@ -167,7 +235,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 	result := quoteResp.QuoteSummary.Result[0]
 
 	// Step 4: Build SymbolDetails from available modules
-	details := &symbols.SymbolDetails{
+	details := &SymbolDetails{
 		FetchedAt: time.Now(),
 	}
 
@@ -182,7 +250,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 	if result.TopHoldings != nil {
 		details.TopHoldings = parseTopHoldings(result.TopHoldings.Holdings)
 		details.SectorWeightings = parseSectorWeightings(result.TopHoldings.SectorWeightings)
-		details.AggregatePositions = &symbols.AggregatePositions{
+		details.AggregatePositions = &AggregatePositions{
 			Stock:       result.TopHoldings.StockPosition,
 			Bond:        result.TopHoldings.BondPosition,
 			Cash:        result.TopHoldings.CashPosition,
@@ -191,7 +259,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 			Other:       result.TopHoldings.OtherPosition,
 		}
 		if result.TopHoldings.EquityHoldings != nil {
-			details.EquityValuation = &symbols.EquityValuation{
+			details.EquityValuation = &EquityValuation{
 				PriceToEarnings: result.TopHoldings.EquityHoldings.PriceToEarnings,
 				PriceToBook:     result.TopHoldings.EquityHoldings.PriceToBook,
 				PriceToCashflow: result.TopHoldings.EquityHoldings.PriceToCashflow,
@@ -201,7 +269,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 	}
 
 	if result.FundProfile != nil {
-		details.FundProfile = &symbols.FundProfile{
+		details.FundProfile = &FundProfile{
 			Family:                 result.FundProfile.Family,
 			LegalType:              result.FundProfile.LegalType,
 			TotalNetAssets:         result.FundProfile.FeesExpenses.TotalNetAssets,
@@ -263,13 +331,13 @@ func (f *YahooFinanceFetcher) getCrumb(ctx context.Context, client *http.Client,
 	return strings.TrimSpace(string(body)), nil
 }
 
-func parseTopHoldings(items []topHoldingItem) []symbols.TopHolding {
+func parseTopHoldings(items []topHoldingItem) []TopHolding {
 	if len(items) == 0 {
 		return nil
 	}
-	holdings := make([]symbols.TopHolding, len(items))
+	holdings := make([]TopHolding, len(items))
 	for i, item := range items {
-		holdings[i] = symbols.TopHolding{
+		holdings[i] = TopHolding{
 			Symbol:  item.Symbol,
 			Name:    item.HoldingName,
 			Percent: item.HoldingPercent,
@@ -278,14 +346,14 @@ func parseTopHoldings(items []topHoldingItem) []symbols.TopHolding {
 	return holdings
 }
 
-func parseSectorWeightings(items []sectorWeightItem) []symbols.SectorWeighting {
+func parseSectorWeightings(items []sectorWeightItem) []SectorWeighting {
 	if len(items) == 0 {
 		return nil
 	}
-	weightings := make([]symbols.SectorWeighting, 0, len(items))
+	weightings := make([]SectorWeighting, 0, len(items))
 	for _, item := range items {
 		for sector, pct := range item {
-			weightings = append(weightings, symbols.SectorWeighting{
+			weightings = append(weightings, SectorWeighting{
 				Sector:  sector,
 				Percent: pct,
 			})
