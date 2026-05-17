@@ -116,6 +116,7 @@ CREATE TABLE symbol_details (
     exchange            TEXT,
     currency            TEXT,
     quote_type          TEXT,
+    sector              TEXT,
     top_holdings        TEXT,
     sector_weightings   TEXT,
     aggregate_positions TEXT,

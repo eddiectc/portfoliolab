@@ -128,18 +128,18 @@ Pearson correlation involves division and square root — float64 is standard pr
 **Corresponds to:** Scenario: View sector allocation (ETF look-through), Scenario: View geographic allocation (ETF look-through), Scenario: Sector/geographic allocation with incomplete data
 **Description:** Pure computation that takes positions with cached symbol details and computes weighted sector and geographic allocation.
 
-- [ ] Create `internal/domain/analysis/allocation.go`
-- [ ] Implement `ComputeSectorAllocation(positions []PositionWithDetails) *AllocationResult`:
+- [x] Create `internal/domain/analysis/allocation.go`
+- [x] Implement `ComputeSectorAllocation(positions []PositionWithDetails) *AllocationResult`:
   - For ETF positions: weight each sector by (ETF portfolio weight × sector percent from TopHoldings)
   - For individual stock positions: use the stock's own sector from SymbolDetails (assetProfile.Sector)
   - Sum weights per sector, sort descending
   - Track "Unknown" bucket for positions without sector data
   - Generate warnings for symbols missing data
-- [ ] Implement `ComputeGeographicAllocation(positions []PositionWithDetails) *AllocationResult`:
+- [x] Implement `ComputeGeographicAllocation(positions []PositionWithDetails) *AllocationResult`:
   - Same pattern as sector but using GeographicAllocations
   - For individual stocks: country from assetProfile wrapped as single-element allocation
   - Track "Unknown" bucket and warnings
-- [ ] Write table-driven unit tests:
+- [x] Write table-driven unit tests:
   - Happy path: mixed ETF + stock portfolio with known allocations
   - ETF-only portfolio
   - Stock-only portfolio
@@ -148,7 +148,7 @@ Pearson correlation involves division and square root — float64 is standard pr
   - Single position (100% in one sector/country)
   - Weighted aggregation correctness (ETF weight × sector %)
 
-**Verification:** Given known positions and symbol details, sector and geographic allocations match expected weighted values.
+**Verification:** Given known positions and symbol details, sector and geographic allocations match expected weighted values. ✅
 
 ---
 

@@ -41,6 +41,7 @@ func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*symb
 		Exchange:       nullString(sd.Exchange),
 		Currency:       nullString(sd.Currency),
 		QuoteType:      nullString(sd.QuoteType),
+		Sector:         nullString(sd.Sector),
 		FetchedAt:      fetchedAt,
 	}
 
@@ -123,6 +124,7 @@ func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.Sy
 		Exchange:           toSQLNullString(details.Exchange),
 		Currency:           toSQLNullString(details.Currency),
 		QuoteType:          toSQLNullString(details.QuoteType),
+		Sector:             toSQLNullString(details.Sector),
 		TopHoldings:           toSQLNullJSON(details.TopHoldings),
 		SectorWeightings:      toSQLNullJSON(details.SectorWeightings),
 		AggregatePositions:    toSQLNullJSON(details.AggregatePositions),
