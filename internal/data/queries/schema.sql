@@ -121,6 +121,7 @@ CREATE TABLE symbol_details (
     aggregate_positions TEXT,
     fund_profile        TEXT,
     equity_valuation    TEXT,
+    geographic_allocations TEXT,
     fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
     created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
