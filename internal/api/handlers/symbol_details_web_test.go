@@ -481,7 +481,7 @@ func TestDetailsHandleDetailsPage_GeographicSingleElement(t *testing.T) {
 		ShortName:      "Apple Inc.",
 		QuoteType:      "EQUITY",
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 100},
+			{Country: "United States", Percent: 1.0},
 		},
 		FetchedAt: time.Now().Add(-1 * time.Hour),
 	}

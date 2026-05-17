@@ -1308,7 +1308,7 @@ func TestHandleGet_GeographicAllocations_SingleElementStock(t *testing.T) {
 		ShortName:      "Apple Inc.",
 		QuoteType:      "EQUITY",
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 100},
+			{Country: "United States", Percent: 1.0},
 		},
 		FetchedAt: time.Now(),
 	}
@@ -1339,8 +1339,8 @@ func TestHandleGet_GeographicAllocations_SingleElementStock(t *testing.T) {
 	if allocs[0].Country != "United States" {
 		t.Errorf("expected country 'United States', got %q", allocs[0].Country)
 	}
-	if allocs[0].Percent != 100 {
-		t.Errorf("expected percent 100, got %f", allocs[0].Percent)
+	if allocs[0].Percent != 1.0 {
+		t.Errorf("expected percent 1.0, got %f", allocs[0].Percent)
 	}
 }
 

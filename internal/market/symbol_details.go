@@ -217,7 +217,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSy
 	// are deferred (Yahoo doesn't provide ETF country breakdown).
 	if result.AssetProfile != nil && result.AssetProfile.Country != "" {
 		details.GeographicAllocations = []symbol.GeographicAllocation{
-			{Country: result.AssetProfile.Country, Percent: 100},
+			{Country: result.AssetProfile.Country, Percent: 1.0},
 		}
 	}
 
