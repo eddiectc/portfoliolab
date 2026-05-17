@@ -371,8 +371,8 @@ func TestFetchSymbolDetails_StockWithCountry(t *testing.T) {
 	if details.GeographicAllocations[0].Country != "United States" {
 		t.Errorf("Country = %q, want United States", details.GeographicAllocations[0].Country)
 	}
-	if details.GeographicAllocations[0].Percent != 100 {
-		t.Errorf("Percent = %f, want 100", details.GeographicAllocations[0].Percent)
+	if details.GeographicAllocations[0].Percent != 1.0 {
+		t.Errorf("Percent = %f, want 1.0", details.GeographicAllocations[0].Percent)
 	}
 }
 
