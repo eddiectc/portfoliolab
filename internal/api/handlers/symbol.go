@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -55,18 +56,19 @@ type SymbolGetResponse struct {
 
 // SymbolDetailsResponse is the API representation of cached symbol details.
 type SymbolDetailsResponse struct {
-	InternalSymbol     string                   `json:"internal_symbol"`
-	ShortName          string                   `json:"short_name"`
-	LongName           string                   `json:"long_name"`
-	Exchange           string                   `json:"exchange"`
-	Currency           string                   `json:"currency"`
-	QuoteType          string                   `json:"quote_type"`
-	TopHoldings        []symbol.TopHolding      `json:"top_holdings,omitempty"`
-	SectorWeightings   []symbol.SectorWeighting `json:"sector_weightings,omitempty"`
-	AggregatePositions *symbol.AggregatePositions `json:"aggregate_positions,omitempty"`
-	FundProfile        *symbol.FundProfile      `json:"fund_profile,omitempty"`
-	EquityValuation    *symbol.EquityValuation  `json:"equity_valuation,omitempty"`
-	FetchedAt          time.Time                `json:"fetched_at"`
+	InternalSymbol          string                   `json:"internal_symbol"`
+	ShortName               string                   `json:"short_name"`
+	LongName                string                   `json:"long_name"`
+	Exchange                string                   `json:"exchange"`
+	Currency                string                   `json:"currency"`
+	QuoteType               string                   `json:"quote_type"`
+	TopHoldings             []symbol.TopHolding      `json:"top_holdings,omitempty"`
+	SectorWeightings        []symbol.SectorWeighting `json:"sector_weightings,omitempty"`
+	AggregatePositions      *symbol.AggregatePositions `json:"aggregate_positions,omitempty"`
+	FundProfile             *symbol.FundProfile      `json:"fund_profile,omitempty"`
+	EquityValuation         *symbol.EquityValuation  `json:"equity_valuation,omitempty"`
+	GeographicAllocations   []symbol.GeographicAllocation `json:"geographic_allocations,omitempty"`
+	FetchedAt               time.Time                `json:"fetched_at"`
 }
 
 // HandleCreate handles POST /api/symbols.
@@ -284,18 +286,26 @@ func (h *SymbolHandler) toSymbolGetResponse(sm *symbolmapping.SymbolMapping) Sym
 }
 
 func toSymbolDetailsResponse(details *symbol.SymbolDetails) *SymbolDetailsResponse {
+	// Sort geographic allocations by percent descending
+	allocs := make([]symbol.GeographicAllocation, len(details.GeographicAllocations))
+	copy(allocs, details.GeographicAllocations)
+	sort.Slice(allocs, func(i, j int) bool {
+		return allocs[i].Percent > allocs[j].Percent
+	})
+
 	return &SymbolDetailsResponse{
-		InternalSymbol:     details.InternalSymbol,
-		ShortName:          details.ShortName,
-		LongName:           details.LongName,
-		Exchange:           details.Exchange,
-		Currency:           details.Currency,
-		QuoteType:          details.QuoteType,
-		TopHoldings:        details.TopHoldings,
-		SectorWeightings:   details.SectorWeightings,
-		AggregatePositions: details.AggregatePositions,
-		FundProfile:        details.FundProfile,
-		EquityValuation:    details.EquityValuation,
-		FetchedAt:          details.FetchedAt,
+		InternalSymbol:         details.InternalSymbol,
+		ShortName:              details.ShortName,
+		LongName:               details.LongName,
+		Exchange:               details.Exchange,
+		Currency:               details.Currency,
+		QuoteType:              details.QuoteType,
+		TopHoldings:            details.TopHoldings,
+		SectorWeightings:       details.SectorWeightings,
+		AggregatePositions:     details.AggregatePositions,
+		FundProfile:            details.FundProfile,
+		EquityValuation:        details.EquityValuation,
+		GeographicAllocations:  allocs,
+		FetchedAt:              details.FetchedAt,
 	}
 }

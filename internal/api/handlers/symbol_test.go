@@ -1238,3 +1238,148 @@ func TestHandleGet_WithETFDetalis(t *testing.T) {
 		t.Errorf("expected family 'Vanguard', got %q", resp.SymbolDetails.FundProfile.Family)
 	}
 }
+
+// --- Geographic Allocation Tests ---
+
+func TestHandleGet_GeographicAllocations_SortedDescending(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "VWRL", MarketDataSymbol: "VWRL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["VWRL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	// Insert in reverse order to verify sorting
+	detailsRepo.byInternal["VWRL"] = &symbol.SymbolDetails{
+		InternalSymbol: "VWRL",
+		ShortName:      "Vanguard FTSE All-World",
+		QuoteType:      "ETF",
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "Japan", Percent: 0.15},
+			{Country: "United Kingdom", Percent: 0.05},
+			{Country: "United States", Percent: 0.60},
+		},
+		FetchedAt: time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+
+	allocs := resp.SymbolDetails.GeographicAllocations
+	if len(allocs) != 3 {
+		t.Fatalf("expected 3 geographic allocations, got %d", len(allocs))
+	}
+	// Verify sorted by percent descending
+	if allocs[0].Country != "United States" || allocs[0].Percent != 0.60 {
+		t.Errorf("expected first allocation {United States, 0.60}, got {%s, %f}", allocs[0].Country, allocs[0].Percent)
+	}
+	if allocs[1].Country != "Japan" || allocs[1].Percent != 0.15 {
+		t.Errorf("expected second allocation {Japan, 0.15}, got {%s, %f}", allocs[1].Country, allocs[1].Percent)
+	}
+	if allocs[2].Country != "United Kingdom" || allocs[2].Percent != 0.05 {
+		t.Errorf("expected third allocation {United Kingdom, 0.05}, got {%s, %f}", allocs[2].Country, allocs[2].Percent)
+	}
+}
+
+func TestHandleGet_GeographicAllocations_SingleElementStock(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	detailsRepo.byInternal["AAPL"] = &symbol.SymbolDetails{
+		InternalSymbol: "AAPL",
+		ShortName:      "Apple Inc.",
+		QuoteType:      "EQUITY",
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 100},
+		},
+		FetchedAt: time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+
+	allocs := resp.SymbolDetails.GeographicAllocations
+	if len(allocs) != 1 {
+		t.Fatalf("expected 1 geographic allocation, got %d", len(allocs))
+	}
+	if allocs[0].Country != "United States" {
+		t.Errorf("expected country 'United States', got %q", allocs[0].Country)
+	}
+	if allocs[0].Percent != 100 {
+		t.Errorf("expected percent 100, got %f", allocs[0].Percent)
+	}
+}
+
+func TestHandleGet_GeographicAllocations_Missing(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	detailsRepo.byInternal["AAPL"] = &symbol.SymbolDetails{
+		InternalSymbol: "AAPL",
+		ShortName:      "Apple Inc.",
+		QuoteType:      "EQUITY",
+		// GeographicAllocations is nil
+		FetchedAt: time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	// With omitempty and nil/empty slice, geographic_allocations should be absent from JSON
+	// (omitempty on nil slice = omitted; on empty slice = omitted)
+	if resp.SymbolDetails.GeographicAllocations != nil {
+		t.Errorf("expected nil geographic_allocations, got %v", resp.SymbolDetails.GeographicAllocations)
+	}
+}

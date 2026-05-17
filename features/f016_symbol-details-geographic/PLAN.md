@@ -65,9 +65,9 @@ Task 5,6 → Task 7 (tests + validation)
 **Corresponds to:** Symbol details API response includes geographic data
 **Description:** Include geographic allocations in the `SymbolDetailsResponse` for `GET /api/symbols/{id}`.
 
-- [ ] Add `GeographicAllocations []symbol.GeographicAllocation` to `SymbolDetailsResponse` in `symbol.go`
-- [ ] In `toSymbolDetailsResponse()`, copy geographic allocations (sorted by percent descending)
-- [ ] Write handler tests: response includes geographic allocations (sorted), response includes single-element for stocks, response has null when no data
+- [x] Add `GeographicAllocations []symbol.GeographicAllocation` to `SymbolDetailsResponse` in `symbol.go`
+- [x] In `toSymbolDetailsResponse()`, copy geographic allocations (sorted by percent descending)
+- [x] Write handler tests: response includes geographic allocations (sorted), response includes single-element for stocks, response has null when no data
 
 **Verification:** API response includes geographic data, sorted correctly; tests pass.
 
