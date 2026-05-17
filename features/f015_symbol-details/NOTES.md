@@ -19,6 +19,10 @@
 
 ## Post-Implementation Fixes (2026-05-17)
 
+### Wrong Module for Symbol Identity — NULL Metadata
+- **Problem**: `short_name`, `long_name`, `exchange`, `currency`, `quote_type` were all NULL. Root cause: the code parsed `assetProfile` for these fields, but Yahoo puts them in the `price` module. `assetProfile` has company info (address, industry, sector) — not symbol identity.
+- **Fix**: Added `price` to the modules list (`price,topHoldings,fundProfile,assetProfile`) and parse symbol identity from `result.Price` instead of `result.AssetProfile`.
+
 ### TLS Fingerprint Mismatch — NULL Metadata
 - **Problem**: Symbol details fetched with NULL `short_name`, `long_name`, `quote_type` (JSON columns populated but metadata empty). Root cause: our direct `net/http` calls used standard Go TLS, while go-yfinance's `AuthManager` used CycleTLS. Yahoo saw the TLS fingerprint mismatch between the cookie/crumb request and the quoteSummary request, and returned partial data.
 - **Fix**: `YahooFinanceFetcher` now creates a single go-yfinance `AuthManager` that handles auth. The crumb and cookie from this AuthManager are reused by `FetchSymbolDetails` via `auth.GetCrumb()` and `yfClient.GetCookie()`. The quoteSummary request also uses go-yfinance's CycleTLS client, ensuring consistent TLS fingerprint end-to-end. One auth session instead of two.
