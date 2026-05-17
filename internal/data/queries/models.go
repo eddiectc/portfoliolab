@@ -100,6 +100,7 @@ type SymbolDetail struct {
 	Exchange              sql.NullString `db:"exchange"`
 	Currency              sql.NullString `db:"currency"`
 	QuoteType             sql.NullString `db:"quote_type"`
+	Sector                sql.NullString `db:"sector"`
 	TopHoldings           sql.NullString `db:"top_holdings"`
 	SectorWeightings      sql.NullString `db:"sector_weightings"`
 	AggregatePositions    sql.NullString `db:"aggregate_positions"`

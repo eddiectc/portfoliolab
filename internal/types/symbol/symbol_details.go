@@ -13,6 +13,7 @@ type SymbolDetails struct {
 	Exchange       string
 	Currency       string
 	QuoteType      string // e.g. "ETF", "EQUITY"
+	Sector         string // primary sector for individual stocks (e.g. "Technology")
 
 	// ETF-specific fields (JSON in DB, deserialized here)
 	TopHoldings          []TopHolding

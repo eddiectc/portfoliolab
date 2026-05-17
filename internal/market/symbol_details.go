@@ -221,6 +221,12 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSy
 		}
 	}
 
+	// Sector: for individual stocks, extract primary sector from assetProfile.
+	// ETFs get sector breakdown from SectorWeightings (above), so skip for ETFs.
+	if result.AssetProfile != nil && result.AssetProfile.Sector != "" && details.QuoteType != "ETF" {
+		details.Sector = result.AssetProfile.Sector
+	}
+
 	return details, nil
 }
 

@@ -14,3 +14,22 @@
 
 ## Known Issues
 - None.
+
+## Session 2026-05-17 (Task 4)
+
+### Prerequisite: Add `sector` field for individual stocks
+The plan referenced `assetProfile.Sector` for individual stocks, but this field was fetched from Yahoo Finance and not persisted. Added:
+- Migration 018: `sector TEXT` column on `symbol_details` table
+- `Sector` field on `SymbolDetails` struct (in `internal/types/symbol/symbol_details.go`)
+- Fetcher populates `Sector` from `assetProfile.Sector` for non-ETF symbols
+- Updated sqlc schema + queries (`symbol_details.sql`, `schema.sql`)
+- Updated repo to serialize/deserialize the field
+- Updated test schema in `symbol_details_repo_test.go`
+- Ran `sqlc generate` to regenerate types
+
+### Implementation
+- `internal/domain/analysis/allocation.go`: `ComputeSectorAllocation` and `ComputeGeographicAllocation`
+- `internal/domain/analysis/allocation_test.go`: 17 unit tests covering happy paths, edge cases, partial data, empty states, and sorting
+- Helper functions `getETFWithSectorWeightings`, `getStockWithSector`, `getETFWithGeographicAllocations`, `getStockWithCountry` for test fixtures
+- `AllocationBreakdownSorted` convenience function for ordered output
+- `normalizeSector` placeholder for consistent sector naming (currently passthrough — Yahoo sectors are already consistent)
