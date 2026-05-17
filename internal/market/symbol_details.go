@@ -36,6 +36,7 @@ type quoteSummaryResponse struct {
 
 // quoteSummaryResult contains one or more modules of data for a symbol.
 type quoteSummaryResult struct {
+	Price        *priceModule        `json:"price,omitempty"`
 	TopHoldings  *topHoldingsModule  `json:"topHoldings,omitempty"`
 	FundProfile  *fundProfileModule  `json:"fundProfile,omitempty"`
 	AssetProfile *assetProfileModule `json:"assetProfile,omitempty"`
@@ -81,14 +82,31 @@ type fundProfileModule struct {
 	} `json:"feesExpensesInvestment"`
 }
 
-// assetProfileModule contains generic symbol info.
+// priceModule contains symbol identity and pricing data.
+// This is where shortName, longName, exchange, currency, and quoteType live.
+type priceModule struct {
+	Symbol    string  `json:"symbol"`
+	ShortName string  `json:"shortName"`
+	LongName  string  `json:"longName"`
+	Exchange  string  `json:"exchange"`
+	Currency  string  `json:"currency"`
+	QuoteType string  `json:"quoteType"`
+	MaxAge    int     `json:"maxAge"`
+}
+
+// assetProfileModule contains company/fund descriptive info (industry, sector, etc.).
 type assetProfileModule struct {
-	ShortName string `json:"shortName"`
-	LongName  string `json:"longName"`
-	Exchange  string `json:"exchange"`
-	Currency  string `json:"currency"`
-	QuoteType string `json:"quoteType"`
-	MaxAge    int    `json:"maxAge"`
+	Address1            string `json:"address1"`
+	City                string `json:"city"`
+	State               string `json:"state"`
+	Zip                 string `json:"zip"`
+	Country             string `json:"country"`
+	Phone               string `json:"phone"`
+	Website             string `json:"website"`
+	Industry            string `json:"industry"`
+	Sector              string `json:"sector"`
+	LongBusinessSummary string `json:"longBusinessSummary"`
+	MaxAge              int    `json:"maxAge"`
 }
 
 // FetchSymbolDetails fetches rich metadata for a symbol from Yahoo Finance.
@@ -108,7 +126,10 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSy
 
 	// Fetch quoteSummary using the shared auth (CycleTLS) so the TLS
 	// fingerprint matches the one used to obtain the cookie/crumb.
-	modules := "topHoldings,fundProfile,assetProfile"
+	// "price" module has symbol identity (shortName, longName, exchange, currency, quoteType).
+	// "topHoldings" has ETF holdings/sectors, "fundProfile" has fund metadata,
+	// "assetProfile" has company descriptive info.
+	modules := "price,topHoldings,fundProfile,assetProfile"
 	reqURL := fmt.Sprintf("%s/%s?modules=%s&corsDomain=finance.yahoo.com&formatted=false&crumb=%s",
 		yahooQuoteSummary, marketDataSymbol, modules, crumb)
 
@@ -151,12 +172,13 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSy
 		FetchedAt: time.Now(),
 	}
 
-	if result.AssetProfile != nil {
-		details.ShortName = result.AssetProfile.ShortName
-		details.LongName = result.AssetProfile.LongName
-		details.Exchange = result.AssetProfile.Exchange
-		details.Currency = result.AssetProfile.Currency
-		details.QuoteType = result.AssetProfile.QuoteType
+	// Symbol identity lives in the "price" module.
+	if result.Price != nil {
+		details.ShortName = result.Price.ShortName
+		details.LongName = result.Price.LongName
+		details.Exchange = result.Price.Exchange
+		details.Currency = result.Price.Currency
+		details.QuoteType = result.Price.QuoteType
 	}
 
 	if result.TopHoldings != nil {

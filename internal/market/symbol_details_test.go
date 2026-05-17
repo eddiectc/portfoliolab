@@ -20,6 +20,15 @@ import (
 const etfTopHoldingsJSON = `{
   "quoteSummary": {
     "result": [{
+      "price": {
+        "symbol": "WMGG.L",
+        "shortName": "WisdomTree Megatrends UCITS",
+        "longName": "WisdomTree Megatrends UCITS ETF",
+        "exchange": "LSE",
+        "currency": "GBP",
+        "quoteType": "ETF",
+        "maxAge": 1
+      },
       "topHoldings": {
         "holdings": [
           {"symbol": "BE", "holdingName": "Bloom Energy Corp Class A", "holdingPercent": 0.013997001},
@@ -52,14 +61,6 @@ const etfTopHoldingsJSON = `{
           "annualReportExpenseRatio": 0.4,
           "annualHoldingsTurnover": 0
         }
-      },
-      "assetProfile": {
-        "shortName": "WisdomTree Megatrends UCITS",
-        "longName": "WisdomTree Megatrends UCITS ETF",
-        "exchange": "LSE",
-        "currency": "GBP",
-        "quoteType": "ETF",
-        "maxAge": 1
       }
     }]
   }
@@ -68,7 +69,8 @@ const etfTopHoldingsJSON = `{
 const equityOnlyJSON = `{
   "quoteSummary": {
     "result": [{
-      "assetProfile": {
+      "price": {
+        "symbol": "AAPL",
         "shortName": "Apple Inc.",
         "longName": "Apple Inc.",
         "exchange": "NMS",
@@ -104,24 +106,24 @@ func TestParseQuoteSummaryResponse_ETFFull(t *testing.T) {
 
 	result := resp.QuoteSummary.Result[0]
 
-	// Asset profile
-	if result.AssetProfile == nil {
-		t.Fatal("expected assetProfile, got nil")
+	// Price module (symbol identity)
+	if result.Price == nil {
+		t.Fatal("expected price, got nil")
 	}
-	if result.AssetProfile.ShortName != "WisdomTree Megatrends UCITS" {
-		t.Errorf("shortName = %q", result.AssetProfile.ShortName)
+	if result.Price.ShortName != "WisdomTree Megatrends UCITS" {
+		t.Errorf("shortName = %q", result.Price.ShortName)
 	}
-	if result.AssetProfile.LongName != "WisdomTree Megatrends UCITS ETF" {
-		t.Errorf("longName = %q", result.AssetProfile.LongName)
+	if result.Price.LongName != "WisdomTree Megatrends UCITS ETF" {
+		t.Errorf("longName = %q", result.Price.LongName)
 	}
-	if result.AssetProfile.Exchange != "LSE" {
-		t.Errorf("exchange = %q", result.AssetProfile.Exchange)
+	if result.Price.Exchange != "LSE" {
+		t.Errorf("exchange = %q", result.Price.Exchange)
 	}
-	if result.AssetProfile.Currency != "GBP" {
-		t.Errorf("currency = %q", result.AssetProfile.Currency)
+	if result.Price.Currency != "GBP" {
+		t.Errorf("currency = %q", result.Price.Currency)
 	}
-	if result.AssetProfile.QuoteType != "ETF" {
-		t.Errorf("quoteType = %q", result.AssetProfile.QuoteType)
+	if result.Price.QuoteType != "ETF" {
+		t.Errorf("quoteType = %q", result.Price.QuoteType)
 	}
 
 	// Top holdings
@@ -182,14 +184,14 @@ func TestParseQuoteSummaryResponse_EquityOnly(t *testing.T) {
 
 	result := resp.QuoteSummary.Result[0]
 
-	if result.AssetProfile == nil {
-		t.Fatal("expected assetProfile, got nil")
+	if result.Price == nil {
+		t.Fatal("expected price, got nil")
 	}
-	if result.AssetProfile.ShortName != "Apple Inc." {
-		t.Errorf("shortName = %q", result.AssetProfile.ShortName)
+	if result.Price.ShortName != "Apple Inc." {
+		t.Errorf("shortName = %q", result.Price.ShortName)
 	}
-	if result.AssetProfile.QuoteType != "EQUITY" {
-		t.Errorf("quoteType = %q", result.AssetProfile.QuoteType)
+	if result.Price.QuoteType != "EQUITY" {
+		t.Errorf("quoteType = %q", result.Price.QuoteType)
 	}
 
 	// ETF-specific modules should be nil for equities
@@ -524,7 +526,7 @@ func TestFetchSymbolDetails_PartialData(t *testing.T) {
 	partialJSON := `{
   "quoteSummary": {
     "result": [{
-      "assetProfile": {
+      "price": {
         "shortName": "Test Corp",
         "longName": "Test Corporation",
         "exchange": "NYSE",
