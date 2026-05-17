@@ -51,10 +51,10 @@ Task 5,6 → Task 7 (tests + validation)
 **Corresponds to:** Fetch geographic data for non-ETF scenarios, geographic data unavailable
 **Description:** Extend `FetchSymbolDetails` to extract the country field from the `assetProfile` module (already fetched but not currently used) and wrap it as a single-element geographic allocation. ETF geographic allocations are deferred to a future feature.
 
-- [ ] Extract `country` from `assetProfileModule` (field exists in Yahoo response but not currently consumed)
-- [ ] In `FetchSymbolDetails()`, if country is non-empty, populate `details.GeographicAllocations` as `[{Country: country, Percent: 100}]`
-- [ ] If country is empty, leave `details.GeographicAllocations` as nil
-- [ ] Write unit tests with JSON fixtures:
+- [x] Extract `country` from `assetProfileModule` (field exists in Yahoo response but not currently consumed)
+- [x] In `FetchSymbolDetails()`, if country is non-empty, populate `details.GeographicAllocations` as `[{Country: country, Percent: 100}]`
+- [x] If country is empty, leave `details.GeographicAllocations` as nil
+- [x] Write unit tests with JSON fixtures:
   - Individual stock with country (e.g., AAPL — assetProfile contains country)
   - Individual stock with empty country (edge case → nil allocations)
   - ETF with no country in assetProfile (expected → nil allocations)
