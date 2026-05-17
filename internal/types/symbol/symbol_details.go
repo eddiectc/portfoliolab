@@ -30,13 +30,13 @@ type SymbolDetails struct {
 type TopHolding struct {
 	Symbol    string
 	Name      string
-	Percent   float64 // e.g. 0.01399 = 1.399%
+	Percent   float64 // percentage, e.g. 1.399 = 1.399%
 }
 
 // SectorWeighting represents the allocation to a single sector.
 type SectorWeighting struct {
 	Sector  string // e.g. "technology", "financial_services"
-	Percent float64
+	Percent float64 // percentage, e.g. 25.5 = 25.5%
 }
 
 // AggregatePositions represents the broad asset class breakdown of an ETF.
@@ -67,11 +67,9 @@ type EquityValuation struct {
 }
 
 // GeographicAllocation represents a country/region exposure entry.
-// Percent is a fraction in the range [0, 1] (e.g. 0.452 = 45.2%),
-// consistent with TopHolding.Percent and SectorWeighting.Percent.
 type GeographicAllocation struct {
 	Country string
-	Percent float64 // fraction, e.g. 0.452 = 45.2%
+	Percent float64 // percentage, e.g. 45.2 = 45.2%
 }
 
 // StaleSymbol represents a symbol whose details need refreshing.

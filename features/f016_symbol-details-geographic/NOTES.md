@@ -12,6 +12,9 @@
 ## Known Issues
 - Pre-existing: `TestSymbolDetails_CreateAndEnrich` in `tests/integration` is flaky (async cache timing race). Not related to this feature.
 
+## Post-Review Fixes
+- 2026-05-17: Implementation review caught `Percent: 100` in the fetcher — domain model documents 0–1 fraction (matching `TopHolding.Percent`/`SectorWeighting.Percent`). Fixed to `Percent: 1.0` and updated 3 tests + domain comment. Commit 37d1d80.
+
 ## Validation (Task 7, 2026-05-17)
 - `go test ./...`: All pass except pre-existing flaky `TestSymbolDetails_CreateAndEnrich`
 - `go vet ./...`: Clean

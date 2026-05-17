@@ -121,12 +121,12 @@ func TestSymbolDetailsRepository_UpsertWithETFData(t *testing.T) {
 		Currency:       "GBP",
 		QuoteType:      "ETF",
 		TopHoldings: []symbol.TopHolding{
-			{Symbol: "BE", Name: "Bloom Energy Corp", Percent: 0.014},
-			{Symbol: "TSLA", Name: "Tesla Inc", Percent: 0.025},
+			{Symbol: "BE", Name: "Bloom Energy Corp", Percent: 1.4},
+			{Symbol: "TSLA", Name: "Tesla Inc", Percent: 2.5},
 		},
 		SectorWeightings: []symbol.SectorWeighting{
-			{Sector: "technology", Percent: 0.212},
-			{Sector: "industrials", Percent: 0.364},
+			{Sector: "technology", Percent: 21.2},
+			{Sector: "industrials", Percent: 36.4},
 		},
 		AggregatePositions: &symbol.AggregatePositions{
 			Stock: 0.993,
@@ -164,7 +164,7 @@ func TestSymbolDetailsRepository_UpsertWithETFData(t *testing.T) {
 	if got.TopHoldings[0].Symbol != "BE" {
 		t.Errorf("expected first holding symbol 'BE', got %q", got.TopHoldings[0].Symbol)
 	}
-	if got.TopHoldings[0].Percent != 0.014 {
+	if got.TopHoldings[0].Percent != 1.4 {
 		t.Errorf("expected first holding percent 0.014, got %f", got.TopHoldings[0].Percent)
 	}
 	if len(got.SectorWeightings) != 2 {
@@ -461,9 +461,9 @@ func TestSymbolDetailsRepository_GeographicAllocations_MultiElement(t *testing.T
 		QuoteType:      "ETF",
 		FetchedAt:      now,
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 0.35},
-			{Country: "China", Percent: 0.22},
-			{Country: "Denmark", Percent: 0.10},
+			{Country: "United States", Percent: 35},
+			{Country: "China", Percent: 22},
+			{Country: "Denmark", Percent: 10},
 		},
 	}
 
@@ -482,7 +482,7 @@ func TestSymbolDetailsRepository_GeographicAllocations_MultiElement(t *testing.T
 	if got.GeographicAllocations[0].Country != "United States" {
 		t.Errorf("expected first country 'United States', got %q", got.GeographicAllocations[0].Country)
 	}
-	if got.GeographicAllocations[0].Percent != 0.35 {
+	if got.GeographicAllocations[0].Percent != 35 {
 		t.Errorf("expected first percent 0.35, got %f", got.GeographicAllocations[0].Percent)
 	}
 	if got.GeographicAllocations[1].Country != "China" {
@@ -504,7 +504,7 @@ func TestSymbolDetailsRepository_GeographicAllocations_SingleElement(t *testing.
 		QuoteType:      "EQUITY",
 		FetchedAt:      now,
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 1.0},
+			{Country: "United States", Percent: 100},
 		},
 	}
 
@@ -523,7 +523,7 @@ func TestSymbolDetailsRepository_GeographicAllocations_SingleElement(t *testing.
 	if got.GeographicAllocations[0].Country != "United States" {
 		t.Errorf("expected country 'United States', got %q", got.GeographicAllocations[0].Country)
 	}
-	if got.GeographicAllocations[0].Percent != 1.0 {
+	if got.GeographicAllocations[0].Percent != 100 {
 		t.Errorf("expected percent 1.0, got %f", got.GeographicAllocations[0].Percent)
 	}
 }
@@ -595,7 +595,7 @@ func TestSymbolDetailsRepository_GeographicAllocations_Overwrite(t *testing.T) {
 		ShortName:      "iShares Global Clean Energy",
 		FetchedAt:      now,
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 0.35},
+			{Country: "United States", Percent: 35},
 		},
 	}
 	err := repo.Upsert(context.Background(), details)
@@ -609,8 +609,8 @@ func TestSymbolDetailsRepository_GeographicAllocations_Overwrite(t *testing.T) {
 		ShortName:      "iShares Global Clean Energy",
 		FetchedAt:      now.Add(24 * time.Hour),
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 0.40},
-			{Country: "China", Percent: 0.25},
+			{Country: "United States", Percent: 40},
+			{Country: "China", Percent: 25},
 		},
 	}
 	err = repo.Upsert(context.Background(), updated)
@@ -625,8 +625,8 @@ func TestSymbolDetailsRepository_GeographicAllocations_Overwrite(t *testing.T) {
 	if len(got.GeographicAllocations) != 2 {
 		t.Fatalf("expected 2 geographic allocations, got %d", len(got.GeographicAllocations))
 	}
-	if got.GeographicAllocations[0].Percent != 0.40 {
-		t.Errorf("expected first percent 0.40, got %f", got.GeographicAllocations[0].Percent)
+	if got.GeographicAllocations[0].Percent != 40 {
+		t.Errorf("expected first percent 40, got %f", got.GeographicAllocations[0].Percent)
 	}
 	if got.GeographicAllocations[1].Country != "China" {
 		t.Errorf("expected second country 'China', got %q", got.GeographicAllocations[1].Country)

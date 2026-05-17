@@ -185,7 +185,7 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 		dd.TopHoldings = append(dd.TopHoldings, displayHolding{
 			Symbol:  h.Symbol,
 			Name:    h.Name,
-			Percent: fmt.Sprintf("%.2f%%", h.Percent*100),
+			Percent: fmt.Sprintf("%.2f%%", h.Percent),
 		})
 	}
 
@@ -198,7 +198,7 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 	for _, s := range sorted {
 		dd.SectorWeightings = append(dd.SectorWeightings, displaySector{
 			Sector:  s.Sector,
-			Percent: fmt.Sprintf("%.2f%%", s.Percent*100),
+			Percent: fmt.Sprintf("%.2f%%", s.Percent),
 		})
 	}
 
@@ -235,7 +235,7 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 		for _, g := range sorted {
 			dd.GeographicAllocations = append(dd.GeographicAllocations, displayGeographicAllocation{
 				Country: g.Country,
-				Percent: fmt.Sprintf("%.2f%%", g.Percent*100),
+				Percent: fmt.Sprintf("%.2f%%", g.Percent),
 			})
 		}
 	}

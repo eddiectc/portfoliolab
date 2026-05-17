@@ -287,7 +287,7 @@ func TestParseTopHoldings(t *testing.T) {
 			},
 			wantNil:   false,
 			wantLen:   1,
-			wantFirst: symbol.TopHolding{Symbol: "AAPL", Name: "Apple Inc.", Percent: 0.05},
+			wantFirst: symbol.TopHolding{Symbol: "AAPL", Name: "Apple Inc.", Percent: 5},
 		},
 		{
 			name:    "empty",
@@ -331,10 +331,10 @@ func TestParseSectorWeightings(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("expected 2 weightings, got %d", len(got))
 	}
-	if got[0].Sector != "technology" || got[0].Percent != 0.25 {
+	if got[0].Sector != "technology" || got[0].Percent != 25 {
 		t.Errorf("got[0] = %+v", got[0])
 	}
-	if got[1].Sector != "healthcare" || got[1].Percent != 0.15 {
+	if got[1].Sector != "healthcare" || got[1].Percent != 15 {
 		t.Errorf("got[1] = %+v", got[1])
 	}
 
@@ -371,8 +371,8 @@ func TestFetchSymbolDetails_StockWithCountry(t *testing.T) {
 	if details.GeographicAllocations[0].Country != "United States" {
 		t.Errorf("Country = %q, want United States", details.GeographicAllocations[0].Country)
 	}
-	if details.GeographicAllocations[0].Percent != 1.0 {
-		t.Errorf("Percent = %f, want 1.0", details.GeographicAllocations[0].Percent)
+	if details.GeographicAllocations[0].Percent != 100 {
+		t.Errorf("Percent = %f, want 100", details.GeographicAllocations[0].Percent)
 	}
 }
 
@@ -551,7 +551,7 @@ func TestFetchSymbolDetails_ETFFull(t *testing.T) {
 	if details.TopHoldings[0].Symbol != "BE" {
 		t.Errorf("TopHoldings[0].Symbol = %q", details.TopHoldings[0].Symbol)
 	}
-	if details.TopHoldings[0].Percent != 0.013997001 {
+	if details.TopHoldings[0].Percent != 1.3997001 {
 		t.Errorf("TopHoldings[0].Percent = %f", details.TopHoldings[0].Percent)
 	}
 
