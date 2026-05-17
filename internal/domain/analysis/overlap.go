@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"math"
+
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
@@ -187,5 +189,5 @@ func sortByWeightDesc(stocks []ConcentratedStock) {
 
 // roundTo2 rounds a float64 to 2 decimal places.
 func roundTo2(v float64) float64 {
-	return float64(int(v*100+0.5)) / 100
+	return math.Round(v*100) / 100
 }
