@@ -90,17 +90,17 @@ Tasks 2–6 are independent of each other after Task 1 (pure computation, no sha
 **Corresponds to:** Scenario: View correlation matrix of holdings, Scenario: Correlation matrix with insufficient data
 **Description:** Pure computation that takes historical price series and computes pairwise Pearson correlation coefficients.
 
-- [ ] Create `internal/domain/analysis/correlation.go`
-- [ ] Implement `ComputeCorrelation(prices map[string][]market.HistoricalPrice, period string) *CorrelationResult`:
+- [x] Create `internal/domain/analysis/correlation.go`
+- [x] Implement `ComputeCorrelation(prices map[string][]market.HistoricalPrice, period string) *CorrelationResult`:
   - Filter each price series to the lookback period (1Y/3Y/5Y/10Y)
   - Compute daily returns from close prices: (close[t] / close[t-1]) - 1
   - For each pair of symbols, compute Pearson correlation of daily returns over overlapping dates
   - Build N×N matrix (N = number of symbols)
   - Track warnings: data overlap < 60 trading days, insufficient data
   - Handle edge cases: single symbol (message), identical symbols (correlation = 1.0), all NaN (message)
-- [ ] Implement `pearsonCorrelation(x, y []float64) (float64, int)` — returns correlation coefficient and sample count
-- [ ] Implement `alignReturns(pricesA, pricesB) ([]float64, []float64, int)` — aligns daily returns by date, returns aligned series and overlap count
-- [ ] Write table-driven unit tests:
+- [x] Implement `pearsonCorrelation(x, y []float64) (float64, int)` — returns correlation coefficient and sample count
+- [x] Implement `alignReturns(pricesA, pricesB) ([]float64, []float64, int)` — aligns daily returns by date, returns aligned series and overlap count
+- [x] Write table-driven unit tests:
   - Happy path: 3 symbols with known correlated price series
   - Perfect positive correlation (identical series)
   - Perfect negative correlation
@@ -111,7 +111,7 @@ Tasks 2–6 are independent of each other after Task 1 (pure computation, no sha
   - Mismatched date ranges (uses available overlap)
   - Missing prices for a symbol (excluded, warning)
 
-**Verification:** Correlation matrix matches expected values for known price series; warnings generated for insufficient data.
+**Verification:** Correlation matrix matches expected values for known price series; warnings generated for insufficient data. ✅
 
 **Technical Decision B — Correlation math:**
 
