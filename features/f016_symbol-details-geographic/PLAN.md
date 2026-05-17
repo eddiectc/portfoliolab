@@ -75,14 +75,14 @@ Task 5,6 → Task 7 (tests + validation)
 **Corresponds to:** Geographic data included in web UI symbol details page
 **Description:** Add a geographic/country allocation section to the symbol details page.
 
-- [ ] Add `GeographicAllocations []displayGeographicAllocation` field to `symbolDetailsDisplay` struct in `symbol_details_web.go`
-- [ ] Define `displayGeographicAllocation` struct: `Country string`, `Percent string` (pre-formatted, e.g., "45.20%")
-- [ ] In `toDisplayDetails()`, convert `GeographicAllocations` to `[]displayGeographicAllocation` (sorted desc)
-- [ ] Update `templates/symbol_details/view.html`:
+- [x] Add `GeographicAllocations []displayGeographicAllocation` field to `symbolDetailsDisplay` struct in `symbol_details_web.go`
+- [x] Define `displayGeographicAllocation` struct: `Country string`, `Percent string` (pre-formatted, e.g., "45.20%")
+- [x] In `toDisplayDetails()`, convert `GeographicAllocations` to `[]displayGeographicAllocation` (sorted desc)
+- [x] Update `templates/symbol_details/view.html`:
   - Add "Geographic Allocation" card (table: Country, Weight) — shown when allocations exist
   - For single-element (stocks), render as a simple "Country" row in the Overview section instead of a table
   - Show "No geographic data available" when allocations are empty/null
-- [ ] Write web handler tests: page shows geographic table for multi-element, page shows country row for single-element, page handles missing data
+- [x] Write web handler tests: page shows geographic table for multi-element, page shows country row for single-element, page handles missing data
 
 **Verification:** Page renders correctly for multi-element/single-element/no-data scenarios; tests pass.
 

@@ -393,3 +393,163 @@ func TestDetailsRegisterRoutes(t *testing.T) {
 	handler := &SymbolDetailsWebHandler{}
 	handler.RegisterRoutes(r)
 }
+
+// --- Geographic allocation tests ---
+
+func TestDetailsHandleDetailsPage_GeographicMultiElement(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "VWRP.L",
+		MarketDataSymbol: "VWRP.L",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["VWRP.L"] = 1
+
+	detailsRepo.details["VWRP.L"] = &symbol.SymbolDetails{
+		InternalSymbol: "VWRP.L",
+		ShortName:      "Vanguard FTSE All-World UCITS ETF",
+		QuoteType:      "ETF",
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 0.60},
+			{Country: "United Kingdom", Percent: 0.05},
+			{Country: "Japan", Percent: 0.04},
+		},
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	if !strings.Contains(body, "Geographic Allocation") {
+		t.Error("expected 'Geographic Allocation' section header")
+	}
+	if !strings.Contains(body, "United States") {
+		t.Error("expected 'United States' in geographic table")
+	}
+	if !strings.Contains(body, "60.00%") {
+		t.Error("expected '60.00%' for United States")
+	}
+	if !strings.Contains(body, "United Kingdom") {
+		t.Error("expected 'United Kingdom' in geographic table")
+	}
+	if !strings.Contains(body, "5.00%") {
+		t.Error("expected '5.00%' for United Kingdom")
+	}
+	if !strings.Contains(body, "Japan") {
+		t.Error("expected 'Japan' in geographic table")
+	}
+	if !strings.Contains(body, "4.00%") {
+		t.Error("expected '4.00%' for Japan")
+	}
+
+	// Verify sort order: United States (60%) appears before United Kingdom (5%)
+	usIdx := strings.Index(body, "United States")
+	ukIdx := strings.Index(body, "United Kingdom")
+	if usIdx > ukIdx {
+		t.Error("geographic allocations should be sorted by percent descending")
+	}
+}
+
+func TestDetailsHandleDetailsPage_GeographicSingleElement(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["AAPL"] = 1
+
+	detailsRepo.details["AAPL"] = &symbol.SymbolDetails{
+		InternalSymbol: "AAPL",
+		ShortName:      "Apple Inc.",
+		QuoteType:      "EQUITY",
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 100},
+		},
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// Single-element: country shown in Overview section, NOT as a separate table
+	if !strings.Contains(body, "United States") {
+		t.Error("expected 'United States' in overview section")
+	}
+	// Should NOT have a separate Geographic Allocation card for single-element
+	// (the country is inline in the Overview table)
+	if strings.Contains(body, "Geographic Allocation") {
+		t.Error("should not show separate 'Geographic Allocation' section for single-element (stock)")
+	}
+}
+
+func TestDetailsHandleDetailsPage_GeographicNoData(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "VOO",
+		MarketDataSymbol: "VOO",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["VOO"] = 1
+
+	detailsRepo.details["VOO"] = &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		ShortName:      "Vanguard S&P 500 ETF",
+		QuoteType:      "ETF",
+		// No geographic allocations
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	if !strings.Contains(body, "No geographic data available") {
+		t.Error("expected 'No geographic data available' message")
+	}
+	if strings.Contains(body, "Geographic Allocation") {
+		// The section header is present but with "No geographic data available" body
+		// This is fine — it shows the section with a placeholder
+	}
+}
