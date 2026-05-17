@@ -43,7 +43,8 @@ func setupSymbolDetailsDB(t *testing.T) *sql.DB {
 			sector_weightings   TEXT,
 			aggregate_positions TEXT,
 			fund_profile        TEXT,
-			equity_valuation    TEXT,
+			equity_valuation         TEXT,
+			geographic_allocations   TEXT,
 			fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -349,6 +350,9 @@ func TestSymbolDetailsRepository_EmptyFieldsStoredAsNull(t *testing.T) {
 	if got.FundProfile != nil {
 		t.Error("expected nil FundProfile")
 	}
+	if got.GeographicAllocations != nil {
+		t.Error("expected nil GeographicAllocations")
+	}
 }
 
 func TestSymbolDetailsRepository_ListStale_NoMatchingMapping(t *testing.T) {
@@ -443,6 +447,189 @@ func TestSymbolDetailsRepository_ListStale_IncludesMissing(t *testing.T) {
 	// WMGG.L should NOT be in the list (fresh)
 	if _, ok := found["WMGG.L"]; ok {
 		t.Error("WMGG.L should not be in stale list (fresh)")
+	}
+}
+
+func TestSymbolDetailsRepository_GeographicAllocations_MultiElement(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	now := time.Now()
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VWRP.L",
+		ShortName:      "iShares Global Clean Energy",
+		QuoteType:      "ETF",
+		FetchedAt:      now,
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 0.35},
+			{Country: "China", Percent: 0.22},
+			{Country: "Denmark", Percent: 0.10},
+		},
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VWRP.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if len(got.GeographicAllocations) != 3 {
+		t.Fatalf("expected 3 geographic allocations, got %d", len(got.GeographicAllocations))
+	}
+	if got.GeographicAllocations[0].Country != "United States" {
+		t.Errorf("expected first country 'United States', got %q", got.GeographicAllocations[0].Country)
+	}
+	if got.GeographicAllocations[0].Percent != 0.35 {
+		t.Errorf("expected first percent 0.35, got %f", got.GeographicAllocations[0].Percent)
+	}
+	if got.GeographicAllocations[1].Country != "China" {
+		t.Errorf("expected second country 'China', got %q", got.GeographicAllocations[1].Country)
+	}
+	if got.GeographicAllocations[2].Country != "Denmark" {
+		t.Errorf("expected third country 'Denmark', got %q", got.GeographicAllocations[2].Country)
+	}
+}
+
+func TestSymbolDetailsRepository_GeographicAllocations_SingleElement(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	now := time.Now()
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "AAPL",
+		ShortName:      "Apple Inc.",
+		QuoteType:      "EQUITY",
+		FetchedAt:      now,
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 1.0},
+		},
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "AAPL")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if len(got.GeographicAllocations) != 1 {
+		t.Fatalf("expected 1 geographic allocation, got %d", len(got.GeographicAllocations))
+	}
+	if got.GeographicAllocations[0].Country != "United States" {
+		t.Errorf("expected country 'United States', got %q", got.GeographicAllocations[0].Country)
+	}
+	if got.GeographicAllocations[0].Percent != 1.0 {
+		t.Errorf("expected percent 1.0, got %f", got.GeographicAllocations[0].Percent)
+	}
+}
+
+func TestSymbolDetailsRepository_GeographicAllocations_NilStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	now := time.Now()
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "NOGEO",
+		ShortName:      "No Geo Data",
+		QuoteType:      "EQUITY",
+		FetchedAt:      now,
+		// GeographicAllocations not set (nil)
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "NOGEO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.GeographicAllocations != nil {
+		t.Errorf("expected nil GeographicAllocations, got %d items", len(got.GeographicAllocations))
+	}
+}
+
+func TestSymbolDetailsRepository_GeographicAllocations_EmptySliceStoredAsEmpty(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	now := time.Now()
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "EMPTYGEO",
+		ShortName:      "Empty Geo",
+		QuoteType:      "EQUITY",
+		FetchedAt:      now,
+		GeographicAllocations: []symbol.GeographicAllocation{},
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "EMPTYGEO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	// Empty slice marshals to "[]" which is valid JSON and unmarshals back to empty slice
+	if len(got.GeographicAllocations) != 0 {
+		t.Errorf("expected empty GeographicAllocations, got %d items", len(got.GeographicAllocations))
+	}
+}
+
+func TestSymbolDetailsRepository_GeographicAllocations_Overwrite(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	now := time.Now()
+
+	// First upsert with one set of allocations
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VWRP.L",
+		ShortName:      "iShares Global Clean Energy",
+		FetchedAt:      now,
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 0.35},
+		},
+	}
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert (first): %v", err)
+	}
+
+	// Second upsert with different allocations
+	updated := &symbol.SymbolDetails{
+		InternalSymbol: "VWRP.L",
+		ShortName:      "iShares Global Clean Energy",
+		FetchedAt:      now.Add(24 * time.Hour),
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 0.40},
+			{Country: "China", Percent: 0.25},
+		},
+	}
+	err = repo.Upsert(context.Background(), updated)
+	if err != nil {
+		t.Fatalf("Upsert (second): %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VWRP.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if len(got.GeographicAllocations) != 2 {
+		t.Fatalf("expected 2 geographic allocations, got %d", len(got.GeographicAllocations))
+	}
+	if got.GeographicAllocations[0].Percent != 0.40 {
+		t.Errorf("expected first percent 0.40, got %f", got.GeographicAllocations[0].Percent)
+	}
+	if got.GeographicAllocations[1].Country != "China" {
+		t.Errorf("expected second country 'China', got %q", got.GeographicAllocations[1].Country)
 	}
 }
 

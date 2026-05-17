@@ -70,6 +70,11 @@ func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*symb
 			return nil, fmt.Errorf("parse equity_valuation for %s: %w", sd.InternalSymbol, err)
 		}
 	}
+	if sd.GeographicAllocations.Valid {
+		if err := json.Unmarshal([]byte(sd.GeographicAllocations.String), &details.GeographicAllocations); err != nil {
+			return nil, fmt.Errorf("parse geographic_allocations for %s: %w", sd.InternalSymbol, err)
+		}
+	}
 
 	return details, nil
 }
@@ -118,12 +123,13 @@ func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.Sy
 		Exchange:           toSQLNullString(details.Exchange),
 		Currency:           toSQLNullString(details.Currency),
 		QuoteType:          toSQLNullString(details.QuoteType),
-		TopHoldings:        toSQLNullJSON(details.TopHoldings),
-		SectorWeightings:   toSQLNullJSON(details.SectorWeightings),
-		AggregatePositions: toSQLNullJSON(details.AggregatePositions),
-		FundProfile:        toSQLNullJSON(details.FundProfile),
-		EquityValuation:    toSQLNullJSON(details.EquityValuation),
-		FetchedAt:          details.FetchedAt.Format(time.RFC3339),
+		TopHoldings:           toSQLNullJSON(details.TopHoldings),
+		SectorWeightings:      toSQLNullJSON(details.SectorWeightings),
+		AggregatePositions:    toSQLNullJSON(details.AggregatePositions),
+		FundProfile:           toSQLNullJSON(details.FundProfile),
+		EquityValuation:       toSQLNullJSON(details.EquityValuation),
+		GeographicAllocations: toSQLNullJSON(details.GeographicAllocations),
+		FetchedAt:             details.FetchedAt.Format(time.RFC3339),
 		UpdatedAt:          now.Format(time.RFC3339),
 	})
 	if err != nil {
