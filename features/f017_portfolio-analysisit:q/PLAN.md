@@ -33,7 +33,7 @@ Tasks 2–6 are independent of each other after Task 1 (pure computation, no sha
 **Corresponds to:** All scenarios (foundational types)
 **Description:** Define the domain types, result envelope, and filter structures used by the analysis layer.
 
-- [ ] Create `internal/domain/analysis/analysis_types.go`:
+- [x] Create `internal/domain/analysis/analysis_types.go`:
   - `AnalysisResult` — top-level envelope with all sections (Overlap, Correlation, SectorAllocation, GeographicAllocation, StressTest, FactorExposure), ComputedAt, PortfolioID, Warnings, Message (for empty state)
   - `AnalysisFilters` — PortfolioID *int64, Section string (optional filter), Period string (for correlation lookback)
   - `OverlapResult` — PairwiseMatrix (map of ETF pair → overlap info), TopConcentratedStocks (sorted list), Message (empty state)
@@ -44,10 +44,10 @@ Tasks 2–6 are independent of each other after Task 1 (pure computation, no sha
   - `StressTestResult` — Scenarios ([]StressScenarioResult), Message (empty state)
   - `StressScenarioResult` — Name, DateRange, EstimatedReturnPct, EstimatedDollarImpact, SectorContributions (map[string]float64)
   - `FactorExposureResult` — ValueGrowthTilt (P/E, P/B vs benchmark), SizeTilt, Concentration (HHI + interpretation), TopHoldingWeightPct, Warnings, Message
-- [ ] Define `AnalysisSection` const/string type: "overlap", "correlation", "sector_allocation", "geographic_allocation", "stress_test", "factor_exposure"
-- [ ] Write unit tests for model JSON serialization (marshal/unmarshal of decimal fields, nullable sections)
+- [x] Define `AnalysisSection` const/string type: "overlap", "correlation", "sector_allocation", "geographic_allocation", "stress_test", "factor_exposure"
+- [x] Write unit tests for model JSON serialization (marshal/unmarshal of decimal fields, nullable sections)
 
-**Verification:** Types compile, JSON serialization round-trips correctly, nullable sections serialize as `null`.
+**Verification:** Types compile, JSON serialization round-trips correctly, nullable sections serialize as `null`. ✅
 
 ---
 
