@@ -1554,7 +1554,7 @@ func TestRefreshStaleSymbolDetails_PeriodicTickerIntegration(t *testing.T) {
 	}
 }
 
-func TestRefreshStaleSymbolDetails_SkippedOnFirstRefresh(t *testing.T) {
+func TestRefreshStaleSymbolDetails_EveryCycle(t *testing.T) {
 	staleSymbols := []symbol.StaleSymbol{
 		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: time.Now().AddDate(0, 0, -10)},
 	}
@@ -1571,22 +1571,17 @@ func TestRefreshStaleSymbolDetails_SkippedOnFirstRefresh(t *testing.T) {
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
 
-	// Simulate the first refresh cycle by calling doRefresh directly.
+	// Symbol details are refreshed on every cycle (including the first).
 	cache.doRefresh(ctx)
-
-	// On first refresh, symbol details should NOT be refreshed.
 	calls := source.RefreshCalls()
-	if calls != 0 {
-		t.Errorf("expected 0 refresh calls on first cycle, got %d", calls)
+	if calls != 1 {
+		t.Errorf("expected 1 refresh call, got %d", calls)
 	}
 
-	// Simulate a second refresh cycle.
 	cache.doRefresh(ctx)
-
-	// On second refresh, symbol details SHOULD be refreshed.
 	calls = source.RefreshCalls()
-	if calls != 1 {
-		t.Errorf("expected 1 refresh call on second cycle, got %d", calls)
+	if calls != 2 {
+		t.Errorf("expected 2 refresh calls, got %d", calls)
 	}
 }
 
@@ -1611,8 +1606,6 @@ func TestRefreshStaleSymbolDetails_AbortOnAuthError(t *testing.T) {
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
 
-	// First cycle skips symbol details; second cycle runs them.
-	cache.doRefresh(ctx)
 	cache.doRefresh(ctx)
 
 	// Only 1 refresh call (first symbol), batch aborted on auth error.
@@ -1642,8 +1635,6 @@ func TestRefreshStaleSymbolDetails_NonAuthErrorContinues(t *testing.T) {
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
 
-	// First cycle skips symbol details; second cycle runs them.
-	cache.doRefresh(ctx)
 	cache.doRefresh(ctx)
 
 	// Both symbols should be attempted (non-auth error doesn't abort batch).
