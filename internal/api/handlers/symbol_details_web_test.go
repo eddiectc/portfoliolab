@@ -119,12 +119,12 @@ func TestDetailsHandleDetailsPage_WithDetails(t *testing.T) {
 		Currency:       "USD",
 		QuoteType:      "ETF",
 		TopHoldings: []symbol.TopHolding{
-			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 0.07},
-			{Symbol: "MSFT", Name: "Microsoft Corp.", Percent: 0.06},
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 7},
+			{Symbol: "MSFT", Name: "Microsoft Corp.", Percent: 6},
 		},
 		SectorWeightings: []symbol.SectorWeighting{
-			{Sector: "technology", Percent: 0.30},
-			{Sector: "financials", Percent: 0.13},
+			{Sector: "technology", Percent: 30},
+			{Sector: "financials", Percent: 13},
 		},
 		AggregatePositions: &symbol.AggregatePositions{
 			Stock: 0.995,
@@ -413,9 +413,9 @@ func TestDetailsHandleDetailsPage_GeographicMultiElement(t *testing.T) {
 		ShortName:      "Vanguard FTSE All-World UCITS ETF",
 		QuoteType:      "ETF",
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 0.60},
-			{Country: "United Kingdom", Percent: 0.05},
-			{Country: "Japan", Percent: 0.04},
+			{Country: "United States", Percent: 60},
+			{Country: "United Kingdom", Percent: 5},
+			{Country: "Japan", Percent: 4},
 		},
 		FetchedAt: time.Now().Add(-1 * time.Hour),
 	}
@@ -481,7 +481,7 @@ func TestDetailsHandleDetailsPage_GeographicSingleElement(t *testing.T) {
 		ShortName:      "Apple Inc.",
 		QuoteType:      "EQUITY",
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 1.0},
+			{Country: "United States", Percent: 100},
 		},
 		FetchedAt: time.Now().Add(-1 * time.Hour),
 	}

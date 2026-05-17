@@ -1175,12 +1175,12 @@ func TestHandleGet_WithETFDetalis(t *testing.T) {
 		Currency:       "GBP",
 		QuoteType:      "ETF",
 		TopHoldings: []symbol.TopHolding{
-			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 0.035},
-			{Symbol: "MSFT", Name: "Microsoft Corp", Percent: 0.028},
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 3.5},
+			{Symbol: "MSFT", Name: "Microsoft Corp", Percent: 2.8},
 		},
 		SectorWeightings: []symbol.SectorWeighting{
-			{Sector: "technology", Percent: 0.25},
-			{Sector: "financial_services", Percent: 0.15},
+			{Sector: "technology", Percent: 25},
+			{Sector: "financial_services", Percent: 15},
 		},
 		AggregatePositions: &symbol.AggregatePositions{
 			Stock: 0.99,
@@ -1254,9 +1254,9 @@ func TestHandleGet_GeographicAllocations_SortedDescending(t *testing.T) {
 		ShortName:      "Vanguard FTSE All-World",
 		QuoteType:      "ETF",
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "Japan", Percent: 0.15},
-			{Country: "United Kingdom", Percent: 0.05},
-			{Country: "United States", Percent: 0.60},
+			{Country: "Japan", Percent: 15},
+			{Country: "United Kingdom", Percent: 5},
+			{Country: "United States", Percent: 60},
 		},
 		FetchedAt: time.Now(),
 	}
@@ -1285,13 +1285,13 @@ func TestHandleGet_GeographicAllocations_SortedDescending(t *testing.T) {
 		t.Fatalf("expected 3 geographic allocations, got %d", len(allocs))
 	}
 	// Verify sorted by percent descending
-	if allocs[0].Country != "United States" || allocs[0].Percent != 0.60 {
-		t.Errorf("expected first allocation {United States, 0.60}, got {%s, %f}", allocs[0].Country, allocs[0].Percent)
+	if allocs[0].Country != "United States" || allocs[0].Percent != 60 {
+		t.Errorf("expected first allocation {United States, 60}, got {%s, %f}", allocs[0].Country, allocs[0].Percent)
 	}
-	if allocs[1].Country != "Japan" || allocs[1].Percent != 0.15 {
-		t.Errorf("expected second allocation {Japan, 0.15}, got {%s, %f}", allocs[1].Country, allocs[1].Percent)
+	if allocs[1].Country != "Japan" || allocs[1].Percent != 15 {
+		t.Errorf("expected second allocation {Japan, 15}, got {%s, %f}", allocs[1].Country, allocs[1].Percent)
 	}
-	if allocs[2].Country != "United Kingdom" || allocs[2].Percent != 0.05 {
+	if allocs[2].Country != "United Kingdom" || allocs[2].Percent != 5 {
 		t.Errorf("expected third allocation {United Kingdom, 0.05}, got {%s, %f}", allocs[2].Country, allocs[2].Percent)
 	}
 }
@@ -1308,7 +1308,7 @@ func TestHandleGet_GeographicAllocations_SingleElementStock(t *testing.T) {
 		ShortName:      "Apple Inc.",
 		QuoteType:      "EQUITY",
 		GeographicAllocations: []symbol.GeographicAllocation{
-			{Country: "United States", Percent: 1.0},
+			{Country: "United States", Percent: 100},
 		},
 		FetchedAt: time.Now(),
 	}
@@ -1339,8 +1339,8 @@ func TestHandleGet_GeographicAllocations_SingleElementStock(t *testing.T) {
 	if allocs[0].Country != "United States" {
 		t.Errorf("expected country 'United States', got %q", allocs[0].Country)
 	}
-	if allocs[0].Percent != 1.0 {
-		t.Errorf("expected percent 1.0, got %f", allocs[0].Percent)
+	if allocs[0].Percent != 100 {
+		t.Errorf("expected percent 100, got %f", allocs[0].Percent)
 	}
 }
 
