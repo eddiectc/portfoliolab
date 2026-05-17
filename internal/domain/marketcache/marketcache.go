@@ -96,7 +96,6 @@ type MarketCache struct {
 	failedSymbols        map[string]string
 	refreshAllInProgress bool
 	totalSymbols         int
-	firstRefreshDone     bool
 
 	fetchCh chan fetchRequest
 	ctx     context.Context
@@ -149,12 +148,6 @@ func (m *MarketCache) Start(ctx context.Context) {
 	// without requiring a manual "Refresh All" click.
 	go func() {
 		m.gapFillBenchmarks(ctx)
-	}()
-
-	// Refresh stale symbol details at startup. Shares the same auth session
-	// as the quote/FX fetches above, so cookie/crumb are already warm.
-	go func() {
-		m.refreshStaleSymbolDetails(ctx)
 	}()
 }
 
@@ -495,21 +488,13 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 		}
 	}
 
-	// Refresh stale symbol details (skip on first cycle to avoid competing
-	// with the burst of quote/FX/gap-fill requests at startup).
-	m.mu.RLock()
-	firstRefreshDone := m.firstRefreshDone
-	m.mu.RUnlock()
-
-	if firstRefreshDone {
-		m.refreshStaleSymbolDetails(ctx)
-	}
+	// Refresh stale symbol details.
+	m.refreshStaleSymbolDetails(ctx)
 
 	// Update status.
 	m.mu.Lock()
 	m.lastRefresh = time.Now()
 	m.totalSymbols = len(allSymbols) + len(activeFxPairs)
-	m.firstRefreshDone = true
 	m.mu.Unlock()
 }
 
