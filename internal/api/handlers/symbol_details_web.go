@@ -48,6 +48,12 @@ type displayFundProfile struct {
 	Turnover     string // e.g. "35%"
 }
 
+// displayGeographicAllocation is a template-friendly geographic allocation with pre-formatted percentage.
+type displayGeographicAllocation struct {
+	Country string
+	Percent string // e.g. "45.20%"
+}
+
 // symbolDetailsPageData is the data struct for the symbol details template.
 type symbolDetailsPageData struct {
 	web.PageData
@@ -66,16 +72,17 @@ type symbolDetailsPageData struct {
 // symbolDetailsDisplay is a template-friendly version of symbol.SymbolDetails
 // with pre-formatted values.
 type symbolDetailsDisplay struct {
-	InternalSymbol     string
-	ShortName          string
-	LongName           string
-	Exchange           string
-	Currency           string
-	QuoteType          string
-	TopHoldings        []displayHolding
-	SectorWeightings   []displaySector
-	AggregatePositions *displayAggregatePositions
-	FundProfile        *displayFundProfile
+	InternalSymbol          string
+	ShortName               string
+	LongName                string
+	Exchange                string
+	Currency                string
+	QuoteType               string
+	TopHoldings             []displayHolding
+	SectorWeightings        []displaySector
+	AggregatePositions      *displayAggregatePositions
+	FundProfile             *displayFundProfile
+	GeographicAllocations   []displayGeographicAllocation
 }
 
 // SymbolDetailsWebHandler handles server-rendered symbol details pages.
@@ -215,6 +222,21 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 			NetAssets:    formatLargeNumber(details.FundProfile.TotalNetAssets),
 			ExpenseRatio: fmt.Sprintf("%.2f%%", details.FundProfile.AnnualExpenseRatio*100),
 			Turnover:     fmt.Sprintf("%.0f%%", details.FundProfile.AnnualHoldingsTurnover*100),
+		}
+	}
+
+	// Geographic allocations (sorted by percent descending)
+	if len(details.GeographicAllocations) > 0 {
+		sorted := make([]symbol.GeographicAllocation, len(details.GeographicAllocations))
+		copy(sorted, details.GeographicAllocations)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].Percent > sorted[j].Percent
+		})
+		for _, g := range sorted {
+			dd.GeographicAllocations = append(dd.GeographicAllocations, displayGeographicAllocation{
+				Country: g.Country,
+				Percent: fmt.Sprintf("%.2f%%", g.Percent*100),
+			})
 		}
 	}
 

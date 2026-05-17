@@ -41,6 +41,14 @@
                 <th>Type</th>
                 <td>{{if .Details.QuoteType}}{{.Details.QuoteType}}{{else}}—{{end}}</td>
             </tr>
+            {{if .Details.GeographicAllocations}}
+            {{if eq (len .Details.GeographicAllocations) 1}}
+            <tr>
+                <th>Country</th>
+                <td>{{(index .Details.GeographicAllocations 0).Country}}</td>
+            </tr>
+            {{end}}
+            {{end}}
             {{end}}
             {{if .HasQuote}}
             <tr>
@@ -188,6 +196,42 @@
             <td>{{.Details.FundProfile.Turnover}}</td>
         </tr>
     </table>
+</div>
+{{end}}
+
+{{if .Details.GeographicAllocations}}
+{{if gt (len .Details.GeographicAllocations) 1}}
+<div class="card">
+    <div class="card-header">
+        <h2>Geographic Allocation</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Country</th>
+                <th class="text-right">Weight</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Details.GeographicAllocations}}
+            <tr>
+                <td>{{.Country}}</td>
+                <td class="text-right">{{.Percent}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+{{else}}
+<!-- Has details but no geographic data -->
+<div class="card">
+    <div class="card-header">
+        <h2>Geographic Allocation</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">No geographic data available</p>
+    </div>
 </div>
 {{end}}
 {{else}}
