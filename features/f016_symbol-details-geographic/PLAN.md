@@ -20,9 +20,9 @@ Task 5,6 → Task 7 (tests + validation)
 **Corresponds to:** All scenarios (foundation)
 **Description:** Add a new column to the `symbol_details` table for geographic data.
 
-- [ ] Write migration `017_add_geographic_to_symbol_details.sql` (up + down):
+- [x] Write migration `017_add_geographic_to_symbol_details.sql` (up + down):
   - Add `geographic_allocations TEXT` column (JSON array; stocks have single element, ETFs have multiple)
-- [ ] Update `internal/data/queries/schema.sql` with the new column
+- [x] Update `internal/data/queries/schema.sql` with the new column
 
 **Verification:** Migration runs cleanly (up and down) against an in-memory SQLite database.
 
