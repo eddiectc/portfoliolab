@@ -66,6 +66,56 @@ const etfTopHoldingsJSON = `{
   }
 }`
 
+const equityWithCountryJSON = `{
+  "quoteSummary": {
+    "result": [{
+      "price": {
+        "symbol": "AAPL",
+        "shortName": "Apple Inc.",
+        "longName": "Apple Inc.",
+        "exchange": "NMS",
+        "currency": "USD",
+        "quoteType": "EQUITY",
+        "maxAge": 1
+      },
+      "assetProfile": {
+        "address1": "One Apple Park Way",
+        "city": "Cupertino",
+        "state": "CA",
+        "zip": "95014",
+        "country": "United States",
+        "phone": "4089961010",
+        "website": "https://www.apple.com",
+        "industry": "Consumer Electronics",
+        "sector": "Technology",
+        "longBusinessSummary": "Apple Inc. designs, manufactures, and markets smartphones.",
+        "maxAge": 86400
+      }
+    }]
+  }
+}`
+
+const equityEmptyCountryJSON = `{
+  "quoteSummary": {
+    "result": [{
+      "price": {
+        "symbol": "UNKNOWN",
+        "shortName": "Unknown Corp",
+        "longName": "Unknown Corporation",
+        "exchange": "OTC",
+        "currency": "USD",
+        "quoteType": "EQUITY",
+        "maxAge": 1
+      },
+      "assetProfile": {
+        "industry": "Other",
+        "sector": "Other",
+        "maxAge": 86400
+      }
+    }]
+  }
+}`
+
 const equityOnlyJSON = `{
   "quoteSummary": {
     "result": [{
@@ -294,6 +344,86 @@ func TestParseSectorWeightings(t *testing.T) {
 	}
 	if got := parseSectorWeightings(nil); got != nil {
 		t.Error("expected nil for nil input")
+	}
+}
+
+// --- Geographic Allocation Tests ---
+
+func TestFetchSymbolDetails_StockWithCountry(t *testing.T) {
+	auth, cleanup := setupMockServer(t, equityWithCountryJSON)
+	defer cleanup()
+
+	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
+	details, err := fetcher.FetchSymbolDetails(context.Background(), "AAPL")
+	if err != nil {
+		t.Fatalf("FetchSymbolDetails: %v", err)
+	}
+
+	if details.ShortName != "Apple Inc." {
+		t.Errorf("ShortName = %q", details.ShortName)
+	}
+
+	// Geographic allocations should be populated from assetProfile country
+	if len(details.GeographicAllocations) != 1 {
+		t.Fatalf("expected 1 geographic allocation, got %d", len(details.GeographicAllocations))
+	}
+	if details.GeographicAllocations[0].Country != "United States" {
+		t.Errorf("Country = %q, want United States", details.GeographicAllocations[0].Country)
+	}
+	if details.GeographicAllocations[0].Percent != 100 {
+		t.Errorf("Percent = %f, want 100", details.GeographicAllocations[0].Percent)
+	}
+}
+
+func TestFetchSymbolDetails_StockEmptyCountry(t *testing.T) {
+	auth, cleanup := setupMockServer(t, equityEmptyCountryJSON)
+	defer cleanup()
+
+	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
+	details, err := fetcher.FetchSymbolDetails(context.Background(), "UNKNOWN")
+	if err != nil {
+		t.Fatalf("FetchSymbolDetails: %v", err)
+	}
+
+	// Country is empty → GeographicAllocations should be nil
+	if details.GeographicAllocations != nil {
+		t.Errorf("expected nil GeographicAllocations for empty country, got %+v", details.GeographicAllocations)
+	}
+}
+
+func TestFetchSymbolDetails_ETFNoCountry(t *testing.T) {
+	auth, cleanup := setupMockServer(t, etfTopHoldingsJSON)
+	defer cleanup()
+
+	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
+	details, err := fetcher.FetchSymbolDetails(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("FetchSymbolDetails: %v", err)
+	}
+
+	// ETF fixture has no assetProfile → GeographicAllocations should be nil
+	if details.GeographicAllocations != nil {
+		t.Errorf("expected nil GeographicAllocations for ETF without assetProfile, got %+v", details.GeographicAllocations)
+	}
+}
+
+func TestFetchSymbolDetails_EquityNoAssetProfile(t *testing.T) {
+	auth, cleanup := setupMockServer(t, equityOnlyJSON)
+	defer cleanup()
+
+	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
+	details, err := fetcher.FetchSymbolDetails(context.Background(), "AAPL")
+	if err != nil {
+		t.Fatalf("FetchSymbolDetails: %v", err)
+	}
+
+	// No assetProfile at all → GeographicAllocations should be nil
+	if details.GeographicAllocations != nil {
+		t.Errorf("expected nil GeographicAllocations when assetProfile is missing, got %+v", details.GeographicAllocations)
 	}
 }
 

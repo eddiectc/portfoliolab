@@ -212,6 +212,15 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSy
 		}
 	}
 
+	// Geographic data: for individual stocks, extract country from assetProfile
+	// and wrap as a single-element allocation at 100%. ETF geographic allocations
+	// are deferred (Yahoo doesn't provide ETF country breakdown).
+	if result.AssetProfile != nil && result.AssetProfile.Country != "" {
+		details.GeographicAllocations = []symbol.GeographicAllocation{
+			{Country: result.AssetProfile.Country, Percent: 100},
+		}
+	}
+
 	return details, nil
 }
 
