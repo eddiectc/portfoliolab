@@ -500,9 +500,12 @@ func TestDetailsHandleDetailsPage_GeographicSingleElement(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Single-element: country shown in Overview section, NOT as a separate table
+	// Single-element: country shown as a "Country" row in the Overview section
+	if !strings.Contains(body, "<th>Country</th>") {
+		t.Error("expected '<th>Country</th>' row in overview section")
+	}
 	if !strings.Contains(body, "United States") {
-		t.Error("expected 'United States' in overview section")
+		t.Error("expected 'United States' value in overview section")
 	}
 	// Should NOT have a separate Geographic Allocation card for single-element
 	// (the country is inline in the Overview table)
@@ -545,11 +548,50 @@ func TestDetailsHandleDetailsPage_GeographicNoData(t *testing.T) {
 
 	body := w.Body.String()
 
-	if !strings.Contains(body, "No geographic data available") {
-		t.Error("expected 'No geographic data available' message")
+	if !strings.Contains(body, "Geographic Allocation") {
+		t.Error("expected 'Geographic Allocation' section header for ETF with no data")
 	}
-	if strings.Contains(body, "Geographic Allocation") {
-		// The section header is present but with "No geographic data available" body
-		// This is fine — it shows the section with a placeholder
+	if !strings.Contains(body, "No geographic data available") {
+		t.Error("expected 'No geographic data available' message for ETF with no data")
+	}
+}
+
+func TestDetailsHandleDetailsPage_GeographicNoData_NonETF_Suppressed(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "MSFT",
+		MarketDataSymbol: "MSFT",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["MSFT"] = 1
+
+	detailsRepo.details["MSFT"] = &symbol.SymbolDetails{
+		InternalSymbol: "MSFT",
+		ShortName:      "Microsoft Corporation",
+		QuoteType:      "EQUITY",
+		// No geographic allocations, no country
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// Non-ETF with no geographic data: "No geographic data available" card is suppressed
+	if strings.Contains(body, "No geographic data available") {
+		t.Error("should not show 'No geographic data available' for non-ETF (stock)")
 	}
 }

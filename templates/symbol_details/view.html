@@ -224,7 +224,8 @@
 </div>
 {{end}}
 {{else}}
-<!-- Has details but no geographic data -->
+<!-- Has details but no geographic data — only show for ETFs -->
+{{if eq .Details.QuoteType "ETF"}}
 <div class="card">
     <div class="card-header">
         <h2>Geographic Allocation</h2>
@@ -233,6 +234,7 @@
         <p class="text-muted">No geographic data available</p>
     </div>
 </div>
+{{end}}
 {{end}}
 {{else}}
 <!-- No cached details -->
