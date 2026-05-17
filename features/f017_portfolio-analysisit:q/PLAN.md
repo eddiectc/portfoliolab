@@ -55,8 +55,8 @@ Tasks 2–6 are independent of each other after Task 1 (pure computation, no sha
 **Corresponds to:** Scenario: View ETF overlap pairwise matrix, Scenario: View top concentrated stocks across ETFs
 **Description:** Pure computation that takes a set of ETF positions with cached holdings and computes pairwise overlap and top concentrated stocks.
 
-- [ ] Create `internal/domain/analysis/overlap.go`
-- [ ] Implement `ComputeOverlap(positions []PositionWithDetails) *OverlapResult`:
+- [x] Create `internal/domain/analysis/overlap.go`
+- [x] Implement `ComputeOverlap(positions []PositionWithDetails) *OverlapResult`:
   - Filter to ETF positions only (QuoteType == "ETF")
   - For each ETF pair, find common underlying symbols from TopHoldings
   - Compute overlap count and combined portfolio weight (sum of each ETF's weight × position weight for overlapping holdings)
@@ -64,8 +64,8 @@ Tasks 2–6 are independent of each other after Task 1 (pure computation, no sha
   - Aggregate all underlying holdings across ETFs: sum weight per symbol across all ETFs holding it
   - Sort by total weight descending, take top 10
   - Handle empty state: no ETFs → message, 1 ETF → message (need 2+ for pairwise)
-- [ ] Define `PositionWithDetails` input struct: Symbol, PortfolioWeight (position market value / total portfolio value), SymbolDetails (*symbol.SymbolDetails)
-- [ ] Write table-driven unit tests:
+- [x] Define `PositionWithDetails` input struct: Symbol, PortfolioWeight (position market value / total portfolio value), SymbolDetails (*symbol.SymbolDetails)
+- [x] Write table-driven unit tests:
   - Happy path: 3 ETFs with known overlapping holdings
   - Zero overlap between some pairs
   - Single ETF (message)
