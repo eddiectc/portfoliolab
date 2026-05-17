@@ -420,6 +420,25 @@ func TestComputeCorrelation(t *testing.T) {
 			wantSymbols: []string{"A", "B"},
 			wantMessage: "",
 		},
+
+		{
+			name: "invalid period generates warning and defaults to 1Y",
+			prices: makeMultiSeries([]struct {
+				sym    string
+				prices []float64
+			}{
+				{"A", []float64{100, 102, 101, 103, 105}},
+				{"B", []float64{100, 102, 101, 103, 105}},
+			}),
+			period: "invalid",
+			wantMatrix: [][]float64{
+				{1.0, 1.0},
+				{1.0, 1.0},
+			},
+			wantSymbols:   []string{"A", "B"},
+			wantMessage:   "",
+			wantWarningRe: "unrecognized period",
+		},
 	}
 
 	for _, tt := range tests {
@@ -480,7 +499,7 @@ func TestPeriodCutoff(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.period, func(t *testing.T) {
-			cutoff := periodCutoff(tt.period)
+			cutoff, _ := periodCutoff(tt.period)
 			expected := now.AddDate(-tt.wantYears, 0, 0)
 			diff := cutoff.Sub(expected).Hours()
 			if math.Abs(diff) > 1 {

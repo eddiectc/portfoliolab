@@ -36,8 +36,13 @@ type dailyReturn struct {
 func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period string) *CorrelationResult {
 	symbols := sortedSymbols(prices)
 
+	var warnings []string
+
 	// Determine cutoff date from period.
-	cutoff := periodCutoff(period)
+	cutoff, periodWarning := periodCutoff(period)
+	if periodWarning != "" {
+		warnings = append(warnings, periodWarning)
+	}
 
 	// Filter price series to the lookback period and compute dated returns.
 	datedReturns := make(map[string][]dailyReturn, len(prices))
@@ -54,7 +59,12 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 			missingSymbols = append(missingSymbols, sym)
 			continue
 		}
-		datedReturns[sym] = computeDailyReturnsWithDates(filtered)
+		rets := computeDailyReturnsWithDates(filtered)
+		if len(rets) == 0 {
+			missingSymbols = append(missingSymbols, sym)
+			continue
+		}
+		datedReturns[sym] = rets
 	}
 
 	// Symbols with valid return data, in sorted order.
@@ -66,7 +76,6 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 	}
 
 	// Add warnings for symbols excluded due to missing/insufficient data.
-	var warnings []string
 	for _, sym := range missingSymbols {
 		warnings = append(warnings, sym+": insufficient price data for correlation")
 	}
@@ -116,21 +125,22 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 	}
 }
 
-// periodCutoff returns the start date for the given lookback period string.
-func periodCutoff(period string) time.Time {
+// periodCutoff returns the start date for the given lookback period string
+// and a warning if the period was unrecognized (defaults to 1Y).
+func periodCutoff(period string) (time.Time, string) {
 	now := time.Now()
 	switch period {
 	case "1Y":
-		return now.AddDate(-1, 0, 0)
+		return now.AddDate(-1, 0, 0), ""
 	case "3Y":
-		return now.AddDate(-3, 0, 0)
+		return now.AddDate(-3, 0, 0), ""
 	case "5Y":
-		return now.AddDate(-5, 0, 0)
+		return now.AddDate(-5, 0, 0), ""
 	case "10Y":
-		return now.AddDate(-10, 0, 0)
+		return now.AddDate(-10, 0, 0), ""
 	default:
-		// Default to 1Y.
-		return now.AddDate(-1, 0, 0)
+		return now.AddDate(-1, 0, 0),
+			"unrecognized period "+period+" — defaulting to 1Y"
 	}
 }
 
