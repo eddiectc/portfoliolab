@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -95,6 +96,7 @@ type MarketCache struct {
 	failedSymbols        map[string]string
 	refreshAllInProgress bool
 	totalSymbols         int
+	firstRefreshDone     bool
 
 	fetchCh chan fetchRequest
 	ctx     context.Context
@@ -487,13 +489,21 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 		}
 	}
 
-	// Refresh stale symbol details.
-	m.refreshStaleSymbolDetails(ctx)
+	// Refresh stale symbol details (skip on first cycle to avoid competing
+	// with the burst of quote/FX/gap-fill requests at startup).
+	m.mu.RLock()
+	firstRefreshDone := m.firstRefreshDone
+	m.mu.RUnlock()
+
+	if firstRefreshDone {
+		m.refreshStaleSymbolDetails(ctx)
+	}
 
 	// Update status.
 	m.mu.Lock()
 	m.lastRefresh = time.Now()
 	m.totalSymbols = len(allSymbols) + len(activeFxPairs)
+	m.firstRefreshDone = true
 	m.mu.Unlock()
 }
 
@@ -811,8 +821,10 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 
 // refreshStaleSymbolDetails finds symbols with stale cached details (>7 days)
 // and refreshes them. Fetches are serialized with ~500ms delay between symbols
-// to avoid rate limiting. Individual failures are logged but don't affect
-// other symbols in the batch.
+// to avoid rate limiting. If the first symbol fails with an auth error (e.g.,
+// 429 rate limit), the entire batch is aborted since all symbols share the
+// same auth session — individual failures are logged but non-auth errors
+// continue processing.
 func (m *MarketCache) refreshStaleSymbolDetails(ctx context.Context) {
 	if m.symbolDetailsRefresh == nil {
 		return
@@ -837,6 +849,8 @@ func (m *MarketCache) refreshStaleSymbolDetails(ctx context.Context) {
 		m.logger.Info("refreshing stale symbol details", "count", len(stale))
 	}
 
+	successCount, failCount := 0, 0
+
 	for i, s := range stale {
 		if ctx.Err() != nil {
 			return
@@ -848,17 +862,42 @@ func (m *MarketCache) refreshStaleSymbolDetails(ctx context.Context) {
 		}
 
 		if err := m.symbolDetailsRefresh.RefreshSymbol(ctx, s.InternalSymbol, s.MarketDataSymbol); err != nil {
+			failCount++
+			// If the first symbol fails with an auth error, abort the batch
+			// since all symbols share the same cookie/crumb cache.
+			if i == 0 && isAuthError(err) {
+				if m.logger != nil {
+					m.logger.Warn("symbol details refresh aborted (auth failed, will retry next cycle)",
+						"symbol", s.InternalSymbol, "marketDataSymbol", s.MarketDataSymbol, "error", err)
+				}
+				return
+			}
 			if m.logger != nil {
 				m.logger.Warn("failed to refresh symbol details", "symbol", s.InternalSymbol, "marketDataSymbol", s.MarketDataSymbol, "error", err)
 			}
-			// Continue to next symbol — individual failures don't affect the batch.
 			continue
 		}
 
+		successCount++
 		if m.logger != nil {
 			m.logger.Info("refreshed symbol details", "symbol", s.InternalSymbol, "marketDataSymbol", s.MarketDataSymbol)
 		}
 	}
+
+	if m.logger != nil {
+		m.logger.Info("symbol details refresh completed", "success", successCount, "failed", failCount, "total", len(stale))
+	}
+}
+
+// isAuthError checks if the error is related to Yahoo auth (cookie/crumb).
+func isAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Yahoo crumb") ||
+		strings.Contains(msg, "Yahoo cookie") ||
+		strings.Contains(msg, "auth retry backoff")
 }
 
 // --- Helpers ---
