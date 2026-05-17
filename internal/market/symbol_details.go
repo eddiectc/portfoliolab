@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
@@ -95,62 +92,45 @@ type assetProfileModule struct {
 }
 
 // FetchSymbolDetails fetches rich metadata for a symbol from Yahoo Finance.
-// It performs the crumb/cookie auth flow, calls the quoteSummary endpoint with
-// topHoldings, fundProfile, and assetProfile modules, and returns a populated
-// SymbolDetails struct. Partial data is returned gracefully — if some modules
-// are missing, the available fields are still populated.
-func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketDataSymbol string) (*symbol.SymbolDetails, error) {
-	client := f.httpClient()
-
-	// Step 1: Get cookie
-	cookie, err := f.getCookie(ctx, client)
-	if err != nil {
-		f.logger.Warn("failed to get Yahoo cookie", "error", err)
-		return nil, fmt.Errorf("failed to get Yahoo cookie: %w", err)
-	}
-
-	// Step 2: Get crumb
-	crumb, err := f.getCrumb(ctx, client, cookie)
+// It uses the shared AuthManager to get cookie/crumb and the go-yfinance
+// client (CycleTLS) for the actual request, ensuring a consistent TLS
+// fingerprint end-to-end. Calls the quoteSummary endpoint with topHoldings,
+// fundProfile, and assetProfile modules, and returns a populated
+// SymbolDetails struct. Partial data is returned gracefully — if some
+// modules are missing, the available fields are still populated.
+func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSymbol string) (*symbol.SymbolDetails, error) {
+	// Get crumb from shared AuthManager (same auth session as go-yfinance quotes).
+	crumb, err := f.auth.GetCrumb()
 	if err != nil {
 		f.logger.Warn("failed to get Yahoo crumb", "error", err)
 		return nil, fmt.Errorf("failed to get Yahoo crumb: %w", err)
 	}
 
-	// Step 3: Fetch quoteSummary
+	// Fetch quoteSummary using the shared auth (CycleTLS) so the TLS
+	// fingerprint matches the one used to obtain the cookie/crumb.
 	modules := "topHoldings,fundProfile,assetProfile"
-	url := fmt.Sprintf("%s/%s?modules=%s&corsDomain=finance.yahoo.com&formatted=false&crumb=%s",
+	reqURL := fmt.Sprintf("%s/%s?modules=%s&corsDomain=finance.yahoo.com&formatted=false&crumb=%s",
 		yahooQuoteSummary, marketDataSymbol, modules, crumb)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Cookie", cookie)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-	resp, err := client.Do(req)
+	resp, err := f.auth.Get(reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("fetch quoteSummary for %s: %w", marketDataSymbol, err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusUnauthorized {
+	if resp.StatusCode == 401 {
 		return nil, fmt.Errorf("unauthorized for %s (crumb may be expired)", marketDataSymbol)
 	}
-	if resp.StatusCode == http.StatusNotFound {
+	if resp.StatusCode == 404 {
 		return nil, fmt.Errorf("symbol %s not found on Yahoo Finance", marketDataSymbol)
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("unexpected status %d for %s", resp.StatusCode, marketDataSymbol)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response body for %s: %w", marketDataSymbol, err)
-	}
+	body := resp.Body
 
 	var quoteResp quoteSummaryResponse
-	if err := json.Unmarshal(body, &quoteResp); err != nil {
+	if err := json.Unmarshal([]byte(body), &quoteResp); err != nil {
 		return nil, fmt.Errorf("parse quoteSummary JSON for %s: %w", marketDataSymbol, err)
 	}
 
@@ -166,7 +146,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 
 	result := quoteResp.QuoteSummary.Result[0]
 
-	// Step 4: Build SymbolDetails from available modules
+	// Build SymbolDetails from available modules
 	details := &symbol.SymbolDetails{
 		FetchedAt: time.Now(),
 	}
@@ -211,56 +191,6 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(ctx context.Context, marketData
 	}
 
 	return details, nil
-}
-
-// getCookie fetches the Yahoo session cookie used for authentication.
-func (f *YahooFinanceFetcher) getCookie(ctx context.Context, client *http.Client) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, yahooCookieURL, nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	resp.Body.Close()
-
-	cookies := resp.Header.Values("Set-Cookie")
-	for _, c := range cookies {
-		// Extract just the cookie name=value part (before the first ';')
-		parts := strings.SplitN(c, ";", 2)
-		if len(parts) > 0 {
-			return strings.TrimSpace(parts[0]), nil
-		}
-	}
-
-	return "", fmt.Errorf("no cookie returned from %s", yahooCookieURL)
-}
-
-// getCrumb fetches the Yahoo crumb token using the session cookie.
-func (f *YahooFinanceFetcher) getCrumb(ctx context.Context, client *http.Client, cookie string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, yahooCrumbURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Cookie", cookie)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("get crumb: status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(string(body)), nil
 }
 
 func parseTopHoldings(items []topHoldingItem) []symbol.TopHolding {

@@ -65,6 +65,8 @@
 - **Type placement matters early** — Moving types three times (domain → market → types/symbol) was necessary to resolve import cycles. For future features, consider whether types need to be shared across packages before placing them in a domain package.
 - **Single-interface pattern wins** — The plan's two-interface design for background refresh didn't work architecturally. The single interface (`SymbolDetailsRefreshSource`) implemented by the service layer is the right pattern — it matches how `BenchmarkSymbolLister` works. Trust the architecture over the plan.
 - **Combined module fetch is efficient** — Fetching `topHoldings,fundProfile,assetProfile` in one HTTP request (instead of three separate calls) saves auth overhead and is more resilient to rate limiting.
+- **TLS fingerprint matters for Yahoo** — Using standard `net/http` for quoteSummary while go-yfinance's `AuthManager` used CycleTLS caused Yahoo to return partial data (NULL metadata). Fix: share the same client end-to-end. When mixing libraries with custom TLS, always verify the fingerprint is consistent across auth + data requests.
+- **Interface abstraction enables fast, deterministic tests** — The `YahooAuth` interface lets tests inject a mock that returns fake crumb/cookie and delegates HTTP to `httptest.Server`. Market tests now run in ~5ms with zero network calls, instead of hitting real Yahoo servers and risking 429s.
 
 ## Action Items
 

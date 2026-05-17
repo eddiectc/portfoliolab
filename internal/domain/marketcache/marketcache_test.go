@@ -1321,6 +1321,7 @@ type mockSymbolDetailsRefresh struct {
 	mu            sync.RWMutex
 	staleSymbols  []symbol.StaleSymbol
 	refreshErrors map[string]bool // keyed by internalSymbol
+	authError     error           // if set, first RefreshSymbol returns this
 	refreshCalls  int
 }
 
@@ -1339,6 +1340,12 @@ func (m *mockSymbolDetailsRefresh) SetRefreshError(internalSymbol string, fail b
 	m.refreshErrors[internalSymbol] = fail
 }
 
+func (m *mockSymbolDetailsRefresh) SetAuthError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.authError = err
+}
+
 func (m *mockSymbolDetailsRefresh) GetStaleSymbols(_ context.Context) ([]symbol.StaleSymbol, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -1351,7 +1358,11 @@ func (m *mockSymbolDetailsRefresh) RefreshSymbol(_ context.Context, internalSymb
 	m.mu.Lock()
 	m.refreshCalls++
 	fail := m.refreshErrors[internalSymbol]
+	authErr := m.authError
 	m.mu.Unlock()
+	if authErr != nil {
+		return authErr
+	}
 	if fail {
 		return fmt.Errorf("fetch failed for %s", internalSymbol)
 	}
@@ -1540,6 +1551,105 @@ func TestRefreshStaleSymbolDetails_PeriodicTickerIntegration(t *testing.T) {
 	callsAfterClear := source.RefreshCalls()
 	if callsAfterClear != calls {
 		t.Errorf("expected no additional refresh calls after clearing stale, got %d (was %d, now %d)", callsAfterClear, calls, callsAfterClear)
+	}
+}
+
+func TestRefreshStaleSymbolDetails_SkippedOnFirstRefresh(t *testing.T) {
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: time.Now().AddDate(0, 0, -10)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+
+	// Simulate the first refresh cycle by calling doRefresh directly.
+	cache.doRefresh(ctx)
+
+	// On first refresh, symbol details should NOT be refreshed.
+	calls := source.RefreshCalls()
+	if calls != 0 {
+		t.Errorf("expected 0 refresh calls on first cycle, got %d", calls)
+	}
+
+	// Simulate a second refresh cycle.
+	cache.doRefresh(ctx)
+
+	// On second refresh, symbol details SHOULD be refreshed.
+	calls = source.RefreshCalls()
+	if calls != 1 {
+		t.Errorf("expected 1 refresh call on second cycle, got %d", calls)
+	}
+}
+
+func TestRefreshStaleSymbolDetails_AbortOnAuthError(t *testing.T) {
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: time.Now().AddDate(0, 0, -10)},
+		{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT", FetchedAt: time.Now().AddDate(0, 0, -10)},
+		{InternalSymbol: "GOOGL", MarketDataSymbol: "GOOGL", FetchedAt: time.Now().AddDate(0, 0, -10)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+	// Simulate Yahoo 429 rate limit
+	source.SetAuthError(fmt.Errorf("failed to get Yahoo crumb: get crumb: status 429"))
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+
+	// First cycle skips symbol details; second cycle runs them.
+	cache.doRefresh(ctx)
+	cache.doRefresh(ctx)
+
+	// Only 1 refresh call (first symbol), batch aborted on auth error.
+	calls := source.RefreshCalls()
+	if calls != 1 {
+		t.Errorf("expected 1 refresh call (batch aborted on auth error), got %d", calls)
+	}
+}
+
+func TestRefreshStaleSymbolDetails_NonAuthErrorContinues(t *testing.T) {
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: time.Now().AddDate(0, 0, -10)},
+		{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT", FetchedAt: time.Now().AddDate(0, 0, -10)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+	// First symbol fails with a non-auth error (e.g., symbol not found)
+	source.SetRefreshError("AAPL", true)
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+
+	// First cycle skips symbol details; second cycle runs them.
+	cache.doRefresh(ctx)
+	cache.doRefresh(ctx)
+
+	// Both symbols should be attempted (non-auth error doesn't abort batch).
+	calls := source.RefreshCalls()
+	if calls != 2 {
+		t.Errorf("expected 2 refresh calls (non-auth error continues), got %d", calls)
 	}
 }
 

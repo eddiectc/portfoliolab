@@ -17,6 +17,16 @@
 - Task 3: Moved `SymbolDetails`, `TopHolding`, `SectorWeighting`, `AggregatePositions`, `FundProfile`, `EquityValuation`, and `StaleSymbol` types from `internal/domain/symbols/symbol_details.go` to `internal/market/symbol_details.go` to break an import cycle, then moved them again to `internal/types/symbol/symbol_details.go` (a shared types package) so the types live at the domain level rather than in the infrastructure package. Dependency graph: `market` → `types/symbol`, `symbols` → `types/symbol`, `data` → `types/symbol`. No cycles.
 - Task 7: Plan specified two interfaces (`SymbolDetailsRefreshRepository` + `SymbolDetailsRefreshFetcher`) but consolidated into a single `SymbolDetailsRefreshSource` interface with `GetStaleSymbols` and `RefreshSymbol`. The split didn't work architecturally — the "fetcher" would need both the HTTP client (Yahoo) and the repo (DB upsert), which is the full fetch-and-store orchestration already provided by the symbols service. The single interface is implemented directly by `symbols.Service`, following the same pattern as `BenchmarkSymbolLister` (implemented by `symbolmapping.Repository`).
 
+## Post-Implementation Fixes (2026-05-17)
+
+### TLS Fingerprint Mismatch — NULL Metadata
+- **Problem**: Symbol details fetched with NULL `short_name`, `long_name`, `quote_type` (JSON columns populated but metadata empty). Root cause: our direct `net/http` calls used standard Go TLS, while go-yfinance's `AuthManager` used CycleTLS. Yahoo saw the TLS fingerprint mismatch between the cookie/crumb request and the quoteSummary request, and returned partial data.
+- **Fix**: `YahooFinanceFetcher` now creates a single go-yfinance `AuthManager` that handles auth. The crumb and cookie from this AuthManager are reused by `FetchSymbolDetails` via `auth.GetCrumb()` and `yfClient.GetCookie()`. The quoteSummary request also uses go-yfinance's CycleTLS client, ensuring consistent TLS fingerprint end-to-end. One auth session instead of two.
+
+### YahooAuth Interface — No Real Servers in Tests
+- **Problem**: `auth.GetCrumb()` in `FetchSymbolDetails` hit real Yahoo servers during tests, causing intermittent 429 failures.
+- **Fix**: Added `YahooAuth` interface (`GetCrumb`, `GetCookie`, `Get`) abstracting the auth backend. `realYahooAuth` wraps go-yfinance's `AuthManager` + `Client`. Tests inject `mockYahooAuth` via `fetcher.WithAuth()` — returns fake crumb and delegates HTTP to `httptest.Server`. Market tests now run in ~5ms with zero network calls.
+
 ## Future Improvements
 - None yet.
 

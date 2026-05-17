@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/wnjoon/go-yfinance/pkg/client"
 )
 
 // --- JSON Fixtures (from RESEARCH.md) ---
@@ -296,21 +297,76 @@ func TestParseSectorWeightings(t *testing.T) {
 
 // --- Integration-Style Tests with Mock Server ---
 
-func setupMockServer(t *testing.T, responseJSON string) (*httptest.Server, func()) {
+// mockYahooAuth implements YahooAuth for tests — returns a fake crumb
+// and delegates HTTP requests to the mock server.
+type mockYahooAuth struct {
+	baseURL   string
+	crumb     string
+	cookie    string
+	httpError error // if set, Get() returns this error
+}
+
+func (m *mockYahooAuth) GetCrumb() (string, error) {
+	return m.crumb, nil
+}
+
+func (m *mockYahooAuth) GetCookie() string {
+	return m.cookie
+}
+
+func (m *mockYahooAuth) Get(rawURL string, params any) (*client.Response, error) {
+	if m.httpError != nil {
+		return nil, m.httpError
+	}
+	// Resolve URL: if it's the real Yahoo URL, redirect to mock server.
+	target := rawURL
+	if strings.HasPrefix(rawURL, "https://query") {
+		// Extract the path after the base URL
+		target = m.baseURL + "/v10/finance/quoteSummary"
+		// Extract symbol from URL
+		if idx := strings.Index(rawURL, "/quoteSummary/"); idx >= 0 {
+			sym := rawURL[idx+len("/quoteSummary/"):]
+			// Strip query params
+			if q := strings.Index(sym, "?"); q >= 0 {
+				sym = sym[:q]
+			}
+			target = m.baseURL + "/v10/finance/quoteSummary/" + sym
+		}
+	}
+
+	resp, err := http.Get(target)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	headers := make(map[string]string)
+	for k, v := range resp.Header {
+		if len(v) > 0 {
+			headers[k] = v[0]
+		}
+	}
+	return &client.Response{
+		StatusCode: resp.StatusCode,
+		Body:       string(body),
+		Headers:    headers,
+	}, nil
+}
+
+// mockAuth creates a mock YahooAuth backed by the given mock server.
+func mockAuth(serverURL string) YahooAuth {
+	return &mockYahooAuth{
+		baseURL: serverURL,
+		crumb:   "test-crumb-123",
+		cookie:  "A3=a=b",
+	}
+}
+
+func setupMockServer(t *testing.T, responseJSON string) (YahooAuth, func()) {
 	t.Helper()
 
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Cookie endpoint (fc.yahoo.com → /)
-		w.Header().Set("Set-Cookie", "A3=a=b")
-		w.WriteHeader(http.StatusOK)
-	})
-
-	mux.HandleFunc("/v1/test/getcrumb", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test-crumb-123"))
-	})
 
 	mux.HandleFunc("/v10/finance/quoteSummary/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -319,30 +375,21 @@ func setupMockServer(t *testing.T, responseJSON string) (*httptest.Server, func(
 	})
 
 	server := httptest.NewServer(mux)
-	origCookie := yahooCookieURL
-	origCrumb := yahooCrumbURL
-	origQuoteSummary := yahooQuoteSummary
 
-	// Override the package-level vars to point to the mock server
-	yahooCookieURL = server.URL
-	yahooCrumbURL = server.URL + "/v1/test/getcrumb"
-	yahooQuoteSummary = server.URL + "/v10/finance/quoteSummary"
-
+	auth := mockAuth(server.URL)
 	cleanup := func() {
 		server.Close()
-		yahooCookieURL = origCookie
-		yahooCrumbURL = origCrumb
-		yahooQuoteSummary = origQuoteSummary
 	}
 
-	return server, cleanup
+	return auth, cleanup
 }
 
 func TestFetchSymbolDetails_ETFFull(t *testing.T) {
-	_, cleanup := setupMockServer(t, etfTopHoldingsJSON)
+	auth, cleanup := setupMockServer(t, etfTopHoldingsJSON)
 	defer cleanup()
 
 	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
 	details, err := fetcher.FetchSymbolDetails(context.Background(), "WMGG.L")
 	if err != nil {
 		t.Fatalf("FetchSymbolDetails: %v", err)
@@ -423,10 +470,11 @@ func TestFetchSymbolDetails_ETFFull(t *testing.T) {
 }
 
 func TestFetchSymbolDetails_EquityOnly(t *testing.T) {
-	_, cleanup := setupMockServer(t, equityOnlyJSON)
+	auth, cleanup := setupMockServer(t, equityOnlyJSON)
 	defer cleanup()
 
 	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
 	details, err := fetcher.FetchSymbolDetails(context.Background(), "AAPL")
 	if err != nil {
 		t.Fatalf("FetchSymbolDetails: %v", err)
@@ -458,10 +506,11 @@ func TestFetchSymbolDetails_EquityOnly(t *testing.T) {
 }
 
 func TestFetchSymbolDetails_NotFound(t *testing.T) {
-	_, cleanup := setupMockServer(t, emptyResultJSON)
+	auth, cleanup := setupMockServer(t, emptyResultJSON)
 	defer cleanup()
 
 	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
 	_, err := fetcher.FetchSymbolDetails(context.Background(), "INVALID")
 	if err == nil {
 		t.Fatal("expected error for not-found symbol")
@@ -495,10 +544,11 @@ func TestFetchSymbolDetails_PartialData(t *testing.T) {
   }
 }`
 
-	_, cleanup := setupMockServer(t, partialJSON)
+	auth, cleanup := setupMockServer(t, partialJSON)
 	defer cleanup()
 
 	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
 	details, err := fetcher.FetchSymbolDetails(context.Background(), "TEST")
 	if err != nil {
 		t.Fatalf("FetchSymbolDetails: %v", err)
@@ -529,27 +579,43 @@ func TestFetchSymbolDetails_PartialData(t *testing.T) {
 }
 
 func TestFetchSymbolDetails_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v10/finance/quoteSummary/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-	}))
+	})
+	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	origCookie := yahooCookieURL
-	origCrumb := yahooCrumbURL
-	origQuoteSummary := yahooQuoteSummary
-	yahooCookieURL = server.URL
-	yahooCrumbURL = server.URL + "/v1/test/getcrumb"
-	yahooQuoteSummary = server.URL + "/v10/finance/quoteSummary"
-	defer func() {
-		yahooCookieURL = origCookie
-		yahooCrumbURL = origCrumb
-		yahooQuoteSummary = origQuoteSummary
-	}()
-
 	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(mockAuth(server.URL))
 	_, err := fetcher.FetchSymbolDetails(context.Background(), "TEST")
 	if err == nil {
 		t.Fatal("expected error for server error")
+	}
+}
+
+// --- Auth Interface Tests ---
+
+func TestAuthInitialized(t *testing.T) {
+	fetcher := NewYahooFinanceFetcher(discardLogger())
+	if fetcher.auth == nil {
+		t.Fatal("auth should be initialized")
+	}
+}
+
+func TestWithAuth_ReplacesBackend(t *testing.T) {
+	fetcher := NewYahooFinanceFetcher(discardLogger())
+	original := fetcher.auth
+
+	mock := &mockYahooAuth{crumb: "mock-crumb", cookie: "mock-cookie"}
+	fetcher.WithAuth(mock)
+
+	if fetcher.auth == original {
+		t.Fatal("WithAuth should replace the auth backend")
+	}
+	crumb, _ := fetcher.auth.GetCrumb()
+	if crumb != "mock-crumb" {
+		t.Errorf("crumb = %q, want mock-crumb", crumb)
 	}
 }
 

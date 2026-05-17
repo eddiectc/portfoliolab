@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/govalues/decimal"
+	"github.com/wnjoon/go-yfinance/pkg/client"
 	"github.com/wnjoon/go-yfinance/pkg/multi"
 	"github.com/wnjoon/go-yfinance/pkg/models"
 	yf "github.com/wnjoon/go-yfinance/pkg/ticker"
@@ -49,22 +50,60 @@ type MarketDataFetcher interface {
 	FetchHistoricalPricesBatch(ctx context.Context, symbols []string, start, end time.Time) (map[string][]HistoricalPrice, []string)
 }
 
+// YahooAuth provides Yahoo Finance cookie/crumb authentication and
+// HTTP requests with consistent TLS fingerprinting.
+// Abstracted behind an interface so tests can inject a mock instead of
+// hitting real Yahoo servers.
+type YahooAuth interface {
+	GetCrumb() (string, error)
+	GetCookie() string
+	Get(rawURL string, params any) (*client.Response, error)
+}
+
+// realYahooAuth wraps go-yfinance's AuthManager and Client.
+type realYahooAuth struct {
+	am *client.AuthManager
+	c  *client.Client
+}
+
+func (a *realYahooAuth) GetCrumb() (string, error) {
+	return a.am.GetCrumb()
+}
+
+func (a *realYahooAuth) GetCookie() string {
+	return a.c.GetCookie()
+}
+
+func (a *realYahooAuth) Get(rawURL string, params any) (*client.Response, error) {
+	var uv url.Values
+	if params != nil {
+		uv = params.(url.Values)
+	}
+	return a.c.Get(rawURL, uv)
+}
+
 // YahooFinanceFetcher implements MarketDataFetcher using go-yfinance.
 type YahooFinanceFetcher struct {
 	logger *slog.Logger
+	auth   YahooAuth
 }
 
 // NewYahooFinanceFetcher creates a new YahooFinanceFetcher.
 func NewYahooFinanceFetcher(logger *slog.Logger) *YahooFinanceFetcher {
-	return &YahooFinanceFetcher{logger: logger}
+	c, _ := client.New()
+	am := client.NewAuthManager(c)
+	return &YahooFinanceFetcher{
+		logger: logger,
+		auth: &realYahooAuth{
+			am: am,
+			c:  c,
+		},
+	}
 }
 
-// httpClient returns an HTTP client for direct Yahoo Finance API calls
-// (used by FetchSymbolDetails for the quoteSummary endpoint).
-func (f *YahooFinanceFetcher) httpClient() *http.Client {
-	return &http.Client{
-		Timeout: 15 * time.Second,
-	}
+// WithAuth replaces the auth backend. Used in tests to inject a mock.
+func (f *YahooFinanceFetcher) WithAuth(auth YahooAuth) {
+	f.auth = auth
 }
 
 // FetchQuote fetches the current quote for a symbol from Yahoo Finance.
