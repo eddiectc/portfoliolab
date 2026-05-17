@@ -150,6 +150,12 @@ func (m *MarketCache) Start(ctx context.Context) {
 	go func() {
 		m.gapFillBenchmarks(ctx)
 	}()
+
+	// Refresh stale symbol details at startup. Shares the same auth session
+	// as the quote/FX fetches above, so cookie/crumb are already warm.
+	go func() {
+		m.refreshStaleSymbolDetails(ctx)
+	}()
 }
 
 // Stop gracefully shuts down background goroutines.
