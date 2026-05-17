@@ -30,11 +30,11 @@ Task 5,6 → Task 7 (tests + validation)
 **Corresponds to:** All scenarios (foundation)
 **Description:** Update sqlc queries and repository to handle the new geographic column.
 
-- [ ] Update `symbol_details.sql` — add `geographic_allocations` to `InsertSymbolDetails` (INSERT + ON CONFLICT UPDATE)
-- [ ] Run `sqlc generate` to regenerate types and query functions
-- [ ] Update `InsertSymbolDetailsParams` usage in `symbol_details_repo.go` Upsert to include new field
-- [ ] Update `toSymbolDetail()` in repo to deserialize `geographic_allocations` JSON
-- [ ] Write repository tests: upsert with geographic data, upsert without (null), retrieval round-trip
+- [x] Update `symbol_details.sql` — add `geographic_allocations` to `InsertSymbolDetails` (INSERT + ON CONFLICT UPDATE)
+- [x] Run `sqlc generate` to regenerate types and query functions
+- [x] Update `InsertSymbolDetailsParams` usage in `symbol_details_repo.go` Upsert to include new field
+- [x] Update `toSymbolDetail()` in repo to deserialize `geographic_allocations` JSON
+- [x] Write repository tests: upsert with geographic data, upsert without (null), retrieval round-trip
 
 **Verification:** `sqlc generate` succeeds, repo compiles, tests pass.
 
@@ -42,8 +42,8 @@ Task 5,6 → Task 7 (tests + validation)
 **Corresponds to:** All scenarios
 **Description:** Add geographic field to the `SymbolDetails` domain type.
 
-- [ ] Add `GeographicAllocations []GeographicAllocation` field to `SymbolDetails` in `internal/types/symbol/symbol_details.go`
-- [ ] Define `GeographicAllocation` struct: `Country string`, `Percent float64`
+- [x] Add `GeographicAllocations []GeographicAllocation` field to `SymbolDetails` in `internal/types/symbol/symbol_details.go`
+- [x] Define `GeographicAllocation` struct: `Country string`, `Percent float64`
 
 **Verification:** Types compile, no breaking changes to existing consumers.
 

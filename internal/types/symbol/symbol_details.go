@@ -15,11 +15,12 @@ type SymbolDetails struct {
 	QuoteType      string // e.g. "ETF", "EQUITY"
 
 	// ETF-specific fields (JSON in DB, deserialized here)
-	TopHoldings        []TopHolding
-	SectorWeightings   []SectorWeighting
-	AggregatePositions *AggregatePositions
-	FundProfile        *FundProfile
-	EquityValuation    *EquityValuation
+	TopHoldings          []TopHolding
+	SectorWeightings     []SectorWeighting
+	AggregatePositions   *AggregatePositions
+	FundProfile          *FundProfile
+	EquityValuation      *EquityValuation
+	GeographicAllocations []GeographicAllocation
 
 	// Metadata
 	FetchedAt time.Time
@@ -63,6 +64,12 @@ type EquityValuation struct {
 	PriceToBook     float64
 	PriceToCashflow float64
 	PriceToSales    float64
+}
+
+// GeographicAllocation represents a country/region exposure entry.
+type GeographicAllocation struct {
+	Country string
+	Percent float64 // e.g. 0.452 = 45.2%
 }
 
 // StaleSymbol represents a symbol whose details need refreshing.
