@@ -207,23 +207,29 @@ JSON file keeps scenario data separated from Go code, making it easier to update
 **Corresponds to:** Scenario: View factor exposure proxy, Scenario: Factor exposure with insufficient data
 **Description:** Pure computation of proxy-based factor exposure metrics from cached valuation data.
 
-- [ ] Create `internal/domain/analysis/factor_exposure.go`
-- [ ] Implement `ComputeFactorExposure(positions []PositionWithDetails, portfolioValue decimal.Decimal) *FactorExposureResult`:
+- [x] Create `internal/domain/analysis/factor_exposure.go`
+- [x] Implement `ComputeFactorExposure(positions []PositionWithDetails) *FactorExposureResult`:
   - **Value vs Growth**: portfolio-weighted P/E and P/B from EquityValuation, compared to benchmark (S&P 500: ~20x P/E, ~4x P/B as hardcoded reference)
-  - **Size tilt**: large-cap vs mid-cap based on market cap of underlying holdings (from FundProfile.TotalNetAssets for ETFs, or estimated from position value)
+  - **Size tilt**: large/mid/small cap classification based on FundProfile.TotalNetAssets
   - **Concentration**: HHI = sum of (weight_i²) for all underlying holdings; interpret as "Well-diversified" (<0.02), "Moderately concentrated" (0.02–0.05), "Highly concentrated" (>0.05)
   - **Top holding weight**: largest single underlying holding as % of portfolio
   - Track warnings for positions missing valuation data
-- [ ] Write table-driven unit tests:
+- [x] Write unit tests (14 tests + 22 sub-tests for helper functions):
   - Happy path: portfolio with known P/E, P/B, market caps
   - Single ETF (simple case)
   - Mixed ETF + stock portfolio
   - Missing valuation data for some positions (partial computation, warning)
   - All missing data (message)
   - HHI calculation correctness
-  - Value vs growth axis positioning
+  - Value vs growth axis positioning (6 sub-cases)
+  - Empty positions
+  - Size tilt mixed/dominant
+  - No holdings data fallback
+  - No symbol details
+  - Zero/negative P/E or P/B handling
+  - Helper function tests: classifyTilt (8), combineTilts (7), classifySizeTilt (7), classifyHHI (6)
 
-**Verification:** Factor exposure metrics match expected values for known input data.
+**Verification:** Factor exposure metrics match expected values for known input data. ✅
 
 ---
 
