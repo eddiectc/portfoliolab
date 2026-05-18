@@ -335,6 +335,7 @@ func (s *Service) buildPositionWithDetails(enriched []position.PositionWithMarke
 		return []PositionWithDetails{}, []string{"total portfolio value underflows float64 — analysis results will be empty"}
 	}
 
+	var warnings []string
 	result := make([]PositionWithDetails, 0, len(enriched))
 	for _, p := range enriched {
 		if !p.MarketDataAvailable {
@@ -343,10 +344,15 @@ func (s *Service) buildPositionWithDetails(enriched []position.PositionWithMarke
 
 		// Portfolio weight as percentage (0-100).
 		var mvFloat float64
+		var mvOK bool
 		if p.MarketValueBase != nil {
-			mvFloat, _ = p.MarketValueBase.Float64()
+			mvFloat, mvOK = p.MarketValueBase.Float64()
 		} else {
-			mvFloat, _ = p.MarketValue.Float64()
+			mvFloat, mvOK = p.MarketValue.Float64()
+		}
+		if !mvOK {
+			warnings = append(warnings, p.Symbol+": market value conversion failed — excluded from weighted calculations")
+			continue
 		}
 
 		weightPct := (mvFloat / totalFloat) * 100.0
@@ -358,7 +364,7 @@ func (s *Service) buildPositionWithDetails(enriched []position.PositionWithMarke
 		})
 	}
 
-	return result, nil
+	return result, warnings
 }
 
 // fetchHistoricalPrices fetches historical prices for each unique symbol,
