@@ -328,22 +328,16 @@ func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string]
 			ret := (end3M/start3M - 1.0) * 100.0
 			return3M += p.PortfolioWeight * ret
 			trackedWeight3M += p.PortfolioWeight
-		} else if !okStart3M || !okEnd3M {
-			*warnings = append(*warnings, p.Symbol+": price conversion failed for 3M momentum")
 		}
 		if okStart6M && okEnd6M && start6M > 0 && end6M > 0 {
 			ret := (end6M/start6M - 1.0) * 100.0
 			return6M += p.PortfolioWeight * ret
 			trackedWeight6M += p.PortfolioWeight
-		} else if !okStart6M || !okEnd6M {
-			*warnings = append(*warnings, p.Symbol+": price conversion failed for 6M momentum")
 		}
 		if okStart12M && okEnd12M && start12M > 0 && end12M > 0 {
 			ret := (end12M/start12M - 1.0) * 100.0
 			return12M += p.PortfolioWeight * ret
 			trackedWeight12M += p.PortfolioWeight
-		} else if !okStart12M || !okEnd12M {
-			*warnings = append(*warnings, p.Symbol+": price conversion failed for 12M momentum")
 		}
 	}
 
