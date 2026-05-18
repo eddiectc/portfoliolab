@@ -315,6 +315,100 @@ func TestAnalysisHandleAnalysis_Warnings(t *testing.T) {
 	}
 }
 
+func TestAnalysisHandleAnalysis_InvalidSection(t *testing.T) {
+	mockSvc := &mockAnalysisService{result: makeTestResult()}
+	handler := NewAnalysisHandler(mockSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/analysis?section=foobar", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleAnalysis(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if mockSvc.called {
+		t.Error("service should not be called with invalid section")
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "INVALID_SECTION" {
+		t.Errorf("expected INVALID_SECTION, got %q", errResp.Code)
+	}
+	if errResp.Error == "" {
+		t.Error("expected non-empty error message")
+	}
+}
+
+func TestAnalysisHandleAnalysis_ValidSections(t *testing.T) {
+	mockSvc := &mockAnalysisService{result: makeTestResult()}
+	handler := NewAnalysisHandler(mockSvc)
+
+	sections := []string{
+		"overlap", "correlation", "sector_allocation",
+		"geographic_allocation", "stress_test", "factor_exposure",
+	}
+
+	for _, section := range sections {
+		mockSvc.called = false
+		req := httptest.NewRequest(http.MethodGet, "/api/analysis?section="+section, nil)
+		w := httptest.NewRecorder()
+		handler.HandleAnalysis(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200 for section %q, got %d", section, w.Code)
+		}
+		if !mockSvc.called {
+			t.Errorf("service should be called for valid section %q", section)
+		}
+	}
+}
+
+func TestAnalysisHandleAnalysis_InvalidPeriod(t *testing.T) {
+	mockSvc := &mockAnalysisService{result: makeTestResult()}
+	handler := NewAnalysisHandler(mockSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/analysis?period=2Y", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleAnalysis(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if mockSvc.called {
+		t.Error("service should not be called with invalid period")
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "INVALID_PERIOD" {
+		t.Errorf("expected INVALID_PERIOD, got %q", errResp.Code)
+	}
+}
+
+func TestAnalysisHandleAnalysis_ValidPeriods(t *testing.T) {
+	mockSvc := &mockAnalysisService{result: makeTestResult()}
+	handler := NewAnalysisHandler(mockSvc)
+
+	periods := []string{"1Y", "3Y", "5Y", "10Y"}
+
+	for _, period := range periods {
+		mockSvc.called = false
+		req := httptest.NewRequest(http.MethodGet, "/api/analysis?period="+period, nil)
+		w := httptest.NewRecorder()
+		handler.HandleAnalysis(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200 for period %q, got %d", period, w.Code)
+		}
+		if !mockSvc.called {
+			t.Errorf("service should be called for valid period %q", period)
+		}
+	}
+}
+
 // --- parseAnalysisFilters Tests ---
 
 func TestParseAnalysisFilters_PortfolioID(t *testing.T) {

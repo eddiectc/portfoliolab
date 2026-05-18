@@ -5,11 +5,40 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 )
+
+// validSectionNames lists the accepted section values for error messages.
+var validSectionNames = []string{
+	string(analysis.SectionOverlap),
+	string(analysis.SectionCorrelation),
+	string(analysis.SectionSectorAllocation),
+	string(analysis.SectionGeographicAllocation),
+	string(analysis.SectionStressTest),
+	string(analysis.SectionFactorExposure),
+}
+
+// validPeriodNames lists the accepted period values for error messages.
+var validPeriodNames = []string{"1Y", "3Y", "5Y", "10Y"}
+
+// validSections is the set of accepted section filter values.
+var validSections = map[string]bool{
+	string(analysis.SectionOverlap):             true,
+	string(analysis.SectionCorrelation):         true,
+	string(analysis.SectionSectorAllocation):    true,
+	string(analysis.SectionGeographicAllocation): true,
+	string(analysis.SectionStressTest):          true,
+	string(analysis.SectionFactorExposure):      true,
+}
+
+// validPeriods is the set of accepted period filter values.
+var validPeriods = map[string]bool{
+	"1Y": true, "3Y": true, "5Y": true, "10Y": true,
+}
 
 // analysisService is the interface the handler depends on for computing analysis.
 type analysisService interface {
@@ -39,6 +68,20 @@ func (h *AnalysisHandler) RegisterRoutes(r *chi.Mux) {
 // Use ?period= for correlation lookback: 1Y, 3Y, 5Y, 10Y (default: 1Y).
 func (h *AnalysisHandler) HandleAnalysis(w http.ResponseWriter, r *http.Request) {
 	filters := parseAnalysisFilters(r.URL.Query())
+
+	// Validate section filter.
+	if filters.Section != "" && !validSections[filters.Section] {
+		writeJSONError(w, http.StatusBadRequest, "INVALID_SECTION",
+			"invalid section: "+filters.Section+", must be one of: "+strings.Join(validSectionNames, ", "))
+		return
+	}
+
+	// Validate period filter.
+	if filters.Period != "" && !validPeriods[filters.Period] {
+		writeJSONError(w, http.StatusBadRequest, "INVALID_PERIOD",
+			"invalid period: "+filters.Period+", must be one of: "+strings.Join(validPeriodNames, ", "))
+		return
+	}
 
 	result, err := h.svc.ComputeAnalysis(r.Context(), filters)
 	if err != nil {
