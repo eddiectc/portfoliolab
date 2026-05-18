@@ -88,6 +88,7 @@ type MarketCache struct {
 	symbolDetailsRefresh SymbolDetailsRefreshSource
 	logger           *slog.Logger
 	tickerInterval   time.Duration
+	historicalFrom   time.Time // earliest date to fetch historical prices from
 
 	mu                   sync.RWMutex
 	inProgress           map[string]bool
@@ -106,15 +107,16 @@ type MarketCache struct {
 // New creates a new MarketCache.
 func New(fetcher MarketDataFetcher, repo MarketDataRepository, discoverer SymbolDiscoverer, logger *slog.Logger) *MarketCache {
 	return &MarketCache{
-		fetcher:        fetcher,
-		repo:           repo,
-		discoverer:     discoverer,
-		logger:         logger,
-		tickerInterval: 2 * time.Minute,
-		inProgress:     make(map[string]bool),
-		queued:         make(map[string]bool),
-		failedSymbols:  make(map[string]string),
-		fetchCh:        make(chan fetchRequest, 100),
+		fetcher:          fetcher,
+		repo:             repo,
+		discoverer:       discoverer,
+		logger:           logger,
+		tickerInterval:   2 * time.Minute,
+		inProgress:       make(map[string]bool),
+		queued:           make(map[string]bool),
+		failedSymbols:    make(map[string]string),
+		fetchCh:          make(chan fetchRequest, 100),
+		historicalFrom:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 }
 
@@ -278,6 +280,8 @@ func (m *MarketCache) backgroundWorker() {
 }
 
 // processFetch handles a single fetch request, managing in-progress state.
+// Always fetches from historicalFrom (e.g. 2000-01-01) so analysis has
+// sufficient price history regardless of when the position was opened.
 func (m *MarketCache) processFetch(req fetchRequest) {
 	m.mu.Lock()
 	m.inProgress[req.symbol] = true
@@ -289,7 +293,7 @@ func (m *MarketCache) processFetch(req fetchRequest) {
 		if req.isFx {
 			kind = "fx"
 		}
-		m.logger.Debug("starting background fetch", "symbol", req.symbol, "kind", kind, "fromDate", req.fromDate.Format("2006-01-02"))
+		m.logger.Debug("starting background fetch", "symbol", req.symbol, "kind", kind, "fromDate", m.historicalFrom.Format("2006-01-02"))
 	}
 
 	defer func() {
@@ -299,9 +303,9 @@ func (m *MarketCache) processFetch(req fetchRequest) {
 	}()
 
 	if req.isFx {
-		m.fetchFxPair(req.symbol, req.fromDate)
+		m.fetchFxPair(req.symbol, m.historicalFrom)
 	} else {
-		m.fetchHistorical(req.symbol, req.fromDate)
+		m.fetchHistorical(req.symbol, m.historicalFrom)
 	}
 }
 
@@ -538,15 +542,16 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 	// Truncate to date-only for fair comparison with DB dates (YYYY-MM-DD midnight).
 	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
-	for sym, fromDate := range allSymbols {
+	for sym := range allSymbols {
 		latestDate, hasCache := latestDates[sym]
 
 		var fetchStart time.Time
 		if !hasCache {
-			// No cache at all — fetch from earliest transaction date.
-			fetchStart = fromDate
+			// No cache at all — fetch from historicalFrom (e.g. 2000-01-01)
+			// so analysis (momentum, correlation) has sufficient data.
+			fetchStart = m.historicalFrom
 			if m.logger != nil {
-				m.logger.Debug("gap-fill: no cache, scheduling full fetch", "symbol", sym, "fromDate", fromDate.Format("2006-01-02"))
+				m.logger.Debug("gap-fill: no cache, scheduling full fetch", "symbol", sym, "fromDate", fetchStart.Format("2006-01-02"))
 			}
 		} else if latestDate.Before(tradingDayBeforeOrOn(nowDate)) {
 			// Cache exists but not current — fetch from next trading day after
@@ -777,12 +782,12 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 	}
 
 	// Fetch historical for all symbols.
-	for sym, fromDate := range allSymbols {
+	for sym := range allSymbols {
 		m.mu.Lock()
 		m.inProgress[sym] = true
 		m.mu.Unlock()
 
-		m.fetchHistoricalDirect(ctx, sym, fromDate)
+		m.fetchHistoricalDirect(ctx, sym, m.historicalFrom)
 
 		m.mu.Lock()
 		delete(m.inProgress, sym)
@@ -790,12 +795,12 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 	}
 
 	// Fetch historical for FX pairs.
-	for pair, fromDate := range activeFxPairs {
+	for pair := range activeFxPairs {
 		m.mu.Lock()
 		m.inProgress[pair] = true
 		m.mu.Unlock()
 
-		m.fetchFxPairDirect(ctx, pair, fromDate)
+		m.fetchFxPairDirect(ctx, pair, m.historicalFrom)
 
 		m.mu.Lock()
 		delete(m.inProgress, pair)
