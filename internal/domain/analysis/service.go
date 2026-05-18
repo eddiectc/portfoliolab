@@ -125,11 +125,22 @@ func (s *Service) ComputeAnalysis(ctx context.Context, filters AnalysisFilters) 
 		}, nil
 	}
 
+	// Filter out cash positions — they have no market data, symbol details,
+	// or price history and would only generate spurious warnings.
+	filtered := filterCashPositions(positions)
+	if len(filtered) == 0 {
+		return &AnalysisResult{
+			PortfolioID: getPortfolioID(filters),
+			ComputedAt:  time.Now().UTC(),
+			Message:     "No investable positions found (only cash). Analysis requires at least one stock or ETF position.",
+		}, nil
+	}
+
 	// Collect warnings from data fetching.
 	dataWarnings := resolveWarnings
 
 	// Enrich positions with market data.
-	enriched := s.positions.EnrichWithMarketData(ctx, positions, baseCurrency)
+	enriched := s.positions.EnrichWithMarketData(ctx, filtered, baseCurrency)
 
 	// Check if any positions lack market data.
 	missingMarketData := 0
@@ -445,6 +456,19 @@ func (s *Service) refreshStaleSymbols(ctx context.Context, enriched []position.P
 			}(p.Symbol, marketSymbol)
 		}
 	}
+}
+
+// filterCashPositions removes cash positions (symbols starting with '$')
+// that have no market data, symbol details, or price history.
+func filterCashPositions(positions []position.Position) []position.Position {
+	filtered := make([]position.Position, 0, len(positions))
+	for _, p := range positions {
+		if p.Symbol != "" && p.Symbol[0] == '$' {
+			continue
+		}
+		filtered = append(filtered, p)
+	}
+	return filtered
 }
 
 func getPortfolioID(filters AnalysisFilters) int64 {
