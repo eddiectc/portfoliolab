@@ -304,15 +304,15 @@ JSON file keeps scenario data separated from Go code, making it easier to update
 **Corresponds to:** All web UI scenarios (view overlap, correlation, allocation, stress test, factor exposure, empty states)
 **Description:** Server-rendered analysis page with tabs/sections for each analytical lens, ECharts visualizations, and period selector.
 
-- [ ] Create `internal/api/handlers/analysis_web.go`
-- [ ] Define `AnalysisWebHandler` with `*AnalysisHandler` (API), `*portfolio.Service`, `*web.Renderer`
-- [ ] Register routes: `GET /analysis`
-- [ ] `HandleAnalysis` renders the page:
+- [x] Create `internal/api/handlers/analysis_web.go`
+- [x] Define `AnalysisWebHandler` with `*AnalysisHandler` (API), `*portfolio.Service`, `*web.Renderer`
+- [x] Register routes: `GET /analysis`
+- [x] `HandleAnalysis` renders the page:
   - Parse portfolio_id and period from query params
   - Call `apiHandler.computeResult()` (reuse API computation)
   - Serialize chart data for ECharts (correlation matrix, allocation bars, stress test comparison)
   - Pass data to template
-- [ ] Create `templates/analysis/index.html`:
+- [x] Create `templates/analysis/index.html`:
   - Portfolio selector dropdown (reuse pattern from performance page)
   - Period selector for correlation matrix (1Y, 3Y, 5Y, 10Y)
   - Section: ETF Overlap — pairwise matrix table + top concentrated stocks table
@@ -323,9 +323,9 @@ JSON file keeps scenario data separated from Go code, making it easier to update
   - Section: Factor Exposure — summary cards (value/growth axis, size, concentration, top holding)
   - Empty state messages per section
   - Warning indicators (stale data, missing data)
-- [ ] Write unit tests for handler (mock API handler, verify template rendering)
+- [x] Write unit tests for handler (mock API handler, verify template rendering)
 
-**Verification:** Analysis page renders correctly with all sections, charts, and controls. Empty states and warnings displayed appropriately.
+**Verification:** Analysis page renders correctly with all sections, charts, and controls. Empty states and warnings displayed appropriately. ✅
 
 **Technical Decision E — Chart visualization approach:**
 
@@ -343,16 +343,16 @@ JSON file keeps scenario data separated from Go code, making it easier to update
 **Corresponds to:** All scenarios (integration)
 **Description:** Wire the analysis handlers into the router and add the navigation link.
 
-- [ ] Update `internal/api/router.go`:
-  - Create `analysis.Service` with dependencies (positionSvc, symbolDetailsSvc, marketSvc, accountLister, portfolioCurrencyChecker)
+- [x] Update `internal/api/router.go`:
+  - Create `analysis.Service` with dependencies (positionSvc, symbolDetailsSvc, marketSvc, accountLister, portfolioCurrencyChecker, marketDataSymbolResolver)
   - Create `analysisHandler` and `analysisWebHandler`
   - Register routes on router
-- [ ] Update `templates/partials/nav.html`:
+- [x] Update `templates/partials/nav.html`:
   - Add "Analysis" link (alongside "Performance" in the analytics section)
-- [ ] Run `go build` and verify no compilation errors
-- [ ] Run `go test ./...` and verify all tests pass
+- [x] Run `go build` and verify no compilation errors
+- [x] Run `go test ./...` and verify all tests pass
 
-**Verification:** Application builds and runs; navigation link works; analysis page is accessible at `/analysis`.
+**Verification:** Application builds and runs; navigation link works; analysis page is accessible at `/analysis`. ✅
 
 ---
 

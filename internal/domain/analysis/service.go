@@ -30,16 +30,8 @@ type MarketDataHistorySource interface {
 
 // AccountResolver resolves account IDs from portfolio or returns all accounts.
 type AccountResolver interface {
-	GetAccountsByPortfolio(ctx context.Context, portfolioID int64) ([]AccountRef, error)
-	GetAllAccounts(ctx context.Context) ([]AccountRef, error)
-}
-
-// AccountRef holds minimal account info for analysis queries.
-type AccountRef struct {
-	ID                int64
-	Name              string
-	PortfolioID       int64
-	PortfolioCurrency string
+	GetAccountsByPortfolio(ctx context.Context, portfolioID int64) ([]position.AccountRef, error)
+	GetAllAccounts(ctx context.Context) ([]position.AccountRef, error)
 }
 
 // PortfolioCurrencySource returns the base currency of a portfolio.

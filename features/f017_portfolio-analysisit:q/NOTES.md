@@ -144,3 +144,26 @@ Fixed 9 silent failures/fallbacks:
 9. **EnrichWithMarketData missing data**: Added check counting positions with `MarketDataAvailable=false` and emits warning
 
 All data-fetching helpers now return `([]string)` warnings alongside their results. Warnings are collected in `ComputeAnalysis` before section computation and prepended to `result.Warnings`.
+
+## Session 2026-05-18 (Task 9)
+
+### Implementation
+- `internal/api/handlers/analysis_web.go`: `AnalysisWebHandler` with `HandleAnalysis` that calls `apiHandler.computeResult()`, serializes chart data for ECharts, and renders template
+- `templates/analysis/index.html`: Full analysis page with portfolio selector, period selector, ETF overlap matrix, correlation heatmap (ECharts), sector/geographic allocation bar charts (ECharts), stress test comparison table, and factor exposure summary cards
+- `internal/api/handlers/analysis_web_test.go`: Tests for serialization functions and template rendering
+
+### Template issues resolved
+- Go template `gt`/`lt` functions don't work with `float64` — simplified conditional CSS to avoid float comparisons in templates
+
+## Session 2026-05-18 (Task 10)
+
+### Implementation
+- `internal/api/router.go`: Wired analysis service, API handler, and web handler into router
+- `internal/data/market_data_symbol_resolver.go`: New adapter type `MarketDataSymbolResolverImpl` that maps internal symbol → market data provider symbol via symbol mapping repo
+- `templates/partials/nav.html`: Added "Analysis" nav link
+
+### Interface fixes
+- Changed `analysis.AccountResolver` to use `position.AccountRef` instead of local `analysis.AccountRef` — the two structs had identical fields but were different types, preventing `data.AccountListerImpl` from satisfying the interface
+- Updated `service_test.go` to use `position.AccountRef` throughout
+- `PortfolioCurrencySource` was already satisfied by `data.PortfolioCurrencyCheckerImpl` (no change needed)
+- `MarketDataSymbolResolver` required a new adapter (`MarketDataSymbolResolverImpl`) since no existing type provided `GetMarketDataSymbol(ctx, internalSymbol)`
