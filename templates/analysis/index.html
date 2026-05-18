@@ -19,7 +19,7 @@
         <div class="filter-group">
             <label>Period</label>
             <div class="period-buttons">
-                {{range $p := slice "1Y" "3Y" "5Y" "10Y"}}
+                {{range $p := slice "3M" "6M" "1Y" "3Y" "5Y" "10Y"}}
                 <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
                 {{end}}
             </div>

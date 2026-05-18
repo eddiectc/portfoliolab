@@ -214,7 +214,7 @@ func serializeAllocationChartData(result *analysis.AllocationResult) string {
 // buildAnalysisPeriodURLs pre-builds the URL for each period button.
 func buildAnalysisPeriodURLs(portfolioID, selectedPeriod, section string) map[string]string {
 	urls := make(map[string]string)
-	periods := []string{"1Y", "3Y", "5Y", "10Y"}
+	periods := []string{"3M", "6M", "1Y", "3Y", "5Y", "10Y"}
 	for _, p := range periods {
 		url := "/analysis"
 		hasQuery := false
