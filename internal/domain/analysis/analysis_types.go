@@ -75,10 +75,11 @@ type ConcentratedStock struct {
 // --- Correlation ---
 
 // CorrelationResult holds the pairwise Pearson correlation matrix of holdings.
-// Matrix is N×N where N = len(Symbols). Matrix[i][j] = correlation between
-// Symbols[i] and Symbols[j]. Nil matrix when insufficient data.
+// Matrix is N×N where N = len(Symbols). Matrix[i][j] is a pointer to the
+// correlation between Symbols[i] and Symbols[j], or nil when there is
+// insufficient overlapping data (the UI renders this as "-" or "N/A").
 type CorrelationResult struct {
-	Matrix  [][]float64 `json:"matrix,omitempty"`
+	Matrix  [][]*float64 `json:"matrix,omitempty"`
 	Symbols []string    `json:"symbols"`
 	Period  string      `json:"period"`
 	Warnings []string   `json:"warnings,omitempty"`

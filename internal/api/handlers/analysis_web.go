@@ -129,9 +129,9 @@ type correlationHeatmapData struct {
 }
 
 type heatmapCellData struct {
-	SymbolA string  `json:"symbol_a"`
-	SymbolB string  `json:"symbol_b"`
-	Value   float64 `json:"value"`
+	SymbolA string   `json:"symbol_a"`
+	SymbolB string   `json:"symbol_b"`
+	Value   *float64 `json:"value"` // nil = insufficient data, UI renders as "-"
 }
 
 // serializeCorrelationData converts the correlation result to JSON for ECharts.

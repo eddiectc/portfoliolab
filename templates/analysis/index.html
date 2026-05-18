@@ -403,13 +403,15 @@
         var matrix = data.matrix;
 
         // Build ECharts heatmap data: [[x_index, y_index, value], ...]
+        // null values (insufficient overlap) use a special marker.
         var heatmapData = [];
         for (var i = 0; i < matrix.length; i++) {
             var cell = matrix[i];
             var rowIdx = symbols.indexOf(cell.symbol_a);
             var colIdx = symbols.indexOf(cell.symbol_b);
             if (rowIdx >= 0 && colIdx >= 0) {
-                heatmapData.push([colIdx, rowIdx, cell.value]);
+                var val = cell.value; // null if insufficient data
+                heatmapData.push([colIdx, rowIdx, val]);
             }
         }
 
@@ -421,7 +423,8 @@
                     var row = symbols[params.value[1]];
                     var col = symbols[params.value[0]];
                     var val = params.value[2];
-                    return '<strong>' + row + ' ↔ ' + col + '</strong><br/>Correlation: ' + val.toFixed(3);
+                    var valStr = (val === null) ? 'N/A (insufficient data)' : val.toFixed(3);
+                    return '<strong>' + row + ' ↔ ' + col + '</strong><br/>Correlation: ' + valStr;
                 }
             },
             grid: { left: '15%', right: '10%', bottom: '15%', top: '5%' },
@@ -450,10 +453,24 @@
             series: [{
                 type: 'heatmap',
                 data: heatmapData,
+                itemStyle: {
+                    color: function(params) {
+                        if (params.value[2] === null) {
+                            return '#e0e0e0'; // gray for insufficient data
+                        }
+                        return null; // let visualMap handle colored cells
+                    },
+                    borderColor: '#fff',
+                    borderWidth: 2
+                },
                 label: {
                     show: true,
                     formatter: function(params) {
-                        return params.value[2].toFixed(2);
+                        var val = params.value[2];
+                        if (val === null) {
+                            return '-';
+                        }
+                        return val.toFixed(2);
                     },
                     fontSize: 10,
                     color: '#333'
