@@ -247,9 +247,16 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 		weightedTurnover = roundTo2(turnWeightedSum / turnTrackedWeight)
 	}
 
+	if expenseTrackedWeight == 0 && turnTrackedWeight == 0 {
+		warnings = append(warnings, "no cost data (expense ratio, turnover) available — cost metrics unavailable")
+	} else if expenseTrackedWeight < 100 || turnTrackedWeight < 100 {
+		coverage := math.Max(expenseTrackedWeight, turnTrackedWeight)
+		warnings = append(warnings, fmt.Sprintf("cost data available for only %.2f%% of portfolio — cost metrics may not reflect full portfolio", coverage))
+	}
+
 	// Momentum and volatility from price history.
-	momentum := computeMomentum(positions, pricesBySymbol)
-	volatility := computeVolatility(positions, pricesBySymbol)
+	momentum := computeMomentum(positions, pricesBySymbol, &warnings)
+	volatility := computeVolatility(positions, pricesBySymbol, &warnings)
 
 	return &FactorExposureResult{
 		ValueGrowthTilt: FactorValueGrowth{
@@ -284,7 +291,7 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 }
 
 // computeMomentum computes portfolio-weighted 3M/6M/12M returns from price history.
-func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string][]market.HistoricalPrice) FactorMomentum {
+func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string][]market.HistoricalPrice, warnings *[]string) FactorMomentum {
 	if len(pricesBySymbol) == 0 {
 		return FactorMomentum{Tilt: "unavailable"}
 	}
@@ -346,6 +353,12 @@ func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string]
 	}
 
 	tilt := classifyMomentum(avg3M, avg6M, avg12M)
+
+	// Warn on partial price coverage.
+	maxTracked := math.Max(trackedWeight3M, math.Max(trackedWeight6M, trackedWeight12M))
+	if maxTracked > 0 && maxTracked < 100 {
+		*warnings = append(*warnings, fmt.Sprintf("momentum data available for only %.2f%% of portfolio — momentum may not reflect full portfolio", maxTracked))
+	}
 
 	return FactorMomentum{
 		Return3M:  avg3M,
@@ -411,7 +424,7 @@ func classifyMomentum(r3, r6, r12 float64) string {
 }
 
 // computeVolatility computes portfolio-weighted annualized volatility from daily returns.
-func computeVolatility(positions []PositionWithDetails, pricesBySymbol map[string][]market.HistoricalPrice) FactorVolatility {
+func computeVolatility(positions []PositionWithDetails, pricesBySymbol map[string][]market.HistoricalPrice, warnings *[]string) FactorVolatility {
 	if len(pricesBySymbol) == 0 {
 		return FactorVolatility{Tilt: "unavailable"}
 	}
@@ -476,6 +489,11 @@ func computeVolatility(positions []PositionWithDetails, pricesBySymbol map[strin
 	}
 
 	tilt := classifyVolatility(avgVol)
+
+	// Warn on partial price coverage.
+	if volTrackedWeight > 0 && volTrackedWeight < 100 {
+		*warnings = append(*warnings, fmt.Sprintf("volatility data available for only %.2f%% of portfolio — volatility may not reflect full portfolio", volTrackedWeight))
+	}
 
 	return FactorVolatility{
 		AnnualizedVol: avgVol,
