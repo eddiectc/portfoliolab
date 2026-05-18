@@ -14,8 +14,6 @@ const (
 	// overlap between two symbols for a meaningful correlation. Matches the
 	// short-coverage threshold so the bar is consistent.
 	minOverlapFraction = 0.8
-	// absoluteMinOverlap is the hard floor for very short periods.
-	absoluteMinOverlap = 30
 )
 
 // dailyReturn pairs a trading date with its computed daily return.
@@ -139,11 +137,8 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 			x, y, overlap := alignReturns(datedReturns[symA], datedReturns[symB])
 
 			// Require 80% of the expected period to overlap, matching the
-			// short-coverage threshold. Floor at absoluteMinOverlap.
+			// short-coverage threshold.
 			minOverlap := int(float64(expectedDays) * minOverlapFraction)
-			if minOverlap < absoluteMinOverlap {
-				minOverlap = absoluteMinOverlap
-			}
 
 			if overlap < minOverlap {
 				// nil = insufficient data, UI renders as "-"
