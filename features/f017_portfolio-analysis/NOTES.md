@@ -8,6 +8,8 @@
 
 ## Deviations from Plan
 - Task 2: Plan said single ETF returns empty for both pairwise and concentrated stocks. Changed to still compute concentrated stocks for 1 ETF — useful to see what a single ETF is most concentrated in, even without pairwise comparison. Pairwise still requires 2+ ETFs.
+- Task 3 (correlation): Plan specified a fixed `< 60 days overlap` threshold. Changed to **80% of the expected period** so the bar scales with period length and matches the per-symbol short-coverage check. E.g. 3M needs 50 days, 1Y needs 202, 10Y needs 2016.
+- Task 3 (correlation): Plan didn't specify short/medium periods. Added **3M** and **6M** period options so symbols with limited history (DDGC.L at 0.5Y, XAIX.L at 1.7Y) can still produce meaningful correlations.
 
 ## Future Improvements
 - N/A
@@ -179,3 +181,22 @@ All data-fetching helpers now return `([]string)` warnings alongside their resul
 - **Cross-layer consistency**: web handler delegates to API handler's `computeResult()` which delegates to service — API-first architecture maintained. No computation duplication.
 - **Nav wiring**: Analysis link present in `templates/partials/nav.html`
 - **Feature index**: updated `features/README.md` to mark f017 as done
+
+## Session 2026-05-18 (Post-completion fixes)
+
+### Correlation: short coverage → null cells
+- If either symbol has < 80% of the requested period, correlation cells are `null` (UI renders `-`) instead of computing a correlation on incomplete data. This prevents misleading correlations for symbols with short history (DDGC.L, DBMG.L, QGRP.L, XAIX.L).
+
+### Correlation: `-0` → `0` in JSON output
+- `roundTo2` normalizes negative zero to positive zero (`math.Copysign(0, 1) → 0`), eliminating the JSON `-0` artifact.
+
+### Correlation: 3M and 6M period options
+- Added `3M` (63 days) and `6M` (126 days) period options alongside existing `1Y`, `3Y`, `5Y`, `10Y`.
+- Updated API handler, web handler, template buttons, and `periodCutoff`/`cutoffDays` functions.
+
+### Correlation: overlap threshold → 80% adaptive
+- Plan specified a fixed `< 60 days overlap` threshold. Changed to **80% of expected period**, matching the per-symbol short-coverage check. This is consistent: if both symbols individually have 80% coverage, their overlap should also be ~80%.
+- Removed dead `absoluteMinOverlap` floor (30) — 80% of even 3M (50 days) already exceeds it.
+
+### Market data: always fetch from 2000-01-01
+- Market cache fetcher always uses `2000-01-01` as the start date, ensuring maximum historical coverage for correlation computations.
