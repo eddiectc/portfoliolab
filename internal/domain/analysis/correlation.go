@@ -164,6 +164,10 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 func periodCutoff(period string) (time.Time, string) {
 	now := time.Now()
 	switch period {
+	case "3M":
+		return now.AddDate(0, -3, 0), ""
+	case "6M":
+		return now.AddDate(0, -6, 0), ""
 	case "1Y":
 		return now.AddDate(-1, 0, 0), ""
 	case "3Y":
@@ -182,6 +186,10 @@ func periodCutoff(period string) (time.Time, string) {
 // period string (252 trading days per year). Returns 0 for unknown periods.
 func cutoffDays(period string) int {
 	switch period {
+	case "3M":
+		return 63  // 3 months × ~21 trading days
+	case "6M":
+		return 126 // 6 months × ~21 trading days
 	case "1Y":
 		return 252
 	case "3Y":

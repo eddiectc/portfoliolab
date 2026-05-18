@@ -23,7 +23,7 @@ var validSectionNames = []string{
 }
 
 // validPeriodNames lists the accepted period values for error messages.
-var validPeriodNames = []string{"1Y", "3Y", "5Y", "10Y"}
+var validPeriodNames = []string{"3M", "6M", "1Y", "3Y", "5Y", "10Y"}
 
 // validSections is the set of accepted section filter values.
 var validSections = map[string]bool{
@@ -37,7 +37,7 @@ var validSections = map[string]bool{
 
 // validPeriods is the set of accepted period filter values.
 var validPeriods = map[string]bool{
-	"1Y": true, "3Y": true, "5Y": true, "10Y": true,
+	"3M": true, "6M": true, "1Y": true, "3Y": true, "5Y": true, "10Y": true,
 }
 
 // analysisService is the interface the handler depends on for computing analysis.
