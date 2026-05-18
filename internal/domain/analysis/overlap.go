@@ -210,8 +210,13 @@ func sortByWeightDesc(stocks []ConcentratedStock) {
 }
 
 // roundTo2 rounds a float64 to 2 decimal places.
+// Normalizes -0 to 0 to avoid JSON serializing as -0.
 func roundTo2(v float64) float64 {
-	return math.Round(v*100) / 100
+	result := math.Round(v*100) / 100
+	if result == 0 {
+		return 0 // normalize -0 to 0
+	}
+	return result
 }
 
 // roundTo4 rounds a float64 to 4 decimal places.

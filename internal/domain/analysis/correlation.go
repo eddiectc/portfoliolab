@@ -12,7 +12,7 @@ import (
 const (
 	// minOverlapDays is the minimum number of overlapping daily returns
 	// required to compute a meaningful correlation. Below this threshold
-	// a warning is emitted and the cell is output as 0.
+	// a warning is emitted and the matrix cell is nil (null in JSON).
 	minOverlapDays = 60
 )
 
