@@ -68,14 +68,17 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 	}
 
 	// Check if any symbol's data range is significantly shorter than the
-	// requested period. Warn if coverage is less than 80% of the period.
+	// requested period. Symbols with < 80% coverage get nil cells in the
+	// matrix (UI renders as "-") so the user knows the data is incomplete.
 	expectedDays := cutoffDays(period)
+	shortCoverage := make(map[string]bool) // symbols with < 80% of requested period
 	for _, sym := range symbols {
 		rets, ok := datedReturns[sym]
 		if !ok || expectedDays == 0 {
 			continue
 		}
 		if len(rets) < int(float64(expectedDays)*0.8) {
+			shortCoverage[sym] = true
 			actualYears := float64(len(rets)) / 252.0 // ~trading days per year
 			expectedYears := float64(expectedDays) / 252.0
 			warnings = append(warnings,
@@ -123,6 +126,14 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 		for j := i + 1; j < n; j++ {
 			symA := validSymbols[i]
 			symB := validSymbols[j]
+
+			// If either symbol doesn't cover the requested period, mark as nil.
+			if shortCoverage[symA] || shortCoverage[symB] {
+				matrix[i][j] = nil
+				matrix[j][i] = nil
+				continue
+			}
+
 			x, y, overlap := alignReturns(datedReturns[symA], datedReturns[symB])
 
 			if overlap < minOverlapDays {
@@ -180,7 +191,7 @@ func cutoffDays(period string) int {
 	case "10Y":
 		return 2520
 	default:
-		return 0
+		return 252 // unrecognized periods default to 1Y, matching periodCutoff
 	}
 }
 

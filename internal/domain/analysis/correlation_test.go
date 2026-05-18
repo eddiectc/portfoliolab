@@ -57,14 +57,14 @@ func makeMultiSeries(entries []struct {
 }
 
 // makeLongSeries repeats a short price pattern enough times to produce
-// at least 65 data points (60+ overlapping days > minOverlapDays).
+// at least 260 data points (~1Y of daily data, covering the 1Y default period).
 // The pattern is repeated verbatim (same price values cycle), producing
 // a repeating oscillation suitable for correlation tests.
 func makeLongSeries(pattern []float64) []float64 {
-	result := make([]float64, 0, 65)
-	for len(result) < 65 {
+	result := make([]float64, 0, 260)
+	for len(result) < 260 {
 		for _, p := range pattern {
-			if len(result) >= 65 {
+			if len(result) >= 260 {
 				break
 			}
 			result = append(result, p)
@@ -303,7 +303,7 @@ func TestComputeCorrelation(t *testing.T) {
 				{"AAPL", makeLongSeries([]float64{100, 102, 101, 103, 105, 104, 106})},
 				{"MSFT", makeLongSeries([]float64{100, 102, 101, 103, 105, 104, 106})},
 			}),
-			period: "10Y",
+			period: "1M", // short period so 65 prices covers full range
 			wantMatrix: [][]float64{
 				{1.0, 1.0},
 				{1.0, 1.0},
@@ -323,7 +323,7 @@ func TestComputeCorrelation(t *testing.T) {
 				// B: down, up, down, up pattern (opposite)
 				{"SYM_B", makeLongSeries([]float64{100, 95, 100, 95, 100})},
 			}),
-			period: "10Y",
+			period: "1M", // short period so 65 prices covers full range
 			wantMatrix: [][]float64{
 				{1.0, -1.0},
 				{-1.0, 1.0},
@@ -342,7 +342,7 @@ func TestComputeCorrelation(t *testing.T) {
 				{"B", makeLongSeries([]float64{100, 105, 100, 105, 100})}, // identical to A → r=1
 				{"C", makeLongSeries([]float64{100, 95, 100, 95, 100})},   // opposite oscillation → r≈-1
 			}),
-			period: "10Y",
+			period: "1M", // short period so 65 prices covers full range
 			wantMatrix: [][]float64{
 				{1.0, 1.0, -1.0},
 				{1.0, 1.0, -1.0},
@@ -380,7 +380,7 @@ func TestComputeCorrelation(t *testing.T) {
 				{"MSFT", makeLongSeries([]float64{100, 102, 101, 103, 105})},
 				{"GOOGL", []float64{100}}, // only 1 price → no returns
 			}),
-			period: "10Y",
+			period: "1M", // short period so AAPL/MSFT cover full range
 			wantMatrix: [][]float64{
 				{1.0, 1.0},
 				{1.0, 1.0},
@@ -391,26 +391,16 @@ func TestComputeCorrelation(t *testing.T) {
 		},
 
 		{
-			name: "insufficient overlap generates warning",
-			prices: func() map[string][]market.HistoricalPrice {
-				now := time.Now()
-				result := make(map[string][]market.HistoricalPrice)
-				// A has 5 prices (4 returns)
-				for i := 0; i < 5; i++ {
-					d := now.AddDate(0, 0, -i)
-					result["A"] = append(result["A"], market.HistoricalPrice{
-						Date: d, Close: dec(100+float64(i)),
-					})
-				}
-				// B has 5 prices but on completely different dates (100 days earlier)
-				for i := 0; i < 5; i++ {
-					d := now.AddDate(0, 0, -(100+i))
-					result["B"] = append(result["B"], market.HistoricalPrice{
-						Date: d, Close: dec(100+float64(i)),
-					})
-				}
-				return result
-			}(),
+			name: "short coverage marks cells as nil",
+			prices: makeMultiSeries([]struct {
+				sym    string
+				prices []float64
+			}{
+				// A and B both have enough overlap (> 60 days) but only 1 month of data
+				// against a 10Y request → cells should be nil
+				{"A", makeLongSeries([]float64{100, 102, 101, 103, 105})},
+				{"B", makeLongSeries([]float64{100, 102, 101, 103, 105})},
+			}),
 			period: "10Y",
 			wantMatrix: [][]float64{
 				{1.0, -999},
@@ -418,7 +408,7 @@ func TestComputeCorrelation(t *testing.T) {
 			},
 			wantSymbols:   []string{"A", "B"},
 			wantMessage:   "",
-			wantWarningRe: "overlapping days",
+			wantWarningRe: "price data (requested period)",
 		},
 
 		{
