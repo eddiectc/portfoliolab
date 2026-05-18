@@ -1,0 +1,104 @@
+[
+  {
+    "name": "2008 Global Financial Crisis",
+    "date_range": "Sep 2007 – Mar 2009",
+    "sector_returns": {
+      "Financials": -76.0,
+      "Consumer Discretionary": -74.0,
+      "Energy": -75.0,
+      "Industrials": -68.0,
+      "Materials": -65.0,
+      "Information Technology": -62.0,
+      "Health Care": -42.0,
+      "Consumer Staples": -32.0,
+      "Utilities": -45.0,
+      "Real Estate": -65.0,
+      "Communication Services": -62.0
+    }
+  },
+  {
+    "name": "2000 Dot-Com Bubble",
+    "date_range": "Mar 2000 – Oct 2002",
+    "sector_returns": {
+      "Information Technology": -78.0,
+      "Communication Services": -75.0,
+      "Consumer Discretionary": -55.0,
+      "Industrials": -40.0,
+      "Materials": -30.0,
+      "Financials": -35.0,
+      "Health Care": -30.0,
+      "Real Estate": -25.0,
+      "Utilities": -25.0,
+      "Consumer Staples": -20.0,
+      "Energy": -15.0
+    }
+  },
+  {
+    "name": "2020 COVID Crash",
+    "date_range": "Feb 2020 – Mar 2020",
+    "sector_returns": {
+      "Energy": -35.0,
+      "Consumer Discretionary": -32.0,
+      "Information Technology": -30.0,
+      "Financials": -30.0,
+      "Communication Services": -25.0,
+      "Industrials": -28.0,
+      "Real Estate": -22.0,
+      "Materials": -25.0,
+      "Utilities": -18.0,
+      "Health Care": -12.0,
+      "Consumer Staples": -10.0
+    }
+  },
+  {
+    "name": "2022 Market Decline",
+    "date_range": "Jan 2022 – Oct 2022",
+    "sector_returns": {
+      "Communication Services": -35.0,
+      "Consumer Discretionary": -30.0,
+      "Information Technology": -28.0,
+      "Industrials": -22.0,
+      "Materials": -20.0,
+      "Financials": -20.0,
+      "Real Estate": -25.0,
+      "Health Care": -15.0,
+      "Utilities": -15.0,
+      "Consumer Staples": -8.0,
+      "Energy": 10.0
+    }
+  },
+  {
+    "name": "1997 Asian Financial Crisis",
+    "date_range": "Jan 1997 – Dec 1998",
+    "sector_returns": {
+      "Financials": -35.0,
+      "Consumer Discretionary": -30.0,
+      "Industrials": -28.0,
+      "Information Technology": -25.0,
+      "Materials": -25.0,
+      "Real Estate": -25.0,
+      "Communication Services": -22.0,
+      "Utilities": -20.0,
+      "Health Care": -18.0,
+      "Energy": -15.0,
+      "Consumer Staples": -12.0
+    }
+  },
+  {
+    "name": "2011 European Sovereign Debt Crisis",
+    "date_range": "Oct 2011 – Mar 2012",
+    "sector_returns": {
+      "Financials": -25.0,
+      "Real Estate": -20.0,
+      "Consumer Discretionary": -20.0,
+      "Industrials": -18.0,
+      "Materials": -18.0,
+      "Communication Services": -18.0,
+      "Health Care": -15.0,
+      "Information Technology": -15.0,
+      "Utilities": -15.0,
+      "Consumer Staples": -12.0,
+      "Energy": -10.0
+    }
+  }
+]

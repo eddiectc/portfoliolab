@@ -156,10 +156,10 @@ Pearson correlation involves division and square root — float64 is standard pr
 **Corresponds to:** Scenario: Stress test against historical scenarios, Scenario: Compare multiple stress scenarios, Scenario: Stress test with no sector data
 **Description:** Pre-defined historical crisis scenarios and computation of estimated portfolio impact.
 
-- [ ] Create `internal/config/data/stress_scenarios.json` with 6 predefined scenarios:
+- [x] Create `internal/domain/analysis/stress_scenarios.json` with 6 predefined scenarios:
   - Each scenario: name, date_range, sector_returns (GICS sector → peak-to-trough return %)
   - Scenarios: 2008 GFC, 2000 Dot-Com, 2020 COVID, 2022 Decline, 1997 Asian Crisis, 2011 European Debt
-- [ ] Create `internal/domain/analysis/stress_scenarios.go`:
+- [x] Create `internal/domain/analysis/stress_scenarios.go`:
   - Define `StressScenario` struct: Name, DateRange, SectorReturns (map[string]float64, sector → peak-to-trough return %)
   - Define 6 predefined scenarios:
     - 2008 Global Financial Crisis (GFC)
@@ -171,14 +171,14 @@ Pearson correlation involves division and square root — float64 is standard pr
   - Populate with researched peak-to-trough sector returns (GICS sectors)
   - Implement `LoadPredefinedScenarios() ([]StressScenario, error)` — reads JSON file, validates structure
   - Export as `PredefinedScenarios` (package-level variable, populated via init() or lazy load)
-- [ ] Create `internal/domain/analysis/stress_test.go`:
+- [x] Create `internal/domain/analysis/stress_test.go`:
   - Implement `ComputeStressTests(sectorAllocation *AllocationResult, portfolioValue decimal.Decimal) *StressTestResult`:
     - For each scenario: multiply sector return × portfolio weight in that sector, sum for total estimated return
     - Compute dollar impact: portfolio value × estimated return / 100
     - Track sector contribution breakdown
     - Sort by severity (most negative first)
     - Handle empty state: no sector data → message
-- [ ] Write table-driven unit tests:
+- [x] Write table-driven unit tests:
   - Happy path: known sector allocation × known scenario → expected return
   - Single sector allocation (100% in one sector)
   - Equal weight across sectors
