@@ -1,0 +1,582 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Portfolio Analysis</h1>
+</div>
+
+{{/* Filter bar: portfolio + period selectors */}}
+<form class="filter-bar" method="GET" action="/analysis">
+    <div class="filter-row">
+        <div class="filter-group">
+            <label for="portfolio_id">Portfolio</label>
+            <select id="portfolio_id" name="portfolio_id">
+                <option value="">All Portfolios</option>
+                {{range .Portfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioID}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Period</label>
+            <div class="period-buttons">
+                {{range $p := slice "1Y" "3Y" "5Y" "10Y"}}
+                <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="filter-group filter-actions">
+            <button type="submit" class="btn btn-sm">Apply</button>
+        </div>
+    </div>
+</form>
+
+{{/* Section tabs */}}
+<div class="section-tabs">
+    <a href="{{index .SectionURLs "all"}}" class="tab {{if eq .SelectedSection ""}}active{{end}}">All</a>
+    <a href="{{index .SectionURLs "overlap"}}" class="tab {{if eq .SelectedSection "overlap"}}active{{end}}">Overlap</a>
+    <a href="{{index .SectionURLs "correlation"}}" class="tab {{if eq .SelectedSection "correlation"}}active{{end}}">Correlation</a>
+    <a href="{{index .SectionURLs "sector"}}" class="tab {{if eq .SelectedSection "sector_allocation"}}active{{end}}">Sectors</a>
+    <a href="{{index .SectionURLs "geographic"}}" class="tab {{if eq .SelectedSection "geographic_allocation"}}active{{end}}">Geography</a>
+    <a href="{{index .SectionURLs "stress"}}" class="tab {{if eq .SelectedSection "stress_test"}}active{{end}}">Stress Test</a>
+    <a href="{{index .SectionURLs "factor"}}" class="tab {{if eq .SelectedSection "factor_exposure"}}active{{end}}">Factors</a>
+</div>
+
+{{/* Error state */}}
+{{if .Error}}
+<div class="alert alert-error">{{.Error}}</div>
+{{else if not .Result}}
+<p class="empty-state">No analysis data available. Add transactions to your portfolio to see portfolio analytics.</p>
+{{else}}
+
+{{/* Global warnings */}}
+{{if .Result.Warnings}}
+<div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;">
+    {{range .Result.Warnings}}
+    <span>{{.}}</span><br>
+    {{end}}
+</div>
+{{end}}
+
+{{/* Empty state message */}}
+{{if .Result.Message}}
+<p class="empty-state">{{.Result.Message}}</p>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: ETF Overlap                         */}}
+{{/* ============================================ */}}
+{{if or (eq .SelectedSection "") (eq .SelectedSection "overlap")}}
+{{if .Result.Overlap}}
+<div class="analysis-section">
+    <h2>ETF Overlap</h2>
+
+    {{if .Result.Overlap.Message}}
+    <p class="empty-state">{{.Result.Overlap.Message}}</p>
+    {{end}}
+
+    {{if .Result.Overlap.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Result.Overlap.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if .Result.Overlap.PairwiseMatrix}}
+    <h3>Pairwise Overlap</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ETF A</th>
+                <th>ETF B</th>
+                <th>Common Holdings</th>
+                <th>Combined Weight</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.Overlap.PairwiseMatrix}}
+            <tr>
+                <td>{{.ETFA}}</td>
+                <td>{{.ETFB}}</td>
+                <td>{{.OverlappingCount}}</td>
+                <td>{{printf "%.2f" .CombinedWeightPct}}%</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+
+    {{if .Result.Overlap.TopConcentratedStocks}}
+    <h3>Top Concentrated Stocks</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>Total Weight</th>
+                <th>Held By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.Overlap.TopConcentratedStocks}}
+            <tr>
+                <td>{{.Symbol}}</td>
+                <td>{{.Name}}</td>
+                <td>{{printf "%.2f" .TotalWeightPct}}%</td>
+                <td>{{range $i, $etf := .HeldByETFs}}{{if $i}}, {{end}}{{$etf}}{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Correlation Matrix                  */}}
+{{/* ============================================ */}}
+{{if or (eq .SelectedSection "") (eq .SelectedSection "correlation")}}
+{{if .Result.Correlation}}
+<div class="analysis-section">
+    <h2>Correlation Matrix <small>({{.Result.Correlation.Period}} lookback)</small></h2>
+
+    {{if .Result.Correlation.Message}}
+    <p class="empty-state">{{.Result.Correlation.Message}}</p>
+    {{end}}
+
+    {{if .Result.Correlation.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Result.Correlation.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if .Result.Correlation.Matrix}}
+    <div id="correlation-chart" style="width:100%;height:600px;"></div>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Sector Allocation                   */}}
+{{/* ============================================ */}}
+{{if or (eq .SelectedSection "") (eq .SelectedSection "sector_allocation")}}
+{{if .Result.SectorAllocation}}
+<div class="analysis-section">
+    <h2>Sector Allocation</h2>
+
+    {{if .Result.SectorAllocation.Message}}
+    <p class="empty-state">{{.Result.SectorAllocation.Message}}</p>
+    {{end}}
+
+    {{if .Result.SectorAllocation.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Result.SectorAllocation.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if .Result.SectorAllocation.Breakdown}}
+    <div id="sector-chart" style="width:100%;height:400px;"></div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Sector</th>
+                <th>Weight</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $key, $val := .Result.SectorAllocation.Breakdown}}
+            <tr>
+                <td>{{$key}}</td>
+                <td>{{printf "%.2f" $val}}%</td>
+            </tr>
+            {{end}}
+            <tr style="color:#888;">
+                <td>Unknown</td>
+                <td>{{printf "%.2f" .Result.SectorAllocation.UnknownWeightPct}}%</td>
+            </tr>
+        </tbody>
+    </table>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Geographic Allocation               */}}
+{{/* ============================================ */}}
+{{if or (eq .SelectedSection "") (eq .SelectedSection "geographic_allocation")}}
+{{if .Result.GeographicAllocation}}
+<div class="analysis-section">
+    <h2>Geographic Allocation</h2>
+
+    {{if .Result.GeographicAllocation.Message}}
+    <p class="empty-state">{{.Result.GeographicAllocation.Message}}</p>
+    {{end}}
+
+    {{if .Result.GeographicAllocation.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Result.GeographicAllocation.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if .Result.GeographicAllocation.Breakdown}}
+    <div id="geographic-chart" style="width:100%;height:400px;"></div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Region / Country</th>
+                <th>Weight</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $key, $val := .Result.GeographicAllocation.Breakdown}}
+            <tr>
+                <td>{{$key}}</td>
+                <td>{{printf "%.2f" $val}}%</td>
+            </tr>
+            {{end}}
+            <tr style="color:#888;">
+                <td>Unknown</td>
+                <td>{{printf "%.2f" .Result.GeographicAllocation.UnknownWeightPct}}%</td>
+            </tr>
+        </tbody>
+    </table>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Stress Testing                      */}}
+{{/* ============================================ */}}
+{{if or (eq .SelectedSection "") (eq .SelectedSection "stress_test")}}
+{{if .Result.StressTest}}
+<div class="analysis-section">
+    <h2>Stress Testing</h2>
+    <p class="section-description">Estimated portfolio impact during historical crisis scenarios based on sector allocation.</p>
+
+    {{if .Result.StressTest.Message}}
+    <p class="empty-state">{{.Result.StressTest.Message}}</p>
+    {{end}}
+
+    {{if .Result.StressTest.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Result.StressTest.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if .Result.StressTest.Scenarios}}
+    <table class="data-table stress-table">
+        <thead>
+            <tr>
+                <th>Scenario</th>
+                <th>Period</th>
+                <th>Est. Return</th>
+                <th>Est. Impact</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.StressTest.Scenarios}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td>{{.DateRange}}</td>
+                <td class="num stress-return">{{printf "%.1f" .EstimatedReturnPct}}%</td>
+                <td class="num">{{.EstimatedDollarImpact}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <p class="section-note">⚠ Stress tests are approximate estimates based on historical sector returns. Actual impact may differ.</p>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Factor Exposure                     */}}
+{{/* ============================================ */}}
+{{if or (eq .SelectedSection "") (eq .SelectedSection "factor_exposure")}}
+{{if .Result.FactorExposure}}
+<div class="analysis-section">
+    <h2>Factor Exposure</h2>
+
+    {{if .Result.FactorExposure.Message}}
+    <p class="empty-state">{{.Result.FactorExposure.Message}}</p>
+    {{end}}
+
+    {{if .Result.FactorExposure.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Result.FactorExposure.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if not .Result.FactorExposure.Message}}
+    <div class="factor-cards">
+        {{/* Value vs Growth */}}
+        <div class="factor-card">
+            <h3>Value / Growth</h3>
+            <div class="factor-value">{{.Result.FactorExposure.ValueGrowthTilt.Tilt}}</div>
+            <div class="factor-details">
+                <div>P/E: {{printf "%.1f" .Result.FactorExposure.ValueGrowthTilt.WeightedPE}}</div>
+                <div>P/B: {{printf "%.1f" .Result.FactorExposure.ValueGrowthTilt.WeightedPB}}</div>
+            </div>
+        </div>
+
+        {{/* Size */}}
+        <div class="factor-card">
+            <h3>Size</h3>
+            <div class="factor-value">{{.Result.FactorExposure.SizeTilt.Tilt}}</div>
+            <div class="factor-details">
+                <div>Large: {{printf "%.1f" .Result.FactorExposure.SizeTilt.LargeCapPct}}%</div>
+                <div>Mid: {{printf "%.1f" .Result.FactorExposure.SizeTilt.MidCapPct}}%</div>
+                <div>Small: {{printf "%.1f" .Result.FactorExposure.SizeTilt.SmallCapPct}}%</div>
+            </div>
+        </div>
+
+        {{/* Concentration */}}
+        <div class="factor-card">
+            <h3>Concentration</h3>
+            <div class="factor-value">{{.Result.FactorExposure.Concentration.Interpretation}}</div>
+            <div class="factor-details">
+                <div>HHI: {{printf "%.4f" .Result.FactorExposure.Concentration.HHI}}</div>
+                <div>Top Holding: {{printf "%.2f" .Result.FactorExposure.TopHoldingWeightPct}}%</div>
+            </div>
+        </div>
+
+        {{/* Quality */}}
+        <div class="factor-card">
+            <h3>Quality</h3>
+            <div class="factor-value">{{.Result.FactorExposure.Quality.Tilt}}</div>
+            <div class="factor-details">
+                <div>P/CF: {{printf "%.1f" .Result.FactorExposure.Quality.WeightedPCF}}</div>
+                <div>P/Sales: {{printf "%.2f" .Result.FactorExposure.Quality.WeightedPS}}</div>
+            </div>
+        </div>
+
+        {{/* Cost */}}
+        <div class="factor-card">
+            <h3>Cost</h3>
+            <div class="factor-details">
+                <div>Expense Ratio: {{printf "%.3f" .Result.FactorExposure.Cost.WeightedExpenseRatio}}%</div>
+                <div>Turnover: {{printf "%.1f" .Result.FactorExposure.Cost.WeightedTurnover}}%</div>
+            </div>
+        </div>
+
+        {{/* Momentum */}}
+        <div class="factor-card">
+            <h3>Momentum</h3>
+            <div class="factor-value">{{.Result.FactorExposure.Momentum.Tilt}}</div>
+            <div class="factor-details">
+                <div>3M: {{printf "%.1f" .Result.FactorExposure.Momentum.Return3M}}%</div>
+                <div>6M: {{printf "%.1f" .Result.FactorExposure.Momentum.Return6M}}%</div>
+                <div>12M: {{printf "%.1f" .Result.FactorExposure.Momentum.Return12M}}%</div>
+            </div>
+        </div>
+
+        {{/* Volatility */}}
+        <div class="factor-card">
+            <h3>Volatility</h3>
+            <div class="factor-value">{{.Result.FactorExposure.Volatility.Tilt}}</div>
+            <div class="factor-details">
+                <div>Annualized: {{printf "%.1f" .Result.FactorExposure.Volatility.AnnualizedVol}}%</div>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* ECharts script */}}
+{{if or (and .Result.Correlation .Result.Correlation.Matrix) .Result.SectorAllocation .Result.GeographicAllocation}}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+{{end}}
+
+{{/* Correlation heatmap chart */}}
+{{if and .Result.Correlation .Result.Correlation.Matrix}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.CorrelationChartData}}');
+        var symbols = data.symbols;
+        var matrix = data.matrix;
+
+        // Build ECharts heatmap data: [[x_index, y_index, value], ...]
+        var heatmapData = [];
+        for (var i = 0; i < matrix.length; i++) {
+            var cell = matrix[i];
+            var rowIdx = symbols.indexOf(cell.symbol_a);
+            var colIdx = symbols.indexOf(cell.symbol_b);
+            if (rowIdx >= 0 && colIdx >= 0) {
+                heatmapData.push([colIdx, rowIdx, cell.value]);
+            }
+        }
+
+        var chart = echarts.init(document.getElementById('correlation-chart'));
+        chart.setOption({
+            tooltip: {
+                position: 'top',
+                formatter: function(params) {
+                    var row = symbols[params.value[1]];
+                    var col = symbols[params.value[0]];
+                    var val = params.value[2];
+                    return '<strong>' + row + ' ↔ ' + col + '</strong><br/>Correlation: ' + val.toFixed(3);
+                }
+            },
+            grid: { left: '15%', right: '10%', bottom: '15%', top: '5%' },
+            xAxis: {
+                type: 'category',
+                data: symbols,
+                axisLabel: { rotate: 45, interval: 0, fontSize: 11 }
+            },
+            yAxis: {
+                type: 'category',
+                data: symbols,
+                axisLabel: { fontSize: 11 }
+            },
+            visualMap: {
+                min: -1,
+                max: 1,
+                calculable: true,
+                orient: 'horizontal',
+                left: 'center',
+                bottom: '2%',
+                inRange: {
+                    color: ['#d73027', '#f46d43', '#fdae61', '#fee08b', '#e0f3f8', '#91bfdb', '#4575b4']
+                },
+                text: ['High (+)', 'Low (-)']
+            },
+            series: [{
+                type: 'heatmap',
+                data: heatmapData,
+                label: {
+                    show: true,
+                    formatter: function(params) {
+                        return params.value[2].toFixed(2);
+                    },
+                    fontSize: 10,
+                    color: '#333'
+                },
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Correlation chart failed:', e);
+        document.getElementById('correlation-chart').innerHTML = '<p style="color:#999;padding:2rem;text-align:center;">Chart failed to load: ' + e.message + '</p>';
+    }
+})();
+</script>
+{{end}}
+
+{{/* Sector allocation bar chart */}}
+{{if .Result.SectorAllocation}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.SectorChartData}}');
+        if (!data.categories || data.categories.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('sector-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    var p = params[0];
+                    return p.name + ': ' + p.value.toFixed(2) + '%';
+                }
+            },
+            grid: { left: '3%', right: '15%', bottom: '3%', top: '3%', containLabel: true },
+            xAxis: {
+                type: 'value',
+                axisLabel: { formatter: '{value}%' }
+            },
+            yAxis: {
+                type: 'category',
+                data: data.categories.reverse(),
+                axisLabel: { fontSize: 11 }
+            },
+            series: [{
+                type: 'bar',
+                data: data.values.reverse(),
+                itemStyle: { color: '#4575b4' },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: function(params) {
+                        return params.value.toFixed(1) + '%';
+                    }
+                }
+            }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Sector chart failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Geographic allocation bar chart */}}
+{{if .Result.GeographicAllocation}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.GeographicChartData}}');
+        if (!data.categories || data.categories.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('geographic-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    var p = params[0];
+                    return p.name + ': ' + p.value.toFixed(2) + '%';
+                }
+            },
+            grid: { left: '3%', right: '15%', bottom: '3%', top: '3%', containLabel: true },
+            xAxis: {
+                type: 'value',
+                axisLabel: { formatter: '{value}%' }
+            },
+            yAxis: {
+                type: 'category',
+                data: data.categories.reverse(),
+                axisLabel: { fontSize: 11 }
+            },
+            series: [{
+                type: 'bar',
+                data: data.values.reverse(),
+                itemStyle: { color: '#45b475' },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: function(params) {
+                        return params.value.toFixed(1) + '%';
+                    }
+                }
+            }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Geographic chart failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{end}}
+{{end}}
+
+{{template "base" .}}

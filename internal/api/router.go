@@ -14,6 +14,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/api/middleware"
 	"codeberg.org/eddiectc/portfoliolab/internal/data"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
@@ -138,10 +139,9 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 
 	// Performance API
 	performanceHandler := handlers.NewPerformanceHandler(positionSvc, marketSvc)
-	performanceHandler.WithBenchmarkValidator(symbolMappingRepo)
 	performanceHandler.RegisterRoutes(r)
 
-	// Market data cache API
+	// Market data API
 	marketDataHandler := handlers.NewMarketDataHandler(marketCache)
 	marketDataHandler.RegisterRoutes(r)
 
@@ -202,6 +202,16 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		// Performance web pages
 		performanceWebHandler := handlers.NewPerformanceWebHandler(performanceHandler, portfolioSvc, marketCache, symbolMappingRepo, renderer)
 		performanceWebHandler.RegisterRoutes(r)
+
+		// Analysis service + API
+		marketDataSymbolResolver := data.NewMarketDataSymbolResolver(symbolMappingRepo)
+		analysisSvc := analysis.NewService(positionSvc, symbolDetailsSvc, marketSvc, accountLister, portfolioCurrencyChecker, marketDataSymbolResolver)
+		analysisHandler := handlers.NewAnalysisHandler(analysisSvc)
+		analysisHandler.RegisterRoutes(r)
+
+		// Analysis web pages
+		analysisWebHandler := handlers.NewAnalysisWebHandler(analysisHandler, portfolioSvc, renderer)
+		analysisWebHandler.RegisterRoutes(r)
 
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {

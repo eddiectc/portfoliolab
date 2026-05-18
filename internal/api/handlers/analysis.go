@@ -83,13 +83,19 @@ func (h *AnalysisHandler) HandleAnalysis(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	result, err := h.svc.ComputeAnalysis(r.Context(), filters)
+	result, err := h.computeResult(r.Context(), filters)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute analysis")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+// computeResult computes the analysis result for the given filters.
+// Shared between the API handler and the web handler.
+func (h *AnalysisHandler) computeResult(ctx context.Context, filters analysis.AnalysisFilters) (*analysis.AnalysisResult, error) {
+	return h.svc.ComputeAnalysis(ctx, filters)
 }
 
 // parseAnalysisFilters extracts analysis filter criteria from query params.

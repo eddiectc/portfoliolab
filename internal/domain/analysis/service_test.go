@@ -103,32 +103,32 @@ func (m *mockMarketHistorySource) GetHistoricalPrices(_ context.Context, marketS
 }
 
 type mockAccountResolver struct {
-	accounts []AccountRef
+	accounts []position.AccountRef
 	err      error
 }
 
-func (m *mockAccountResolver) GetAccountsByPortfolio(_ context.Context, portfolioID int64) ([]AccountRef, error) {
+func (m *mockAccountResolver) GetAccountsByPortfolio(_ context.Context, portfolioID int64) ([]position.AccountRef, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	var result []AccountRef
+	var result []position.AccountRef
 	for _, a := range m.accounts {
 		if a.PortfolioID == portfolioID {
 			result = append(result, a)
 		}
 	}
 	if result == nil {
-		result = []AccountRef{}
+		result = []position.AccountRef{}
 	}
 	return result, nil
 }
 
-func (m *mockAccountResolver) GetAllAccounts(_ context.Context) ([]AccountRef, error) {
+func (m *mockAccountResolver) GetAllAccounts(_ context.Context) ([]position.AccountRef, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
 	if m.accounts == nil {
-		return []AccountRef{}, nil
+		return []position.AccountRef{}, nil
 	}
 	return m.accounts, nil
 }
@@ -279,7 +279,7 @@ func TestComputeAnalysis_HappyPath(t *testing.T) {
 		},
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1, PortfolioCurrency: "USD"}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1, PortfolioCurrency: "USD"}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -339,7 +339,7 @@ func TestComputeAnalysis_NoPositions(t *testing.T) {
 		positions: []position.Position{},
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -382,7 +382,7 @@ func TestComputeAnalysis_MissingSymbolDetails(t *testing.T) {
 		details: map[string]*symbol.SymbolDetails{}, // No details for UNKNOWN
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -429,7 +429,7 @@ func TestComputeAnalysis_SectionFilter(t *testing.T) {
 		details: map[string]*symbol.SymbolDetails{"VOO": etfDetails},
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -476,7 +476,7 @@ func TestComputeAnalysis_AllAccounts(t *testing.T) {
 		enriched:  enriched,
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{
+		accounts: []position.AccountRef{
 			{ID: 1, PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 2, PortfolioID: 1, PortfolioCurrency: "USD"},
 		},
@@ -525,7 +525,7 @@ func TestComputeAnalysis_StaleSymbolRefresh(t *testing.T) {
 		mappings: map[string]string{"VOO": "VOO"},
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -570,7 +570,7 @@ func TestComputeAnalysis_SingleStockPortfolio(t *testing.T) {
 		details: map[string]*symbol.SymbolDetails{"AAPL": stockDetails},
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -631,7 +631,7 @@ func TestComputeAnalysis_StressTestWithoutSectorFilter(t *testing.T) {
 		details: map[string]*symbol.SymbolDetails{"VOO": etfDetails},
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -680,7 +680,7 @@ func TestComputeAnalysis_WarningsCollected(t *testing.T) {
 		details: map[string]*symbol.SymbolDetails{"NOHO": etfNoHoldings},
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -718,7 +718,7 @@ func TestComputeAnalysis_NoMarketDataAvailable(t *testing.T) {
 		enriched:  enriched,
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -755,7 +755,7 @@ func TestComputeAnalysis_WarningsForMissingSymbolDetails(t *testing.T) {
 		enriched:  enriched,
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -801,7 +801,7 @@ func TestComputeAnalysis_WarningsForMissingPriceData(t *testing.T) {
 		enriched:  enriched,
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
@@ -846,7 +846,7 @@ func TestComputeAnalysis_WarningsForNoMarketData(t *testing.T) {
 		enriched:  enriched,
 	}
 	accResolver := &mockAccountResolver{
-		accounts: []AccountRef{{ID: 1, PortfolioID: 1}},
+		accounts: []position.AccountRef{{ID: 1, PortfolioID: 1}},
 	}
 	curSource := &mockPortfolioCurrencySource{
 		currencies: map[int64]string{1: "USD"},
