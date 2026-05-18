@@ -286,17 +286,17 @@ JSON file keeps scenario data separated from Go code, making it easier to update
 **Corresponds to:** Scenario: Request full portfolio analysis, Scenario: Request a single analysis section
 **Description:** REST API endpoint for retrieving portfolio analysis data. Returns all sections as JSON with optional section filtering.
 
-- [ ] Create `internal/api/handlers/analysis.go`
-- [ ] Define `AnalysisHandler` struct with `*analysis.Service` dependency
-- [ ] Register route: `GET /api/analysis` with query params: `portfolio_id`, `section`, `period`
-- [ ] Parse query params into `AnalysisFilters`
-- [ ] Call `service.ComputeAnalysis(ctx, filters)` and return JSON response
-- [ ] Define response DTO matching `AnalysisResult` structure
-- [ ] Handle errors: portfolio not found, internal error
-- [ ] Write unit tests (mock service, verify request/response mapping)
-- [ ] Write tests for section filter parameter
+- [x] Create `internal/api/handlers/analysis.go`
+- [x] Define `AnalysisHandler` struct with `analysisService` interface dependency
+- [x] Register route: `GET /api/analysis` with query params: `portfolio_id`, `section`, `period`
+- [x] Parse query params into `AnalysisFilters`
+- [x] Call `service.ComputeAnalysis(ctx, filters)` and return JSON response
+- [x] Define response DTO matching `AnalysisResult` structure
+- [x] Handle errors: portfolio not found, internal error
+- [x] Write unit tests (mock service, verify request/response mapping)
+- [x] Write tests for section filter parameter
 
-**Verification:** API returns correct JSON for valid requests; section filter works; appropriate error codes for invalid inputs.
+**Verification:** API returns correct JSON for valid requests; section filter works; appropriate error codes for invalid inputs. ✅
 
 ---
 
