@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	// minOverlapDays is the minimum number of overlapping daily returns
-	// required to compute a meaningful correlation. Below this threshold
-	// a warning is emitted and the matrix cell is nil (null in JSON).
-	minOverlapDays = 60
+	// absoluteMinOverlap is the hard floor for overlapping daily returns.
+	absoluteMinOverlap = 30
+	// maxMinOverlap is the standard minimum for longer periods.
+	maxMinOverlap = 60
 )
 
 // dailyReturn pairs a trading date with its computed daily return.
@@ -28,9 +28,9 @@ type dailyReturn struct {
 // For each symbol the daily returns are derived from close prices:
 //   return[t] = close[t] / close[t-1] - 1
 //
-// The lookback period is determined by period ("1Y", "3Y", "5Y", "10Y").
-// Pairs with fewer than minOverlapDays of overlapping returns produce a
-// warning and a zero correlation coefficient.
+// The lookback period is determined by period ("3M", "6M", "1Y", "3Y", "5Y", "10Y").
+// Pairs with fewer than the adaptive overlap threshold produce a
+// warning and a nil matrix cell (null in JSON, "-" in UI).
 //
 // Returns an empty-state message when fewer than 2 symbols have data.
 func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period string) *CorrelationResult {
@@ -136,12 +136,21 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 
 			x, y, overlap := alignReturns(datedReturns[symA], datedReturns[symB])
 
-			if overlap < minOverlapDays {
+			// Adaptive threshold: scale down for short periods so 3M isn't all nils.
+			minOverlap := maxMinOverlap
+			if expectedDays < maxMinOverlap {
+				minOverlap = int(float64(expectedDays) * 0.75)
+				if minOverlap < absoluteMinOverlap {
+					minOverlap = absoluteMinOverlap
+				}
+			}
+
+			if overlap < minOverlap {
 				// nil = insufficient data, UI renders as "-"
 				matrix[i][j] = nil
 				matrix[j][i] = nil
 				warnings = append(warnings,
-					symA+" ↔ "+symB+": only "+strconv.Itoa(overlap)+" overlapping days (minimum "+strconv.Itoa(minOverlapDays)+")")
+					symA+" ↔ "+symB+": only "+strconv.Itoa(overlap)+" overlapping days (minimum "+strconv.Itoa(minOverlap)+")")
 			} else {
 				corr, _ := pearsonCorrelation(x, y)
 				rounded := roundTo2(corr)
