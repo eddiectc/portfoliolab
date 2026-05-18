@@ -74,8 +74,9 @@ func TestComputeFactorExposure_HappyPath(t *testing.T) {
 	}
 
 	// Quality unavailable because getETFWithValuation doesn't set P/CF or P/Sales.
-	if len(result.Warnings) != 1 {
-		t.Errorf("expected 1 warning (quality unavailable), got %d: %v", len(result.Warnings), result.Warnings)
+	// Cost unavailable because getETFWithValuation doesn't set expense ratio or turnover.
+	if len(result.Warnings) != 2 {
+		t.Errorf("expected 2 warnings (quality + cost unavailable), got %d: %v", len(result.Warnings), result.Warnings)
 	}
 	if result.Message != "" {
 		t.Errorf("unexpected message: %q", result.Message)
@@ -812,6 +813,59 @@ func TestComputeFactorExposure_CostZeroValues(t *testing.T) {
 	// Turnover: only ETF1 (25) → 25
 	if result.Cost.WeightedTurnover != 25.0 {
 		t.Errorf("weighted turnover = %.2f, want 25", result.Cost.WeightedTurnover)
+	}
+}
+
+func TestComputeFactorExposure_PartialCoverageWarnings(t *testing.T) {
+	// One ETF with full data, one with no FundProfile — should warn on partial cost.
+	positions := []PositionWithDetails{
+		getETFWithFullData("ETF1", 60, 18, 3, 8, 2.0, 50_000_000_000, 0.03, 25, nil),
+		getStockWithNoValuation("STOCK1", 40),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	// Should have a warning about partial cost coverage.
+	if !containsWarning(result.Warnings, "cost data available for only") {
+		t.Errorf("expected partial cost warning, got: %v", result.Warnings)
+	}
+}
+
+func TestComputeFactorExposure_MomentumPartialCoverageWarning(t *testing.T) {
+	// Only one of two positions has price data.
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("AAPL", 60),
+		getStockWithNoValuation("MSFT", 40),
+	}
+
+	// Only provide prices for AAPL (60% of portfolio).
+	prices := makePriceMap([]priceEntry{
+		{"AAPL", -92, 100}, {"AAPL", 0, 106},
+	})
+
+	result := ComputeFactorExposure(positions, prices)
+
+	if !containsWarning(result.Warnings, "momentum data available for only") {
+		t.Errorf("expected partial momentum warning, got: %v", result.Warnings)
+	}
+}
+
+func TestComputeFactorExposure_VolatilityPartialCoverageWarning(t *testing.T) {
+	// Only one of two positions has price data.
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("AAPL", 60),
+		getStockWithNoValuation("MSFT", 40),
+	}
+
+	// Only provide prices for AAPL (60% of portfolio).
+	prices := makePriceMap([]priceEntry{
+		{"AAPL", -92, 100}, {"AAPL", -90, 101}, {"AAPL", -60, 99}, {"AAPL", -30, 102}, {"AAPL", 0, 100},
+	})
+
+	result := ComputeFactorExposure(positions, prices)
+
+	if !containsWarning(result.Warnings, "volatility data available for only") {
+		t.Errorf("expected partial volatility warning, got: %v", result.Warnings)
 	}
 }
 
