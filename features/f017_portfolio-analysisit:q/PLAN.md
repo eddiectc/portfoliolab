@@ -237,35 +237,40 @@ JSON file keeps scenario data separated from Go code, making it easier to update
 **Corresponds to:** Scenario: Request full portfolio analysis, Scenario: Request a single analysis section, Scenario: Request analysis for a portfolio with no positions, Scenario: Request analysis with missing symbol details
 **Description:** Service that orchestrates data fetching and delegates to the computation functions. This is the single entry point for all analysis.
 
-- [ ] Create `internal/domain/analysis/service.go`
-- [ ] Define interfaces:
+- [x] Create `internal/domain/analysis/service.go`
+- [x] Define interfaces:
   - `PositionSource` — GetOpenPositions(ctx, accountIDs, limit, offset) ([]position.Position, error), EnrichWithMarketData(ctx, positions, baseCurrency) ([]position.PositionWithMarket, error)
   - `SymbolDetailsSource` — GetByInternalSymbol(ctx, internalSymbol) (*symbol.SymbolDetails, error)
   - `MarketDataHistorySource` — GetHistoricalPrices(ctx, symbol, start, end) ([]market.HistoricalPrice, error)
   - `AccountResolver` — GetAccountsByPortfolio(ctx, portfolioID) ([]AccountRef, error), GetAllAccounts(ctx) ([]AccountRef, error)
   - `PortfolioCurrencySource` — GetPortfolioCurrency(ctx, portfolioID) (string, error)
-- [ ] Implement `ComputeAnalysis(ctx context.Context, filters AnalysisFilters) (*AnalysisResult, error)`:
+  - `MarketDataSymbolResolver` — GetMarketDataSymbol(ctx, internalSymbol) (string, error)
+  - `SymbolRefresher` — RefreshSymbol(ctx, internalSymbol, marketDataSymbol) error
+- [x] Implement `ComputeAnalysis(ctx context.Context, filters AnalysisFilters) (*AnalysisResult, error)`:
   - Resolve account IDs from filters (portfolio_id or all)
   - Fetch open positions, enrich with market data (for portfolio weights)
   - Fetch symbol details for each position symbol
   - Build `[]PositionWithDetails` (position + market weight + symbol details)
+  - Fetch historical prices mapped via market data symbol resolver
   - Compute each section independently (overlap, correlation, allocation, stress test, factor exposure)
   - Apply section filter if specified
   - Collect warnings from all sections
   - Handle empty state: no positions → all sections null, message field
   - Handle missing data: compute from available, add warnings
   - Trigger background symbol details refresh for stale symbols (>7 days)
-- [ ] Implement `ComputeAnalysis` to call each computation function and assemble the result
-- [ ] Write service tests with hand-written mocks:
+- [x] Implement `ComputeAnalysis` to call each computation function and assemble the result
+- [x] Write service tests with hand-written mocks:
   - Happy path: portfolio with ETFs + stocks, all data available
   - No positions (empty result with message)
   - Missing symbol details for some symbols (partial computation, warnings)
   - Section filter (only requested section computed)
   - Stale symbol details (background refresh triggered)
   - Single-stock portfolio (overlap shows message, other sections work)
-  - All ETFs with no cached details (graceful degradation)
+  - Stress test without sector filter (internal sector computation)
+  - Warnings collected from all sections
+  - No market data available (graceful degradation)
 
-**Verification:** Service orchestrates all sections correctly; section filter works; warnings collected; empty states handled.
+**Verification:** Service orchestrates all sections correctly; section filter works; warnings collected; empty states handled. ✅
 
 **Technical Decision D — Service location:**
 

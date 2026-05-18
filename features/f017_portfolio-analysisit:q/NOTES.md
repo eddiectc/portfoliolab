@@ -89,3 +89,42 @@ Plan specified `ComputeFactorExposure(positions []PositionWithDetails, portfolio
 - **Volatility**: Portfolio-weighted annualized volatility (daily std dev × √252). Thresholds: ≤10% low, ≤20% medium, >20% high.
 - `getETFWithFullData` test helper added for tests needing P/CF, P/Sales, expense ratio, and turnover.
 - `makePriceMap` test helper for constructing price history from `priceEntry` slices.
+
+## Session 2026-05-18 (Task 7)
+
+### Bug fix: `stress_test.go` naming
+- File `stress_test.go` contained implementation code but was named with `_test.go` suffix, causing Go to exclude it from normal builds. Renamed to `stress.go`.
+
+### Implementation
+- `internal/domain/analysis/service.go`: `Service` struct with 7 interfaces, `ComputeAnalysis()` orchestration method
+- `internal/domain/analysis/service_test.go`: 10 service tests with hand-written mocks
+
+### Interfaces defined
+- `PositionSource` — get/enrich positions (matches `position.Service`)
+- `SymbolDetailsSource` — get symbol details (matches `symbols.Service`)
+- `MarketDataHistorySource` — get historical prices (matches `position.MarketDataService`)
+- `AccountResolver` — resolve accounts from portfolio or all
+- `PortfolioCurrencySource` — get portfolio base currency
+- `MarketDataSymbolResolver` — map internal symbol → market data provider symbol (new, needed for fetching historical prices)
+- `SymbolRefresher` — trigger background refresh of stale symbol details (optional, set via `WithSymbolRefresher`)
+
+### Design decisions
+- **Nil-tolerant dependencies**: `symbolDetails`, `marketHistory`, `marketDataSymbol`, `symbolRefresher` can be nil — service returns empty results rather than panicking
+- **Stress test auto-computes sector allocation**: When only `stress_test` section is requested, sector allocation is computed internally (not included in result) since stress tests depend on it
+- **Background refresh is fire-and-forget**: Stale symbol refresh runs in a goroutine without blocking the response
+- **Portfolio weight from enriched positions**: Uses `MarketValueBase` if available (FX-converted), falls back to `MarketValue` in position currency
+- **Period defaults to 1Y**: When filters.Period is empty, defaults to "1Y" for correlation lookback
+
+### Silent failure audit
+Fixed 9 silent failures/fallbacks:
+1. **Overlap condition**: Rewrote tangled boolean (`computeSection && ... || filters.Section == ""`) to simple `wantAll || filters.Section == string(SectionX)` pattern
+2. **resolveAccounts currency error**: Now returns warning "could not determine portfolio base currency" instead of logging at Debug only
+3. **resolveAccounts no-portfolio path**: Error from GetPortfolioCurrency no longer silently discarded
+4. **fetchSymbolDetails nil source**: Returns warning "symbol details source not configured" instead of empty map silently
+5. **fetchSymbolDetails missing symbols**: Returns warning listing missing symbols instead of Debug log only
+6. **fetchHistoricalPrices nil deps**: Returns warning "historical price data source not configured" instead of empty map silently
+7. **fetchHistoricalPrices missing symbols**: Tracks and reports symbols with no price data
+8. **buildPositionWithDetails zero total**: Returns warning "no market data available" instead of empty slice silently
+9. **EnrichWithMarketData missing data**: Added check counting positions with `MarketDataAvailable=false` and emits warning
+
+All data-fetching helpers now return `([]string)` warnings alongside their results. Warnings are collected in `ComputeAnalysis` before section computation and prepended to `result.Warnings`.
