@@ -191,3 +191,8 @@ func sortByWeightDesc(stocks []ConcentratedStock) {
 func roundTo2(v float64) float64 {
 	return math.Round(v*100) / 100
 }
+
+// roundTo4 rounds a float64 to 4 decimal places.
+func roundTo4(v float64) float64 {
+	return math.Round(v*10000) / 10000
+}

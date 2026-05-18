@@ -44,3 +44,39 @@ The plan referenced `assetProfile.Sector` for individual stocks, but this field 
 
 ### Decision: JSON file location
 Plan specified `internal/config/data/stress_scenarios.json` but `//go:embed` only supports files in the same directory or subdirectories of the Go source file. Moved JSON to `internal/domain/analysis/stress_scenarios.json` alongside the Go code. This keeps the data co-located with the code that consumes it.
+
+## Session 2026-05-18 (Task 6)
+
+### Implementation
+- `internal/domain/analysis/factor_exposure.go`: `ComputeFactorExposure` — computes value/growth tilt (weighted P/E, P/B vs S&P 500 reference), size tilt (large/mid/small cap from TotalNetAssets), concentration (HHI from underlying holdings), top holding weight
+- `internal/domain/analysis/factor_exposure_test.go`: 14 unit tests + 22 sub-tests for helper functions (classifyTilt, combineTilts, classifySizeTilt, classifyHHI)
+
+### Decision: Function signature
+Plan specified `ComputeFactorExposure(positions []PositionWithDetails, portfolioValue decimal.Decimal)` but `portfolioValue` isn't used in the computation (unlike stress tests which compute dollar impact). Omitted the unused parameter to follow Go conventions.
+
+### Decision: Size classification thresholds
+- Large cap: ≥ $10B TotalNetAssets
+- Mid cap: ≥ $2B TotalNetAssets
+- Small cap: < $2B TotalNetAssets
+- Stocks without FundProfile are excluded from size classification (no market cap data in cached symbol details)
+
+### Decision: Value/growth tilt logic
+- Benchmark: S&P 500 reference P/E=20, P/B=4
+- Neutral band: ±15% of benchmark (P/E: 17-23, P/B: 3.4-4.6)
+- P/E and P/B tilts combined: if both agree → that tilt; if one empty → use the other; if disagree → "neutral"; if both empty → "neutral"
+
+### Decision: HHI computation
+- Weights as fractions (0-1), not percentages
+- For ETFs: looks through to top holdings (portfolio_weight × holding_percent / 10000)
+- For stocks: position weight / 100
+- For ETFs without holdings data: falls back to position weight / 100 with warning
+- Thresholds: <0.02 well-diversified, 0.02-0.05 moderately-concentrated, >0.05 highly-concentrated
+- Uses `roundTo4` (4dp) instead of `roundTo2` — HHI operates in 0-1 range where 2dp zeros out diversified portfolios (e.g., 0.0026 → 0.00)
+
+### Silent failure fixes
+- **HHI precision**: Changed from `roundTo2` to `roundTo4` so diversified portfolios show meaningful HHI values (e.g., 0.0026 not 0.00)
+- **Partial size coverage**: Added warning when `sizeTrackedWeight < 100` (some positions lack FundProfile), e.g., "size data available for only 60.00% of portfolio"
+- **Tilt sentinel**: When no valuation data exists, tilt is "unavailable" (not "neutral") — distinguishes "no data" from "within benchmark band"
+- **Size percentages**: Changed from "relative to tracked weight" to "relative to total portfolio" — so they sum to <100% when coverage is partial. The gap is the signal (e.g., 60% large + 40% gap = missing data).
+- **Concentration for nil SymbolDetails**: Instead of silently skipping positions with no symbol details, use position weight directly for HHI/top-holding (same fallback as ETFs without holdings data). Warning updated to say "using position weight for concentration only".
+- Added `roundTo4` helper to `overlap.go` alongside existing `roundTo2`
