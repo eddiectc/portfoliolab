@@ -167,3 +167,15 @@ All data-fetching helpers now return `([]string)` warnings alongside their resul
 - Updated `service_test.go` to use `position.AccountRef` throughout
 - `PortfolioCurrencySource` was already satisfied by `data.PortfolioCurrencyCheckerImpl` (no change needed)
 - `MarketDataSymbolResolver` required a new adapter (`MarketDataSymbolResolverImpl`) since no existing type provided `GetMarketDataSymbol(ctx, internalSymbol)`
+
+## Session 2026-05-18 (Task 11 — Validation)
+
+### Validation results
+- **Tests**: `go test ./...` (clean, no cache) — all 24 packages pass, including `internal/domain/analysis` (0.105s) and `tests/integration` (0.612s)
+- **`go vet ./...`**: clean (no issues)
+- **`go build ./...`**: clean (no compilation errors)
+- **TODOs/FIXMEs**: none found in analysis code or handler files
+- **Spec scenario coverage**: all 18 scenarios covered by unit/service tests
+- **Cross-layer consistency**: web handler delegates to API handler's `computeResult()` which delegates to service — API-first architecture maintained. No computation duplication.
+- **Nav wiring**: Analysis link present in `templates/partials/nav.html`
+- **Feature index**: updated `features/README.md` to mark f017 as done
