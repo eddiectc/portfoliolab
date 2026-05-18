@@ -93,14 +93,18 @@ Plan specified `ComputeFactorExposure(positions []PositionWithDetails, portfolio
 ## Session 2026-05-18 (Task 8)
 
 ### Implementation
-- `internal/api/handlers/analysis.go`: `AnalysisHandler` with `analysisService` interface, `HandleAnalysis` handler, `parseAnalysisFilters` query param parser
-- `internal/api/handlers/analysis_test.go`: 17 tests covering success, no params, section filter, period filter, all filters combined, internal error, empty state, warnings, route registration, filter parsing (6 tests), JSON round-trip, and omitempty behavior
+- `internal/api/handlers/analysis.go`: `AnalysisHandler` with `analysisService` interface, `HandleAnalysis` handler, `parseAnalysisFilters` query param parser, section/period validation
+- `internal/api/handlers/analysis_test.go`: 21 tests covering success, no params, section filter, period filter, all filters combined, internal error, empty state, warnings, invalid section, valid sections, invalid period, valid periods, route registration, filter parsing (6 tests), JSON round-trip, and omitempty behavior
 
 ### Decision: Interface on handler
 Plan specified `*analysis.Service` as the handler dependency. Changed to an `analysisService` interface (`ComputeAnalysis` method) to enable hand-written mocks in tests. This follows Go best practices (depend on interfaces, not concrete types) and matches the testing pattern used throughout the project.
 
 ### Decision: No response DTO
 Plan mentioned "Define response DTO matching `AnalysisResult` structure." Skipped this — `AnalysisResult` already has proper `json` struct tags and is the canonical response type. Creating a separate DTO would be redundant duplication. The `AnalysisResult` type IS the response DTO.
+
+### Silent failure fixes
+- **Invalid section**: `?section=foobar` now returns 400 `INVALID_SECTION` with allowed values in the error message. Previously silently fell through to "compute all sections".
+- **Invalid period**: `?period=2Y` now returns 400 `INVALID_PERIOD` with allowed values. Previously silently passed to service where `periodCutoff` would use undefined behavior.
 
 ## Session 2026-05-18 (Task 7)
 
