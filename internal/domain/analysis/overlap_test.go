@@ -122,7 +122,7 @@ func TestComputeOverlap(t *testing.T) {
 			},
 			wantPairs:      []OverlapPair{},
 			wantStocks:     nil, // checked separately
-			wantMessage:    "Only 1 ETF position found. ETF overlap requires at least 2 ETFs for pairwise comparison.",
+			wantMessage:    "Only 1 unique ETF found. ETF overlap requires at least 2 ETFs for pairwise comparison.",
 			wantWarningLen: 0,
 		},
 
@@ -341,4 +341,81 @@ func TestComputeOverlap_ConcentratedStocks(t *testing.T) {
 // floatEq checks two float64 values are within epsilon.
 func floatEq(got, want, eps float64) bool {
 	return (got - want) < eps && (want - got) < eps
+}
+
+func TestComputeOverlap_DuplicateETFAggregated(t *testing.T) {
+	// Same ETF held in 3 accounts should produce unique pairs only.
+	holdingsA := []symbol.TopHolding{
+		{Symbol: "AAPL", Percent: 10, Name: "Apple"},
+		{Symbol: "MSFT", Percent: 8, Name: "Microsoft"},
+	}
+	holdingsB := []symbol.TopHolding{
+		{Symbol: "GOOGL", Percent: 12, Name: "Alphabet"},
+		{Symbol: "AAPL", Percent: 6, Name: "Apple"},
+	}
+
+	positions := []PositionWithDetails{
+		etfPosition(t, "ETF_A", 10, holdingsA), // account 1
+		etfPosition(t, "ETF_A", 8, holdingsA),  // account 2
+		etfPosition(t, "ETF_A", 6, holdingsA),  // account 3
+		etfPosition(t, "ETF_B", 12, holdingsB), // account 1
+	}
+
+	result := ComputeOverlap(positions)
+
+	// Should produce exactly 1 pair (ETF_A vs ETF_B), not 6.
+	if len(result.PairwiseMatrix) != 1 {
+		t.Fatalf("pairwise matrix len = %d, want 1", len(result.PairwiseMatrix))
+	}
+
+	pair := result.PairwiseMatrix[0]
+	if pair.ETFA != "ETF_A" || pair.ETFB != "ETF_B" {
+		t.Errorf("pair = %s vs %s, want ETF_A vs ETF_B", pair.ETFA, pair.ETFB)
+	}
+
+	// AAPL is the only overlapping holding.
+	// Combined weight = 24*10/100 + 12*6/100 = 2.4 + 0.72 = 3.12
+	if !floatEq(pair.CombinedWeightPct, 3.12, 0.01) {
+		t.Errorf("combined weight = %.2f, want 3.12", pair.CombinedWeightPct)
+	}
+	if pair.OverlappingCount != 1 {
+		t.Errorf("overlapping count = %d, want 1", pair.OverlappingCount)
+	}
+}
+
+func TestAggregateBySymbol(t *testing.T) {
+	holdings := []symbol.TopHolding{
+		{Symbol: "AAPL", Percent: 10, Name: "Apple"},
+	}
+
+	positions := []PositionWithDetails{
+		etfPosition(t, "ETF_A", 10, holdings),
+		etfPosition(t, "ETF_B", 20, holdings),
+		etfPosition(t, "ETF_A", 5, holdings),
+		etfPosition(t, "ETF_B", 3, holdings),
+		etfPosition(t, "ETF_C", 7, holdings),
+	}
+
+	result := aggregateBySymbol(positions)
+
+	if len(result) != 3 {
+		t.Fatalf("len = %d, want 3", len(result))
+	}
+
+	// Check combined weights.
+	want := map[string]float64{
+		"ETF_A": 15, // 10 + 5
+		"ETF_B": 23, // 20 + 3
+		"ETF_C": 7,
+	}
+	for _, p := range result {
+		w, ok := want[p.Symbol]
+		if !ok {
+			t.Errorf("unexpected symbol %q", p.Symbol)
+			continue
+		}
+		if !floatEq(p.PortfolioWeight, w, 0.01) {
+			t.Errorf("%s weight = %.2f, want %.2f", p.Symbol, p.PortfolioWeight, w)
+		}
+	}
 }
