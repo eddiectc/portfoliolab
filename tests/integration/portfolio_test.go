@@ -179,21 +179,23 @@ func setupTestDB(t *testing.T) *sql.DB {
 		CREATE INDEX IF NOT EXISTS idx_market_data_symbol_date ON market_data(symbol, date);
 
 		CREATE TABLE IF NOT EXISTS symbol_details (
-			id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-			internal_symbol     TEXT    NOT NULL UNIQUE,
-			short_name          TEXT,
-			long_name           TEXT,
-			exchange            TEXT,
-			currency            TEXT,
-			quote_type          TEXT,
-			top_holdings        TEXT,
-			sector_weightings   TEXT,
-			aggregate_positions TEXT,
-			fund_profile        TEXT,
-			equity_valuation    TEXT,
-			fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
-			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
-			updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
+			id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+			internal_symbol       TEXT    NOT NULL UNIQUE,
+			short_name            TEXT,
+			long_name             TEXT,
+			exchange              TEXT,
+			currency              TEXT,
+			quote_type            TEXT,
+			sector                TEXT,
+			top_holdings          TEXT,
+			sector_weightings     TEXT,
+			aggregate_positions   TEXT,
+			fund_profile          TEXT,
+			equity_valuation      TEXT,
+			geographic_allocations TEXT,
+			fetched_at            TEXT    NOT NULL DEFAULT (datetime('now')),
+			created_at            TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_symbol_details_internal_symbol
