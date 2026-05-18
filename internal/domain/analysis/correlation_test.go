@@ -56,8 +56,26 @@ func makeMultiSeries(entries []struct {
 	return result
 }
 
-// matrixEq checks two float64 matrices are element-wise equal within epsilon.
-func matrixEq(t *testing.T, got, want [][]float64, eps float64) {
+// makeLongSeries repeats a short price pattern enough times to produce
+// at least 65 data points (60+ overlapping days > minOverlapDays).
+// The pattern is repeated verbatim (same price values cycle), producing
+// a repeating oscillation suitable for correlation tests.
+func makeLongSeries(pattern []float64) []float64 {
+	result := make([]float64, 0, 65)
+	for len(result) < 65 {
+		for _, p := range pattern {
+			if len(result) >= 65 {
+				break
+			}
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// matrixEq checks two *float64 matrices are element-wise equal within epsilon.
+// nil in want means expect nil in got; a float64 pointer means expect that value.
+func matrixEq(t *testing.T, got [][]*float64, want [][]float64, eps float64) {
 	t.Helper()
 	if len(got) != len(want) {
 		t.Errorf("matrix rows = %d, want %d", len(got), len(want))
@@ -69,8 +87,17 @@ func matrixEq(t *testing.T, got, want [][]float64, eps float64) {
 			return
 		}
 		for j := range got[i] {
-			if math.Abs(got[i][j]-want[i][j]) > eps {
-				t.Errorf("matrix[%d][%d] = %.6f, want %.6f", i, j, got[i][j], want[i][j])
+			wantVal := want[i][j]
+			gotPtr := got[i][j]
+			// Sentinel -999 in want means expect nil.
+			if wantVal == -999 {
+				if gotPtr != nil {
+					t.Errorf("matrix[%d][%d] = %v, want nil", i, j, *gotPtr)
+				}
+			} else if gotPtr == nil {
+				t.Errorf("matrix[%d][%d] = nil, want %.6f", i, j, wantVal)
+			} else if math.Abs(*gotPtr-wantVal) > eps {
+				t.Errorf("matrix[%d][%d] = %.6f, want %.6f", i, j, *gotPtr, wantVal)
 			}
 		}
 	}
@@ -273,8 +300,8 @@ func TestComputeCorrelation(t *testing.T) {
 				sym    string
 				prices []float64
 			}{
-				{"AAPL", []float64{100, 102, 101, 103, 105, 104, 106}},
-				{"MSFT", []float64{100, 102, 101, 103, 105, 104, 106}},
+				{"AAPL", makeLongSeries([]float64{100, 102, 101, 103, 105, 104, 106})},
+				{"MSFT", makeLongSeries([]float64{100, 102, 101, 103, 105, 104, 106})},
 			}),
 			period: "10Y",
 			wantMatrix: [][]float64{
@@ -292,9 +319,9 @@ func TestComputeCorrelation(t *testing.T) {
 				prices []float64
 			}{
 				// A: up, down, up, down pattern
-				{"SYM_A", []float64{100, 105, 100, 105, 100}},
+				{"SYM_A", makeLongSeries([]float64{100, 105, 100, 105, 100})},
 				// B: down, up, down, up pattern (opposite)
-				{"SYM_B", []float64{100, 95, 100, 95, 100}},
+				{"SYM_B", makeLongSeries([]float64{100, 95, 100, 95, 100})},
 			}),
 			period: "10Y",
 			wantMatrix: [][]float64{
@@ -311,9 +338,9 @@ func TestComputeCorrelation(t *testing.T) {
 				sym    string
 				prices []float64
 			}{
-				{"A", []float64{100, 105, 100, 105, 100}},
-				{"B", []float64{100, 105, 100, 105, 100}}, // identical to A → r=1
-				{"C", []float64{100, 95, 100, 95, 100}},   // opposite oscillation → r≈-1
+				{"A", makeLongSeries([]float64{100, 105, 100, 105, 100})},
+				{"B", makeLongSeries([]float64{100, 105, 100, 105, 100})}, // identical to A → r=1
+				{"C", makeLongSeries([]float64{100, 95, 100, 95, 100})},   // opposite oscillation → r≈-1
 			}),
 			period: "10Y",
 			wantMatrix: [][]float64{
@@ -349,8 +376,8 @@ func TestComputeCorrelation(t *testing.T) {
 				sym    string
 				prices []float64
 			}{
-				{"AAPL", []float64{100, 102, 101, 103, 105}},
-				{"MSFT", []float64{100, 102, 101, 103, 105}},
+				{"AAPL", makeLongSeries([]float64{100, 102, 101, 103, 105})},
+				{"MSFT", makeLongSeries([]float64{100, 102, 101, 103, 105})},
 				{"GOOGL", []float64{100}}, // only 1 price → no returns
 			}),
 			period: "10Y",
@@ -386,8 +413,8 @@ func TestComputeCorrelation(t *testing.T) {
 			}(),
 			period: "10Y",
 			wantMatrix: [][]float64{
-				{1.0, 0},
-				{0, 1.0},
+				{1.0, -999},
+				{-999, 1.0},
 			},
 			wantSymbols:   []string{"A", "B"},
 			wantMessage:   "",
@@ -427,8 +454,8 @@ func TestComputeCorrelation(t *testing.T) {
 				sym    string
 				prices []float64
 			}{
-				{"A", []float64{100, 102, 101, 103, 105}},
-				{"B", []float64{100, 102, 101, 103, 105}},
+				{"A", makeLongSeries([]float64{100, 102, 101, 103, 105})},
+				{"B", makeLongSeries([]float64{100, 102, 101, 103, 105})},
 			}),
 			period: "invalid",
 			wantMatrix: [][]float64{

@@ -46,7 +46,7 @@ func makeTestResult() *analysis.AnalysisResult {
 			},
 		},
 		Correlation: &analysis.CorrelationResult{
-			Matrix:  [][]float64{{1.0, 0.85}, {0.85, 1.0}},
+			Matrix:  ptrMatrix([][]float64{{1.0, 0.85}, {0.85, 1.0}}),
 			Symbols: []string{"VTI", "VXUS"},
 			Period:  "1Y",
 		},
@@ -559,4 +559,16 @@ func containsSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// ptrMatrix converts a [][]float64 to [][]*float64 for test convenience.
+func ptrMatrix(m [][]float64) [][]*float64 {
+	result := make([][]*float64, len(m))
+	for i, row := range m {
+		result[i] = make([]*float64, len(row))
+		for j, v := range row {
+			result[i][j] = &v
+		}
+	}
+	return result
 }

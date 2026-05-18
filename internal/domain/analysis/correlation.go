@@ -67,6 +67,22 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 		datedReturns[sym] = rets
 	}
 
+	// Check if any symbol's data range is significantly shorter than the
+	// requested period. Warn if coverage is less than 80% of the period.
+	expectedDays := cutoffDays(period)
+	for _, sym := range symbols {
+		rets, ok := datedReturns[sym]
+		if !ok || expectedDays == 0 {
+			continue
+		}
+		if len(rets) < int(float64(expectedDays)*0.8) {
+			actualYears := float64(len(rets)) / 252.0 // ~trading days per year
+			expectedYears := float64(expectedDays) / 252.0
+			warnings = append(warnings,
+				sym+": only "+strconv.FormatFloat(actualYears, 'f', 1, 64)+"Y of "+strconv.FormatFloat(expectedYears, 'f', 0, 64)+"Y price data (requested period)")
+		}
+	}
+
 	// Symbols with valid return data, in sorted order.
 	validSymbols := make([]string, 0, len(datedReturns))
 	for _, sym := range symbols {
@@ -94,25 +110,32 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 	}
 
 	n := len(validSymbols)
-	matrix := make([][]float64, n)
+	matrix := make([][]*float64, n)
 	for i := range matrix {
-		matrix[i] = make([]float64, n)
+		matrix[i] = make([]*float64, n)
+		// Self-correlation is always 1.0.
+		one := 1.0
+		matrix[i][i] = &one
 	}
 
 	// Compute pairwise correlations.
 	for i := 0; i < n; i++ {
-		matrix[i][i] = 1.0 // self-correlation
 		for j := i + 1; j < n; j++ {
 			symA := validSymbols[i]
 			symB := validSymbols[j]
 			x, y, overlap := alignReturns(datedReturns[symA], datedReturns[symB])
-			corr, _ := pearsonCorrelation(x, y)
-			matrix[i][j] = roundTo2(corr)
-			matrix[j][i] = roundTo2(corr)
 
 			if overlap < minOverlapDays {
+				// nil = insufficient data, UI renders as "-"
+				matrix[i][j] = nil
+				matrix[j][i] = nil
 				warnings = append(warnings,
 					symA+" ↔ "+symB+": only "+strconv.Itoa(overlap)+" overlapping days (minimum "+strconv.Itoa(minOverlapDays)+")")
+			} else {
+				corr, _ := pearsonCorrelation(x, y)
+				rounded := roundTo2(corr)
+				matrix[i][j] = &rounded
+				matrix[j][i] = &rounded
 			}
 		}
 	}
@@ -141,6 +164,23 @@ func periodCutoff(period string) (time.Time, string) {
 	default:
 		return now.AddDate(-1, 0, 0),
 			"unrecognized period "+period+" — defaulting to 1Y"
+	}
+}
+
+// cutoffDays returns the approximate number of trading days for the given
+// period string (252 trading days per year). Returns 0 for unknown periods.
+func cutoffDays(period string) int {
+	switch period {
+	case "1Y":
+		return 252
+	case "3Y":
+		return 756
+	case "5Y":
+		return 1260
+	case "10Y":
+		return 2520
+	default:
+		return 0
 	}
 }
 

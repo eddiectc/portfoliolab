@@ -19,7 +19,7 @@ func TestAnalysisResultJSONRoundTrip(t *testing.T) {
 		},
 	}
 	correlation := &CorrelationResult{
-		Matrix:  [][]float64{{1.0, 0.85}, {0.85, 1.0}},
+		Matrix:  ptrMatrix([][]float64{{1.0, 0.85}, {0.85, 1.0}}),
 		Symbols: []string{"VTI", "VXUS"},
 		Period:  "1Y",
 	}
@@ -334,4 +334,16 @@ func TestAnalysisSectionConstants(t *testing.T) {
 			t.Errorf("section[%d]: got %q, want %q", i, sections[i], want)
 		}
 	}
+}
+
+// ptrMatrix converts a [][]float64 to [][]*float64 for test convenience.
+func ptrMatrix(m [][]float64) [][]*float64 {
+	result := make([][]*float64, len(m))
+	for i, row := range m {
+		result[i] = make([]*float64, len(row))
+		for j, v := range row {
+			result[i][j] = &v
+		}
+	}
+	return result
 }

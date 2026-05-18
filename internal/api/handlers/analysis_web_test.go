@@ -74,10 +74,10 @@ func TestAnalysisTemplate_FullResult(t *testing.T) {
 			},
 		},
 		Correlation: &analysis.CorrelationResult{
-			Matrix: [][]float64{
+			Matrix: ptrMatrix([][]float64{
 				{1.0, 0.8},
 				{0.8, 1.0},
-			},
+			}),
 			Symbols: []string{"AAPL", "MSFT"},
 			Period:  "1Y",
 		},
@@ -224,7 +224,7 @@ func TestAnalysisTemplate_SectionFilter(t *testing.T) {
 			Message: "Need 2+ ETFs for pairwise overlap analysis.",
 		},
 		Correlation: &analysis.CorrelationResult{
-			Matrix:  [][]float64{{1.0}},
+			Matrix:  ptrMatrix([][]float64{{1.0}}),
 			Symbols: []string{"AAPL"},
 			Period:  "1Y",
 		},
@@ -337,7 +337,7 @@ func TestSerializeCorrelationData(t *testing.T) {
 			name: "empty matrix",
 			result: &analysis.AnalysisResult{
 				Correlation: &analysis.CorrelationResult{
-					Matrix:  [][]float64{},
+					Matrix:  ptrMatrix([][]float64{}),
 					Symbols: []string{},
 				},
 			},
@@ -347,7 +347,7 @@ func TestSerializeCorrelationData(t *testing.T) {
 			name: "single symbol",
 			result: &analysis.AnalysisResult{
 				Correlation: &analysis.CorrelationResult{
-					Matrix:  [][]float64{{1.0}},
+					Matrix:  ptrMatrix([][]float64{{1.0}}),
 					Symbols: []string{"AAPL"},
 					Period:  "1Y",
 				},
@@ -358,10 +358,10 @@ func TestSerializeCorrelationData(t *testing.T) {
 			name: "two symbols",
 			result: &analysis.AnalysisResult{
 				Correlation: &analysis.CorrelationResult{
-					Matrix: [][]float64{
+					Matrix: ptrMatrix([][]float64{
 						{1.0, 0.85},
 						{0.85, 1.0},
-					},
+					}),
 					Symbols: []string{"AAPL", "MSFT"},
 					Period:  "3Y",
 				},
