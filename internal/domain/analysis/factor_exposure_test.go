@@ -1,10 +1,14 @@
 package analysis
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/govalues/decimal"
 )
 
 // --- ComputeFactorExposure tests ---
@@ -25,7 +29,7 @@ func TestComputeFactorExposure_HappyPath(t *testing.T) {
 		}),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// Weighted P/E: (60*18 + 40*25) / 100 = (1080 + 1000) / 100 = 20.8
 	// Weighted P/B: (60*3 + 40*5) / 100 = (180 + 200) / 100 = 3.8
@@ -69,8 +73,9 @@ func TestComputeFactorExposure_HappyPath(t *testing.T) {
 		t.Errorf("top holding pct = %.2f, want 3.00", result.TopHoldingWeightPct)
 	}
 
-	if len(result.Warnings) > 0 {
-		t.Errorf("unexpected warnings: %v", result.Warnings)
+	// Quality unavailable because getETFWithValuation doesn't set P/CF or P/Sales.
+	if len(result.Warnings) != 1 {
+		t.Errorf("expected 1 warning (quality unavailable), got %d: %v", len(result.Warnings), result.Warnings)
 	}
 	if result.Message != "" {
 		t.Errorf("unexpected message: %q", result.Message)
@@ -86,7 +91,7 @@ func TestComputeFactorExposure_SingleETF(t *testing.T) {
 		}),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// Weighted P/E: 15 (only one position)
 	if result.ValueGrowthTilt.WeightedPE != 15.0 {
@@ -136,7 +141,7 @@ func TestComputeFactorExposure_MixedETFAndStock(t *testing.T) {
 		getStockWithNoValuation("JNJ", 15),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// P/E: only VTI contributes → 22
 	if result.ValueGrowthTilt.WeightedPE != 22.0 {
@@ -198,7 +203,7 @@ func TestComputeFactorExposure_MissingValuationData(t *testing.T) {
 		getStockWithNoValuation("STOCK1", 20),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// P/E: only ETF1 contributes → 18
 	if result.ValueGrowthTilt.WeightedPE != 18.0 {
@@ -227,12 +232,15 @@ func TestComputeFactorExposure_MissingValuationData(t *testing.T) {
 		t.Errorf("size tilt = %q, want mixed", result.SizeTilt.Tilt)
 	}
 
-	// Should have a warning about partial size coverage (only ETF1 has FundProfile, 50% of portfolio)
-	if len(result.Warnings) != 1 {
-		t.Errorf("expected 1 warning, got %d: %v", len(result.Warnings), result.Warnings)
+	// Should have warnings about partial size coverage and quality data.
+	if len(result.Warnings) < 2 {
+		t.Errorf("expected at least 2 warnings, got %d: %v", len(result.Warnings), result.Warnings)
 	}
 	if !containsWarning(result.Warnings, "size data available for only") {
 		t.Errorf("expected partial size coverage warning: %v", result.Warnings)
+	}
+	if !containsWarning(result.Warnings, "no quality data") {
+		t.Errorf("expected quality data warning: %v", result.Warnings)
 	}
 }
 
@@ -243,7 +251,7 @@ func TestComputeFactorExposure_AllMissingData(t *testing.T) {
 		getStockWithNoValuation("MSFT", 50),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	if result.ValueGrowthTilt.WeightedPE != 0 {
 		t.Errorf("weighted P/E = %.2f, want 0", result.ValueGrowthTilt.WeightedPE)
@@ -296,7 +304,7 @@ func TestComputeFactorExposure_HHICalculation(t *testing.T) {
 		getStockWithNoValuation("C", 33.34),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// HHI = 0.3333² + 0.3333² + 0.3334²
 	//     = 0.111089 + 0.111089 + 0.111156
@@ -310,7 +318,7 @@ func TestComputeFactorExposure_HHICalculation(t *testing.T) {
 	positions2 := []PositionWithDetails{
 		getStockWithNoValuation("ONLY", 100),
 	}
-	result2 := ComputeFactorExposure(positions2)
+	result2 := ComputeFactorExposure(positions2, nil)
 
 	// HHI = 1.0² = 1.0
 	if result2.Concentration.HHI != 1.0 {
@@ -367,7 +375,7 @@ func TestComputeFactorExposure_ValueVsGrowthAxis(t *testing.T) {
 				}),
 			}
 
-			result := ComputeFactorExposure(positions)
+			result := ComputeFactorExposure(positions, nil)
 			if result.ValueGrowthTilt.Tilt != tt.wantTilt {
 				t.Errorf("tilt = %q, want %q (P/E=%.1f, P/B=%.1f)",
 					result.ValueGrowthTilt.Tilt, tt.wantTilt, tt.pe, tt.pb)
@@ -377,7 +385,7 @@ func TestComputeFactorExposure_ValueVsGrowthAxis(t *testing.T) {
 }
 
 func TestComputeFactorExposure_Empty(t *testing.T) {
-	result := ComputeFactorExposure([]PositionWithDetails{})
+	result := ComputeFactorExposure([]PositionWithDetails{}, nil)
 
 	if result.Message == "" {
 		t.Error("expected empty-state message")
@@ -398,7 +406,7 @@ func TestComputeFactorExposure_SizeTiltMixed(t *testing.T) {
 		getETFWithValuation("SMALL", 25, 25, 5, 500_000_000, nil),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	if result.SizeTilt.LargeCapPct != 40.0 {
 		t.Errorf("large cap pct = %.2f, want 40", result.SizeTilt.LargeCapPct)
@@ -423,7 +431,7 @@ func TestComputeFactorExposure_SizeTiltDominant(t *testing.T) {
 		getETFWithValuation("SMALL", 15, 25, 5, 1_000_000_000, nil),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// Large: 35+30=65%, Mid: 20%, Small: 15%
 	if result.SizeTilt.LargeCapPct != 65.0 {
@@ -454,7 +462,7 @@ func TestComputeFactorExposure_NoHoldingsData(t *testing.T) {
 		},
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// HHI should use position weight: 1.0² = 1.0
 	if result.Concentration.HHI != 1.0 {
@@ -477,7 +485,7 @@ func TestComputeFactorExposure_NoSymbolDetails(t *testing.T) {
 		},
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// Should generate warnings about missing data.
 	if len(result.Warnings) < 2 {
@@ -495,7 +503,7 @@ func TestComputeFactorExposure_ZeroPEOrPB(t *testing.T) {
 		getETFWithValuation("ETF2", 50, 25, 0, 15_000_000_000, nil),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// P/E: only ETF2 (25) → weighted P/E = 25
 	if result.ValueGrowthTilt.WeightedPE != 25.0 {
@@ -514,7 +522,7 @@ func TestComputeFactorExposure_NegativePEOrPB(t *testing.T) {
 		getETFWithValuation("ETF2", 50, 22, 4.5, 15_000_000_000, nil),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// P/E: only ETF2 (22) → weighted P/E = 22
 	if result.ValueGrowthTilt.WeightedPE != 22.0 {
@@ -535,7 +543,7 @@ func TestComputeFactorExposure_PartialSizeCoverage(t *testing.T) {
 		getStockWithNoValuation("JNJ", 15),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	// Size percentages are relative to total portfolio, so large = 60% (gap = missing data).
 	if result.SizeTilt.LargeCapPct != 60.0 {
@@ -558,7 +566,7 @@ func TestComputeFactorExposure_TiltUnavailable(t *testing.T) {
 		getStockWithNoValuation("MSFT", 50),
 	}
 
-	result := ComputeFactorExposure(positions)
+	result := ComputeFactorExposure(positions, nil)
 
 	if result.ValueGrowthTilt.Tilt != "unavailable" {
 		t.Errorf("tilt = %q, want unavailable", result.ValueGrowthTilt.Tilt)
@@ -689,4 +697,328 @@ func containsWarning(warnings []string, substr string) bool {
 		}
 	}
 	return false
+}
+
+// --- Quality tests ---
+
+func TestComputeFactorExposure_QualityHappyPath(t *testing.T) {
+	// Two ETFs with P/CF and P/Sales data.
+	// ETF1: 60% weight, P/CF=8 (high quality), P/Sales=2.0 (high quality)
+	// ETF2: 40% weight, P/CF=12 (low quality), P/Sales=3.5 (low quality)
+	positions := []PositionWithDetails{
+		getETFWithFullData("ETF1", 60, 18, 3, 8, 2.0, 50_000_000_000, 0.03, 25, nil),
+		getETFWithFullData("ETF2", 40, 25, 5, 12, 3.5, 30_000_000_000, 0.05, 40, nil),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	// Weighted P/CF: (60*8 + 40*12) / 100 = (480+480)/100 = 9.6
+	if result.Quality.WeightedPCF != 9.6 {
+		t.Errorf("weighted P/CF = %.2f, want 9.60", result.Quality.WeightedPCF)
+	}
+	// Weighted P/Sales: (60*2.0 + 40*3.5) / 100 = (120+140)/100 = 2.6
+	if result.Quality.WeightedPS != 2.6 {
+		t.Errorf("weighted P/Sales = %.2f, want 2.60", result.Quality.WeightedPS)
+	}
+
+	// P/CF 9.6 vs benchmark 10: within 20% (8-12) → neutral
+	// P/Sales 2.6 vs benchmark 2.5: within 20% (2.0-3.0) → neutral
+	// Both neutral → "neutral"
+	if result.Quality.Tilt != "neutral" {
+		t.Errorf("quality tilt = %q, want neutral", result.Quality.Tilt)
+	}
+}
+
+func TestComputeFactorExposure_QualityHigh(t *testing.T) {
+	// Low P/CF and P/Sales → high quality.
+	positions := []PositionWithDetails{
+		getETFWithFullData("ETF1", 100, 15, 2.5, 6, 1.5, 80_000_000_000, 0.03, 20, nil),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	// P/CF 6 < 8 (10-2) → high-quality
+	// P/Sales 1.5 < 2.0 (2.5-0.5) → high-quality
+	if result.Quality.Tilt != "high-quality" {
+		t.Errorf("quality tilt = %q, want high-quality", result.Quality.Tilt)
+	}
+}
+
+func TestComputeFactorExposure_QualityLow(t *testing.T) {
+	// High P/CF and P/Sales → low quality.
+	positions := []PositionWithDetails{
+		getETFWithFullData("ETF1", 100, 30, 6, 14, 4.0, 50_000_000_000, 0.05, 50, nil),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	// P/CF 14 > 12 (10+2) → low-quality
+	// P/Sales 4.0 > 3.0 (2.5+0.5) → low-quality
+	if result.Quality.Tilt != "low-quality" {
+		t.Errorf("quality tilt = %q, want low-quality", result.Quality.Tilt)
+	}
+}
+
+func TestComputeFactorExposure_QualityUnavailable(t *testing.T) {
+	// No P/CF or P/Sales data.
+	positions := []PositionWithDetails{
+		getETFWithValuation("ETF1", 100, 20, 4, 50_000_000_000, nil),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	if result.Quality.Tilt != "unavailable" {
+		t.Errorf("quality tilt = %q, want unavailable", result.Quality.Tilt)
+	}
+	if !containsWarning(result.Warnings, "no quality data") {
+		t.Errorf("expected quality data warning: %v", result.Warnings)
+	}
+}
+
+// --- Cost tests ---
+
+func TestComputeFactorExposure_CostHappyPath(t *testing.T) {
+	// Two ETFs with expense ratio and turnover.
+	positions := []PositionWithDetails{
+		getETFWithFullData("ETF1", 60, 18, 3, 8, 2.0, 50_000_000_000, 0.03, 25, nil),
+		getETFWithFullData("ETF2", 40, 25, 5, 12, 3.5, 30_000_000_000, 0.05, 40, nil),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	// Weighted expense: (60*0.03 + 40*0.05) / 100 = (1.8+2.0)/100 = 0.038
+	if result.Cost.WeightedExpenseRatio != 0.04 {
+		t.Errorf("weighted expense = %.4f, want 0.04", result.Cost.WeightedExpenseRatio)
+	}
+	// Weighted turnover: (60*25 + 40*40) / 100 = (1500+1600)/100 = 31.0
+	if result.Cost.WeightedTurnover != 31.0 {
+		t.Errorf("weighted turnover = %.2f, want 31.0", result.Cost.WeightedTurnover)
+	}
+}
+
+func TestComputeFactorExposure_CostZeroValues(t *testing.T) {
+	// Expense ratio or turnover of 0 should be skipped.
+	positions := []PositionWithDetails{
+		getETFWithFullData("ETF1", 50, 18, 3, 8, 2.0, 50_000_000_000, 0, 25, nil),
+		getETFWithFullData("ETF2", 50, 25, 5, 12, 3.5, 30_000_000_000, 0.05, 0, nil),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	// Expense: only ETF2 (0.05) → 0.05
+	if result.Cost.WeightedExpenseRatio != 0.05 {
+		t.Errorf("weighted expense = %.4f, want 0.05", result.Cost.WeightedExpenseRatio)
+	}
+	// Turnover: only ETF1 (25) → 25
+	if result.Cost.WeightedTurnover != 25.0 {
+		t.Errorf("weighted turnover = %.2f, want 25", result.Cost.WeightedTurnover)
+	}
+}
+
+// --- Momentum tests ---
+
+func TestComputeFactorExposure_MomentumHappyPath(t *testing.T) {
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("AAPL", 60),
+		getStockWithNoValuation("MSFT", 40),
+	}
+
+	// AAPL: prices from 12 months ago to now, with ~10% gain over 12M.
+	// MSFT: similar but ~5% gain.
+	prices := makePriceMap([]priceEntry{
+		// AAPL: 12 months of daily prices, rising from 100 to 110.
+		{"AAPL", -365, 100}, {"AAPL", -183, 103}, {"AAPL", -92, 106}, {"AAPL", 0, 110},
+		// MSFT: rising from 100 to 105.
+		{"MSFT", -365, 100}, {"MSFT", -183, 101.5}, {"MSFT", -92, 103}, {"MSFT", 0, 105},
+	})
+
+	result := ComputeFactorExposure(positions, prices)
+
+	// Both have positive returns → positive momentum
+	if result.Momentum.Tilt != "positive" {
+		t.Errorf("momentum tilt = %q, want positive", result.Momentum.Tilt)
+	}
+	if result.Momentum.Return12M <= 0 {
+		t.Errorf("12M return = %.2f, want >0", result.Momentum.Return12M)
+	}
+}
+
+func TestComputeFactorExposure_MomentumNegative(t *testing.T) {
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("FALLING", 100),
+	}
+
+	// Prices declining from 100 to 80.
+	prices := makePriceMap([]priceEntry{
+		{"FALLING", -365, 100}, {"FALLING", -183, 92}, {"FALLING", -92, 86}, {"FALLING", 0, 80},
+	})
+
+	result := ComputeFactorExposure(positions, prices)
+
+	if result.Momentum.Tilt != "negative" {
+		t.Errorf("momentum tilt = %q, want negative", result.Momentum.Tilt)
+	}
+}
+
+func TestComputeFactorExposure_MomentumUnavailable(t *testing.T) {
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("AAPL", 100),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	if result.Momentum.Tilt != "unavailable" {
+		t.Errorf("momentum tilt = %q, want unavailable", result.Momentum.Tilt)
+	}
+}
+
+// --- Volatility tests ---
+
+func TestComputeFactorExposure_VolatilityHappyPath(t *testing.T) {
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("STABLE", 100),
+	}
+
+	// Prices with low daily variance (~0.3% daily → ~5% annualized).
+	prices := makePriceMap([]priceEntry{
+		{"STABLE", -60, 100}, {"STABLE", -59, 100.3}, {"STABLE", -58, 100.1},
+		{"STABLE", -57, 100.4}, {"STABLE", -56, 100.2}, {"STABLE", -55, 100.5},
+		{"STABLE", -54, 100.3}, {"STABLE", -53, 100.1}, {"STABLE", -52, 100.4},
+		{"STABLE", -51, 100.2}, {"STABLE", -50, 100.3},
+	})
+
+	result := ComputeFactorExposure(positions, prices)
+
+	if result.Volatility.Tilt != "low" {
+		t.Errorf("volatility tilt = %q, want low (vol=%.2f)", result.Volatility.Tilt, result.Volatility.AnnualizedVol)
+	}
+}
+
+func TestComputeFactorExposure_VolatilityHigh(t *testing.T) {
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("VOLATILE", 100),
+	}
+
+	// Prices oscillating wildly (~2% daily → ~32% annualized).
+	prices := makePriceMap([]priceEntry{
+		{"VOLATILE", -60, 100}, {"VOLATILE", -59, 102}, {"VOLATILE", -58, 98},
+		{"VOLATILE", -57, 101}, {"VOLATILE", -56, 97}, {"VOLATILE", -55, 103},
+		{"VOLATILE", -54, 96}, {"VOLATILE", -53, 104}, {"VOLATILE", -52, 95},
+		{"VOLATILE", -51, 105}, {"VOLATILE", -50, 94},
+	})
+
+	result := ComputeFactorExposure(positions, prices)
+
+	if result.Volatility.Tilt != "high" {
+		t.Errorf("volatility tilt = %q, want high (vol=%.2f)", result.Volatility.Tilt, result.Volatility.AnnualizedVol)
+	}
+}
+
+func TestComputeFactorExposure_VolatilityUnavailable(t *testing.T) {
+	positions := []PositionWithDetails{
+		getStockWithNoValuation("AAPL", 100),
+	}
+
+	result := ComputeFactorExposure(positions, nil)
+
+	if result.Volatility.Tilt != "unavailable" {
+		t.Errorf("volatility tilt = %q, want unavailable", result.Volatility.Tilt)
+	}
+}
+
+// --- Helper for price-based tests ---
+
+type priceEntry struct {
+	sym  string
+	daysAgo int
+	price  float64
+}
+
+func makePriceMap(entries []priceEntry) map[string][]market.HistoricalPrice {
+	result := make(map[string][]market.HistoricalPrice)
+	now := time.Now()
+
+	for _, e := range entries {
+		date := now.AddDate(0, 0, e.daysAgo)
+		price := decimal.MustParse(fmt.Sprintf("%.2f", e.price))
+		result[e.sym] = append(result[e.sym], market.HistoricalPrice{
+			Date:     date,
+			Close:    price,
+			Currency: "USD",
+		})
+	}
+
+	return result
+}
+
+// --- Helper function tests for new factors ---
+
+func TestClassifyMomentum(t *testing.T) {
+	tests := []struct {
+		name string
+		r3   float64
+		r6   float64
+		r12  float64
+		want string
+	}{
+		{"all positive", 5, 8, 10, "positive"},
+		{"all negative", -5, -8, -10, "negative"},
+		{"mixed — more positive", 5, -1, 3, "positive"},
+		{"mixed — more negative", -5, 1, -3, "negative"},
+		{"all zero", 0, 0, 0, "unavailable"},
+		{"within threshold", 1, 1, 1, "neutral"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := classifyMomentum(tt.r3, tt.r6, tt.r12)
+			if got != tt.want {
+				t.Errorf("classifyMomentum(%.1f, %.1f, %.1f) = %q, want %q",
+					tt.r3, tt.r6, tt.r12, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClassifyVolatility(t *testing.T) {
+	tests := []struct {
+		name string
+		vol  float64
+		want string
+	}{
+		{"low", 8, "low"},
+		{"boundary low", 10, "low"},
+		{"medium", 15, "medium"},
+		{"boundary high", 20, "medium"},
+		{"high", 25, "high"},
+		{"zero", 0, "unavailable"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := classifyVolatility(tt.vol)
+			if got != tt.want {
+				t.Errorf("classifyVolatility(%.1f) = %q, want %q", tt.vol, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRemapQualityTilt(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"value", "high-quality"},
+		{"growth", "low-quality"},
+		{"neutral", "neutral"},
+		{"unavailable", "unavailable"},
+	}
+
+	for _, tt := range tests {
+		got := remapQualityTilt(tt.input)
+		if got != tt.want {
+			t.Errorf("remapQualityTilt(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
 }

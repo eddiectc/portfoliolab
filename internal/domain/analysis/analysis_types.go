@@ -120,22 +120,27 @@ type StressScenarioResult struct {
 // --- Factor Exposure ---
 
 // FactorExposureResult holds proxy-based factor exposure metrics derived from
-// cached valuation data (P/E, P/B, market cap, concentration).
+// cached valuation data (P/E, P/B, market cap, concentration) and, when
+// price history is provided, time-series factors (momentum, volatility).
 type FactorExposureResult struct {
-	ValueGrowthTilt      FactorValueGrowth `json:"value_growth_tilt"`
-	SizeTilt             FactorSizeTilt    `json:"size_tilt"`
-	Concentration        FactorConcentration `json:"concentration"`
-	TopHoldingWeightPct  float64           `json:"top_holding_weight_pct"`
-	Warnings             []string          `json:"warnings,omitempty"`
-	Message              string            `json:"message,omitempty"`
+	ValueGrowthTilt     FactorValueGrowth `json:"value_growth_tilt"`
+	SizeTilt            FactorSizeTilt    `json:"size_tilt"`
+	Concentration       FactorConcentration `json:"concentration"`
+	TopHoldingWeightPct float64           `json:"top_holding_weight_pct"`
+	Quality             FactorQuality     `json:"quality"`
+	Cost                FactorCost        `json:"cost"`
+	Momentum            FactorMomentum    `json:"momentum"`
+	Volatility          FactorVolatility  `json:"volatility"`
+	Warnings            []string          `json:"warnings,omitempty"`
+	Message             string            `json:"message,omitempty"`
 }
 
 // FactorValueGrowth describes the portfolio's value vs growth tilt based on
 // weighted P/E and P/B relative to a benchmark reference.
 type FactorValueGrowth struct {
-	WeightedPE  float64 `json:"weighted_pe"`
-	WeightedPB  float64 `json:"weighted_pb"`
-	Tilt        string  `json:"tilt"` // "value", "growth", or "neutral"
+	WeightedPE float64 `json:"weighted_pe"`
+	WeightedPB float64 `json:"weighted_pb"`
+	Tilt       string  `json:"tilt"` // "value", "growth", "neutral", or "unavailable"
 }
 
 // FactorSizeTilt describes the portfolio's size bias (large-cap vs mid-cap).
@@ -148,8 +153,40 @@ type FactorSizeTilt struct {
 
 // FactorConcentration describes portfolio concentration via the Herfindahl-Hirschman Index.
 type FactorConcentration struct {
-	HHI        float64 `json:"hhi"`
-	Interpretation string `json:"interpretation"` // "well-diversified", "moderately-concentrated", "highly-concentrated"
+	HHI            float64 `json:"hhi"`
+	Interpretation string  `json:"interpretation"` // "well-diversified", "moderately-concentrated", "highly-concentrated"
+}
+
+// FactorQuality describes portfolio quality based on valuation ratios.
+// Lower P/CF and P/Sales indicate higher quality (more cash flow/sales per
+// dollar invested). Compared to S&P 500 reference values.
+type FactorQuality struct {
+	WeightedPCF float64 `json:"weighted_p_cashflow"`
+	WeightedPS  float64 `json:"weighted_p_sales"`
+	Tilt        string  `json:"tilt"` // "high-quality", "low-quality", "neutral", or "unavailable"
+}
+
+// FactorCost describes portfolio cost exposure from fund-level metrics.
+// Expense ratio and holdings turnover as portfolio-weighted averages.
+type FactorCost struct {
+	WeightedExpenseRatio float64 `json:"weighted_expense_ratio"` // e.g. 0.03 = 0.03%
+	WeightedTurnover     float64 `json:"weighted_turnover"`      // e.g. 25.0 = 25%
+}
+
+// FactorMomentum describes portfolio momentum based on historical price returns.
+// Returns are portfolio-weighted averages over 3M, 6M, and 12M windows.
+type FactorMomentum struct {
+	Return3M  float64 `json:"return_3m"`  // 3-month return %
+	Return6M  float64 `json:"return_6m"`  // 6-month return %
+	Return12M float64 `json:"return_12m"` // 12-month return %
+	Tilt      string  `json:"tilt"`       // "positive", "negative", "neutral", or "unavailable"
+}
+
+// FactorVolatility describes portfolio volatility from daily returns.
+// Annualized volatility as portfolio-weighted average.
+type FactorVolatility struct {
+	AnnualizedVol float64 `json:"annualized_vol"` // annualized volatility %
+	Tilt          string  `json:"tilt"`           // "low", "medium", "high", or "unavailable"
 }
 
 // --- Input types ---

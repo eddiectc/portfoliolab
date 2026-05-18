@@ -80,3 +80,12 @@ Plan specified `ComputeFactorExposure(positions []PositionWithDetails, portfolio
 - **Size percentages**: Changed from "relative to tracked weight" to "relative to total portfolio" — so they sum to <100% when coverage is partial. The gap is the signal (e.g., 60% large + 40% gap = missing data).
 - **Concentration for nil SymbolDetails**: Instead of silently skipping positions with no symbol details, use position weight directly for HHI/top-holding (same fallback as ETFs without holdings data). Warning updated to say "using position weight for concentration only".
 - Added `roundTo4` helper to `overlap.go` alongside existing `roundTo2`
+
+### Additional factors (Quality, Cost, Momentum, Volatility)
+- **Signature change**: `ComputeFactorExposure` now takes `pricesBySymbol map[string][]market.HistoricalPrice` as second param (pass `nil` for static-only)
+- **Quality**: Weighted P/CF and P/Sales from `EquityValuation`, compared to S&P 500 reference (10x P/CF, 2.5x P/Sales) with ±20% neutral band. Lower = better quality.
+- **Cost**: Weighted expense ratio and holdings turnover from `FundProfile`. No tilt classification — reported as raw values.
+- **Momentum**: Portfolio-weighted 3M/6M/12M returns from price history. Tilt based on majority of windows above/below ±2% threshold.
+- **Volatility**: Portfolio-weighted annualized volatility (daily std dev × √252). Thresholds: ≤10% low, ≤20% medium, >20% high.
+- `getETFWithFullData` test helper added for tests needing P/CF, P/Sales, expense ratio, and turnover.
+- `makePriceMap` test helper for constructing price history from `priceEntry` slices.
