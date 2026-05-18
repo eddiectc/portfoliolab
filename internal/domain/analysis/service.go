@@ -397,6 +397,13 @@ func (s *Service) fetchHistoricalPrices(ctx context.Context, enriched []position
 	cutoff, _ := periodCutoff(period)
 	now := time.Now().UTC()
 
+	// Factor exposure (momentum/volatility) needs at least 12M of price data
+	// regardless of the selected period. Use the earlier of the two cutoffs.
+	minCutoff := now.AddDate(0, 0, -365)
+	if cutoff.Before(minCutoff) {
+		minCutoff = cutoff
+	}
+
 	prices := make(map[string][]market.HistoricalPrice, len(symbolSet))
 	var missingSymbols []string
 
@@ -409,7 +416,7 @@ func (s *Service) fetchHistoricalPrices(ctx context.Context, enriched []position
 		}
 
 		// Fetch historical prices.
-		hp, err := s.marketHistory.GetHistoricalPrices(ctx, marketSymbol, cutoff, now)
+		hp, err := s.marketHistory.GetHistoricalPrices(ctx, marketSymbol, minCutoff, now)
 		if err != nil {
 			missingSymbols = append(missingSymbols, sym)
 			continue
