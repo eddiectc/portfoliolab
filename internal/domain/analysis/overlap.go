@@ -27,24 +27,28 @@ func ComputeOverlap(positions []PositionWithDetails) *OverlapResult {
 		}
 	}
 
+	// Aggregate positions by symbol — same ETF held in multiple accounts
+	// should appear as one entry with combined weight.
+	aggETFs := aggregateBySymbol(etfs)
+
 	var warnings []string
-	for _, p := range etfs {
+	for _, p := range aggETFs {
 		if len(p.SymbolDetails.TopHoldings) == 0 {
 			warnings = append(warnings, "ETF "+p.Symbol+" has no cached holdings data — excluded from overlap analysis")
 		}
 	}
 
 	// Concentrated stocks computed even for a single ETF.
-	concentrated := computeConcentratedStocks(etfs)
+	concentrated := computeConcentratedStocks(aggETFs)
 
-	// Pairwise matrix requires 2+ ETFs.
+	// Pairwise matrix requires 2+ unique ETFs.
 	var pairs []OverlapPair
 	var message string
-	if len(etfs) < 2 {
+	if len(aggETFs) < 2 {
 		pairs = []OverlapPair{}
-		message = "Only 1 ETF position found. ETF overlap requires at least 2 ETFs for pairwise comparison."
+		message = "Only 1 unique ETF found. ETF overlap requires at least 2 ETFs for pairwise comparison."
 	} else {
-		pairs = computePairwiseMatrix(etfs)
+		pairs = computePairwiseMatrix(aggETFs)
 	}
 
 	return &OverlapResult{
@@ -64,6 +68,24 @@ func filterETFs(positions []PositionWithDetails) []PositionWithDetails {
 		}
 	}
 	return etfs
+}
+
+// aggregateBySymbol merges positions for the same ETF symbol into a single
+// entry with combined portfolio weight. Holdings data (TopHoldings) is taken
+// from the first position since it's identical for the same symbol.
+func aggregateBySymbol(positions []PositionWithDetails) []PositionWithDetails {
+	seen := make(map[string]int) // symbol → index in result
+	result := make([]PositionWithDetails, 0, len(positions))
+
+	for _, p := range positions {
+		if idx, ok := seen[p.Symbol]; ok {
+			result[idx].PortfolioWeight += p.PortfolioWeight
+		} else {
+			seen[p.Symbol] = len(result)
+			result = append(result, p)
+		}
+	}
+	return result
 }
 
 // computePairwiseMatrix builds the symmetric ETF overlap matrix (diagonal omitted).
