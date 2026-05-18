@@ -320,24 +320,30 @@ func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string]
 		})
 
 		// Find the start and end prices for each window.
-		start3M, end3M := findReturnRange(sorted, threeMonthsAgo, now)
-		start6M, end6M := findReturnRange(sorted, sixMonthsAgo, now)
-		start12M, end12M := findReturnRange(sorted, twelveMonthsAgo, now)
+		start3M, end3M, okStart3M, okEnd3M := findReturnRange(sorted, threeMonthsAgo, now)
+		start6M, end6M, okStart6M, okEnd6M := findReturnRange(sorted, sixMonthsAgo, now)
+		start12M, end12M, okStart12M, okEnd12M := findReturnRange(sorted, twelveMonthsAgo, now)
 
-		if start3M > 0 && end3M > 0 {
+		if okStart3M && okEnd3M && start3M > 0 && end3M > 0 {
 			ret := (end3M/start3M - 1.0) * 100.0
 			return3M += p.PortfolioWeight * ret
 			trackedWeight3M += p.PortfolioWeight
+		} else if !okStart3M || !okEnd3M {
+			*warnings = append(*warnings, p.Symbol+": price conversion failed for 3M momentum")
 		}
-		if start6M > 0 && end6M > 0 {
+		if okStart6M && okEnd6M && start6M > 0 && end6M > 0 {
 			ret := (end6M/start6M - 1.0) * 100.0
 			return6M += p.PortfolioWeight * ret
 			trackedWeight6M += p.PortfolioWeight
+		} else if !okStart6M || !okEnd6M {
+			*warnings = append(*warnings, p.Symbol+": price conversion failed for 6M momentum")
 		}
-		if start12M > 0 && end12M > 0 {
+		if okStart12M && okEnd12M && start12M > 0 && end12M > 0 {
 			ret := (end12M/start12M - 1.0) * 100.0
 			return12M += p.PortfolioWeight * ret
 			trackedWeight12M += p.PortfolioWeight
+		} else if !okStart12M || !okEnd12M {
+			*warnings = append(*warnings, p.Symbol+": price conversion failed for 12M momentum")
 		}
 	}
 
@@ -368,19 +374,23 @@ func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string]
 	}
 }
 
-// findReturnRange finds the closest price before start and closest price after
-// end in a sorted price series. Returns 0 if not found.
-func findReturnRange(sorted []market.HistoricalPrice, start, end time.Time) (float64, float64) {
+// findReturnRange finds the closest price on/before start and closest price
+// on/before end in a sorted price series. The boolean flags indicate successful
+// Float64 conversion. Returns (0, false) if no matching date or conversion fails.
+func findReturnRange(sorted []market.HistoricalPrice, start, end time.Time) (float64, float64, bool, bool) {
 	var startPrice, endPrice float64
+	var foundStart, foundEnd bool
 	for _, p := range sorted {
+		// For start: keep overwriting to get the last (most recent) price <= start.
 		if p.Date.Before(start) || p.Date.Equal(start) {
-			startPrice, _ = p.Close.Float64()
+			startPrice, foundStart = p.Close.Float64()
 		}
+		// For end: keep overwriting to get the last (most recent) price <= end.
 		if !p.Date.After(end) {
-			endPrice, _ = p.Close.Float64()
+			endPrice, foundEnd = p.Close.Float64()
 		}
 	}
-	return startPrice, endPrice
+	return startPrice, endPrice, foundStart, foundEnd
 }
 
 // classifyMomentum returns the momentum tilt based on 3M/6M/12M returns.
