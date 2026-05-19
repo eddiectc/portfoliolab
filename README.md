@@ -9,9 +9,11 @@ A self-hosted investment portfolio management platform for personal investors to
 
 ## Documentation
 
+- [Project Overview](docs/PROJECT.md) — goals, non-goals, constraints, doc index
+- [Coding Conventions](docs/CONVENTIONS.md) — style, naming, testing, domain, DB, API, web, security
+- [FX Conventions](docs/FX_CONVENTIONS.md) — foreign exchange rate conventions
 - [API Reference](API.md) — REST API endpoints, request/response schemas
-- [Conventions](docs/CONVENTIONS.md) — coding standards and architecture principles
-- [Features](features/) — feature specs, plans, and retrospectives
+- [Features](features/) — feature specs, plans, notes, retrospectives
 
 ## Problem Statement
 
@@ -109,7 +111,7 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 | **Market Data** | `github.com/wnjoon/go-yfinance` | Pure Go yfinance client, no Python dependency |
 | **Config** | YAML config file | Simple, no env var sprawl |
 | **Logging** | `slog` (std) | Structured logging, built into Go 1.21+ |
-| **Unit Testing** | `testify` + mocks (mockery) | Mock interfaces for repos and external deps; Arrange-Act-Assert |
+| **Unit Testing** | `testing` (std) + hand-written mocks | Minimal mock structs in `*_test.go`; Arrange-Act-Assert |
 | **Integration Testing** | In-memory SQLite + httptest | Real SQL, real schema, isolated per test |
 | **Build** | Makefile | Simple build targets |
 | **Deployment** | Docker (optional) + binary | Run directly or containerized |
@@ -121,99 +123,13 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 | **Go** (1.21+) | https://go.dev/doc/install |
 | **sqlc** | `go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest` |
 | **goose** | `go install github.com/pressly/goose/v3/cmd/goose@latest` |
-| **mockery** | `go install github.com/vektra/mockery/v3@v3.7.0` |
-
-## Project Layout
-
-```
-portfoliolab/
-├── cmd/
-│   └── server/
-│       └── main.go                 # Application entry point
-├── internal/
-│   ├── api/                        # HTTP API handlers
-│   │   ├── handlers/
-│   │   │   ├── portfolio.go
-│   │   │   ├── account.go
-│   │   │   ├── transaction.go
-│   │   │   ├── position.go
-│   │   │   ├── import.go
-│   │   │   └── analytics.go
-│   │   └── middleware/
-│   │       └── logging.go
-│   ├── domain/                     # Business logic
-│   │   ├── portfolio/
-│   │   │   ├── portfolio.go
-│   │   │   └── service.go
-│   │   ├── account/
-│   │   │   ├── account.go
-│   │   │   └── service.go
-│   │   ├── transaction/
-│   │   │   ├── transaction.go
-│   │   │   ├── service.go
-│   │   │   └── calculator.go       # Position/P&L calculation
-│   │   ├── position/
-│   │   │   ├── position.go
-│   │   │   └── aggregator.go
-│   │   ├── analytics/
-│   │   │   ├── pnl.go
-│   │   │   ├── drawdown.go
-│   │   │   ├── benchmark.go        # Compare portfolio vs S&P/NASDAQ/custom
-│   │   │   └── performance.go
-│   │   ├── currency/
-│   │   │   ├── rate.go
-│   │   │   └── converter.go
-│   │   └── import/
-│   │       ├── csv_importer.go
-│   │       ├── ibkr_importer.go
-│   │       └── t212_importer.go
-│   ├── data/                       # Data access layer
-│   │   ├── db.go
-│   │   ├── portfolio_repo.go
-│   │   ├── account_repo.go
-│   │   ├── transaction_repo.go
-│   │   └── currency_repo.go
-│   ├── market/                     # Market data
-│   │   ├── fetcher.go              # go-yfinance client wrapper
-│   │   └── benchmark.go            # S&P 500, NASDAQ, custom benchmarks
-│   └── web/                        # Web rendering
-│       ├── renderer.go
-│       └── static/
-│           ├── css/
-│           ├── js/
-│           └── charts/
-├── templates/                      # HTML templates
-│   ├── base.html
-│   ├── dashboard.html
-│   ├── portfolio.html
-│   ├── accounts.html
-│   ├── transactions.html
-│   ├── positions.html
-│   ├── analytics.html
-│   └── import.html
-├── migrations/                     # Database migrations
-│   └── 001_initial.sql
-├── config/
-│   └── config.example.yaml
-├── tests/
-│   ├── integration/
-│   └── fixtures/
-│       ├── sample_csv.csv
-│       ├── ibkr_flex_sample.xml
-│       └── t212_sample.csv
-├── go.mod
-├── go.sum
-├── Makefile
-├── Dockerfile
-├── README.md
-└── AGENTS.md
-```
+| **goimports** | `go install golang.org/x/tools/cmd/goimports@latest` |
 
 ## Testing Strategy
 
 ### Unit Tests (co-located with source: `*_test.go`)
 - **Scope**: Pure domain logic — P&L calculations, position aggregation, currency conversion, import parsing, benchmark math
-- **Approach**: Mock all external dependencies (repos, market data fetcher) using interfaces + `mockery`
+- **Approach**: Hand-written mocks — minimal mock structs co-located in `*_test.go` files, simulating real repository behavior
 - **Pattern**: Arrange-Act-Assert; table-driven tests (`[]struct{name, input, want}`)
 - **Target**: 80%+ coverage on `internal/domain/`
 - **No DB, no network** — unit tests run fast and deterministically
@@ -237,7 +153,7 @@ portfoliolab/
 ### Other Tests
 - **Import parsing**: Fixture-driven with real (anonymized) broker export files
 - **Market data**: Mock go-yfinance responses; test price parsing and benchmark calculations
-- **Tools**: `testing` (std), `testify` for assertions, `mockery` for mock generation
+- **Tools**: `testing` (std), hand-written mocks (no testify/mockery)
 
 ## Definition of Done
 

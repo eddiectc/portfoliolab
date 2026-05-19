@@ -4,35 +4,9 @@
 
 Arch Portfolio Lab is a self-hosted investment portfolio management platform built in Go. It tracks stocks and ETFs across multiple accounts and currencies, with deep P&L analytics including drawdown analysis and benchmark comparison (S&P 500, NASDAQ, custom). Market data is fetched via `go-yfinance` (pure Go). The web UI is server-rendered (Go templates), and all functionality is exposed via a REST API for future mobile app support. Database is SQLite (single file, WAL mode).
 
-## Conventions
+## Conventions Reference
 
-### Coding Style
-- Follow standard Go formatting: `gofmt` / `goimports`
-- Use `errcheck` — never ignore errors silently
-- Prefer composition over embedding in domain models
-- Use interfaces sparingly — define them where needed (e.g., repositories, fetchers)
-- Struct tags: `json` for API, `db` for sqlc, `yaml` for config
-
-### Naming Conventions
-- Packages: lowercase, short, no underscores (e.g., `portfolio`, `analytics`)
-- Handlers: `HandleCreatePortfolio`, `HandleListTransactions`
-- Services: `PortfolioService`, `PositionAggregator`
-- Repositories: `PortfolioRepository`, `TransactionRepository`
-- Domain models: singular nouns (`Portfolio`, `Transaction`, `Position`)
-- DTOs: suffixed with `Request`/`Response` (e.g., `CreateTransactionRequest`)
-- Interfaces: suffixed with `er` where natural (`Fetcher`, `Repository`) or descriptive (`PositionAggregator`)
-
-### File Organization
-- `cmd/` — application entry points
-- `internal/` — private application code (never imported externally)
-  - `api/` — HTTP handlers and middleware
-  - `domain/` — business logic and services
-  - `data/` — data access / repositories
-  - `market/` — go-yfinance integration and benchmark data
-  - `web/` — HTML rendering and static assets
-- `templates/` — Go HTML templates
-- `migrations/` — SQL migration files (SQLite-compatible, managed by goose)
-- `tests/` — test files and fixtures
+Coding conventions (style, naming, testing, domain logic, database, API, web, security) are documented in **docs/CONVENTIONS.md**. Read that file for the full set of rules. AGENTS.md covers agent-specific workflow and practices only.
 
 ## Common Commands
 
@@ -100,13 +74,8 @@ Feature index: `features/README.md`.
 ## Best Practices
 
 ### Unit Testing
-- **Co-locate tests**: `domain/transaction/calculator_test.go` next to `calculator.go`
 - **Hand-written mocks only**: Define minimal mock structs co-located in `*_test.go` files (not separate mock files, no mockery/testify). Follow the `account/service_test.go` pattern: the mock maintains internal state (maps, slices) and simulates real repository behavior — e.g., `Create` then `GetByID` returns the created item. This catches service-layer bugs that permissive expectation-based mocks would hide.
 - **Mocks must simulate real behavior**: If the real implementation returns empty/error for edge-case inputs (e.g. `limit=0` → `LIMIT 0` → zero rows), the mock must do the same.
-- **Table-driven tests**: Use `[]struct{name, input, want}` for comprehensive coverage
-- **Arrange-Act-Assert**: Clear separation; no setup in the act phase
-- **No DB, no network**: Unit tests run fast and deterministically
-- **Use `-short` flag**: Skip integration-only tests with `if testing.Short() { t.Skip() }`
 
 ### Integration Testing
 - **Fresh DB per test**: In-memory SQLite (`file::memory:?cache=shared`) with goose migrations
@@ -116,9 +85,6 @@ Feature index: `features/README.md`.
 
 ### Domain Logic
 - **Position calculations** are the heart of the app — be extra careful with P&L math
-- Use `github.com/govalues/decimal` for all monetary values (prices, costs, P&L) — never `float64`
-- Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
-- Document all rounding rules and edge cases in code comments
 - The `calculator.go` in the transaction domain is critical — test exhaustively
 
 #### govalues/decimal API Reference
@@ -130,35 +96,12 @@ Feature index: `features/README.md`.
 | Compare | `a.Equal(b)` | not string equality; `String()` preserves scale ("150.00" ≠ "150") |
 | Serialize | `d.String()` | preserves scale (e.g. "150.00") |
 | Deserialize | `decimal.MustParse(s)` | parses back to Decimal |
-| JSON | native | implements `json.Marshaler`/`json.Unmarshaler` automatically
+| JSON | native | implements `json.Marshaler`/`json.Unmarshaler` automatically |
 
 ### Import Parsers
 - Parse broker files into an intermediate format first, then validate before persisting
 - Log parsing errors with line numbers for debugging
 - Never silently skip malformed rows — report and let the user review
-
-### Market Data (go-yfinance)
-- Use `github.com/wnjoon/go-yfinance` for fetching prices (pure Go, no Python)
-- Cache fetched prices in SQLite to avoid repeated API calls
-- Handle fetch failures gracefully — log warning, serve stale data
-- Benchmark data follows the same fetch/cache pattern
-- Never block the main HTTP server on market data fetches — use background goroutines
-
-### API Design
-- Consistent error responses: `{"error": "message", "code": "ERROR_CODE"}`
-- Use standard HTTP status codes
-- Paginate list endpoints with `?limit=&offset=` or cursor-based
-- Return ETags for cacheable resources
-- **Explicit errors, no silent fallbacks** — if a prerequisite can't be resolved (e.g., no base currency, missing portfolio), return an explicit error. Never silently return zeros or degraded results that mask the failure.
-
-### Database (SQLite)
-- Use `sqlc` for type-safe queries — write SQL, generate Go
-- Driver: `modernc.org/sqlite` (pure Go, no CGO)
-- Migrations via `goose`; SQLite-compatible SQL only (no JSONB, use TEXT + manual JSON)
-- Enable WAL mode: `PRAGMA journal_mode=WAL`
-- Use `TEXT` for monetary amounts (stores `decimal.Decimal` as string); repo layer converts to/from `decimal.Decimal`
-- For integration tests, use `file::memory:?cache=shared` for in-memory SQLite
-- **sqlc workflow**: Add SQL to `internal/data/queries/*.sql`, run `sqlc generate` from that dir. Repos delegate to `queries.Queries` and handle domain ↔ sqlc type mapping (timestamps are `string` in sqlc models — convert with `parseTime()` / `.Format(time.RFC3339)` in the repo layer)
 
 ### Cross-Layer Data Audit
 
@@ -168,26 +111,3 @@ When storing data with a new filterable field (e.g., a new `data_type`, `source`
 2. **Repository methods** — confirm the repo returns the new data type to callers
 3. **Service layer** — verify consumers handle the new data type (no silent drops)
 4. **Tests** — add a test case with the new value exercising the full path (repo → service → output)
-
-### API-First Architecture
-
-The API is the **single source of truth** for all data computation. The web UI is a thin presentation layer.
-
-- **Web handlers delegate to API/service** — never duplicate computation in web handlers. Call the same service methods the API uses, then add only presentation concerns (chart serialization, template data, URLs).
-- **API responses are mobile-ready** — if a mobile client needs the same data, it must be available from the API.
-- **Shared computation** — if both API and web need derived data (e.g., monthly returns), compute once in the service layer and include in the result struct.
-- See `docs/CONVENTIONS.md` → API-First Architecture for details.
-
-### Web UI
-- Keep templates simple — no complex logic in templates
-- Use partials for reusable components (nav, footer, table rows)
-- Charts are rendered client-side with ECharts; pass data as JSON in `<script>` tags
-- Static assets are served from `internal/web/static/`
-
-## Security Notes
-
-- No authentication in the app — assume reverse proxy handles access control
-- Never log sensitive data (account balances, personal info)
-- Validate all user input — especially CSV/XML imports
-- Use parameterized queries exclusively (no string concatenation for SQL)
-- SQLite file permissions: ensure the DB file is not world-readable

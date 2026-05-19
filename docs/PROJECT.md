@@ -16,80 +16,26 @@ A self-hosted investment portfolio management platform for personal investors to
 - Authentication — rely on reverse proxy (e.g., Caddy with basic auth) for access control
 
 ## Architecture
-```
-Web Browser (HTML + JS charts)
-        │ HTTP/REST
-Go Backend (Single Binary)
-  ┌───────────┐  ┌───────────┐  ┌──────────────┐ ┌─────────┐
-  │  HTTP API │  │  HTML     │  │  Import      │ │ Market  │
-  │  Routes   │  │  Renderer │  │  Parsers     │ │ Data    │
-  └─────┬─────┘  └─────┬─────┘  └──────┬───────┘ │(yfinance)│
-        │              │                │         └────┬────┘
-  ┌─────▼──────────────▼────────────────▼──────────────▼────┐
-  │                   Domain Layer                           │
-  │  Portfolio │ Account │ Transaction │ Position │ Analytics│
-  └─────┬───────────────────────────────────────────────────┘
-        │
-  ┌─────▼───────────────────────────────────────────────────┐
-  │                   Data Layer                             │
-  │  SQLite (single file, WAL mode)                          │
-  └──────────────────────────────────────────────────────────┘
-```
+See [README.md](../README.md) for the full architecture diagram and key design decisions.
+
+**TL;DR:** Single Go binary → chi router → domain services → SQLite. Server-rendered HTML templates with ECharts. Market data via go-yfinance.
 
 ## Tech Stack
-| Component | Choice | Reason |
-|---|---|---|
-| Language | Go 1.26 | Single binary, fast, great for data processing |
-| Web Framework | `chi` (v5) | Minimal routing with middleware support |
-| HTML Templating | `html/template` (std) | Built-in, XSS-safe, no build step |
-| Database | SQLite (`modernc.org/sqlite`) | Single file, no server, WAL mode, pure Go (no CGO) |
-| Queries | `sqlc` | Type-safe SQL; generates Go types from queries |
-| Migrations | `goose` | SQL-only migration files, SQLite-compatible |
-| Charts | Apache ECharts | Excellent financial charting (candlestick, heatmap, waterfall) |
-| Tables | Plain HTML + DataTables.js | Sortable, searchable, paginated |
-| CSV Parsing | `encoding/csv` (std) | Built-in, reliable |
-| XML Parsing | `encoding/xml` (std) | For IBKR flex reports |
-| Market Data | `github.com/wnjoon/go-yfinance` | Pure Go yfinance client, no Python dependency |
-| Config | YAML (`gopkg.in/yaml.v3`) | Simple, no env var sprawl |
-| Logging | `slog` (std) | Structured logging, built into Go 1.21+ |
-| Unit Testing | `testify` + `mockery` (planned) | Mock interfaces for repos and external deps |
-| Integration Testing | In-memory SQLite + `httptest` | Real SQL, real schema, isolated per test |
-| Build | Makefile | Simple build targets |
+See [README.md](../README.md) for the full tech stack table.
 
 ## Constraints
 - Single-user tool — no multi-tenant or auth in the app
 - Go build cache at `~/.cache/go-build/` is on a read-only filesystem; use `GOCACHE=/tmp/go-cache GOPATH=/tmp/go-path`
 - `sqlc` not installed on this machine — repositories are hand-written; sqlc query files are ready for when sqlc becomes available
-- `mockery` not installed — mocks are hand-written for now
+- `mockery` not used — mocks are hand-written (see docs/CONVENTIONS.md)
 
-## Directory Structure
-```
-portfoliolab/
-├── cmd/server/main.go                 # Application entry point
-├── internal/
-│   ├── api/                           # HTTP API handlers and router
-│   │   ├── handlers/                  # Handler implementations
-│   │   ├── middleware/                # Logging middleware
-│   │   └── router.go                  # Chi router setup
-│   ├── config/                        # YAML config loading
-│   ├── data/                          # Data access / repositories
-│   │   ├── queries/                   # sqlc query files (ready for sqlc)
-│   │   ├── db.go                      # SQLite connection setup
-│   │   ├── migrate.go                 # Goose migration runner
-│   │   └── portfolio_repo.go          # Portfolio repository
-│   ├── domain/                        # Business logic
-│   │   └── portfolio/                 # Portfolio domain model + service
-│   ├── market/                        # Market data (go-yfinance, planned)
-│   └── web/                           # Web rendering + static assets
-│       └── static/                    # CSS, JS
-├── templates/                         # Go HTML templates
-├── migrations/                        # SQL migration files (goose)
-├── config/                            # Config files
-├── tests/                             # Integration tests + fixtures
-├── docs/                              # Project docs (this directory)
-├── features/                          # Feature tracking (specs, plans, notes)
-├── go.mod / go.sum
-├── Makefile
-├── README.md                          # Full project documentation
-└── AGENTS.md                          # Coding conventions for agents
-```
+## Documentation Index
+| Document | Purpose |
+|---|---|
+| [README.md](../README.md) | Project overview, problem statement, feature list, architecture, tech stack, directory layout, testing strategy, risks |
+| [CONVENTIONS.md](CONVENTIONS.md) | Coding conventions (style, naming, testing, domain, DB, API, web, security, build) |
+| [FX_CONVENTIONS.md](FX_CONVENTIONS.md) | Foreign exchange rate conventions across multi-currency portfolios |
+| [API.md](../API.md) | REST API reference (endpoints, request/response schemas) |
+| [DoD.md](../DoD.md) | Definition of Done checklist (per-feature) |
+| [AGENTS.md](../AGENTS.md) | Agentic coding instructions (agent-specific workflow and practices) |
+| [features/](../features/) | Feature specs, plans, notes, retrospectives |

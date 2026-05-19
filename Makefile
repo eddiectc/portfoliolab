@@ -62,10 +62,6 @@ clean:
 sqlc-generate:
 	sqlc generate
 
-# Generate mocks
-mocks:
-	mockery --all
-
 # Run database migrations up
 migrate-up:
 	goose sqlite3 data/portfoliolab.db up
