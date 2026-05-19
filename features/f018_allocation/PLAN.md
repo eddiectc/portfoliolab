@@ -246,7 +246,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** All scenarios (full-stack verification)
 **Description:** End-to-end tests exercising DB → service → handler → response.
 
-- [ ] Create `tests/integration/allocation_test.go` with:
+- [x] Create `tests/integration/allocation_test.go` with:
   - Setup: create portfolio, account, symbol mappings, buy transactions, trigger position recalc
   - Test: GET /api/allocation returns 200 with correct allocation percentages
   - Test: POST /api/allocation/target saves target, GET returns saved target
@@ -258,7 +258,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
   - Test: Empty portfolio shows empty state
   - Test: DELETE /api/allocation/target removes target
 
-**Verification:** `go test ./tests/integration/...` passes, all endpoints return expected responses.
+**Verification:** `go test ./tests/integration/...` passes, all endpoints return expected responses. ✅
 
 ---
 
@@ -266,15 +266,15 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** All scenarios (integration)
 **Description:** Register allocation handlers in the main router.
 
-- [ ] Update `internal/api/router.go`:
+- [x] Update `internal/api/router.go`:
   - Import allocation domain
   - Create allocation service with dependencies (position service, market service, account lister, portfolio currency checker)
   - Create allocation API handler and register routes
   - Create allocation web handler and register routes
-- [ ] Verify `go build` succeeds
-- [ ] Run `go test ./...` to ensure no regressions
+- [x] Verify `go build` succeeds
+- [x] Run `go test ./...` to ensure no regressions
 
-**Verification:** Server starts, allocation routes are accessible, no build errors.
+**Verification:** Server starts, allocation routes are accessible, no build errors. ✅
 
 ## Technical Decisions
 
