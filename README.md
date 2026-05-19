@@ -23,20 +23,20 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 
 ### Must Have (v1)
 
-- [ ] **Web Interface** — Server-rendered HTML (Go templates), responsive, with tables, charts, and heatmaps
-- [ ] **Portfolio Management** — Create, read, update, delete portfolios (logical groupings of accounts)
-- [ ] **Account Management** — CRUD for brokerage accounts (e.g., "IBKR Main", "Trading 212 ISA")
-- [ ] **Transaction CRUD** — Manual entry of buys, sells, dividends, fees, and corporate actions
-- [ ] **Multi-Currency Support** — Accounts and transactions in different currencies; exchange rate tracking and conversion
+- [x] **Web Interface** — Server-rendered HTML (Go templates), responsive, with tables, charts, and heatmaps
+- [x] **Portfolio Management** — Create, read, update, delete portfolios (logical groupings of accounts)
+- [x] **Account Management** — CRUD for brokerage accounts (e.g., "IBKR Main", "Trading 212 ISA")
+- [x] **Transaction CRUD** — Manual entry of buys, sells, dividends, fees, and corporate actions
+- [x] **Multi-Currency Support** — Accounts and transactions in different currencies; exchange rate tracking and conversion
 - [ ] **CSV Import** — Generic CSV import with column mapping for transaction data
-- [ ] **Broker Import — IBKR Flex Report** — Parse IBKR XML flex reports and extract positions/transactions
-- [ ] **Broker Import — Trading 212** — Parse Trading 212 CSV export and extract positions/transactions
-- [ ] **Position Aggregation** — Real-time calculation of outstanding (open) positions across all accounts
-- [ ] **Closed Positions** — History of fully closed positions with realized P&L
-- [ ] **Cash Balance Tracking** — Per-account cash balance derived from transactions
+- [x] **Broker Import — IBKR Flex Report** — Parse IBKR XML flex reports and extract positions/transactions
+- [x] **Broker Import — Trading 212** — Parse Trading 212 CSV export and extract positions/transactions
+- [x] **Position Aggregation** — Real-time calculation of outstanding (open) positions across all accounts
+- [x] **Closed Positions** — History of fully closed positions with realized P&L
+- [x] **Cash Balance Tracking** — Per-account cash balance derived from transactions
 - [x] **Portfolio Performance** — Equity curve (portfolio value vs net deposits), time-weighted return (TWR), annualized TWR, money-weighted return (MWR/IRR), simple return (profit/net deposit), annualized simple return, annualized volatility, drawdown analysis (max/current/duration), yearly performance, period selector, multi-currency FX conversion (using yfinance for prices)
-- [ ] **Historical P&L** — Time-series of portfolio value, daily returns, cumulative returns
-- [ ] **Detailed P&L Analysis** — Drawdown analysis, benchmark comparison (S&P 500, NASDAQ, custom), sector/currency breakdown, win rate, avg hold period
+- [x] **Historical P&L** — Time-series of portfolio value, daily returns, cumulative returns
+- [x] **Detailed P&L Analysis** — Drawdown analysis, benchmark comparison (S&P 500, NASDAQ, custom), sector/currency breakdown, win rate, avg hold period
 
 ### Nice to Have (v2)
 
