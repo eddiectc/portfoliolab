@@ -24,6 +24,8 @@ type mockFetcher struct {
 	historical           map[string][]market.HistoricalPrice
 	historicalFail       map[string]bool
 	fetchHistoricalCalls int
+	lastStart            time.Time // last start date passed to FetchHistoricalPricesBatch
+	lastEnd              time.Time // last end date passed to FetchHistoricalPricesBatch
 }
 
 func (m *mockFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
@@ -56,6 +58,8 @@ func benchPricesToday(symbols []string) map[string][]market.HistoricalPrice {
 func (m *mockFetcher) FetchHistoricalPricesBatch(_ context.Context, symbols []string, start, end time.Time) (map[string][]market.HistoricalPrice, []string) {
 	m.mu.Lock()
 	m.fetchHistoricalCalls++
+	m.lastStart = start
+	m.lastEnd = end
 	m.mu.Unlock()
 
 	result := make(map[string][]market.HistoricalPrice)
@@ -90,6 +94,12 @@ func (m *mockFetcher) HistoricalCalls() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.fetchHistoricalCalls
+}
+
+func (m *mockFetcher) LastFetchRange() (time.Time, time.Time) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.lastStart, m.lastEnd
 }
 
 type mockRepo struct {
@@ -327,6 +337,43 @@ func TestScheduleSymbolFetch_TriggersFetch(t *testing.T) {
 
 	if !repo.HasHistorical("AAPL") {
 		t.Error("expected AAPL prices to be cached")
+	}
+}
+
+func TestScheduleSymbolFetch_RespectsFromDate(t *testing.T) {
+	now := time.Now().UTC()
+	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	fromDate := nowDate.AddDate(0, 0, -5) // 5 days ago
+
+	prices := []market.HistoricalPrice{
+		{Date: nowDate.AddDate(0, 0, -10), Close: decimal.MustNew(16000, 2), Currency: "USD"},
+		{Date: fromDate, Close: decimal.MustNew(17000, 2), Currency: "USD"},
+		{Date: nowDate, Close: decimal.MustNew(17500, 2), Currency: "USD"},
+	}
+
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{"AAPL": prices},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.Start(ctx)
+	defer cache.Stop()
+
+	cache.ScheduleSymbolFetch("AAPL", fromDate)
+	waitBackground(t, 100*time.Millisecond)
+
+	// The fetch worker should use the requested fromDate, not historicalFrom (2000-01-01).
+	start, end := fetcher.LastFetchRange()
+	startDay := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
+	wantDay := time.Date(fromDate.Year(), fromDate.Month(), fromDate.Day(), 0, 0, 0, 0, time.UTC)
+	if startDay.Before(wantDay) {
+		t.Errorf("expected fetch start >= %s, got %s (processFetch ignores req.fromDate)", wantDay.Format("2006-01-02"), startDay.Format("2006-01-02"))
+	}
+	if !end.IsZero() && end.Before(nowDate) {
+		t.Errorf("expected fetch end >= %s, got %s", nowDate.Format("2006-01-02"), end.Format("2006-01-02"))
 	}
 }
 
