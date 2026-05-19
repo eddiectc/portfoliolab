@@ -1,4 +1,0 @@
-packages:
-  github.com/arch-portfolio-lab/portfoliolab/internal/domain/portfolio:
-    interfaces:
-      Repository:

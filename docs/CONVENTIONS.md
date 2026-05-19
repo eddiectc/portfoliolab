@@ -30,13 +30,14 @@
 
 ## Testing
 - **Co-locate tests**: `calculator_test.go` next to `calculator.go`
-- **Mock all external deps**: Define interfaces for repos and fetchers; generate mocks with `mockery`
+- **Hand-written mocks only**: Define minimal mock structs co-located in `*_test.go` files (no mockery, no testify). Follow the `account/service_test.go` pattern: mocks maintain internal state (maps, slices) and simulate real repository behavior.
 - **Mocks must simulate real behavior**: If the real implementation would return empty/error for edge-case inputs (e.g. `limit=0` → `LIMIT 0` → zero rows), the mock must do the same. Permissive mocks hide bugs in the service/handler layer.
 - **Table-driven tests**: Use `[]struct{name, input, want}` for comprehensive coverage
 - **Arrange-Act-Assert**: Clear separation; no setup in the act phase
 - **No DB, no network**: Unit tests run fast and deterministically
 - **Use `-short` flag**: Skip integration-only tests with `if testing.Short() { t.Skip() }`
 - **Integration tests**: In-memory SQLite (`file::memory:?cache=shared`) with goose migrations
+- **Shared test helper**: `tests/integration/db.go` — opens in-memory DB, runs migrations, returns cleanup func
 - **API integration**: `httptest.NewRecorder` + real router + in-memory DB
 
 ## Domain Logic
@@ -90,6 +91,11 @@ The API is the **single source of truth** for all business logic and data comput
 - Handle fetch failures gracefully — log warning, serve stale data
 - Never block the main HTTP server on market data fetches — use background goroutines
 
+## Import Parsers
+- Parse broker files into an intermediate format first, then validate before persisting
+- Log parsing errors with line numbers for debugging
+- Never silently skip malformed rows — report and let the user review
+
 ## Security
 - No authentication in the app — assume reverse proxy handles access control
 - Never log sensitive data (account balances, personal info)
@@ -101,3 +107,40 @@ The API is the **single source of truth** for all business logic and data comput
 - `go build -o portfoliolab cmd/server/main.go`
 - Use `GOCACHE=/tmp/go-cache GOPATH=/tmp/go-path` due to read-only `~/.cache/go-build/`
 - Use `-a` flag to force rebuild when cache is stale
+
+## Common Commands
+
+```bash
+# Run the server
+go run cmd/server/main.go
+
+# Run with config file
+go run cmd/server/main.go --config config/config.yaml
+
+# Build binary
+go build -o portfoliolab cmd/server/main.go
+
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run only unit tests (fast, no DB)
+go test -short ./...
+
+# Generate sqlc types
+sqlc generate
+
+# Run database migrations (goose)
+goose sqlite3 data/portfoliolab.db up
+
+# Rollback last migration
+goose sqlite3 data/portfoliolab.db down
+
+# Format code
+goimports -w .
+
+# Lint (if golangci-lint is installed)
+golangci-lint run
+```
