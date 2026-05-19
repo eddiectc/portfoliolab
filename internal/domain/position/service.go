@@ -895,6 +895,19 @@ func (s *Service) EnrichWithMarketData(ctx context.Context, positions []Position
 	return result
 }
 
+// GetMarketPrice returns the current market price for a single symbol.
+// Returns nil if the market service is not configured or no price is found.
+func (s *Service) GetMarketPrice(ctx context.Context, symbol string) (*decimal.Decimal, error) {
+	if s.marketService == nil {
+		return nil, nil
+	}
+	quotes := s.marketService.GetQuotes(ctx, []string{symbol})
+	if quote, ok := quotes[symbol]; ok && quote != nil {
+		return &quote.Price, nil
+	}
+	return nil, nil
+}
+
 // convertValuesToBase converts market value and unrealized P&L from one currency to another
 // using the current FX rate. Returns nil pointers if conversion is not possible.
 func convertValuesToBase(ctx context.Context, marketService MarketDataService, fromCurrency, toCurrency string, marketValue, unrealizedPnL decimal.Decimal) (*decimal.Decimal, *decimal.Decimal) {

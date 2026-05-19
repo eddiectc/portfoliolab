@@ -14,6 +14,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/api/middleware"
 	"codeberg.org/eddiectc/portfoliolab/internal/data"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
@@ -212,6 +213,17 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		// Analysis web pages
 		analysisWebHandler := handlers.NewAnalysisWebHandler(analysisHandler, portfolioSvc, renderer)
 		analysisWebHandler.RegisterRoutes(r)
+
+		// Allocation service + API
+		targetAllocRepo := data.NewTargetAllocationRepository(db)
+		allocSvc := allocation.NewService(positionSvc, accountLister, targetAllocRepo)
+		allocSvc.WithLogger(logger)
+		allocHandler := handlers.NewAllocationHandler(allocSvc)
+		allocHandler.RegisterRoutes(r)
+
+		// Allocation web pages
+		allocWebHandler := handlers.NewAllocationWebHandler(allocHandler, portfolioSvc, allocSvc, renderer)
+		allocWebHandler.RegisterRoutes(r)
 
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
