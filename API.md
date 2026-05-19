@@ -606,6 +606,159 @@ Same as IBKR add broker symbol.
 
 ---
 
+## Allocation
+
+Shows how portfolio capital is distributed across symbols, with support for target allocation, drift tracking, and rebalancing suggestions.
+
+### Get Current Allocation
+
+```
+GET /api/allocation?portfolio_ids=
+```
+
+Returns the current allocation breakdown for the selected portfolio(s). Cash is aggregated to the portfolio base currency using current FX rates.
+
+**Query params:**
+
+| Param | Type | Description |
+|---|---|---|
+| `portfolio_ids` | string | Comma-separated portfolio IDs (e.g. `1,2`). Omit = all portfolios. |
+
+**Response:** `200 OK` — `AllocationResult`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `ZERO_TOTAL_VALUE` | 400 | Portfolio has zero or negative total value |
+| `MIXED_CURRENCIES` | 400 | Selected portfolios have conflicting base currencies |
+
+### Get Target Allocation
+
+```
+GET /api/allocation/target?portfolio_id=
+```
+
+Returns saved target allocations for a portfolio.
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `portfolio_id` | int64 | yes | Portfolio ID |
+
+**Response:** `200 OK` — `TargetAllocation[]`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `MISSING_PORTFOLIO_ID` | 400 | `portfolio_id` is required |
+
+### Save Target Allocation
+
+```
+POST /api/allocation/target?portfolio_id=
+```
+
+Saves or updates target allocation weights for a portfolio. Percentages must each be in [0, 100] and sum to exactly 100.
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `portfolio_id` | int64 | yes | Portfolio ID |
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `symbol` | string | yes | Symbol (e.g. `AAPL`, `CASH`) |
+| `target_pct` | number | yes | Target weight percentage (0–100) |
+
+**Response:** `200 OK` — `{"status": "saved"}`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `MISSING_PORTFOLIO_ID` | 400 | `portfolio_id` is required |
+| `INVALID_REQUEST` | 400 | Malformed request body |
+| `INVALID_TARGET_PCT` | 400 | A percentage is outside [0, 100] |
+| `TARGET_SUM_NOT_100` | 400 | Percentages do not sum to 100 (includes delta in message) |
+| `DUPLICATE_SYMBOL` | 400 | Symbol appears more than once |
+
+### Delete Target Allocation
+
+```
+DELETE /api/allocation/target?portfolio_id=&symbol=
+```
+
+Deletes target allocation(s) for a portfolio. If `symbol` is omitted, deletes all targets for the portfolio.
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `portfolio_id` | int64 | yes | Portfolio ID |
+| `symbol` | string | no | Symbol to delete (omit = delete all) |
+
+**Response:** `200 OK` — `{"status": "deleted", "scope": "AAPL"}` or `{"status": "deleted", "scope": "all"}`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `MISSING_PORTFOLIO_ID` | 400 | `portfolio_id` is required |
+
+### Get Drift Comparison
+
+```
+GET /api/allocation/drift?portfolio_id=
+```
+
+Returns drift comparison between actual and target allocation. Symbols with |drift| ≤ 5% are marked as balanced.
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `portfolio_id` | int64 | yes | Portfolio ID |
+
+**Response:** `200 OK` — `DriftResult`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `MISSING_PORTFOLIO_ID` | 400 | `portfolio_id` is required |
+| `ZERO_TOTAL_VALUE` | 400 | Portfolio has zero or negative total value |
+
+### Get Rebalancing Suggestions
+
+```
+GET /api/allocation/rebalance?portfolio_id=
+```
+
+Returns suggested trades to close the gap between actual and target allocation. Symbols within 5% drift tolerance are excluded. Suggestions are ordered by drift magnitude (largest first).
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `portfolio_id` | int64 | yes | Portfolio ID |
+
+**Response:** `200 OK` — `RebalanceResult`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `MISSING_PORTFOLIO_ID` | 400 | `portfolio_id` is required |
+| `ZERO_TOTAL_VALUE` | 400 | Portfolio has zero or negative total value |
+
+---
+
 ## Type Reference
 
 ### Portfolio
@@ -722,6 +875,88 @@ Same as IBKR add broker symbol.
 ```
 
 > `corrected_symbol` is populated when the market data provider returns data for a different symbol than requested (auto-correction).
+
+### AllocationResult
+
+```json
+{
+  "rows": [
+    {
+      "symbol": "AAPL",
+      "market_value": 60000.00,
+      "market_value_base": 60000.00,
+      "allocation_pct": 60.0,
+      "currency": "USD",
+      "has_market_data": true,
+      "account_breakdown": [
+        {
+          "account_id": 1,
+          "account_name": "Brokerage",
+          "quantity": 100.00,
+          "market_value": 60000.00,
+          "market_value_base": 60000.00,
+          "pct_of_symbol": 100.0
+        }
+      ]
+    }
+  ],
+  "total_value_base": 100000.00,
+  "base_currency": "USD",
+  "cash_row": null,
+  "last_updated": "2024-01-15T12:00:00Z",
+  "market_data_available": true,
+  "warnings": []
+}
+```
+
+### TargetAllocation
+
+```json
+{
+  "portfolio_id": 1,
+  "symbol": "AAPL",
+  "target_pct": 60.0
+}
+```
+
+### DriftResult
+
+```json
+{
+  "rows": [
+    {
+      "symbol": "AAPL",
+      "actual_pct": 65.0,
+      "target_pct": 60.0,
+      "drift_pct": 5.0,
+      "is_balanced": false
+    }
+  ],
+  "base_currency": "USD",
+  "has_target": true,
+  "warnings": []
+}
+```
+
+### RebalanceResult
+
+```json
+{
+  "suggestions": [
+    {
+      "symbol": "AAPL",
+      "direction": "sell",
+      "shares": 5.00,
+      "dollar_value": 750.00,
+      "drift_reduction": 3.2
+    }
+  ],
+  "base_currency": "USD",
+  "total_dollar_value": 750.00,
+  "warnings": [],
+  "is_balanced": false
+}
+```
 
 ---
 

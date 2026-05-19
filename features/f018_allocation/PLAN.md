@@ -180,7 +180,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** All scenarios (API layer)
 **Description:** HTTP handlers for allocation data, target CRUD, drift, and rebalancing.
 
-- [ ] Create `internal/api/handlers/allocation.go` with:
+- [x] Create `internal/api/handlers/allocation.go` with:
   - `AllocationHandler` struct with allocation service dependency
   - `NewAllocationHandler(service)` constructor
   - `RegisterRoutes(r *chi.Mux)` mounting:
@@ -190,17 +190,17 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
     - `DELETE /api/allocation/target` → delete target allocation (all)
     - `GET /api/allocation/drift` → drift comparison
     - `GET /api/allocation/rebalance` → rebalancing suggestions
-- [ ] Handler implementations:
+- [x] Handler implementations:
   - Parse query params: `portfolio_id` (optional, single or comma-separated for multiple)
   - Delegate to allocation service methods
   - Return JSON responses with standard error format
   - Target save validates request body (array of {symbol, target_pct})
-- [ ] Create `internal/api/handlers/allocation_test.go` with:
+- [x] Create `internal/api/handlers/allocation_test.go` with:
   - Hand-written mock for allocation service
   - Tests for each endpoint: happy path, error cases, validation errors
   - Verify JSON response structure matches API conventions
 
-**Verification:** All handler tests pass, endpoints return correct JSON format, error responses follow `{"error": "...", "code": "..."}` pattern.
+**Verification:** All handler tests pass, endpoints return correct JSON format, error responses follow `{"error": "...", "code": "..."}` pattern. ✅
 
 ---
 

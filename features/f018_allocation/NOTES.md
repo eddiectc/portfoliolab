@@ -1,6 +1,7 @@
 # Notes: Allocation
 
 ## Decisions
+- 2026-05-19: Task 7 completed — `AllocationHandler` with 6 API endpoints. Defined `allocationService` interface in handler (dependency inversion). `HandleSaveTarget` decodes directly into `[]allocation.TargetEntry` (decimal.Decimal implements json.Unmarshaler natively). `HandleDeleteTarget` supports optional `symbol` query param — omitted = delete all. Error handling: `handleAllocationError` for ComputeAllocation/Drift/Rebalance errors (ErrZeroTotalValue → 400, ErrMixedCurrencies → 400), `handleTargetError` for SaveTarget errors (ErrInvalidTargetPct → 400, ErrTargetSumNot100 → 400, custom AllocationError → 400 with delta message). `parseAllocationFilter` supports comma-separated `portfolio_ids`. 24 tests covering: all 6 endpoints happy path, missing portfolio_id, zero total value, mixed currencies, invalid body, invalid pct, sum not 100, custom error, single/all delete, no target drift, balanced rebalance, filter parsing (empty/single/multiple/spaces/mixed), route registration.
 - 2026-05-19: Task 6 completed — `ComputeRebalancingSuggestions` added to allocation service. Added `GetMarketPrice(ctx, symbol)` method to `PositionSource` interface (needed for symbols in target but not yet held). Price resolution: for held symbols, derives price from allocation row (MarketValue / totalQuantity); for unheld symbols, calls `GetMarketPrice`. Shares rounded to 2 decimal places. Cash excluded from suggestions with warning. 14 tests covering: basic rebalancing, tolerance boundary (4.9/5.0/5.1%), no-drift balanced, symbol not yet held (price lookup), zero target (full sell), missing market data (warning), cash drift (warning+excluded), sort order, share rounding, market price lookup, market price unavailable, total dollar value, error propagation.
 - 2026-05-19: Task 5 completed — `ComputeDrift` method added to allocation service. Builds unified symbol list from actual + target union. Drift tolerance is 5% (hard-coded `driftTolerance` var). Rows sorted by |drift| descending. 14 tests covering: basic drift, tolerance boundary (4.9/5.0/5.1%), no target, symbol in target only, symbol in actual only, cash drift, sign convention, sort order, error propagation, empty portfolio, base currency.
 - 2026-05-19: Task 1 completed — migration `019_create_target_allocations.sql` created with `target_allocations` table, sqlc queries, and smoke tests.
@@ -11,6 +12,9 @@
 
 ## Deviations from Plan
 - None so far.
+
+## Post-Review Fixes
+- 2026-05-19: API.md updated with 6 allocation endpoints and 4 type references (AllocationResult, TargetAllocation, DriftResult, RebalanceResult).
 
 ## Future Improvements
 - None noted yet.
