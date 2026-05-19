@@ -31,19 +31,19 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** Scenario: Create a target allocation, Scenario: Edit an existing target allocation, Scenario: Delete a target allocation
 **Description:** Create the `target_allocations` table and sqlc queries for CRUD operations.
 
-- [ ] Write migration `019_create_target_allocations.sql` with `target_allocations` table:
+- [x] Write migration `019_create_target_allocations.sql` with `target_allocations` table:
   - `id` (INTEGER PRIMARY KEY), `portfolio_id` (INTEGER NOT NULL, FK → portfolios), `symbol` (TEXT NOT NULL), `target_pct` (TEXT NOT NULL — stores decimal as string), `created_at`, `updated_at`
   - UNIQUE constraint on `(portfolio_id, symbol)`
   - Index on `portfolio_id` for lookups
-- [ ] Add sqlc queries to `queries/target_allocation.sql`:
+- [x] Add sqlc queries to `queries/target_allocation.sql`:
   - `GetTargetAllocationsByPortfolio` (SELECT all for a portfolio)
   - `UpsertTargetAllocation` (INSERT OR REPLACE for a portfolio+symbol)
   - `DeleteTargetAllocationBySymbol` (DELETE for portfolio+symbol)
   - `DeleteTargetAllocationsByPortfolio` (DELETE all for a portfolio)
-- [ ] Run `sqlc generate` to produce Go types
-- [ ] Write migration smoke test (verify table schema)
+- [x] Run `sqlc generate` to produce Go types
+- [x] Write migration smoke test (verify table schema)
 
-**Verification:** `sqlc generate` succeeds, migration runs cleanly with `goose up`, smoke test passes.
+**Verification:** `sqlc generate` succeeds, migration runs cleanly with `goose up`, smoke test passes. ✅
 
 ---
 
