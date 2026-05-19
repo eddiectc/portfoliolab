@@ -31,14 +31,16 @@ type AccountRef = position.AccountRef
 type Service struct {
 	positions PositionSource
 	accounts  AccountLister
+	targets   TargetRepository
 	logger    *slog.Logger
 }
 
 // NewService creates a new allocation service.
-func NewService(positions PositionSource, accounts AccountLister) *Service {
+func NewService(positions PositionSource, accounts AccountLister, targets TargetRepository) *Service {
 	return &Service{
 		positions: positions,
 		accounts:  accounts,
+		targets:   targets,
 	}
 }
 
@@ -407,4 +409,95 @@ func collectMissingMarketData(enriched []position.PositionWithMarket) []string {
 		}
 	}
 	return missing
+}
+
+// --- Target Allocation CRUD ---
+
+// GetTargetAllocation retrieves all target allocations for a portfolio.
+func (s *Service) GetTargetAllocation(ctx context.Context, portfolioID int64) ([]TargetAllocation, error) {
+	targets, err := s.targets.GetByPortfolio(ctx, portfolioID)
+	if err != nil {
+		return nil, fmt.Errorf("get target allocations: %w", err)
+	}
+	if targets == nil {
+		targets = []TargetAllocation{}
+	}
+	return targets, nil
+}
+
+// SaveTargetAllocation validates and persists target allocations for a portfolio.
+// Each entry's TargetPct must be in [0, 100] and all entries must sum to exactly 100.
+// The error message includes the current total and delta from 100 when the sum check fails.
+func (s *Service) SaveTargetAllocation(ctx context.Context, portfolioID int64, entries []TargetEntry) error {
+	if len(entries) == 0 {
+		return ErrTargetSumNot100
+	}
+
+	// Check for duplicate symbols.
+	seen := make(map[string]struct{}, len(entries))
+	for _, e := range entries {
+		if _, exists := seen[e.Symbol]; exists {
+			return ErrDuplicateSymbol
+		}
+		seen[e.Symbol] = struct{}{}
+	}
+
+	// Validate each percentage is in [0, 100].
+	for _, e := range entries {
+		if e.Symbol == "" {
+			return ErrInvalidTargetPct
+		}
+		if e.TargetPct.IsNeg() {
+			return ErrInvalidTargetPct
+		}
+		hundred := decimal.MustNew(10000, 2)
+		cmp, _ := e.TargetPct.Sub(hundred)
+		if cmp.IsPos() {
+			return ErrInvalidTargetPct
+		}
+	}
+
+	// Validate sum == 100.
+	var sum decimal.Decimal
+	for _, e := range entries {
+		sum, _ = sum.Add(e.TargetPct)
+	}
+	hundred := decimal.MustNew(10000, 2)
+	if !sum.Equal(hundred) {
+		delta, _ := sum.Sub(hundred)
+		return &AllocationError{
+			Code:    "target_sum_not_100",
+			Message: fmt.Sprintf("target percentages must sum to exactly 100%% (current total: %s%%, delta: %s%%)", sum.String(), delta.String()),
+		}
+	}
+
+	// Upsert each entry.
+	for _, e := range entries {
+		ta := TargetAllocation{
+			PortfolioID: portfolioID,
+			Symbol:      e.Symbol,
+			TargetPct:   e.TargetPct,
+		}
+		if err := s.targets.Upsert(ctx, ta); err != nil {
+			return fmt.Errorf("upsert target allocation %q: %w", e.Symbol, err)
+		}
+	}
+
+	return nil
+}
+
+// DeleteTargetAllocation removes a target allocation for a portfolio+symbol.
+func (s *Service) DeleteTargetAllocation(ctx context.Context, portfolioID int64, symbol string) error {
+	if err := s.targets.DeleteBySymbol(ctx, portfolioID, symbol); err != nil {
+		return fmt.Errorf("delete target allocation %q: %w", symbol, err)
+	}
+	return nil
+}
+
+// DeleteAllTargetAllocations removes all target allocations for a portfolio.
+func (s *Service) DeleteAllTargetAllocations(ctx context.Context, portfolioID int64) error {
+	if err := s.targets.DeleteByPortfolio(ctx, portfolioID); err != nil {
+		return fmt.Errorf("delete all target allocations: %w", err)
+	}
+	return nil
 }

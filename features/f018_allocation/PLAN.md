@@ -101,10 +101,10 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** Scenario: Create a target allocation, Scenario: Edit an existing target allocation, Scenario: Delete a target allocation, Scenario: Reject target allocation with invalid percentages
 **Description:** Persist and validate user-defined target allocations per portfolio.
 
-- [ ] Create `internal/domain/allocation/target_repository.go` with:
+- [x] Create `internal/domain/allocation/target_repository.go` with:
   - Repository interface: `GetByPortfolio`, `Upsert`, `DeleteBySymbol`, `DeleteByPortfolio`
   - Wire to sqlc-generated queries
-- [ ] Add target CRUD methods to allocation service:
+- [x] Add target CRUD methods to allocation service:
   - `GetTargetAllocation(ctx, portfolioID)` → []TargetAllocation
   - `SaveTargetAllocation(ctx, portfolioID, entries []TargetEntry)` with validation:
     - Each pct ∈ [0, 100]
@@ -112,12 +112,12 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
     - Return error with current total and delta if sum ≠ 100
   - `DeleteTargetAllocation(ctx, portfolioID, symbol)` → error
   - `DeleteAllTargetAllocations(ctx, portfolioID)` → error
-- [ ] Create `internal/domain/allocation/target_test.go` with:
+- [x] Create `internal/domain/allocation/target_test.go` with:
   - Table-driven validation tests: negative pct, >100 pct, sum < 100, sum > 100, valid sum
   - Mock repository tests for CRUD operations
   - Test that save rejects with informative error message
 
-**Verification:** Validation rejects invalid inputs with correct error messages, CRUD operations work with mock repo.
+**Verification:** Validation rejects invalid inputs with correct error messages, CRUD operations work with mock repo. ✅
 
 ---
 

@@ -110,6 +110,22 @@ func (m *mockAccountLister) GetAllAccounts(_ context.Context) ([]position.Accoun
 	return m.accounts, nil
 }
 
+// noopTargetRepo is a stub TargetRepository for tests that don't exercise target CRUD.
+type noopTargetRepo struct{}
+
+func (m *noopTargetRepo) GetByPortfolio(_ context.Context, _ int64) ([]TargetAllocation, error) {
+	return []TargetAllocation{}, nil
+}
+func (m *noopTargetRepo) Upsert(_ context.Context, _ TargetAllocation) error {
+	return nil
+}
+func (m *noopTargetRepo) DeleteBySymbol(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+func (m *noopTargetRepo) DeleteByPortfolio(_ context.Context, _ int64) error {
+	return nil
+}
+
 // --- Test helpers ---
 
 func mkEnriched(accountID int64, accountName, symbol, currency string, quantity, marketValue, mvBase decimal.Decimal, available bool) position.PositionWithMarket {
@@ -163,6 +179,7 @@ func TestComputeAllocation_SingleSymbol(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -210,6 +227,7 @@ func TestComputeAllocation_MultipleSymbols(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -249,6 +267,7 @@ func TestComputeAllocation_CashOnly(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -294,6 +313,7 @@ func TestComputeAllocation_MultiCurrencyCash(t *testing.T) {
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 2, Name: "Broker B", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -334,6 +354,7 @@ func TestComputeAllocation_EmptyPortfolio(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -353,6 +374,7 @@ func TestComputeAllocation_NoAccounts(t *testing.T) {
 	svc := NewService(
 		&mockPositionSource{},
 		&mockAccountLister{accounts: []AccountRef{}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -388,6 +410,7 @@ func TestComputeAllocation_FilterByPortfolio(t *testing.T) {
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 2, Name: "Broker B", PortfolioID: 2, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{PortfolioIDs: []int64{1}})
@@ -424,6 +447,7 @@ func TestComputeAllocation_AccountBreakdown(t *testing.T) {
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 2, Name: "Broker B", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -470,6 +494,7 @@ func TestComputeAllocation_MissingMarketData(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -503,6 +528,7 @@ func TestComputeAllocation_ZeroTotalValue(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	_, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -520,6 +546,7 @@ func TestComputeAllocation_PositionFetchError(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	_, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -553,6 +580,7 @@ func TestComputeAllocation_Sorting(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -590,6 +618,7 @@ func TestComputeAllocation_CashMultipleCurrencies(t *testing.T) {
 			{ID: 2, Name: "Broker B", PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 3, Name: "Broker C", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -636,6 +665,7 @@ func TestComputeAllocation_MixedCashAndSymbols(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -672,6 +702,7 @@ func TestComputeAllocation_MarketDataAvailableFlag(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{})
@@ -700,6 +731,7 @@ func TestComputeAllocation_LastUpdated(t *testing.T) {
 		&mockAccountLister{accounts: []AccountRef{
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(before, AllocationFilter{})
@@ -734,6 +766,7 @@ func TestComputeAllocation_MultiplePortfolios(t *testing.T) {
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 2, Name: "Broker B", PortfolioID: 2, PortfolioCurrency: "USD"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	result, err := svc.ComputeAllocation(ctx, AllocationFilter{PortfolioIDs: []int64{1, 2}})
@@ -764,6 +797,7 @@ func TestComputeAllocation_MixedCurrencies(t *testing.T) {
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 2, Name: "Broker B", PortfolioID: 2, PortfolioCurrency: "GBP"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	_, err := svc.ComputeAllocation(ctx, AllocationFilter{PortfolioIDs: []int64{1, 2}})
@@ -783,6 +817,7 @@ func TestComputeAllocation_MixedCurrenciesAllAccounts(t *testing.T) {
 			{ID: 1, Name: "Broker A", PortfolioID: 1, PortfolioCurrency: "USD"},
 			{ID: 2, Name: "Broker B", PortfolioID: 2, PortfolioCurrency: "EUR"},
 		}},
+		&noopTargetRepo{},
 	)
 
 	_, err := svc.ComputeAllocation(ctx, AllocationFilter{})

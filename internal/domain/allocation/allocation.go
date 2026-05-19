@@ -118,6 +118,10 @@ var ErrZeroTotalValue = &AllocationError{Code: "zero_total_value", Message: "por
 // currencies, making allocation computation ambiguous.
 var ErrMixedCurrencies = &AllocationError{Code: "mixed_currencies", Message: "selected portfolios have mixed base currencies"}
 
+// ErrDuplicateSymbol indicates a symbol appears more than once in the target
+// allocation entries.
+var ErrDuplicateSymbol = &AllocationError{Code: "duplicate_symbol", Message: "target allocation contains duplicate symbols"}
+
 // AllocationError is a typed error for allocation domain operations.
 type AllocationError struct {
 	Code    string
