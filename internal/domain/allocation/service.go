@@ -1,0 +1,410 @@
+package allocation
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"sort"
+	"strings"
+	"time"
+
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/govalues/decimal"
+)
+
+// PositionSource fetches and enriches positions for allocation computation.
+type PositionSource interface {
+	GetOpenPositions(ctx context.Context, accountIDs []int64, limit, offset int) ([]position.Position, error)
+	EnrichWithMarketData(ctx context.Context, positions []position.Position, baseCurrency string) []position.PositionWithMarket
+}
+
+// AccountLister resolves account IDs from portfolios or returns all accounts.
+type AccountLister interface {
+	GetAccountsByPortfolio(ctx context.Context, portfolioID int64) ([]AccountRef, error)
+	GetAllAccounts(ctx context.Context) ([]AccountRef, error)
+}
+
+// AccountRef is an alias for position.AccountRef.
+type AccountRef = position.AccountRef
+
+// Service computes portfolio allocation from open positions.
+type Service struct {
+	positions PositionSource
+	accounts  AccountLister
+	logger    *slog.Logger
+}
+
+// NewService creates a new allocation service.
+func NewService(positions PositionSource, accounts AccountLister) *Service {
+	return &Service{
+		positions: positions,
+		accounts:  accounts,
+	}
+}
+
+// WithLogger sets the logger for the service.
+func (s *Service) WithLogger(logger *slog.Logger) {
+	s.logger = logger
+}
+
+// ComputeAllocation computes the current allocation breakdown for the given
+// filter. It resolves account IDs from portfolio IDs (or all accounts if
+// empty), fetches open positions, enriches them with market data, groups by
+// symbol, and computes allocation percentages.
+//
+// Cash positions ($CASH-*) are aggregated into a single "Cash" row converted
+// to the portfolio base currency. Percentages are computed as:
+//
+//	allocation_pct = symbol_market_value_base / total_market_value_base * 100
+func (s *Service) ComputeAllocation(ctx context.Context, filter AllocationFilter) (*AllocationResult, error) {
+	// 1. Resolve accounts and base currency.
+	accounts, baseCurrency, err := s.resolveAccounts(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("resolve accounts: %w", err)
+	}
+
+	// 2. Handle empty accounts.
+	if len(accounts) == 0 {
+		return &AllocationResult{
+			BaseCurrency: baseCurrency,
+			Message:      "No accounts found for the selected portfolios",
+		}, nil
+	}
+
+	accountIDs := extractAccountIDs(accounts)
+
+	// 3. Fetch open positions (unbounded — allocation needs all positions).
+	const fetchLimit = 10000
+	positions, err := s.positions.GetOpenPositions(ctx, accountIDs, fetchLimit, 0)
+	if err != nil {
+		return nil, fmt.Errorf("fetch open positions: %w", err)
+	}
+
+	// 4. Handle empty positions.
+	if len(positions) == 0 {
+		return &AllocationResult{
+			BaseCurrency: baseCurrency,
+			Message:      "No open positions found",
+		}, nil
+	}
+
+	// 5. Enrich with market data.
+	enriched := s.positions.EnrichWithMarketData(ctx, positions, baseCurrency)
+
+	// 6. Compute total portfolio value (sum of MarketValueBase).
+	var totalValueBase decimal.Decimal
+	var hasMarketData bool
+	var warnings []string
+
+	for _, p := range enriched {
+		if !p.MarketDataAvailable {
+			continue
+		}
+		if p.MarketValueBase != nil {
+			totalValueBase, _ = totalValueBase.Add(*p.MarketValueBase)
+			hasMarketData = true
+		} else if !p.MarketValue.IsZero() {
+			// Same currency as base — MarketValueBase is nil but MarketValue is valid.
+			totalValueBase, _ = totalValueBase.Add(p.MarketValue)
+			hasMarketData = true
+		}
+	}
+
+	// 7. Check for zero/negative total value.
+	if !totalValueBase.IsPos() {
+		return nil, ErrZeroTotalValue
+	}
+
+	// 8. Group enriched positions by symbol (cash symbols grouped separately).
+	groups := groupBySymbol(enriched)
+
+	// 9. Build allocation rows.
+	var rows []AllocationRow
+	var allCashEntries []position.PositionWithMarket
+
+	for sym, entries := range groups {
+		if isCashSymbol(sym) {
+			// Collect all cash entries for aggregation.
+			allCashEntries = append(allCashEntries, entries...)
+			continue
+		}
+
+		row := buildAllocationRow(sym, entries, totalValueBase, accounts)
+		// Skip symbols where no position has market data.
+		if !row.HasMarketData {
+			continue
+		}
+		rows = append(rows, row)
+	}
+
+	// Build single aggregated cash row from all cash entries.
+	var cashRow *AllocationRow
+	if len(allCashEntries) > 0 {
+		cashRow = buildCashRow(allCashEntries, totalValueBase, baseCurrency, accounts)
+	}
+
+	// Collect warnings for positions without market data.
+	missingSymbols := collectMissingMarketData(enriched)
+	if len(missingSymbols) > 0 {
+		warnings = append(warnings, fmt.Sprintf("market data unavailable for %d position(s): %s",
+			len(missingSymbols), strings.Join(missingSymbols, ", ")))
+	}
+
+	// 10. Sort rows by allocation percentage descending.
+	sort.Slice(rows, func(i, j int) bool {
+		diff, _ := rows[i].AllocationPct.Sub(rows[j].AllocationPct)
+		return diff.IsPos()
+	})
+
+	return &AllocationResult{
+		Rows:                rows,
+		TotalValueBase:      totalValueBase,
+		BaseCurrency:        baseCurrency,
+		CashRow:             cashRow,
+		LastUpdated:         time.Now().UTC(),
+		MarketDataAvailable: hasMarketData,
+		Warnings:            warnings,
+	}, nil
+}
+
+// resolveAccounts resolves account IDs and base currency from the filter.
+// If PortfolioIDs is empty, all accounts are returned.
+// All accounts must share the same base currency; ErrMixedCurrencies is
+// returned if conflicting currencies are detected.
+func (s *Service) resolveAccounts(ctx context.Context, filter AllocationFilter) ([]AccountRef, string, error) {
+	var allAccounts []AccountRef
+
+	if len(filter.PortfolioIDs) > 0 {
+		for _, pid := range filter.PortfolioIDs {
+			accounts, err := s.accounts.GetAccountsByPortfolio(ctx, pid)
+			if err != nil {
+				return nil, "", fmt.Errorf("get accounts for portfolio %d: %w", pid, err)
+			}
+			allAccounts = append(allAccounts, accounts...)
+		}
+	} else {
+		// No filter → all accounts.
+		var err error
+		allAccounts, err = s.accounts.GetAllAccounts(ctx)
+		if err != nil {
+			return nil, "", fmt.Errorf("list all accounts: %w", err)
+		}
+	}
+
+	if len(allAccounts) == 0 {
+		return []AccountRef{}, "", nil
+	}
+
+	// Verify all accounts share the same base currency.
+	baseCurrency := allAccounts[0].PortfolioCurrency
+	for _, a := range allAccounts[1:] {
+		if a.PortfolioCurrency != baseCurrency {
+			return nil, "", ErrMixedCurrencies
+		}
+	}
+
+	return allAccounts, baseCurrency, nil
+}
+
+// extractAccountIDs extracts account IDs from account refs.
+func extractAccountIDs(accounts []AccountRef) []int64 {
+	ids := make([]int64, len(accounts))
+	for i, a := range accounts {
+		ids[i] = a.ID
+	}
+	return ids
+}
+
+// groupBySymbol groups enriched positions by symbol.
+// Cash symbols ($CASH-*) are grouped under their individual symbol keys
+// (e.g., "$CASH-USD", "$CASH-GBP") — the caller aggregates them into one row.
+func groupBySymbol(enriched []position.PositionWithMarket) map[string][]position.PositionWithMarket {
+	groups := make(map[string][]position.PositionWithMarket)
+	for _, p := range enriched {
+		groups[p.Symbol] = append(groups[p.Symbol], p)
+	}
+	return groups
+}
+
+// isCashSymbol returns true if the symbol is a cash position.
+func isCashSymbol(symbol string) bool {
+	return strings.HasPrefix(symbol, "$CASH-")
+}
+
+// buildAllocationRow builds an AllocationRow for a non-cash symbol.
+func buildAllocationRow(symbol string, entries []position.PositionWithMarket, totalValueBase decimal.Decimal, accounts []AccountRef) AllocationRow {
+	// Sum market values.
+	var mvBase decimal.Decimal
+	var mvNative decimal.Decimal
+	var hasMarketData bool
+	var currency string
+
+	for _, p := range entries {
+		if !p.MarketDataAvailable {
+			continue
+		}
+		if p.MarketValueBase != nil {
+			mvBase, _ = mvBase.Add(*p.MarketValueBase)
+		} else if !p.MarketValue.IsZero() {
+			mvBase, _ = mvBase.Add(p.MarketValue)
+		}
+		mvNative, _ = mvNative.Add(p.MarketValue)
+		hasMarketData = true
+		if currency == "" {
+			currency = p.Currency
+		}
+	}
+
+	// Compute allocation percentage.
+	allocPct := computePercentage(mvBase, totalValueBase)
+
+	// Build account breakdown.
+	breakdown := buildAccountBreakdown(entries, mvBase, accounts)
+
+	return AllocationRow{
+		Symbol:           symbol,
+		MarketValue:      mvNative,
+		MarketValueBase:  &mvBase,
+		AllocationPct:    allocPct,
+		Currency:         currency,
+		HasMarketData:    hasMarketData,
+		AccountBreakdown: breakdown,
+	}
+}
+
+// buildCashRow aggregates all cash positions into a single "Cash" row.
+func buildCashRow(entries []position.PositionWithMarket, totalValueBase decimal.Decimal, baseCurrency string, accounts []AccountRef) *AllocationRow {
+	var mvBase decimal.Decimal
+	var hasMarketData bool
+	breakdownMap := make(map[int64]position.PositionWithMarket)
+
+	for _, p := range entries {
+		if !p.MarketDataAvailable {
+			continue
+		}
+		if p.MarketValueBase != nil {
+			mvBase, _ = mvBase.Add(*p.MarketValueBase)
+		} else if !p.MarketValue.IsZero() {
+			mvBase, _ = mvBase.Add(p.MarketValue)
+		}
+		hasMarketData = true
+		// Keep one entry per account for breakdown.
+		if _, exists := breakdownMap[p.AccountID]; !exists {
+			breakdownMap[p.AccountID] = p
+		}
+	}
+
+	// Build account breakdown from the map.
+	var breakdown []AccountBreakdown
+	for _, p := range breakdownMap {
+		var mvB *decimal.Decimal
+		if p.MarketValueBase != nil {
+			v := *p.MarketValueBase
+			mvB = &v
+		} else if !p.MarketValue.IsZero() {
+			v := p.MarketValue
+			mvB = &v
+		}
+		pct := decimal.Zero
+		if !mvBase.IsZero() && mvB != nil {
+			pct, _ = mvB.Quo(mvBase)
+			pct, _ = pct.Mul(decimal.MustNew(10000, 2))
+		}
+		breakdown = append(breakdown, AccountBreakdown{
+			AccountID:       p.AccountID,
+			AccountName:     p.AccountName,
+			Quantity:        p.Quantity,
+			MarketValue:     p.MarketValue,
+			MarketValueBase: mvB,
+			PctOfSymbol:     pct,
+		})
+	}
+
+	allocPct := computePercentage(mvBase, totalValueBase)
+
+	row := &AllocationRow{
+		Symbol:           "Cash",
+		MarketValue:      mvBase,
+		MarketValueBase:  &mvBase,
+		AllocationPct:    allocPct,
+		Currency:         baseCurrency,
+		HasMarketData:    hasMarketData,
+		AccountBreakdown: breakdown,
+	}
+
+	return row
+}
+
+// buildAccountBreakdown builds per-account breakdown for a symbol.
+func buildAccountBreakdown(entries []position.PositionWithMarket, symbolMVBase decimal.Decimal, accounts []AccountRef) []AccountBreakdown {
+	// Build account name lookup.
+	nameMap := make(map[int64]string)
+	for _, a := range accounts {
+		nameMap[a.ID] = a.Name
+	}
+
+	var breakdown []AccountBreakdown
+	for _, p := range entries {
+		if !p.MarketDataAvailable {
+			continue
+		}
+		var mvB *decimal.Decimal
+		if p.MarketValueBase != nil {
+			mvB = new(decimal.Decimal)
+			*mvB = *p.MarketValueBase
+		} else if !p.MarketValue.IsZero() {
+			mvB = new(decimal.Decimal)
+			*mvB = p.MarketValue
+		}
+
+		pct := decimal.Zero
+		if !symbolMVBase.IsZero() && mvB != nil {
+			pct, _ = mvB.Quo(symbolMVBase)
+			pct, _ = pct.Mul(decimal.MustNew(10000, 2))
+		}
+
+		accountName := p.AccountName
+		if accountName == "" {
+			accountName = nameMap[p.AccountID]
+		}
+
+		breakdown = append(breakdown, AccountBreakdown{
+			AccountID:       p.AccountID,
+			AccountName:     accountName,
+			Quantity:        p.Quantity,
+			MarketValue:     p.MarketValue,
+			MarketValueBase: mvB,
+			PctOfSymbol:     pct,
+		})
+	}
+
+	return breakdown
+}
+
+// computePercentage computes (value / total * 100) rounded to 1 decimal place.
+func computePercentage(value, total decimal.Decimal) decimal.Decimal {
+	if total.IsZero() {
+		return decimal.Zero
+	}
+	pct, _ := value.Quo(total)
+	pct, _ = pct.Mul(decimal.MustNew(10000, 2)) // × 100
+	// Round to 1 decimal place.
+	pct = pct.Round(1)
+	return pct
+}
+
+// collectMissingMarketData returns a deduplicated list of symbols
+// that lack market data in the enriched positions.
+func collectMissingMarketData(enriched []position.PositionWithMarket) []string {
+	seen := make(map[string]struct{})
+	var missing []string
+	for _, p := range enriched {
+		if !p.MarketDataAvailable && !isCashSymbol(p.Symbol) {
+			if _, exists := seen[p.Symbol]; !exists {
+				seen[p.Symbol] = struct{}{}
+				missing = append(missing, p.Symbol)
+			}
+		}
+	}
+	return missing
+}
