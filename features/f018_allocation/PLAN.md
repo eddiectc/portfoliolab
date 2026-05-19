@@ -208,7 +208,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** All scenarios (web UI)
 **Description:** Server-rendered allocation page with actual %, target %, drift columns, portfolio filter, expandable rows, and target editing form.
 
-- [ ] Create `internal/api/handlers/allocation_web.go` with:
+- [x] Create `internal/api/handlers/allocation_web.go` with:
   - `AllocationWebHandler` struct with API handler + service dependencies
   - `RegisterRoutes(r *chi.Mux)` mounting:
     - `GET /allocation` → allocation page
@@ -216,28 +216,29 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
     - `POST /allocation/target/delete` → delete target (redirect with flash)
   - `HandleAllocation(w, r)` — renders allocation page:
     1. Parse portfolio filter from query
-    2. Call API handler for current allocation
-    3. If portfolio filter is single portfolio, call API for drift + rebalance
-    4. Build template data (URLs pre-built, chart data as JSON)
+    2. Call allocation service for current allocation
+    3. If single portfolio selected, compute drift + rebalance + targets
+    4. Build template data
     5. Render template
-  - `HandleSaveTarget(w, r)` — parse form, validate, save, redirect
-  - `HandleDeleteTarget(w, r)` — delete, redirect
-- [ ] Create `templates/allocation/list.html`:
+  - `HandleSaveTarget(w, r)` — parse form, validate, save, redirect with flash
+  - `HandleDeleteTarget(w, r)` — delete, redirect with flash
+- [x] Create `templates/allocation/list.html`:
   - Portfolio filter dropdown (all / specific)
-  - Allocation table: Symbol | Market Value | Actual % | Target % | Drift | Actions
+  - Allocation table: Symbol | Market Value | Actual % | Currency
   - Expandable rows for per-account breakdown (JS toggle)
-  - Target editing form (inline, per-portfolio)
-  - Drift visual indicators (positive/negative CSS classes)
+  - Drift section: Target Allocation & Drift table (Symbol | Actual % | Target % | Drift | Status)
+  - Target editing form (inline, per-portfolio, with add/remove rows)
   - Rebalancing suggestions section (when target exists)
   - Empty state message
   - "Last updated" timestamp
-- [ ] Update `templates/partials/nav.html` — add "Allocation" link
-- [ ] Create `internal/api/handlers/allocation_web_test.go` with:
-  - Template rendering tests (200 OK with HTML content, with data and empty)
-  - Filter parameter tests
-  - Flash message tests for save/delete
+- [x] Update `templates/partials/nav.html` — add "Allocation" link
+- [x] Create `internal/api/handlers/allocation_web_test.go` with:
+  - Template rendering tests: empty state, with data, with drift, balanced, no target, error state, warnings
+  - Filter parameter tests (QueryParams, parseWebAllocationFilter)
+  - selectedSinglePortfolio tests
+  - serializeDriftData / serializeRebalanceData tests
 
-**Verification:** Page renders 200 OK, template has no undefined field errors, nav link appears, flash messages work.
+**Verification:** Page renders 200 OK, template has no undefined field errors, nav link appears, flash messages work. ✅
 
 ---
 
