@@ -292,6 +292,127 @@ func TestMigration_AccountsIndexExists(t *testing.T) {
 	}
 }
 
+func TestMigration_TargetAllocationsTableExists(t *testing.T) {
+	db := setupTestDB(t)
+
+	var tableName string
+	err := db.QueryRow(`
+		SELECT name FROM sqlite_master
+		WHERE type='table' AND name='target_allocations'
+	`).Scan(&tableName)
+	if err != nil {
+		t.Fatalf("target_allocations table not found: %v", err)
+	}
+	if tableName != "target_allocations" {
+		t.Errorf("expected 'target_allocations', got %q", tableName)
+	}
+}
+
+func TestMigration_TargetAllocationsUniqueConstraint(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Create a portfolio
+	var portfolioID int64
+	err := db.QueryRow(
+		"INSERT INTO portfolios (name, currency) VALUES (?, ?) RETURNING id",
+		"Test Portfolio", "USD",
+	).Scan(&portfolioID)
+	if err != nil {
+		t.Fatalf("create portfolio: %v", err)
+	}
+
+	// Insert first target allocation
+	_, err = db.Exec(
+		"INSERT INTO target_allocations (portfolio_id, symbol, target_pct) VALUES (?, ?, ?)",
+		portfolioID, "AAPL", "50.00",
+	)
+	if err != nil {
+		t.Fatalf("insert first target: %v", err)
+	}
+
+	// Duplicate (same portfolio_id + symbol) should fail
+	_, err = db.Exec(
+		"INSERT INTO target_allocations (portfolio_id, symbol, target_pct) VALUES (?, ?, ?)",
+		portfolioID, "AAPL", "60.00",
+	)
+	if err == nil {
+		t.Fatal("expected UNIQUE constraint violation, got nil")
+	}
+
+	// Different symbol should succeed
+	_, err = db.Exec(
+		"INSERT INTO target_allocations (portfolio_id, symbol, target_pct) VALUES (?, ?, ?)",
+		portfolioID, "GOOGL", "50.00",
+	)
+	if err != nil {
+		t.Fatalf("insert different symbol should succeed: %v", err)
+	}
+}
+
+func TestMigration_TargetAllocationsForeignKeyCascade(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Create a portfolio
+	var portfolioID int64
+	err := db.QueryRow(
+		"INSERT INTO portfolios (name, currency) VALUES (?, ?) RETURNING id",
+		"Test Portfolio", "USD",
+	).Scan(&portfolioID)
+	if err != nil {
+		t.Fatalf("create portfolio: %v", err)
+	}
+
+	// Insert target allocations
+	_, err = db.Exec(
+		"INSERT INTO target_allocations (portfolio_id, symbol, target_pct) VALUES (?, ?, ?)",
+		portfolioID, "AAPL", "50.00",
+	)
+	if err != nil {
+		t.Fatalf("insert target: %v", err)
+	}
+
+	// Verify target exists
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM target_allocations WHERE portfolio_id = ?", portfolioID).Scan(&count)
+	if err != nil {
+		t.Fatalf("count targets: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 target, got %d", count)
+	}
+
+	// Delete the portfolio — cascade should remove target allocations
+	_, err = db.Exec("DELETE FROM portfolios WHERE id = ?", portfolioID)
+	if err != nil {
+		t.Fatalf("delete portfolio: %v", err)
+	}
+
+	// Verify target is gone
+	err = db.QueryRow("SELECT COUNT(*) FROM target_allocations WHERE portfolio_id = ?", portfolioID).Scan(&count)
+	if err != nil {
+		t.Fatalf("count targets after cascade: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0 targets after cascade, got %d", count)
+	}
+}
+
+func TestMigration_TargetAllocationsIndexExists(t *testing.T) {
+	db := setupTestDB(t)
+
+	var indexName string
+	err := db.QueryRow(`
+		SELECT name FROM sqlite_master
+		WHERE type='index' AND name='idx_target_allocations_portfolio_id'
+	`).Scan(&indexName)
+	if err != nil {
+		t.Fatalf("idx_target_allocations_portfolio_id index not found: %v", err)
+	}
+	if indexName != "idx_target_allocations_portfolio_id" {
+		t.Errorf("expected 'idx_target_allocations_portfolio_id', got %q", indexName)
+	}
+}
+
 func TestMigration_MarketDataUpdatedAtColumnExists(t *testing.T) {
 	db := setupTestDB(t)
 

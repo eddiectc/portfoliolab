@@ -121,6 +121,15 @@ type SymbolMapping struct {
 	UpdatedAt        string `db:"updated_at"`
 }
 
+type TargetAllocation struct {
+	ID          int64  `db:"id"`
+	PortfolioID int64  `db:"portfolio_id"`
+	Symbol      string `db:"symbol"`
+	TargetPct   string `db:"target_pct"`
+	CreatedAt   string `db:"created_at"`
+	UpdatedAt   string `db:"updated_at"`
+}
+
 type Transaction struct {
 	ID                int64          `db:"id"`
 	AccountID         int64          `db:"account_id"`

@@ -203,13 +203,27 @@ func setupTestDB(t *testing.T) *sql.DB {
 		CREATE INDEX IF NOT EXISTS idx_symbol_details_fetched_at
 			ON symbol_details(fetched_at);
 
+		CREATE TABLE IF NOT EXISTS target_allocations (
+			id           INTEGER PRIMARY KEY AUTOINCREMENT,
+			portfolio_id INTEGER NOT NULL,
+			symbol       TEXT    NOT NULL,
+			target_pct   TEXT    NOT NULL,
+			created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+			UNIQUE(portfolio_id, symbol)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_target_allocations_portfolio_id
+			ON target_allocations(portfolio_id);
+
 		CREATE TABLE IF NOT EXISTS goose_db_version (
 			id INTEGER PRIMARY KEY,
 			version_id INTEGER NOT NULL,
 			is_applied INTEGER NOT NULL DEFAULT 1,
 			tstamp TIMESTAMP DEFAULT (datetime('now'))
 		);
-		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (16, 1);
+		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (19, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)
