@@ -150,7 +150,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** Scenario: Rebalancing suggestions, Scenario: Rebalancing suggestions with no drift, Scenario: Rebalancing suggestions with stale market data, Scenario: Target allocation includes symbols not yet held, Scenario: Allocation excludes symbols with zero weight in target
 **Description:** Generate trade suggestions to close the gap between actual and target allocation.
 
-- [ ] Add `ComputeRebalancingSuggestions(ctx, filter, portfolioID)` method to allocation service:
+- [x] Add `ComputeRebalancingSuggestions(ctx, filter, portfolioID)` method to allocation service:
   1. Compute drift result
   2. For each symbol with |drift| > 5%:
      - If drift > 0 (overweight): suggest SELL shares_to_sell = drift_value / current_price
@@ -159,12 +159,12 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
   3. Sort by |drift| descending
   4. Symbols without market data → warning, excluded from suggestions
   5. If all symbols within tolerance → is_balanced = true
-- [ ] Handle edge cases:
+- [x] Handle edge cases:
   - Symbol in target but not yet held → buy full target amount
   - Symbol with target 0% → sell full current holding
   - Stale/unavailable market data → warning entry
   - Zero total value → error
-- [ ] Create `internal/domain/allocation/rebalance_test.go` with:
+- [x] Create `internal/domain/allocation/rebalance_test.go` with:
   - Table-driven tests with known-correct share quantities and dollar values
   - Tolerance boundary tests (4.9% drift → no suggestion, 5.1% → suggestion)
   - No-drift scenario (all within tolerance → balanced message)
@@ -172,7 +172,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
   - Symbol with zero target (full sell)
   - Missing market data (warning)
 
-**Verification:** Share quantities and dollar values match hand-calculated expected values.
+**Verification:** Share quantities and dollar values match hand-calculated expected values. ✅
 
 ---
 

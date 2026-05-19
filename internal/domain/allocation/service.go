@@ -16,6 +16,7 @@ import (
 type PositionSource interface {
 	GetOpenPositions(ctx context.Context, accountIDs []int64, limit, offset int) ([]position.Position, error)
 	EnrichWithMarketData(ctx context.Context, positions []position.Position, baseCurrency string) []position.PositionWithMarket
+	GetMarketPrice(ctx context.Context, symbol string) (*decimal.Decimal, error)
 }
 
 // AccountLister resolves account IDs from portfolios or returns all accounts.
@@ -593,5 +594,148 @@ func (s *Service) ComputeDrift(ctx context.Context, filter AllocationFilter, por
 		Rows:         rows,
 		BaseCurrency: baseCurrency,
 		HasTarget:    hasTarget,
+	}, nil
+}
+
+// ComputeRebalancingSuggestions generates trade suggestions to close the gap
+// between actual and target allocation. It computes drift, identifies symbols
+// with |drift| > 5%, and calculates share quantities and dollar values.
+//
+// For each symbol with significant drift:
+//   - drift > 0 (overweight): suggest SELL shares_to_sell = drift_value / current_price
+//   - drift < 0 (underweight): suggest BUY shares_to_buy = abs(drift_value) / current_price
+//   - drift_value = drift_pct / 100 * total_portfolio_value
+//
+// Suggestions are sorted by |drift| descending.
+// Symbols without market data generate a warning and are excluded.
+// Cash symbols are excluded from suggestions (no meaningful "buy cash" action).
+// If all symbols are within tolerance, returns is_balanced=true.
+func (s *Service) ComputeRebalancingSuggestions(ctx context.Context, filter AllocationFilter, portfolioID int64) (*RebalanceResult, error) {
+	// 1. Compute allocation for total portfolio value.
+	allocFilter := AllocationFilter{PortfolioIDs: []int64{portfolioID}}
+	actual, err := s.ComputeAllocation(ctx, allocFilter)
+	if err != nil {
+		return nil, fmt.Errorf("compute actual allocation: %w", err)
+	}
+
+	// 2. Compute drift.
+	drift, err := s.ComputeDrift(ctx, filter, portfolioID)
+	if err != nil {
+		return nil, fmt.Errorf("compute drift: %w", err)
+	}
+
+	totalValue := actual.TotalValueBase
+
+	// 3. Build price lookup from allocation rows (for symbols currently held).
+	// Price = MarketValue / total_quantity from account breakdown.
+	priceMap := make(map[string]decimal.Decimal)
+	for _, row := range actual.Rows {
+		var totalQty, totalMV decimal.Decimal
+		for _, ab := range row.AccountBreakdown {
+			totalQty, _ = totalQty.Add(ab.Quantity)
+			if ab.MarketValueBase != nil {
+				totalMV, _ = totalMV.Add(*ab.MarketValueBase)
+			} else {
+				totalMV, _ = totalMV.Add(ab.MarketValue)
+			}
+		}
+		if !totalQty.IsZero() {
+			price, _ := totalMV.Quo(totalQty)
+			priceMap[row.Symbol] = price
+		}
+	}
+
+	// 4. Generate suggestions for symbols with |drift| > tolerance.
+	var suggestions []RebalanceSuggestion
+	var warnings []string
+
+	for _, row := range drift.Rows {
+		absDrift := row.DriftPct.Abs()
+		diff, _ := absDrift.Sub(driftTolerance)
+		if !diff.IsPos() {
+			continue // Within tolerance — skip.
+		}
+
+		// Skip cash — no meaningful "buy cash" or "sell cash" action.
+		if row.Symbol == "Cash" {
+			warnings = append(warnings, fmt.Sprintf("cash allocation drift of %s%% exceeds tolerance (no rebalancing action for cash)", row.DriftPct.String()))
+			continue
+		}
+
+		// Compute drift value in dollars.
+		driftValue, _ := absDrift.Quo(decimal.MustNew(10000, 2)) // drift_pct / 100
+		driftValue, _ = driftValue.Mul(totalValue)
+
+		// Resolve price.
+		var price decimal.Decimal
+		var hasPrice bool
+
+		if p, ok := priceMap[row.Symbol]; ok {
+			price = p
+			hasPrice = true
+		} else {
+			// Symbol not currently held — look up market price.
+			marketPrice, err := s.positions.GetMarketPrice(ctx, row.Symbol)
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("failed to get market price for %s: %v", row.Symbol, err))
+				continue
+			}
+			if marketPrice == nil || marketPrice.IsZero() {
+				warnings = append(warnings, fmt.Sprintf("market data unavailable for %s — excluded from rebalancing suggestions", row.Symbol))
+				continue
+			}
+			price = *marketPrice
+			hasPrice = true
+		}
+
+		if !hasPrice {
+			warnings = append(warnings, fmt.Sprintf("market data unavailable for %s — excluded from rebalancing suggestions", row.Symbol))
+			continue
+		}
+
+		// Compute shares.
+		shares, _ := driftValue.Quo(price)
+		// Round shares to 2 decimal places (standard for fractional shares).
+		shares = shares.Round(2)
+
+		direction := "sell"
+		if row.DriftPct.IsNeg() {
+			direction = "buy"
+		}
+
+		suggestions = append(suggestions, RebalanceSuggestion{
+			Symbol:         row.Symbol,
+			Direction:      direction,
+			Shares:         shares,
+			DollarValue:    driftValue,
+			DriftReduction: absDrift,
+		})
+	}
+
+	// 5. Sort by |drift| (drift_reduction) descending.
+	sort.Slice(suggestions, func(i, j int) bool {
+		cmp, _ := suggestions[i].DriftReduction.Sub(suggestions[j].DriftReduction)
+		return cmp.IsPos()
+	})
+
+	// 6. Compute total dollar value.
+	var totalDollarValue decimal.Decimal
+	for _, s := range suggestions {
+		totalDollarValue, _ = totalDollarValue.Add(s.DollarValue)
+	}
+
+	isBalanced := len(suggestions) == 0
+
+	baseCurrency := actual.BaseCurrency
+	if baseCurrency == "" {
+		baseCurrency = "USD"
+	}
+
+	return &RebalanceResult{
+		Suggestions:      suggestions,
+		BaseCurrency:     baseCurrency,
+		TotalDollarValue: totalDollarValue,
+		Warnings:         warnings,
+		IsBalanced:       isBalanced,
 	}, nil
 }

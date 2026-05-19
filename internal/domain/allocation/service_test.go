@@ -17,6 +17,8 @@ type mockPositionSource struct {
 	positions []position.Position
 	enriched  []position.PositionWithMarket
 	getErr    error
+	prices    map[string]*decimal.Decimal // explicit prices for GetMarketPrice
+	priceErr  map[string]error            // explicit errors for GetMarketPrice
 }
 
 func (m *mockPositionSource) GetOpenPositions(_ context.Context, accountIDs []int64, limit, offset int) ([]position.Position, error) {
@@ -77,6 +79,32 @@ func (m *mockPositionSource) EnrichWithMarketData(_ context.Context, positions [
 		}
 	}
 	return result
+}
+
+func (m *mockPositionSource) GetMarketPrice(_ context.Context, symbol string) (*decimal.Decimal, error) {
+	// Check explicit error map first.
+	if m.priceErr != nil {
+		if err, ok := m.priceErr[symbol]; ok {
+			return nil, err
+		}
+	}
+	// Check explicit price map first.
+	if m.prices != nil {
+		if price, ok := m.prices[symbol]; ok {
+			return price, nil
+		}
+	}
+	// Derive from enriched data: MarketValue / Quantity.
+	if m.enriched != nil {
+		for _, e := range m.enriched {
+			if e.Symbol == symbol && e.MarketDataAvailable && !e.Quantity.IsZero() {
+				mv := e.MarketValue
+				price, _ := mv.Quo(e.Quantity)
+				return &price, nil
+			}
+		}
+	}
+	return nil, nil
 }
 
 type mockAccountLister struct {
