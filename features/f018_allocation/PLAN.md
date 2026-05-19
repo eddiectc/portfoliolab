@@ -51,7 +51,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** All scenarios (foundation types)
 **Description:** Define the domain types for allocation, target, drift, and rebalancing.
 
-- [ ] Create `internal/domain/allocation/allocation.go` with:
+- [x] Create `internal/domain/allocation/allocation.go` with:
   - `AllocationRow` — symbol, market_value (decimal), market_value_base (decimal ptr), allocation_pct (decimal), currency, has_market_data (bool), account_breakdown ([]AccountBreakdown)
   - `AccountBreakdown` — account_id, account_name, quantity, market_value, market_value_base, pct_of_symbol
   - `AllocationResult` — rows ([]AllocationRow), total_value_base (decimal), base_currency (string), cash_row (*AllocationRow), last_updated (time.Time), market_data_available (bool)
@@ -62,9 +62,9 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
   - `RebalanceSuggestion` — symbol, direction ("buy"/"sell"), shares (decimal), dollar_value (decimal), drift_reduction (decimal)
   - `RebalanceResult` — suggestions ([]RebalanceSuggestion), base_currency, total_dollar_value (decimal), warnings ([]string), is_balanced (bool)
   - Error variables: `ErrNoPortfolios`, `ErrInvalidTargetPct`, `ErrTargetSumNot100`
-- [ ] Create `internal/domain/allocation/allocation_test.go` with basic type verification tests
+- [x] Create `internal/domain/allocation/allocation_test.go` with basic type verification tests
 
-**Verification:** Types compile, basic tests pass, types match spec constraints.
+**Verification:** Types compile, basic tests pass, types match spec constraints. ✅
 
 ---
 
@@ -72,7 +72,7 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** Scenario: View allocation across all portfolios, Scenario: View allocation for a single portfolio, Scenario: View allocation for multiple selected portfolios, Scenario: Drill down to per-account breakdown, Scenario: View allocation for a cash-only portfolio, Scenario: Multi-currency cash aggregation
 **Description:** Compute current allocation from open positions, aggregating by symbol across accounts, including cash converted to base currency.
 
-- [ ] Create `internal/domain/allocation/service.go` with:
+- [x] Create `internal/domain/allocation/service.go` with:
   - Service struct with dependencies: `PositionSource` (interface wrapping position service), `MarketDataService` (interface for FX rates), `AccountLister` (for resolving portfolio → accounts)
   - `ComputeAllocation(ctx, filter)` method:
     1. Resolve account IDs from filter (portfolio_ids → accounts, empty = all)
@@ -82,18 +82,18 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
     5. Cash aggregation: all `$CASH-*` positions → single "Cash" row, converted to base currency
     6. Build account breakdown per symbol (for drill-down)
     7. Return AllocationResult
-- [ ] Handle edge cases:
+- [x] Handle edge cases:
   - Empty portfolio → empty result with message
   - Zero/negative total value → error
   - FX rate unavailable for cash → warning, exclude from total
   - Single holding → 100% allocation
-- [ ] Create `internal/domain/allocation/service_test.go` with:
+- [x] Create `internal/domain/allocation/service_test.go` with:
   - Hand-written mock for `PositionSource` (returns pre-built positions)
   - Table-driven tests for: single symbol, multiple symbols, cash-only, multi-currency cash, empty portfolio, FX missing
   - Verify allocation percentages sum to ~100%
   - Verify cash aggregation across currencies
 
-**Verification:** All unit tests pass, allocation percentages are correct against known values.
+**Verification:** All unit tests pass, allocation percentages are correct against known values. ✅
 
 ---
 
