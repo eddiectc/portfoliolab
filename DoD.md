@@ -16,7 +16,8 @@ Checklist applied to every feature before it is declared complete.
 - [ ] Unit tests are co-located (`*_test.go` next to source), no DB, no network
 - [ ] Hand-written mocks simulate real repository behavior (not permissive)
 - [ ] Table-driven tests used for comprehensive coverage
-- [ ] Integration tests use in-memory SQLite with real schema (when applicable)
+- [ ] At least one integration test exercises the full stack (DB → service → handler → response)
+- [ ] Integration tests use in-memory SQLite with real schema
 - [ ] `go test ./...` passes
 
 ## Domain Logic
@@ -33,6 +34,7 @@ Checklist applied to every feature before it is declared complete.
 ## API & Web
 - [ ] API returns consistent error responses (`{"error": "...", "code": "..."}`)
 - [ ] Explicit errors, no silent fallbacks
+- [ ] Silent failure audit: every error return, nil check, and fallback path emits a warning or returns an error (no swallowed errors)
 - [ ] Web handlers delegate to API/service layer (no duplicated computation)
 - [ ] Templates compile without errors; URLs pre-built in handlers
 
