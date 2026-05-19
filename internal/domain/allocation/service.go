@@ -501,3 +501,97 @@ func (s *Service) DeleteAllTargetAllocations(ctx context.Context, portfolioID in
 	}
 	return nil
 }
+
+// driftTolerance is the threshold (in percentage points) below which a symbol
+// is considered balanced. A drift of |actual - target| <= 5% is balanced.
+var driftTolerance = decimal.MustParse("5.0")
+
+// ComputeDrift compares actual allocation against saved target allocation and
+// computes drift per symbol. It builds a unified symbol list from the union of
+// actual and target symbols.
+//
+// For each symbol:
+//   - actual_pct = allocation percentage from positions (0 if not held)
+//   - target_pct = saved target percentage (0 if not in target)
+//   - drift_pct = actual_pct - target_pct
+//   - is_balanced = |drift_pct| <= 5%
+//
+// If no target is saved, returns actual percentages only with has_target=false.
+// Rows are sorted by |drift| descending.
+func (s *Service) ComputeDrift(ctx context.Context, filter AllocationFilter, portfolioID int64) (*DriftResult, error) {
+	// 1. Compute actual allocation for the portfolio.
+	allocFilter := AllocationFilter{PortfolioIDs: []int64{portfolioID}}
+	actual, err := s.ComputeAllocation(ctx, allocFilter)
+	if err != nil {
+		return nil, fmt.Errorf("compute actual allocation: %w", err)
+	}
+
+	// 2. Fetch target allocation for the portfolio.
+	targets, err := s.GetTargetAllocation(ctx, portfolioID)
+	if err != nil {
+		return nil, fmt.Errorf("get target allocation: %w", err)
+	}
+
+	hasTarget := len(targets) > 0
+
+	// 3. Build lookup maps.
+	actualMap := make(map[string]decimal.Decimal)
+	for _, row := range actual.Rows {
+		actualMap[row.Symbol] = row.AllocationPct
+	}
+	if actual.CashRow != nil {
+		actualMap["Cash"] = actual.CashRow.AllocationPct
+	}
+
+	targetMap := make(map[string]decimal.Decimal)
+	for _, t := range targets {
+		targetMap[t.Symbol] = t.TargetPct
+	}
+
+	// 4. Build unified symbol list (union of actual + target symbols).
+	symbolSet := make(map[string]struct{})
+	for sym := range actualMap {
+		symbolSet[sym] = struct{}{}
+	}
+	for sym := range targetMap {
+		symbolSet[sym] = struct{}{}
+	}
+
+	// 5. Build drift rows.
+	var rows []DriftRow
+	for sym := range symbolSet {
+		actualPct := actualMap[sym] // zero if not held
+		targetPct := targetMap[sym] // zero if not in target
+		driftPct, _ := actualPct.Sub(targetPct)
+		absDrift := driftPct.Abs()
+		diff, _ := absDrift.Sub(driftTolerance)
+		isBalanced := !diff.IsPos() // absDrift <= tolerance
+
+		rows = append(rows, DriftRow{
+			Symbol:     sym,
+			ActualPct:  actualPct,
+			TargetPct:  targetPct,
+			DriftPct:   driftPct,
+			IsBalanced: isBalanced,
+		})
+	}
+
+	// 6. Sort by |drift| descending.
+	sort.Slice(rows, func(i, j int) bool {
+		absI := rows[i].DriftPct.Abs()
+		absJ := rows[j].DriftPct.Abs()
+		cmp, _ := absI.Sub(absJ)
+		return cmp.IsPos()
+	})
+
+	baseCurrency := actual.BaseCurrency
+	if baseCurrency == "" {
+		baseCurrency = "USD"
+	}
+
+	return &DriftResult{
+		Rows:         rows,
+		BaseCurrency: baseCurrency,
+		HasTarget:    hasTarget,
+	}, nil
+}

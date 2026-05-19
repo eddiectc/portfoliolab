@@ -125,24 +125,24 @@ Tasks 1-6 are domain layer (can be developed largely in parallel for 3-6 once ty
 **Corresponds to:** Scenario: Compare actual vs target allocation, Scenario: View allocation without a saved target
 **Description:** Compare actual allocation against target, compute drift per symbol.
 
-- [ ] Add `ComputeDrift(ctx, filter, portfolioID)` method to allocation service:
+- [x] Add `ComputeDrift(ctx, filter, portfolioID)` method to allocation service:
   1. Compute actual allocation for the portfolio
   2. Fetch target allocation for the portfolio
   3. Build unified symbol list (union of actual + target symbols)
   4. For each symbol: actual_pct (0 if not held), target_pct (0 if not in target), drift = actual - target
   5. Mark balanced if |drift| ≤ 5%
   6. Return DriftResult
-- [ ] Handle edge cases:
+- [x] Handle edge cases:
   - No target saved → DriftResult with has_target=false, actual % only
   - Symbol in target but not held → actual = 0%, drift = -target%
   - Symbol held but not in target → target = 0%, drift = actual%
   - Cash drift included
-- [ ] Create `internal/domain/allocation/drift_test.go` with:
+- [x] Create `internal/domain/allocation/drift_test.go` with:
   - Table-driven tests for drift tolerance boundary (4.9% → balanced, 5.0% → balanced, 5.1% → not balanced)
   - Tests for missing target, symbol in target only, symbol in actual only
   - Verify drift = actual - target sign convention
 
-**Verification:** Drift values match expected calculations, tolerance boundary is correct.
+**Verification:** Drift values match expected calculations, tolerance boundary is correct. ✅
 
 ---
 
