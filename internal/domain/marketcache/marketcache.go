@@ -280,8 +280,8 @@ func (m *MarketCache) backgroundWorker() {
 }
 
 // processFetch handles a single fetch request, managing in-progress state.
-// Always fetches from historicalFrom (e.g. 2000-01-01) so analysis has
-// sufficient price history regardless of when the position was opened.
+// Uses the fromDate from the request so gap-fill only fetches the missing
+// range instead of the full history from 2000.
 func (m *MarketCache) processFetch(req fetchRequest) {
 	m.mu.Lock()
 	m.inProgress[req.symbol] = true
@@ -293,7 +293,7 @@ func (m *MarketCache) processFetch(req fetchRequest) {
 		if req.isFx {
 			kind = "fx"
 		}
-		m.logger.Debug("starting background fetch", "symbol", req.symbol, "kind", kind, "fromDate", m.historicalFrom.Format("2006-01-02"))
+		m.logger.Debug("starting background fetch", "symbol", req.symbol, "kind", kind, "fromDate", req.fromDate.Format("2006-01-02"))
 	}
 
 	defer func() {
@@ -303,9 +303,9 @@ func (m *MarketCache) processFetch(req fetchRequest) {
 	}()
 
 	if req.isFx {
-		m.fetchFxPair(req.symbol, m.historicalFrom)
+		m.fetchFxPair(req.symbol, req.fromDate)
 	} else {
-		m.fetchHistorical(req.symbol, m.historicalFrom)
+		m.fetchHistorical(req.symbol, req.fromDate)
 	}
 }
 
