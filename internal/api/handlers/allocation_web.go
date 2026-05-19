@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -251,6 +252,7 @@ func (h *AllocationWebHandler) selectedSinglePortfolio(filter AllocationFilter) 
 func (h *AllocationWebHandler) fetchPortfolios(ctx context.Context) []portfolio.Portfolio {
 	portfolios, err := h.portfolioSvc.List(ctx, 0, 0)
 	if err != nil {
+		slog.Warn("failed to fetch portfolios for allocation dropdown", "error", err)
 		return []portfolio.Portfolio{}
 	}
 	if portfolios == nil {
