@@ -66,12 +66,12 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** Create (happy path), edit, delete, list, empty list
 **Description:** Implement data access layer (sqlc-backed repository) and service layer with full CRUD. Entries stored as JSON in the `entries` column — marshaled/unmarshaled at the repo boundary.
 
-- [ ] Create `internal/data/model_portfolio_repo.go`:
+- [x] Create `internal/data/model_portfolio_repo.go`:
   - `ModelPortfolioRepository` struct
   - `Create`, `GetByID`, `List`, `Update`, `Delete` for model portfolios
   - `GetByName` for uniqueness check
   - JSON marshal/unmarshal of `entries` TEXT column (entries → `[]ModelPortfolioEntry` JSON)
-- [ ] Create `internal/domain/modelportfolio/service.go`:
+- [x] Create `internal/domain/modelportfolio/service.go`:
   - `Repository` interface (matches repo methods)
   - `Service` struct with repository dependency
   - `Create(ctx, CreateRequest)` — validate, check name uniqueness, marshal entries to JSON, insert
@@ -80,7 +80,7 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
   - `Update(ctx, id, UpdateRequest)` — update name, marshal entries to JSON, update row
   - `Delete(ctx, id)` — delete portfolio row
   - `GetAllForSelector(ctx)` — lightweight list (id, name, entry count from JSON length) for dropdowns
-- [ ] Write unit tests: `service_test.go` with hand-written mock repository (maps/slices, simulates real behavior like allocation `target_test.go` pattern)
+- [x] Write unit tests: `service_test.go` with hand-written mock repository (maps/slices, simulates real behavior like allocation `target_test.go` pattern)
 
 **Verification:** All service unit tests pass; covers Create/Get/List/Update/Delete CRUD cycle, name uniqueness, entry validation delegation, empty list returns `[]` not nil, JSON round-trip preserves entry data.
 
