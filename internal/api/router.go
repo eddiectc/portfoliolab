@@ -222,7 +222,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		allocHandler.RegisterRoutes(r)
 
 		// Allocation web pages
-		allocWebHandler := handlers.NewAllocationWebHandler(allocHandler, portfolioSvc, allocSvc, renderer)
+		allocWebHandler := handlers.NewAllocationWebHandler(allocHandler, portfolioSvc, symbolMappingSvc, allocSvc, renderer)
 		allocWebHandler.RegisterRoutes(r)
 
 		// Root redirect

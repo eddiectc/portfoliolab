@@ -68,7 +68,7 @@ function addTargetEntry() {
     div.className = 'target-entry';
     div.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
     div.innerHTML =
-        '<input type="text" name="symbol_' + targetIndex + '" class="form-control" style="width:120px;" placeholder="Symbol">' +
+        '<input type="text" name="symbol_' + targetIndex + '" class="form-control" style="width:120px;" placeholder="Symbol" list="symbol-list">' +
         '<input type="text" name="target_pct_' + targetIndex + '" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTargetTotal()">' +
         '<span class="text-muted">%</span>';
     container.appendChild(div);

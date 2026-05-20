@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
@@ -43,6 +44,7 @@ type allocationPageData struct {
 	Targets           []allocation.TargetAllocation
 	SaveError         string
 	Portfolios        []portfolio.Portfolio
+	Symbols           []symbolmapping.SymbolMapping
 	SelectedPortfolio string       // single portfolio ID for drift/rebalance
 	Filter            AllocationFilter
 	BaseCurrency      string
@@ -56,15 +58,17 @@ type allocationPageData struct {
 type AllocationWebHandler struct {
 	apiHandler   *AllocationHandler
 	portfolioSvc *portfolio.Service
+	symbolSvc    *symbolmapping.Service
 	allocSvc     allocationService
 	renderer     *web.Renderer
 }
 
 // NewAllocationWebHandler creates a new allocation web handler.
-func NewAllocationWebHandler(apiHandler *AllocationHandler, portfolioSvc *portfolio.Service, allocSvc allocationService, renderer *web.Renderer) *AllocationWebHandler {
+func NewAllocationWebHandler(apiHandler *AllocationHandler, portfolioSvc *portfolio.Service, symbolSvc *symbolmapping.Service, allocSvc allocationService, renderer *web.Renderer) *AllocationWebHandler {
 	return &AllocationWebHandler{
 		apiHandler:   apiHandler,
 		portfolioSvc: portfolioSvc,
+		symbolSvc:    symbolSvc,
 		allocSvc:     allocSvc,
 		renderer:     renderer,
 	}
@@ -87,11 +91,14 @@ func (h *AllocationWebHandler) HandleAllocation(w http.ResponseWriter, r *http.R
 	// Fetch portfolios for dropdown.
 	portfolios := h.fetchPortfolios(r.Context())
 
+	// Fetch symbols for autocomplete.
+	symbols := h.fetchSymbols(r.Context())
+
 	// Compute allocation.
 	allocFilter := toDomainFilter(filter)
 	result, err := h.allocSvc.ComputeAllocation(r.Context(), allocFilter)
 	if err != nil {
-		data := h.buildPageData(w, r, filter, portfolios, nil, nil, nil, nil, "An error occurred while computing allocation data.", "", "", "", "")
+		data := h.buildPageData(w, r, filter, portfolios, symbols, nil, nil, nil, nil, "An error occurred while computing allocation data.", "", "", "", "")
 		if err := h.renderer.Render(w, "allocation/list", data); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -135,7 +142,7 @@ func (h *AllocationWebHandler) HandleAllocation(w http.ResponseWriter, r *http.R
 		}
 	}
 
-	data := h.buildPageData(w, r, filter, portfolios, result, drift, rebalance, targets, "", selectedPortfolioID, driftWarning, rebalanceWarning, targetWarning)
+	data := h.buildPageData(w, r, filter, portfolios, symbols, result, drift, rebalance, targets, "", selectedPortfolioID, driftWarning, rebalanceWarning, targetWarning)
 
 	if err := h.renderer.Render(w, "allocation/list", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -261,11 +268,25 @@ func (h *AllocationWebHandler) fetchPortfolios(ctx context.Context) []portfolio.
 	return portfolios
 }
 
+// fetchSymbols returns all internal symbols for the autocomplete datalist.
+func (h *AllocationWebHandler) fetchSymbols(ctx context.Context) []symbolmapping.SymbolMapping {
+	symbols, err := h.symbolSvc.List(ctx, 0, 0)
+	if err != nil {
+		slog.Warn("failed to fetch symbols for allocation autocomplete", "error", err)
+		return []symbolmapping.SymbolMapping{}
+	}
+	if symbols == nil {
+		return []symbolmapping.SymbolMapping{}
+	}
+	return symbols
+}
+
 // buildPageData assembles the allocation page data struct.
 func (h *AllocationWebHandler) buildPageData(
 	w http.ResponseWriter, r *http.Request,
 	filter AllocationFilter,
 	portfolios []portfolio.Portfolio,
+	symbols []symbolmapping.SymbolMapping,
 	alloc *allocation.AllocationResult,
 	drift *allocation.DriftResult,
 	rebalance *allocation.RebalanceResult,
@@ -289,6 +310,7 @@ func (h *AllocationWebHandler) buildPageData(
 		Rebalance:        rebalance,
 		Targets:          targets,
 		Portfolios:       portfolios,
+		Symbols:          symbols,
 		SelectedPortfolio: selectedPortfolio,
 		Filter:           filter,
 		BaseCurrency:     baseCurrency,
