@@ -53,6 +53,21 @@
         </div>
         {{end}}
 
+        {{/* Model portfolio selector */}}
+        {{if .ModelPortfolios}}
+        <div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;">
+            <label for="model-portfolio-select" style="font-weight:bold;">Load from model:</label>
+            <select id="model-portfolio-select" class="form-control" style="width:auto;">
+                <option value="">— Select a model portfolio —</option>
+                {{range .ModelPortfolios}}
+                <option value="{{.ID}}">{{.Name}} ({{.EntryCount}} entries)</option>
+                {{end}}
+            </select>
+            <button type="button" class="btn btn-sm" onclick="loadModelPortfolio()">Load</button>
+            <p class="section-note">Loading a model portfolio clears existing target entries and pre-fills the form with the model's allocation.</p>
+        </div>
+        {{end}}
+
         {{/* Autocomplete datalist for symbols */}}
         <datalist id="symbol-list">
             {{range .Symbols}}

@@ -12,6 +12,7 @@ import (
 	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
@@ -45,7 +46,8 @@ type allocationPageData struct {
 	SaveError         string
 	Portfolios        []portfolio.Portfolio
 	Symbols           []symbolmapping.SymbolMapping
-	SelectedPortfolio string       // single portfolio ID for drift/rebalance
+	ModelPortfolios   []modelportfolio.ModelPortfolioSummary // for the "load model" dropdown
+	SelectedPortfolio string                                 // single portfolio ID for drift/rebalance
 	Filter            AllocationFilter
 	BaseCurrency      string
 	LastUpdatedText   string
@@ -54,23 +56,30 @@ type allocationPageData struct {
 	TargetWarning     string // shown when target fetch fails
 }
 
+// modelPortfolioSelector defines the methods needed to fetch model portfolios for the dropdown.
+type modelPortfolioSelector interface {
+	GetAllForSelector(ctx context.Context) ([]modelportfolio.ModelPortfolioSummary, error)
+}
+
 // AllocationWebHandler handles server-rendered allocation pages.
 type AllocationWebHandler struct {
-	apiHandler   *AllocationHandler
-	portfolioSvc *portfolio.Service
-	symbolSvc    *symbolmapping.Service
-	allocSvc     allocationService
-	renderer     *web.Renderer
+	apiHandler        *AllocationHandler
+	portfolioSvc      *portfolio.Service
+	symbolSvc         *symbolmapping.Service
+	allocSvc          allocationService
+	modelPortfolioSvc modelPortfolioSelector
+	renderer          *web.Renderer
 }
 
 // NewAllocationWebHandler creates a new allocation web handler.
-func NewAllocationWebHandler(apiHandler *AllocationHandler, portfolioSvc *portfolio.Service, symbolSvc *symbolmapping.Service, allocSvc allocationService, renderer *web.Renderer) *AllocationWebHandler {
+func NewAllocationWebHandler(apiHandler *AllocationHandler, portfolioSvc *portfolio.Service, symbolSvc *symbolmapping.Service, allocSvc allocationService, modelPortfolioSvc modelPortfolioSelector, renderer *web.Renderer) *AllocationWebHandler {
 	return &AllocationWebHandler{
-		apiHandler:   apiHandler,
-		portfolioSvc: portfolioSvc,
-		symbolSvc:    symbolSvc,
-		allocSvc:     allocSvc,
-		renderer:     renderer,
+		apiHandler:        apiHandler,
+		portfolioSvc:      portfolioSvc,
+		symbolSvc:         symbolSvc,
+		allocSvc:          allocSvc,
+		modelPortfolioSvc: modelPortfolioSvc,
+		renderer:          renderer,
 	}
 }
 
@@ -94,11 +103,14 @@ func (h *AllocationWebHandler) HandleAllocation(w http.ResponseWriter, r *http.R
 	// Fetch symbols for autocomplete.
 	symbols := h.fetchSymbols(r.Context())
 
+	// Fetch model portfolios for dropdown.
+	modelPortfolios := h.fetchModelPortfolios(r.Context())
+
 	// Compute allocation.
 	allocFilter := toDomainFilter(filter)
 	result, err := h.allocSvc.ComputeAllocation(r.Context(), allocFilter)
 	if err != nil {
-		data := h.buildPageData(w, r, filter, portfolios, symbols, nil, nil, nil, nil, "An error occurred while computing allocation data.", "", "", "", "")
+		data := h.buildPageData(w, r, filter, portfolios, symbols, modelPortfolios, nil, nil, nil, nil, "An error occurred while computing allocation data.", "", "", "", "")
 		if err := h.renderer.Render(w, "allocation/list", data); err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -109,12 +121,12 @@ func (h *AllocationWebHandler) HandleAllocation(w http.ResponseWriter, r *http.R
 	selectedPortfolioID := h.selectedSinglePortfolio(filter)
 
 	var (
-		drift           *allocation.DriftResult
-		rebalance       *allocation.RebalanceResult
-		targets         []allocation.TargetAllocation
-		driftWarning    string
+		drift            *allocation.DriftResult
+		rebalance        *allocation.RebalanceResult
+		targets          []allocation.TargetAllocation
+		driftWarning     string
 		rebalanceWarning string
-		targetWarning   string
+		targetWarning    string
 	)
 
 	if selectedPortfolioID != "" {
@@ -142,7 +154,7 @@ func (h *AllocationWebHandler) HandleAllocation(w http.ResponseWriter, r *http.R
 		}
 	}
 
-	data := h.buildPageData(w, r, filter, portfolios, symbols, result, drift, rebalance, targets, "", selectedPortfolioID, driftWarning, rebalanceWarning, targetWarning)
+	data := h.buildPageData(w, r, filter, portfolios, symbols, modelPortfolios, result, drift, rebalance, targets, "", selectedPortfolioID, driftWarning, rebalanceWarning, targetWarning)
 
 	if err := h.renderer.Render(w, "allocation/list", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -281,12 +293,29 @@ func (h *AllocationWebHandler) fetchSymbols(ctx context.Context) []symbolmapping
 	return symbols
 }
 
+// fetchModelPortfolios returns model portfolio summaries for the dropdown selector.
+func (h *AllocationWebHandler) fetchModelPortfolios(ctx context.Context) []modelportfolio.ModelPortfolioSummary {
+	if h.modelPortfolioSvc == nil {
+		return []modelportfolio.ModelPortfolioSummary{}
+	}
+	summaries, err := h.modelPortfolioSvc.GetAllForSelector(ctx)
+	if err != nil {
+		slog.Warn("failed to fetch model portfolios for allocation dropdown", "error", err)
+		return []modelportfolio.ModelPortfolioSummary{}
+	}
+	if summaries == nil {
+		return []modelportfolio.ModelPortfolioSummary{}
+	}
+	return summaries
+}
+
 // buildPageData assembles the allocation page data struct.
 func (h *AllocationWebHandler) buildPageData(
 	w http.ResponseWriter, r *http.Request,
 	filter AllocationFilter,
 	portfolios []portfolio.Portfolio,
 	symbols []symbolmapping.SymbolMapping,
+	modelPortfolios []modelportfolio.ModelPortfolioSummary,
 	alloc *allocation.AllocationResult,
 	drift *allocation.DriftResult,
 	rebalance *allocation.RebalanceResult,
@@ -304,21 +333,22 @@ func (h *AllocationWebHandler) buildPageData(
 	}
 
 	return allocationPageData{
-		PageData:         web.PageData{Title: "Allocation", Flash: getFlash(w, r)},
-		Allocation:       alloc,
-		Drift:            drift,
-		Rebalance:        rebalance,
-		Targets:          targets,
-		Portfolios:       portfolios,
-		Symbols:          symbols,
+		PageData:          web.PageData{Title: "Allocation", Flash: getFlash(w, r)},
+		Allocation:        alloc,
+		Drift:             drift,
+		Rebalance:         rebalance,
+		Targets:           targets,
+		Portfolios:        portfolios,
+		Symbols:           symbols,
+		ModelPortfolios:   modelPortfolios,
 		SelectedPortfolio: selectedPortfolio,
-		Filter:           filter,
-		BaseCurrency:     baseCurrency,
-		LastUpdatedText:  lastUpdatedText,
-		SaveError:        errorMsg,
-		DriftWarning:     driftWarning,
-		RebalanceWarning: rebalanceWarning,
-		TargetWarning:    targetWarning,
+		Filter:            filter,
+		BaseCurrency:      baseCurrency,
+		LastUpdatedText:   lastUpdatedText,
+		SaveError:         errorMsg,
+		DriftWarning:      driftWarning,
+		RebalanceWarning:  rebalanceWarning,
+		TargetWarning:     targetWarning,
 	}
 }
 
