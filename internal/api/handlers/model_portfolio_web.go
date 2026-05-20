@@ -78,7 +78,7 @@ func (h *ModelPortfolioWebHandler) RegisterRoutes(r *chi.Mux) {
 
 // HandleListPage renders GET /model-portfolios.
 func (h *ModelPortfolioWebHandler) HandleListPage(w http.ResponseWriter, r *http.Request) {
-	modelPortfolios, err := h.service.List(r.Context(), 1000, 0)
+	modelPortfolios, err := h.service.ListAll(r.Context())
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return

@@ -88,6 +88,24 @@ func (r *ModelPortfolioRepository) List(ctx context.Context, limit, offset int) 
 	return result, nil
 }
 
+// ListAll returns all model portfolios without pagination.
+func (r *ModelPortfolioRepository) ListAll(ctx context.Context) ([]modelportfolio.ModelPortfolio, error) {
+	rows, err := r.q.ListAllModelPortfolios(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("list all model portfolios: %w", err)
+	}
+
+	result := make([]modelportfolio.ModelPortfolio, len(rows))
+	for i, row := range rows {
+		p, err := toModelPortfolio(row)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = p
+	}
+	return result, nil
+}
+
 // Update updates an existing model portfolio.
 func (r *ModelPortfolioRepository) Update(ctx context.Context, mp modelportfolio.ModelPortfolio) (modelportfolio.ModelPortfolio, error) {
 	entriesJSON, err := json.Marshal(mp.Entries)

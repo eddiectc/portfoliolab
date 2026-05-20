@@ -16,6 +16,10 @@ SELECT * FROM model_portfolios
 ORDER BY name
 LIMIT ? OFFSET ?;
 
+-- name: ListAllModelPortfolios :many
+SELECT * FROM model_portfolios
+ORDER BY name;
+
 -- name: UpdateModelPortfolio :one
 UPDATE model_portfolios
 SET name = ?, entries = ?, updated_at = ?
