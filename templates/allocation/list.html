@@ -84,10 +84,30 @@ function addTargetEntry() {
     div.innerHTML =
         '<input type="text" name="symbol_' + targetIndex + '" class="form-control" style="width:120px;" placeholder="Symbol" list="symbol-list">' +
         '<input type="text" name="target_pct_' + targetIndex + '" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTargetTotal()">' +
-        '<span class="text-muted">%</span>';
+        '<span class="text-muted">%</span>' +
+        '<button type="button" class="btn btn-sm" onclick="removeTargetEntry(this)" title="Remove" style="color:#dc3545;font-weight:bold;padding:2px 8px;">&times;</button>';
     container.appendChild(div);
     targetIndex++;
     calculateTargetTotal();
+}
+
+function removeTargetEntry(btn) {
+    var container = document.getElementById('target-entries');
+    var row = btn.closest('.target-entry');
+    row.remove();
+    reindexTargetEntries(container);
+    calculateTargetTotal();
+}
+
+function reindexTargetEntries(container) {
+    var rows = container.querySelectorAll('.target-entry');
+    for (var i = 0; i < rows.length; i++) {
+        var symInput = rows[i].querySelector('[name^="symbol_"]');
+        var pctInput = rows[i].querySelector('[name^="target_pct_"]');
+        if (symInput) symInput.name = 'symbol_' + i;
+        if (pctInput) pctInput.name = 'target_pct_' + i;
+    }
+    targetIndex = rows.length;
 }
 
 function calculateTargetTotal() {

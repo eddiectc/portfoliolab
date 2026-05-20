@@ -66,9 +66,10 @@
                 {{/* Existing targets */}}
                 {{range $idx, $target := .Targets}}
                 <div class="target-entry" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
-                    <input type="text" name="symbol_{{$idx}}" value="{{$target.Symbol}}" class="form-control" style="width:120px;" readonly>
+                    <input type="text" name="symbol_{{$idx}}" value="{{$target.Symbol}}" class="form-control" style="width:120px;" list="symbol-list">
                     <input type="text" name="target_pct_{{$idx}}" value="{{$target.TargetPct.String}}" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTargetTotal()">
                     <span class="text-muted">%</span>
+                    <button type="button" class="btn btn-sm" onclick="removeTargetEntry(this)" title="Remove" style="color:#dc3545;font-weight:bold;padding:2px 8px;">&times;</button>
                 </div>
                 {{end}}
                 {{/* Empty targets — show 3 blank rows */}}
@@ -78,6 +79,7 @@
                     <input type="text" name="symbol_{{$idx}}" class="form-control" style="width:120px;" placeholder="Symbol" list="symbol-list">
                     <input type="text" name="target_pct_{{$idx}}" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTargetTotal()">
                     <span class="text-muted">%</span>
+                    <button type="button" class="btn btn-sm" onclick="removeTargetEntry(this)" title="Remove" style="color:#dc3545;font-weight:bold;padding:2px 8px;">&times;</button>
                 </div>
                 {{end}}
                 {{end}}
