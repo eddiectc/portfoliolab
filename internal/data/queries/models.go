@@ -63,6 +63,14 @@ type MarketDatum struct {
 	UpdatedAt string `db:"updated_at"`
 }
 
+type ModelPortfolio struct {
+	ID        int64  `db:"id"`
+	Name      string `db:"name"`
+	Entries   string `db:"entries"`
+	CreatedAt string `db:"created_at"`
+	UpdatedAt string `db:"updated_at"`
+}
+
 type Portfolio struct {
 	ID        int64  `db:"id"`
 	Name      string `db:"name"`

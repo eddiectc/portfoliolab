@@ -32,11 +32,11 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** All scenarios (foundation)
 **Description:** Create `model_portfolios` table with entries stored as a JSON column. Add sqlc SQL file and update schema.sql.
 
-- [ ] Create migration `020_create_model_portfolios.sql` with `model_portfolios` table (id, name UNIQUE, entries TEXT JSON, created_at, updated_at)
-- [ ] Create `internal/data/queries/model_portfolio.sql` with sqlc queries (CRUD: Create, GetByID, GetByName, List, Update, Delete)
-- [ ] Update `internal/data/queries/schema.sql` with new table
-- [ ] Run `sqlc generate` to produce Go types
-- [ ] Write migration smoke test (verifies table exists with correct columns)
+- [x] Create migration `020_create_model_portfolios.sql` with `model_portfolios` table (id, name UNIQUE, entries TEXT JSON, created_at, updated_at)
+- [x] Create `internal/data/queries/model_portfolio.sql` with sqlc queries (CRUD: Create, GetByID, GetByName, List, Update, Delete)
+- [x] Update `internal/data/queries/schema.sql` with new table
+- [x] Run `sqlc generate` to produce Go types
+- [x] Write migration smoke test (verifies table exists with correct columns)
 
 **Verification:** `goose up` succeeds, `sqlc generate` produces clean Go code, migration smoke test passes.
 
