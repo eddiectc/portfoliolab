@@ -55,7 +55,7 @@ func (s *Service) WithLogger(logger *slog.Logger) {
 // empty), fetches open positions, enriches them with market data, groups by
 // symbol, and computes allocation percentages.
 //
-// Cash positions ($CASH-*) are aggregated into a single "Cash" row converted
+// Cash positions ($CASH-*) are aggregated into a single "$CASH" row converted
 // to the portfolio base currency. Percentages are computed as:
 //
 //	allocation_pct = symbol_market_value_base / total_market_value_base * 100
@@ -275,7 +275,7 @@ func buildAllocationRow(symbol string, entries []position.PositionWithMarket, to
 	}
 }
 
-// buildCashRow aggregates all cash positions into a single "Cash" row.
+// buildCashRow aggregates all cash positions into a single "$CASH" row.
 func buildCashRow(entries []position.PositionWithMarket, totalValueBase decimal.Decimal, baseCurrency string, accounts []AccountRef) *AllocationRow {
 	var mvBase decimal.Decimal
 	var hasMarketData bool
@@ -326,7 +326,7 @@ func buildCashRow(entries []position.PositionWithMarket, totalValueBase decimal.
 	allocPct := computePercentage(mvBase, totalValueBase)
 
 	row := &AllocationRow{
-		Symbol:           "Cash",
+		Symbol:           "$CASH",
 		MarketValue:      mvBase,
 		MarketValueBase:  &mvBase,
 		AllocationPct:    allocPct,
@@ -541,7 +541,7 @@ func (s *Service) ComputeDrift(ctx context.Context, filter AllocationFilter, por
 		actualMap[row.Symbol] = row.AllocationPct
 	}
 	if actual.CashRow != nil {
-		actualMap["Cash"] = actual.CashRow.AllocationPct
+		actualMap["$CASH"] = actual.CashRow.AllocationPct
 	}
 
 	targetMap := make(map[string]decimal.Decimal)
@@ -657,7 +657,7 @@ func (s *Service) ComputeRebalancingSuggestions(ctx context.Context, filter Allo
 		}
 
 		// Skip cash — no meaningful "buy cash" or "sell cash" action.
-		if row.Symbol == "Cash" {
+		if row.Symbol == "$CASH" {
 			warnings = append(warnings, fmt.Sprintf("cash allocation drift of %s%% exceeds tolerance (no rebalancing action for cash)", row.DriftPct.String()))
 			continue
 		}

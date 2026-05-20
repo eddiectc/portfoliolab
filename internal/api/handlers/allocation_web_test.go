@@ -90,7 +90,7 @@ func TestAllocationTemplate_WithData(t *testing.T) {
 		TotalValueBase: totalValue,
 		BaseCurrency:   "USD",
 		CashRow: &allocation.AllocationRow{
-			Symbol:        "Cash",
+			Symbol:        "$CASH",
 			MarketValue:   decimal.MustParse("55000.00"),
 			MarketValueBase: func() *decimal.Decimal { v := decimal.MustParse("55000.00"); return &v }(),
 			AllocationPct: decimal.MustParse("36.7"),
@@ -130,7 +130,7 @@ func TestAllocationTemplate_WithData(t *testing.T) {
 	checkContains("AAPL pct", "33.30%")
 	checkContains("MSFT row", "MSFT")
 	checkContains("MSFT pct", "30.00%")
-	checkContains("cash row", "Cash")
+	checkContains("cash row", "$CASH")
 	checkContains("cash pct", "36.70%")
 	checkContains("last updated", "2026-05-19 10:30:00 UTC")
 	checkContains("expand button", "expand-btn")
@@ -176,7 +176,7 @@ func TestAllocationTemplate_WithDrift(t *testing.T) {
 				IsBalanced: false,
 			},
 			{
-				Symbol:     "Cash",
+				Symbol:     "$CASH",
 				ActualPct:  decimal.MustParse("50.0"),
 				TargetPct:  decimal.MustParse("30.0"),
 				DriftPct:   decimal.MustParse("20.0"),
@@ -212,7 +212,7 @@ func TestAllocationTemplate_WithDrift(t *testing.T) {
 	targets := []allocation.TargetAllocation{
 		{PortfolioID: 1, Symbol: "AAPL", TargetPct: decimal.MustParse("40.0")},
 		{PortfolioID: 1, Symbol: "MSFT", TargetPct: decimal.MustParse("30.0")},
-		{PortfolioID: 1, Symbol: "Cash", TargetPct: decimal.MustParse("30.0")},
+		{PortfolioID: 1, Symbol: "$CASH", TargetPct: decimal.MustParse("30.0")},
 	}
 
 	data := allocationPageData{

@@ -159,8 +159,8 @@ func TestAllocation_Basic(t *testing.T) {
 	if result.CashRow == nil {
 		t.Error("expected cash row in allocation")
 	} else {
-		if result.CashRow.Symbol != "Cash" {
-			t.Errorf("expected cash symbol 'Cash', got %q", result.CashRow.Symbol)
+		if result.CashRow.Symbol != "$CASH" {
+			t.Errorf("expected cash symbol '$CASH', got %q", result.CashRow.Symbol)
 		}
 	}
 
@@ -178,11 +178,11 @@ func TestAllocation_Basic(t *testing.T) {
 func TestAllocation_TargetSaveAndGet(t *testing.T) {
 	_, router, portfolioID, _ := setupAlloc(t)
 
-	// Save target: AAPL 40%, MSFT 30%, Cash 30%
+	// Save target: AAPL 40%, MSFT 30%, $CASH 30%
 	body := json.RawMessage(`[
 		{"symbol": "AAPL", "target_pct": "40.0"},
 		{"symbol": "MSFT", "target_pct": "30.0"},
-		{"symbol": "Cash", "target_pct": "30.0"}
+		{"symbol": "$CASH", "target_pct": "30.0"}
 	]`)
 	req := httptest.NewRequest(http.MethodPost,
 		fmt.Sprintf("/api/allocation/target?portfolio_id=%d", portfolioID), bytes.NewReader(body))
@@ -231,8 +231,8 @@ func TestAllocation_TargetSaveAndGet(t *testing.T) {
 	if pct, ok := targetMap["MSFT"]; !ok || pct != "30.0" {
 		t.Errorf("expected MSFT target 30.0, got %q", pct)
 	}
-	if pct, ok := targetMap["Cash"]; !ok || pct != "30.0" {
-		t.Errorf("expected Cash target 30.0, got %q", pct)
+	if pct, ok := targetMap["$CASH"]; !ok || pct != "30.0" {
+		t.Errorf("expected $CASH target 30.0, got %q", pct)
 	}
 }
 
@@ -290,11 +290,11 @@ func TestAllocation_Drift(t *testing.T) {
 	createTransaction(t, router, accountID, "2025-01-15", "buy", "MSFT", 50, 42000, -2100000)
 	insertAllocMarketData(t, db)
 
-	// Save target: AAPL 50%, MSFT 30%, Cash 20%
+	// Save target: AAPL 50%, MSFT 30%, $CASH 20%
 	body := json.RawMessage(`[
 		{"symbol": "AAPL", "target_pct": "50.0"},
 		{"symbol": "MSFT", "target_pct": "30.0"},
-		{"symbol": "Cash", "target_pct": "20.0"}
+		{"symbol": "$CASH", "target_pct": "20.0"}
 	]`)
 	req := httptest.NewRequest(http.MethodPost,
 		fmt.Sprintf("/api/allocation/target?portfolio_id=%d", portfolioID), bytes.NewReader(body))
@@ -351,11 +351,11 @@ func TestAllocation_Rebalance(t *testing.T) {
 	createTransaction(t, router, accountID, "2025-01-15", "buy", "MSFT", 50, 42000, -2100000)
 	insertAllocMarketData(t, db)
 
-	// Save target with significant drift: AAPL 50%, MSFT 30%, Cash 20%
+	// Save target with significant drift: AAPL 50%, MSFT 30%, $CASH 20%
 	body := json.RawMessage(`[
 		{"symbol": "AAPL", "target_pct": "50.0"},
 		{"symbol": "MSFT", "target_pct": "30.0"},
-		{"symbol": "Cash", "target_pct": "20.0"}
+		{"symbol": "$CASH", "target_pct": "20.0"}
 	]`)
 	req := httptest.NewRequest(http.MethodPost,
 		fmt.Sprintf("/api/allocation/target?portfolio_id=%d", portfolioID), bytes.NewReader(body))
@@ -620,7 +620,7 @@ func TestAllocation_WebPage_WithDrift_Renders200(t *testing.T) {
 	// Save target
 	body := json.RawMessage(`[
 		{"symbol": "AAPL", "target_pct": "50.0"},
-		{"symbol": "Cash", "target_pct": "50.0"}
+		{"symbol": "$CASH", "target_pct": "50.0"}
 	]`)
 	req := httptest.NewRequest(http.MethodPost,
 		fmt.Sprintf("/api/allocation/target?portfolio_id=%d", portfolioID), bytes.NewReader(body))
