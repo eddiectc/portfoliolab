@@ -61,7 +61,7 @@ type previewPageData struct {
 
 // HandleImportPage renders GET /transactions/import/ibkr — the upload page.
 func (h *ImportWebHandler) HandleImportPage(w http.ResponseWriter, r *http.Request) {
-	accounts, err := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, err := h.accountSvc.ListAll(r.Context())
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -217,7 +217,7 @@ func (h *ImportWebHandler) HandleConfirmPost(w http.ResponseWriter, r *http.Requ
 
 // renderImportPage re-renders the upload page with an error message.
 func (h *ImportWebHandler) renderImportPage(w http.ResponseWriter, r *http.Request, errMsg string) {
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
 	if accounts == nil {
 		accounts = []account.Account{}
 	}

@@ -73,6 +73,18 @@ func (m *mockRepo) GetAll(_ context.Context, limit, offset int) ([]Portfolio, er
 	return result, nil
 }
 
+func (m *mockRepo) ListAll(_ context.Context) ([]Portfolio, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	var result []Portfolio
+	for _, p := range m.portfolios {
+		cp := *p
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (m *mockRepo) Update(_ context.Context, p *Portfolio) error {
 	if m.err != nil {
 		return m.err

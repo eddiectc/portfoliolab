@@ -11,6 +11,10 @@ SELECT * FROM portfolios
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
 
+-- name: ListAllPortfolios :many
+SELECT * FROM portfolios
+ORDER BY created_at DESC;
+
 -- name: UpdatePortfolio :one
 UPDATE portfolios
 SET name = ?, currency = ?, updated_at = ?

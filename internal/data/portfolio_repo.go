@@ -17,8 +17,8 @@ var ErrNotFound = fmt.Errorf("not found")
 // PortfolioRepository provides data access for portfolios,
 // delegating to sqlc-generated queries.
 type PortfolioRepository struct {
-	q    *queries.Queries
-	db   queries.DBTX
+	q  *queries.Queries
+	db queries.DBTX
 }
 
 // NewPortfolioRepository creates a new portfolio repository.
@@ -98,6 +98,24 @@ func (r *PortfolioRepository) GetAll(ctx context.Context, limit, offset int) ([]
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list portfolios: %w", err)
+	}
+
+	portfolios := make([]portfolio.Portfolio, len(ps))
+	for i, p := range ps {
+		d, err := toDomain(p)
+		if err != nil {
+			return nil, fmt.Errorf("parse portfolio %d: %w", p.ID, err)
+		}
+		portfolios[i] = *d
+	}
+	return portfolios, nil
+}
+
+// ListAll returns all portfolios without pagination.
+func (r *PortfolioRepository) ListAll(ctx context.Context) ([]portfolio.Portfolio, error) {
+	ps, err := r.q.ListAllPortfolios(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("list all portfolios: %w", err)
 	}
 
 	portfolios := make([]portfolio.Portfolio, len(ps))

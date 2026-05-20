@@ -14,8 +14,8 @@ import (
 // SymbolMappingRepository provides data access for symbol mappings,
 // delegating to sqlc-generated queries.
 type SymbolMappingRepository struct {
-	q    *queries.Queries
-	db   queries.DBTX
+	q  *queries.Queries
+	db queries.DBTX
 }
 
 // NewSymbolMappingRepository creates a new symbol mapping repository.
@@ -134,6 +134,24 @@ func (r *SymbolMappingRepository) GetAll(ctx context.Context, limit, offset int)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list symbol mappings: %w", err)
+	}
+
+	mappings := make([]symbolmapping.SymbolMapping, len(sms))
+	for i, sm := range sms {
+		d, err := toSymbolMapping(sm)
+		if err != nil {
+			return nil, fmt.Errorf("parse symbol mapping %d: %w", sm.ID, err)
+		}
+		mappings[i] = *d
+	}
+	return mappings, nil
+}
+
+// ListAll returns all symbol mappings without pagination.
+func (r *SymbolMappingRepository) ListAll(ctx context.Context) ([]symbolmapping.SymbolMapping, error) {
+	sms, err := r.q.ListAllSymbolMappings(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("list all symbol mappings: %w", err)
 	}
 
 	mappings := make([]symbolmapping.SymbolMapping, len(sms))

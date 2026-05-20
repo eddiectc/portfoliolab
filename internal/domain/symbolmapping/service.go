@@ -21,6 +21,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id int64) (*SymbolMapping, error)
 	GetByInternalSymbol(ctx context.Context, internalSymbol string) (*SymbolMapping, error)
 	GetAll(ctx context.Context, limit, offset int) ([]SymbolMapping, error)
+	ListAll(ctx context.Context) ([]SymbolMapping, error)
 	Update(ctx context.Context, sm *SymbolMapping) error
 	Delete(ctx context.Context, id int64) error
 	AddBrokerSymbol(ctx context.Context, symbolMappingID int64, brokerName, brokerSymbol string) error
@@ -172,6 +173,15 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]SymbolMapping,
 	mappings, err := s.repo.GetAll(ctx, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list symbol mappings: %w", err)
+	}
+	return mappings, nil
+}
+
+// ListAll returns all symbol mappings without pagination.
+func (s *Service) ListAll(ctx context.Context) ([]SymbolMapping, error) {
+	mappings, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all symbol mappings: %w", err)
 	}
 	return mappings, nil
 }

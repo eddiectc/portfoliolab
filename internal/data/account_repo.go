@@ -14,8 +14,8 @@ import (
 // AccountRepository provides data access for accounts,
 // delegating to sqlc-generated queries.
 type AccountRepository struct {
-	q    *queries.Queries
-	db   queries.DBTX
+	q  *queries.Queries
+	db queries.DBTX
 }
 
 // NewAccountRepository creates a new account repository.
@@ -83,6 +83,24 @@ func (r *AccountRepository) GetAll(ctx context.Context, limit, offset int) ([]ac
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list accounts: %w", err)
+	}
+
+	result := make([]account.Account, len(accounts))
+	for i, a := range accounts {
+		d, err := toAccount(a)
+		if err != nil {
+			return nil, fmt.Errorf("parse account %d: %w", a.ID, err)
+		}
+		result[i] = *d
+	}
+	return result, nil
+}
+
+// ListAll returns all accounts without pagination.
+func (r *AccountRepository) ListAll(ctx context.Context) ([]account.Account, error) {
+	accounts, err := r.q.ListAllAccounts(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("list all accounts: %w", err)
 	}
 
 	result := make([]account.Account, len(accounts))

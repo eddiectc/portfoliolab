@@ -30,7 +30,7 @@ func (m *mockPortfolioChecker) PortfolioExists(_ context.Context, id int64) bool
 
 type mockRepo struct {
 	accounts    map[int64]*Account
-	names       map[string]int64 // name -> id
+	names       map[string]int64  // name -> id
 	byPortfolio map[int64][]int64 // portfolio_id -> account ids (ordered)
 	nextID      int64
 	err         error
@@ -90,6 +90,18 @@ func (m *mockRepo) GetAll(_ context.Context, limit, offset int) ([]Account, erro
 	}
 	if limit < len(result) {
 		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (m *mockRepo) ListAll(_ context.Context) ([]Account, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	var result []Account
+	for _, a := range m.accounts {
+		cp := *a
+		result = append(result, cp)
 	}
 	return result, nil
 }

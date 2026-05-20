@@ -86,6 +86,40 @@ func (q *Queries) GetPortfolioByName(ctx context.Context, db DBTX, name string) 
 	return i, err
 }
 
+const listAllPortfolios = `-- name: ListAllPortfolios :many
+SELECT id, name, currency, created_at, updated_at FROM portfolios
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListAllPortfolios(ctx context.Context, db DBTX) ([]Portfolio, error) {
+	rows, err := db.QueryContext(ctx, listAllPortfolios)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Portfolio{}
+	for rows.Next() {
+		var i Portfolio
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Currency,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPortfolios = `-- name: ListPortfolios :many
 SELECT id, name, currency, created_at, updated_at FROM portfolios
 ORDER BY created_at DESC

@@ -12,6 +12,7 @@ type Repository interface {
 	Create(ctx context.Context, a *Account) error
 	GetByID(ctx context.Context, id int64) (*Account, error)
 	GetAll(ctx context.Context, limit, offset int) ([]Account, error)
+	ListAll(ctx context.Context) ([]Account, error)
 	GetByPortfolio(ctx context.Context, portfolioID int64, limit, offset int) ([]Account, error)
 	GetByName(ctx context.Context, name string) (*Account, error)
 	Update(ctx context.Context, a *Account) error
@@ -39,7 +40,7 @@ const defaultLimit = 50
 
 // Service handles account business logic.
 type Service struct {
-	repo    Repository
+	repo       Repository
 	portfolios PortfolioChecker
 }
 
@@ -102,6 +103,15 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]Account, error
 	accounts, err := s.repo.GetAll(ctx, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list accounts: %w", err)
+	}
+	return accounts, nil
+}
+
+// ListAll returns all accounts without pagination.
+func (s *Service) ListAll(ctx context.Context) ([]Account, error) {
+	accounts, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all accounts: %w", err)
 	}
 	return accounts, nil
 }

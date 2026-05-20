@@ -212,7 +212,7 @@ func (h *TransactionWebHandler) HandleListPage(w http.ResponseWriter, r *http.Re
 	}
 
 	// Fetch accounts for filter dropdown.
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
 
 	data := transactionListPageData{
 		PageData: web.PageData{
@@ -240,8 +240,8 @@ func (h *TransactionWebHandler) HandleListPage(w http.ResponseWriter, r *http.Re
 
 // HandleNewPage renders GET /transactions/new.
 func (h *TransactionWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request) {
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
+	symbols, _ := h.symbolSvc.ListAll(r.Context())
 
 	data := newTransactionFormPageData(web.PageData{
 		Title: "New Transaction",
@@ -255,8 +255,8 @@ func (h *TransactionWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Req
 
 // HandleCreatePage handles POST /transactions (form submission).
 func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Request) {
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
+	symbols, _ := h.symbolSvc.ListAll(r.Context())
 
 	accountID, _ := strconv.ParseInt(r.FormValue("account_id"), 10, 64)
 	date := r.FormValue("date")
@@ -396,7 +396,7 @@ func (h *TransactionWebHandler) HandleDetailPage(w http.ResponseWriter, r *http.
 	}
 
 	// Get account name
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
 	accountName := ""
 	for _, a := range accounts {
 		if a.ID == t.AccountID {
@@ -438,8 +438,8 @@ func (h *TransactionWebHandler) HandleEditPage(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
+	symbols, _ := h.symbolSvc.ListAll(r.Context())
 
 	editAction := "/transactions/" + strconv.FormatInt(id, 10) + "/edit"
 	cancelHref := "/transactions/" + strconv.FormatInt(id, 10)
@@ -490,8 +490,8 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
+	symbols, _ := h.symbolSvc.ListAll(r.Context())
 
 	date := r.FormValue("date")
 	txType := r.FormValue("type")

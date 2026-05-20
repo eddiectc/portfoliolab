@@ -103,9 +103,9 @@ type openPositionListPageData struct {
 // lotDetailPageData is the data struct for the lot detail template.
 type lotDetailPageData struct {
 	web.PageData
-	Lot          position.LotWithDetails
-	BackHref     string
-	BackLabel    string
+	Lot       position.LotWithDetails
+	BackHref  string
+	BackLabel string
 }
 
 // PositionWebHandler handles server-rendered position pages.
@@ -174,7 +174,7 @@ func (h *PositionWebHandler) HandleOpenPositions(w http.ResponseWriter, r *http.
 	}
 
 	// Fetch accounts for filter dropdown.
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
 
 	// Cache status for aggregate indicator.
 	var cacheStatus marketcache.CacheStatus
@@ -251,7 +251,7 @@ func (h *PositionWebHandler) HandleClosedPositions(w http.ResponseWriter, r *htt
 	}
 
 	// Fetch accounts for filter dropdown.
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
 
 	data := positionListPageData{
 		PageData: web.PageData{

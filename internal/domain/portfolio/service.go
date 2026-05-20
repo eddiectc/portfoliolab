@@ -12,6 +12,7 @@ type Repository interface {
 	Create(ctx context.Context, p *Portfolio) error
 	GetByID(ctx context.Context, id int64) (*Portfolio, error)
 	GetAll(ctx context.Context, limit, offset int) ([]Portfolio, error)
+	ListAll(ctx context.Context) ([]Portfolio, error)
 	Update(ctx context.Context, p *Portfolio) error
 	Delete(ctx context.Context, id int64) error
 	GetByName(ctx context.Context, name string) (*Portfolio, error)
@@ -103,6 +104,15 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]Portfolio, err
 	portfolios, err := s.repo.GetAll(ctx, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list portfolios: %w", err)
+	}
+	return portfolios, nil
+}
+
+// ListAll returns all portfolios without pagination.
+func (s *Service) ListAll(ctx context.Context) ([]Portfolio, error) {
+	portfolios, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all portfolios: %w", err)
 	}
 	return portfolios, nil
 }

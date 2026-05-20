@@ -14,6 +14,10 @@ SELECT * FROM symbol_mappings
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
 
+-- name: ListAllSymbolMappings :many
+SELECT * FROM symbol_mappings
+ORDER BY created_at DESC;
+
 -- name: UpdateSymbolMapping :one
 UPDATE symbol_mappings
 SET internal_symbol = ?, market_data_symbol = ?, is_benchmark = ?, updated_at = ?

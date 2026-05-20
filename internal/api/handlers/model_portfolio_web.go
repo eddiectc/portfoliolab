@@ -107,7 +107,7 @@ func (h *ModelPortfolioWebHandler) HandleListPage(w http.ResponseWriter, r *http
 
 // HandleNewPage renders GET /model-portfolios/new.
 func (h *ModelPortfolioWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request) {
-	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	symbols, err := h.symbolSvc.ListAll(r.Context())
 	if err != nil {
 		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
 	}
@@ -180,7 +180,7 @@ func parseEntriesForm(r *http.Request) []modelPortfolioEntryForm {
 
 // HandleCreatePage handles POST /model-portfolios (form submission).
 func (h *ModelPortfolioWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Request) {
-	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	symbols, err := h.symbolSvc.ListAll(r.Context())
 	if err != nil {
 		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
 	}
@@ -230,7 +230,7 @@ func (h *ModelPortfolioWebHandler) HandleEditPage(w http.ResponseWriter, r *http
 		return
 	}
 
-	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	symbols, err := h.symbolSvc.ListAll(r.Context())
 	if err != nil {
 		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
 	}
@@ -268,7 +268,7 @@ func (h *ModelPortfolioWebHandler) HandleEditPost(w http.ResponseWriter, r *http
 		return
 	}
 
-	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	symbols, err := h.symbolSvc.ListAll(r.Context())
 	if err != nil {
 		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
 	}

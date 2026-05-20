@@ -65,6 +65,15 @@ func (m *mockAccountRepo) GetAll(_ context.Context, _, _ int) ([]account.Account
 	return result, nil
 }
 
+func (m *mockAccountRepo) ListAll(_ context.Context) ([]account.Account, error) {
+	result := make([]account.Account, 0, len(m.accounts))
+	for _, a := range m.accounts {
+		cp := *a
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (m *mockAccountRepo) GetByPortfolio(_ context.Context, portfolioID int64, _, _ int) ([]account.Account, error) {
 	ids := m.byPortfolio[portfolioID]
 	result := make([]account.Account, 0, len(ids))
@@ -138,6 +147,16 @@ func (m *mockPortfolioRepoForAccount) GetAll(_ context.Context, _, _ int) ([]por
 	}
 	return result, nil
 }
+
+func (m *mockPortfolioRepoForAccount) ListAll(_ context.Context) ([]portfolio.Portfolio, error) {
+	result := make([]portfolio.Portfolio, 0, len(m.portfolios))
+	for _, p := range m.portfolios {
+		cp := *p
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (m *mockPortfolioRepoForAccount) Update(_ context.Context, p *portfolio.Portfolio) error {
 	m.portfolios[p.ID] = p
 	return nil

@@ -68,7 +68,7 @@ func (h *SymbolWebHandler) RegisterRoutes(r *chi.Mux) {
 
 // HandleListPage renders GET /symbols.
 func (h *SymbolWebHandler) HandleListPage(w http.ResponseWriter, r *http.Request) {
-	mappings, err := h.service.List(r.Context(), 0, 0)
+	mappings, err := h.service.ListAll(r.Context())
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return

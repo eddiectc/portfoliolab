@@ -192,6 +192,15 @@ func (m *mockAccountRepoForTx) GetAll(_ context.Context, _, _ int) ([]account.Ac
 	return result, nil
 }
 
+func (m *mockAccountRepoForTx) ListAll(_ context.Context) ([]account.Account, error) {
+	result := make([]account.Account, 0, len(m.accounts))
+	for _, a := range m.accounts {
+		cp := *a
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (m *mockAccountRepoForTx) GetByPortfolio(_ context.Context, portfolioID int64, _, _ int) ([]account.Account, error) {
 	result := make([]account.Account, 0)
 	for _, a := range m.accounts {
@@ -263,6 +272,15 @@ func (m *mockSymbolRepoForTx) GetByID(_ context.Context, id int64) (*symbolmappi
 }
 
 func (m *mockSymbolRepoForTx) GetAll(_ context.Context, _, _ int) ([]symbolmapping.SymbolMapping, error) {
+	result := make([]symbolmapping.SymbolMapping, 0, len(m.mappings))
+	for _, sm := range m.mappings {
+		cp := *sm
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
+func (m *mockSymbolRepoForTx) ListAll(_ context.Context) ([]symbolmapping.SymbolMapping, error) {
 	result := make([]symbolmapping.SymbolMapping, 0, len(m.mappings))
 	for _, sm := range m.mappings {
 		cp := *sm
