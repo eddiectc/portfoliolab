@@ -147,16 +147,16 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** Apply model portfolio as target allocation (with/without existing target, symbols not in real portfolio)
 **Description:** Add a model portfolio selector on the Allocation page. Selecting a model portfolio pre-fills the target allocation form — user can review, adjust, save via existing "Save" button, or cancel. No new API endpoint or service changes needed.
 
-- [ ] Update `allocationPageData` struct to include `ModelPortfolios []ModelPortfolio` for dropdown
-- [ ] Wire model portfolio service into `AllocationWebHandler` (constructor + router.go)
-- [ ] Update `HandleAllocation` to fetch model portfolios for dropdown
-- [ ] Update `templates/allocation/list.html`:
+- [x] Update `allocationPageData` struct to include `ModelPortfolios []ModelPortfolioSummary` for dropdown
+- [x] Wire model portfolio service into `AllocationWebHandler` (constructor + router.go)
+- [x] Update `HandleAllocation` to fetch model portfolios for dropdown
+- [x] Update `templates/partials/allocation/drift-target.html`:
   - Add model portfolio dropdown above the target entries section
   - Add "Load" button next to dropdown
   - Add JS handler: on click, fetch `GET /api/model-portfolios/{id}` and populate target entry fields (symbol_N, target_pct_N)
   - Clear existing entries before populating
   - Trigger `calculateTargetTotal()` after population
-- [ ] Write web handler test: allocation page renders with model portfolios in data
+- [x] Write web handler test: allocation page renders with model portfolios in data
 
 **Verification:** Dropdown populated with model portfolios; selecting one pre-fills the target form; user can edit/save/cancel via existing controls; no new backend endpoints needed.
 
@@ -166,8 +166,8 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** All scenarios (end-to-end verification)
 **Description:** Add nav link and integration tests for the full stack.
 
-- [ ] Add "Model Portfolios" link to `templates/partials/nav.html`
-- [ ] Create `tests/integration/model_portfolio_test.go`:
+- [x] Add "Model Portfolios" link to `templates/partials/nav.html`
+- [x] Create `tests/integration/model_portfolio_test.go`:
   - Test: Create model portfolio via API → GET returns it
   - Test: Create with invalid weights → 400 error
   - Test: Create with inline symbol → symbol + portfolio both created
@@ -175,7 +175,7 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
   - Test: Delete model portfolio → 204, GET returns 404
   - Test: Apply model portfolio as target → target allocation matches model
   - Test: Web page renders 200 (list, new, edit)
-- [ ] Run `go test ./...` to verify full test suite passes
+- [x] Run `go test ./...` to verify full test suite passes
 
 **Verification:** All integration tests pass; nav link visible; `go test ./...` clean.
 

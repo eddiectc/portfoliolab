@@ -132,6 +132,45 @@ function calculateTargetTotal() {
 
 // Calculate total on page load.
 calculateTargetTotal();
+
+// Load model portfolio entries into the target form.
+function loadModelPortfolio() {
+    var select = document.getElementById('model-portfolio-select');
+    if (!select) return;
+    var id = select.value;
+    if (!id) {
+        alert('Please select a model portfolio first.');
+        return;
+    }
+    fetch('/api/model-portfolios/' + id)
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('Failed to load model portfolio');
+            return resp.json();
+        })
+        .then(function(mp) {
+            // Clear existing entries
+            var container = document.getElementById('target-entries');
+            container.innerHTML = '';
+            // Populate from model entries
+            for (var i = 0; i < mp.entries.length; i++) {
+                var div = document.createElement('div');
+                div.className = 'target-entry';
+                div.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
+                div.innerHTML =
+                    '<input type="text" name="symbol_' + i + '" value="' + mp.entries[i].symbol + '" class="form-control" style="width:120px;" list="symbol-list">' +
+                    '<input type="text" name="target_pct_' + i + '" value="' + mp.entries[i].weight_pct + '" class="form-control" style="width:100px;" step="0.1" oninput="calculateTargetTotal()">' +
+                    '<span class="text-muted">%</span>' +
+                    '<button type="button" class="btn btn-sm" onclick="removeTargetEntry(this)" title="Remove" style="color:#dc3545;font-weight:bold;padding:2px 8px;">&times;</button>';
+                container.appendChild(div);
+            }
+            // Reset targetIndex
+            targetIndex = mp.entries.length;
+            calculateTargetTotal();
+        })
+        .catch(function(err) {
+            alert('Error loading model portfolio: ' + err.message);
+        });
+}
 </script>
 
 {{end}}

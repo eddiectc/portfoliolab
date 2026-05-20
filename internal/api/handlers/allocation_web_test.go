@@ -13,6 +13,7 @@ import (
 	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
@@ -765,5 +766,86 @@ func TestAllocationHandler_SaveTarget_FiveEntries20Pct(t *testing.T) {
 	}
 	if len(mock.lastEntries) != 5 {
 		t.Errorf("expected 5 entries, got %d", len(mock.lastEntries))
+	}
+}
+
+// Test that the allocation page renders with model portfolios in the dropdown data.
+func TestAllocationTemplate_WithModelPortfolios(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	drift := &allocation.DriftResult{
+		Rows:         []allocation.DriftRow{},
+		BaseCurrency: "USD",
+		HasTarget:    false,
+	}
+
+	modelPortfolios := []modelportfolio.ModelPortfolioSummary{
+		{ID: 1, Name: "60/40 Balanced", EntryCount: 2},
+		{ID: 2, Name: "Growth Portfolio", EntryCount: 5},
+	}
+
+	data := allocationPageData{
+		PageData:        web.PageData{Title: "Allocation"},
+		Drift:           drift,
+		ModelPortfolios: modelPortfolios,
+		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPortfolio: "1",
+		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
+		BaseCurrency:      "USD",
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "allocation/list", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	if !strings.Contains(body, "Load from model:") {
+		t.Error("expected model portfolio selector label")
+	}
+	if !strings.Contains(body, "60/40 Balanced") {
+		t.Error("expected model portfolio name in dropdown")
+	}
+	if !strings.Contains(body, "2 entries") {
+		t.Error("expected entry count in dropdown")
+	}
+	if !strings.Contains(body, "Growth Portfolio") {
+		t.Error("expected second model portfolio name in dropdown")
+	}
+	if !strings.Contains(body, `onclick="loadModelPortfolio()"`) {
+		t.Error("expected loadModelPortfolio JS handler")
+	}
+}
+
+// Test that the allocation page hides the model portfolio section when none exist.
+func TestAllocationTemplate_NoModelPortfolios(t *testing.T) {
+	renderer := newTestRenderer(t)
+
+	drift := &allocation.DriftResult{
+		Rows:         []allocation.DriftRow{},
+		BaseCurrency: "USD",
+		HasTarget:    false,
+	}
+
+	data := allocationPageData{
+		PageData:        web.PageData{Title: "Allocation"},
+		Drift:           drift,
+		ModelPortfolios: []modelportfolio.ModelPortfolioSummary{},
+		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPortfolio: "1",
+		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
+		BaseCurrency:      "USD",
+	}
+
+	w := httptest.NewRecorder()
+	if err := renderer.Render(w, "allocation/list", data); err != nil {
+		t.Fatalf("template render failed: %v", err)
+	}
+
+	body := w.Body.String()
+
+	if strings.Contains(body, "Load from model:") {
+		t.Error("should not show model portfolio selector when none exist")
 	}
 }

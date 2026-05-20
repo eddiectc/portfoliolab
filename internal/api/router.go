@@ -229,7 +229,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		allocHandler.RegisterRoutes(r)
 
 		// Allocation web pages
-		allocWebHandler := handlers.NewAllocationWebHandler(allocHandler, portfolioSvc, symbolMappingSvc, allocSvc, renderer)
+		allocWebHandler := handlers.NewAllocationWebHandler(allocHandler, portfolioSvc, symbolMappingSvc, allocSvc, modelPortfolioSvc, renderer)
 		allocWebHandler.RegisterRoutes(r)
 
 		// Model Portfolio web pages
