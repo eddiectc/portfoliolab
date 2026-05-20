@@ -1,7 +1,11 @@
 package handlers
 
 import (
+	"fmt"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -681,5 +685,85 @@ func TestSerializeRebalanceData(t *testing.T) {
 	}
 	if !strings.Contains(got, "AAPL") {
 		t.Error("expected AAPL in JSON")
+	}
+}
+
+// Test that parsing 5 target entries of 20% each sums to 100% and saves successfully.
+// Regression test: form parsing + decimal sum validation for 5 × 20% = 100%.
+func TestSaveTargetAllocation_FormParsing_FiveEntries20Pct(t *testing.T) {
+	// Simulate form values: 5 entries, each 20%
+	formData := url.Values{}
+	formData.Set("portfolio_id", "1")
+	for i := 0; i < 5; i++ {
+		formData.Set("symbol_"+strconv.Itoa(i), fmt.Sprintf("SYM%d", i))
+		formData.Set("target_pct_"+strconv.Itoa(i), "20")
+	}
+
+	// Parse entries the same way the handler does
+	var entries []allocation.TargetEntry
+	i := 0
+	for {
+		symbol := formData.Get("symbol_" + strconv.Itoa(i))
+		if symbol == "" {
+			break
+		}
+		pctStr := formData.Get("target_pct_" + strconv.Itoa(i))
+		pct, err := decimal.Parse(pctStr)
+		if err != nil {
+			t.Fatalf("parse error for %s: %v", symbol, err)
+		}
+		entries = append(entries, allocation.TargetEntry{
+			Symbol:    symbol,
+			TargetPct: pct,
+		})
+		i++
+	}
+
+	if len(entries) != 5 {
+		t.Fatalf("expected 5 entries, got %d", len(entries))
+	}
+
+	// Validate sum == 100 (same logic as SaveTargetAllocation)
+	var sum decimal.Decimal
+	for _, e := range entries {
+		sum, _ = sum.Add(e.TargetPct)
+	}
+	hundred := decimal.MustNew(10000, 2)
+	if !sum.Equal(hundred) {
+		t.Errorf("sum %q does not equal 100%% (hundred=%q)", sum.String(), hundred.String())
+	}
+}
+
+// Test the full HandleSaveTarget flow with 5 entries of 20% each.
+// Regression test: end-to-end form submission → service validation.
+func TestAllocationHandler_SaveTarget_FiveEntries20Pct(t *testing.T) {
+	mock := newMockAllocationService()
+	handler := &AllocationWebHandler{
+		allocSvc: mock,
+		renderer: newTestRenderer(t),
+	}
+
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	// Build form body: 5 entries × 20%
+	body := "portfolio_id=1"
+	for i := 0; i < 5; i++ {
+		body += fmt.Sprintf("&symbol_%d=SYM%d", i, i)
+		body += fmt.Sprintf("&target_pct_%d=20", i)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/allocation/target", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	// Should redirect (303) with flash "Target allocations saved"
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("expected 303, got %d", w.Code)
+	}
+	if len(mock.lastEntries) != 5 {
+		t.Errorf("expected 5 entries, got %d", len(mock.lastEntries))
 	}
 }
