@@ -69,11 +69,35 @@ function addTargetEntry() {
     div.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
     div.innerHTML =
         '<input type="text" name="symbol_' + targetIndex + '" class="form-control" style="width:120px;" placeholder="Symbol">' +
-        '<input type="text" name="target_pct_' + targetIndex + '" class="form-control" style="width:100px;" step="0.1" placeholder="%">' +
+        '<input type="text" name="target_pct_' + targetIndex + '" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTargetTotal()">' +
         '<span class="text-muted">%</span>';
     container.appendChild(div);
     targetIndex++;
+    calculateTargetTotal();
 }
+
+function calculateTargetTotal() {
+    var inputs = document.querySelectorAll('[name^="target_pct_"]');
+    var total = 0;
+    for (var i = 0; i < inputs.length; i++) {
+        var val = parseFloat(inputs[i].value);
+        if (!isNaN(val)) {
+            total += val;
+        }
+    }
+    total = Math.round(total * 10) / 10; // round to 1dp
+    var el = document.getElementById('target-total');
+    if (!el) return;
+    el.textContent = 'Total: ' + total + '%';
+    if (total === 100) {
+        el.style.color = '#198754'; // green
+    } else {
+        el.style.color = '#dc3545'; // red
+    }
+}
+
+// Calculate total on page load.
+calculateTargetTotal();
 </script>
 
 {{end}}
