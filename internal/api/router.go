@@ -118,9 +118,9 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	marketSvc := marketservice.New(yahooFetcher, marketDataRepo)
 	positionSvc.WithMarketDataService(marketSvc, logger)
 
-	// Create market cache (needs position service as SymbolDiscoverer).
-	marketCache := marketcache.New(yahooFetcher, marketDataRepo, positionSvc, logger)
-	marketCache.WithBenchmarkLister(symbolMappingRepo)
+	// Create market cache (needs discoverer for symbols and FX pairs).
+	discoverer := data.NewMarketDataDiscoverer(symbolMappingRepo, transactionRepo)
+	marketCache := marketcache.New(yahooFetcher, marketDataRepo, discoverer, logger)
 	marketCache.WithSymbolDetailsRefresh(symbolDetailsSvc)
 	// Wire market cache into position service for scheduling.
 	positionSvc.WithMarketCache(marketCache)

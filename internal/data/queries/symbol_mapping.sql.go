@@ -202,6 +202,40 @@ func (q *Queries) GetSymbolMappingByInternalSymbol(ctx context.Context, db DBTX,
 	return i, err
 }
 
+const listAllMarketDataSymbols = `-- name: ListAllMarketDataSymbols :many
+SELECT internal_symbol, market_data_symbol FROM symbol_mappings
+ORDER BY internal_symbol
+`
+
+type ListAllMarketDataSymbolsRow struct {
+	InternalSymbol   string `db:"internal_symbol"`
+	MarketDataSymbol string `db:"market_data_symbol"`
+}
+
+// All symbols for market data fetching.
+func (q *Queries) ListAllMarketDataSymbols(ctx context.Context, db DBTX) ([]ListAllMarketDataSymbolsRow, error) {
+	rows, err := db.QueryContext(ctx, listAllMarketDataSymbols)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllMarketDataSymbolsRow{}
+	for rows.Next() {
+		var i ListAllMarketDataSymbolsRow
+		if err := rows.Scan(&i.InternalSymbol, &i.MarketDataSymbol); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBenchmarkSymbols = `-- name: ListBenchmarkSymbols :many
 SELECT id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at FROM symbol_mappings WHERE is_benchmark = 1 ORDER BY internal_symbol
 `
