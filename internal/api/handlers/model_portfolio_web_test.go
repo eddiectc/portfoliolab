@@ -193,7 +193,7 @@ func newTestMPRenderer(t *testing.T) *web.Renderer {
 func setupMPWebHandler(t *testing.T) (*ModelPortfolioWebHandler, *modelportfolio.Service, *testModelPortfolioRepoForWeb) {
 	t.Helper()
 	repo := newTestModelPortfolioRepoForWeb()
-	svc := modelportfolio.NewService(repo)
+	svc := modelportfolio.NewService(repo, nil, nil)
 	symbolRepo := newTestSymbolRepoForWeb()
 	symbolSvc := symbolmapping.NewService(symbolRepo)
 	renderer := newTestMPRenderer(t)
@@ -298,7 +298,7 @@ func TestModelPortfolioHandleNewPage_RendersCompleteForm(t *testing.T) {
 func setupMPWebHandlerForNew(t *testing.T) *ModelPortfolioWebHandler {
 	t.Helper()
 	repo := newTestModelPortfolioRepoForWeb()
-	svc := modelportfolio.NewService(repo)
+	svc := modelportfolio.NewService(repo, nil, nil)
 	symbolRepo := newTestSymbolRepoForWeb()
 	symbolRepo.symbols["AAPL"] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"}
 	symbolRepo.symbols["BND"] = &symbolmapping.SymbolMapping{ID: 2, InternalSymbol: "BND", MarketDataSymbol: "BND"}

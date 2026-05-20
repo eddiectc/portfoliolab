@@ -121,11 +121,46 @@ func (m *mockRepo) Delete(_ context.Context, id int64) error {
 	return nil
 }
 
+// --- Symbol checker/creator mocks ---
+
+type mockSymbolChecker struct {
+	symbols map[string]bool // symbol -> exists
+}
+
+func newMockSymbolChecker(symbols []string) *mockSymbolChecker {
+	m := &mockSymbolChecker{symbols: make(map[string]bool)}
+	for _, s := range symbols {
+		m.symbols[s] = true
+	}
+	return m
+}
+
+func (m *mockSymbolChecker) SymbolExists(_ context.Context, symbol string) bool {
+	return m.symbols[symbol]
+}
+
+type mockSymbolCreator struct {
+	created []string // symbols created
+	err     error
+}
+
+func newMockSymbolCreator() *mockSymbolCreator {
+	return &mockSymbolCreator{created: []string{}}
+}
+
+func (m *mockSymbolCreator) CreateSymbol(_ context.Context, internalSymbol, _ string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.created = append(m.created, internalSymbol)
+	return nil
+}
+
 // --- Tests ---
 
 func TestCreate_HappyPath(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	req := CreateRequest{
 		Name: "My Model",
@@ -156,7 +191,7 @@ func TestCreate_HappyPath(t *testing.T) {
 
 func TestCreate_ValidationErrors(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	tests := []struct {
 		name    string
@@ -235,7 +270,7 @@ func TestCreate_ValidationErrors(t *testing.T) {
 
 func TestCreate_DuplicateName(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	req := CreateRequest{
 		Name: "Duplicate",
@@ -260,7 +295,7 @@ func TestCreate_DuplicateName(t *testing.T) {
 func TestCreate_RepoError(t *testing.T) {
 	repo := newMockRepo()
 	repo.createsErr = context.DeadlineExceeded
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	req := CreateRequest{
 		Name: "Test",
@@ -277,7 +312,7 @@ func TestCreate_RepoError(t *testing.T) {
 
 func TestGet_HappyPath(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	// Pre-populate.
 	_, _ = repo.Create(ctx, ModelPortfolio{
@@ -304,7 +339,7 @@ func TestGet_HappyPath(t *testing.T) {
 
 func TestGet_NotFound(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, err := svc.Get(ctx, 999)
 	if err == nil {
@@ -315,7 +350,7 @@ func TestGet_NotFound(t *testing.T) {
 func TestGet_RepoError(t *testing.T) {
 	repo := newMockRepo()
 	repo.getErr = context.DeadlineExceeded
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, err := svc.Get(ctx, 1)
 	if err == nil {
@@ -325,7 +360,7 @@ func TestGet_RepoError(t *testing.T) {
 
 func TestList_HappyPath(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	// Pre-populate two portfolios.
 	_, _ = repo.Create(ctx, ModelPortfolio{
@@ -351,7 +386,7 @@ func TestList_HappyPath(t *testing.T) {
 
 func TestList_EmptyReturnsSliceNotNil(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	result, err := svc.List(ctx, 10, 0)
 	if err != nil {
@@ -368,7 +403,7 @@ func TestList_EmptyReturnsSliceNotNil(t *testing.T) {
 
 func TestList_LimitZero(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:      1,
@@ -390,7 +425,7 @@ func TestList_LimitZero(t *testing.T) {
 func TestList_RepoError(t *testing.T) {
 	repo := newMockRepo()
 	repo.listErr = context.DeadlineExceeded
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, err := svc.List(ctx, 10, 0)
 	if err == nil {
@@ -400,7 +435,7 @@ func TestList_RepoError(t *testing.T) {
 
 func TestUpdate_HappyPath(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	// Pre-populate.
 	_, _ = repo.Create(ctx, ModelPortfolio{
@@ -433,7 +468,7 @@ func TestUpdate_HappyPath(t *testing.T) {
 
 func TestUpdate_NameOnly(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:    1,
@@ -462,7 +497,7 @@ func TestUpdate_NameOnly(t *testing.T) {
 
 func TestUpdate_DuplicateName(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:      1,
@@ -491,7 +526,7 @@ func TestUpdate_DuplicateName(t *testing.T) {
 
 func TestUpdate_SameNameNoConflict(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:      1,
@@ -515,7 +550,7 @@ func TestUpdate_SameNameNoConflict(t *testing.T) {
 
 func TestUpdate_ValidationErrors(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:      1,
@@ -538,7 +573,7 @@ func TestUpdate_ValidationErrors(t *testing.T) {
 
 func TestUpdate_NotFound(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	req := UpdateRequest{
 		Entries: []ModelPortfolioEntry{
@@ -554,7 +589,7 @@ func TestUpdate_NotFound(t *testing.T) {
 
 func TestUpdate_RepoError(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:      1,
@@ -578,7 +613,7 @@ func TestUpdate_RepoError(t *testing.T) {
 
 func TestDelete_HappyPath(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:      1,
@@ -600,7 +635,7 @@ func TestDelete_HappyPath(t *testing.T) {
 
 func TestDelete_NotFound(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	err := svc.Delete(ctx, 999)
 	if err == nil {
@@ -610,7 +645,7 @@ func TestDelete_NotFound(t *testing.T) {
 
 func TestDelete_RepoError(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:      1,
@@ -629,7 +664,7 @@ func TestDelete_RepoError(t *testing.T) {
 func TestCRUD_Cycle(t *testing.T) {
 	// Full CRUD cycle: Create → Get → List → Update → Delete.
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	// Create.
 	req := CreateRequest{
@@ -700,7 +735,7 @@ func TestCRUD_Cycle(t *testing.T) {
 func TestJSONRoundTrip(t *testing.T) {
 	// Verify entries survive JSON marshal/unmarshal through the repo.
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	entries := []ModelPortfolioEntry{
 		{Symbol: "AAPL", WeightPct: decimal.MustParse("25.5")},
@@ -736,7 +771,7 @@ func TestJSONRoundTrip(t *testing.T) {
 
 func TestGetAllForSelector(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
 		ID:   1,
@@ -779,7 +814,7 @@ func TestGetAllForSelector(t *testing.T) {
 
 func TestGetAllForSelector_Empty(t *testing.T) {
 	repo := newMockRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil, nil)
 
 	summaries, err := svc.GetAllForSelector(ctx)
 	if err != nil {
@@ -791,6 +826,161 @@ func TestGetAllForSelector_Empty(t *testing.T) {
 	}
 	if len(summaries) != 0 {
 		t.Errorf("expected 0 summaries, got %d", len(summaries))
+	}
+}
+
+// --- Inline symbol creation tests ---
+
+func TestCreate_InlineSymbolCreated(t *testing.T) {
+	repo := newMockRepo()
+	symCheck := newMockSymbolChecker([]string{"AAPL"}) // AAPL exists, MSFT does not
+	symCreate := newMockSymbolCreator()
+	svc := NewService(repo, symCheck, symCreate)
+
+	req := CreateRequest{
+		Name: "Inline Test",
+		Entries: []ModelPortfolioEntry{
+			{Symbol: "AAPL", WeightPct: decimal.MustParse("60.0")},
+			{Symbol: "MSFT", WeightPct: decimal.MustParse("40.0")},
+		},
+	}
+
+	result, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Name != "Inline Test" {
+		t.Errorf("name = %q, want %q", result.Name, "Inline Test")
+	}
+
+	// MSFT should have been created inline.
+	if len(symCreate.created) != 1 {
+		t.Fatalf("expected 1 symbol created, got %d: %v", len(symCreate.created), symCreate.created)
+	}
+	if symCreate.created[0] != "MSFT" {
+		t.Errorf("created symbol = %q, want %q", symCreate.created[0], "MSFT")
+	}
+}
+
+func TestCreate_InlineSymbolAlreadyExists(t *testing.T) {
+	repo := newMockRepo()
+	symCheck := newMockSymbolChecker([]string{"AAPL", "MSFT"}) // both exist
+	symCreate := newMockSymbolCreator()
+	svc := NewService(repo, symCheck, symCreate)
+
+	req := CreateRequest{
+		Name: "No Create",
+		Entries: []ModelPortfolioEntry{
+			{Symbol: "AAPL", WeightPct: decimal.MustParse("50.0")},
+			{Symbol: "MSFT", WeightPct: decimal.MustParse("50.0")},
+		},
+	}
+
+	_, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// No symbols should have been created.
+	if len(symCreate.created) != 0 {
+		t.Errorf("expected 0 symbols created, got %d: %v", len(symCreate.created), symCreate.created)
+	}
+}
+
+func TestCreate_InlineSymbolCreationFails(t *testing.T) {
+	repo := newMockRepo()
+	symCheck := newMockSymbolChecker([]string{}) // nothing exists
+	symCreate := newMockSymbolCreator()
+	symCreate.err = context.DeadlineExceeded
+	svc := NewService(repo, symCheck, symCreate)
+
+	req := CreateRequest{
+		Name: "Fail Test",
+		Entries: []ModelPortfolioEntry{
+			{Symbol: "AAPL", WeightPct: decimal.MustParse("100.0")},
+		},
+	}
+
+	_, err := svc.Create(ctx, req)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCreate_NoSymbolCheckerSkipsCheck(t *testing.T) {
+	// When symbol checker/creator are nil (backward compat), no check is done.
+	repo := newMockRepo()
+	svc := NewService(repo, nil, nil)
+
+	req := CreateRequest{
+		Name: "No Check",
+		Entries: []ModelPortfolioEntry{
+			{Symbol: "UNKNOWN", WeightPct: decimal.MustParse("100.0")},
+		},
+	}
+
+	_, err := svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error (nil checker should skip): %v", err)
+	}
+}
+
+func TestUpdate_InlineSymbolCreated(t *testing.T) {
+	repo := newMockRepo()
+	_, _ = repo.Create(ctx, ModelPortfolio{
+		ID:      1,
+		Name:    "Existing",
+		Entries: []ModelPortfolioEntry{{Symbol: "AAPL", WeightPct: decimal.MustParse("100.0")}},
+	})
+
+	symCheck := newMockSymbolChecker([]string{"AAPL"}) // AAPL exists, GOOG does not
+	symCreate := newMockSymbolCreator()
+	svc := NewService(repo, symCheck, symCreate)
+
+	req := UpdateRequest{
+		Entries: []ModelPortfolioEntry{
+			{Symbol: "GOOG", WeightPct: decimal.MustParse("100.0")},
+		},
+	}
+
+	result, err := svc.Update(ctx, 1, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Entries[0].Symbol != "GOOG" {
+		t.Errorf("symbol = %q, want %q", result.Entries[0].Symbol, "GOOG")
+	}
+
+	if len(symCreate.created) != 1 {
+		t.Fatalf("expected 1 symbol created, got %d", len(symCreate.created))
+	}
+	if symCreate.created[0] != "GOOG" {
+		t.Errorf("created symbol = %q, want %q", symCreate.created[0], "GOOG")
+	}
+}
+
+func TestUpdate_InlineSymbolCreationFails(t *testing.T) {
+	repo := newMockRepo()
+	_, _ = repo.Create(ctx, ModelPortfolio{
+		ID:      1,
+		Name:    "Existing",
+		Entries: []ModelPortfolioEntry{{Symbol: "AAPL", WeightPct: decimal.MustParse("100.0")}},
+	})
+
+	symCheck := newMockSymbolChecker([]string{}) // nothing exists
+	symCreate := newMockSymbolCreator()
+	symCreate.err = context.DeadlineExceeded
+	svc := NewService(repo, symCheck, symCreate)
+
+	req := UpdateRequest{
+		Entries: []ModelPortfolioEntry{
+			{Symbol: "NEWONE", WeightPct: decimal.MustParse("100.0")},
+		},
+	}
+
+	_, err := svc.Update(ctx, 1, req)
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 

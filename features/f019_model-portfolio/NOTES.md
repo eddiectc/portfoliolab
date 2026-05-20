@@ -5,7 +5,7 @@
 - 2025-05-20: sqlc queries include a `CountModelPortfolios` helper beyond the plan's CRUD set — useful for pagination in the service layer.
 
 ## Deviations from Plan
-- None so far.
+- Task 6: The plan listed "trigger market data fetch" as a separate sub-step, but `symbolmapping.Service.Create` already does this via a background goroutine (`SymbolDetailsFetcher.FetchAndStore`). No extra wiring needed.
 
 ## Future Improvements
 - None noted.

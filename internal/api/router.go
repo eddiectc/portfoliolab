@@ -163,7 +163,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 
 	// Model Portfolio API
 	modelPortfolioRepo := data.NewModelPortfolioRepository(db)
-	modelPortfolioSvc := modelportfolio.NewService(modelPortfolioRepo)
+	modelPortfolioSvc := modelportfolio.NewService(modelPortfolioRepo, symbolChecker, symbolCreator)
 	modelPortfolioHandler := handlers.NewModelPortfolioHandler(modelPortfolioSvc)
 	modelPortfolioHandler.RegisterRoutes(r)
 
