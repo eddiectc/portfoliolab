@@ -133,11 +133,11 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** Create model portfolio with inline symbol creation
 **Description:** When a ticker entered in the model portfolio form doesn't exist in the system, create it automatically before saving the model portfolio.
 
-- [ ] Add `SymbolCreator` interface to model portfolio service (mirrors `transaction.SymbolCreator`)
-- [ ] In service `Create`/`Update`: for each entry symbol, check existence via `GetByInternalSymbol`; if not found, call `SymbolCreator.CreateSymbol(ticker, ticker)` to auto-create
-- [ ] After symbol creation, trigger market data fetch (non-blocking goroutine via existing `SymbolDetailsFetcher` or market cache)
-- [ ] Update `router.go` to wire `symbolmapping.Service` as the symbol creator dependency
-- [ ] Write unit tests covering: symbol already exists (no-op), symbol created inline, symbol creation fails (returns error)
+- [x] Add `SymbolCreator` interface to model portfolio service (mirrors `transaction.SymbolCreator`)
+- [x] In service `Create`/`Update`: for each entry symbol, check existence via `GetByInternalSymbol`; if not found, call `SymbolCreator.CreateSymbol(ticker, ticker)` to auto-create
+- [x] After symbol creation, trigger market data fetch (non-blocking goroutine via existing `SymbolDetailsFetcher` or market cache)
+- [x] Update `router.go` to wire `symbolmapping.Service` as the symbol creator dependency
+- [x] Write unit tests covering: symbol already exists (no-op), symbol created inline, symbol creation fails (returns error)
 
 **Verification:** Unit tests pass; inline creation works when symbol missing; no duplicate creation when symbol exists.
 

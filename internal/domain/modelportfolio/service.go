@@ -15,18 +15,37 @@ type Repository interface {
 	Delete(ctx context.Context, id int64) error
 }
 
+// SymbolChecker defines the interface for checking symbol existence.
+type SymbolChecker interface {
+	SymbolExists(ctx context.Context, symbol string) bool
+}
+
+// SymbolCreator defines the interface for creating symbols (used for inline
+// symbol creation when building model portfolios).
+type SymbolCreator interface {
+	CreateSymbol(ctx context.Context, internalSymbol, marketDataSymbol string) error
+}
+
 // Service handles model portfolio business logic including validation
 // and CRUD operations.
 type Service struct {
-	repo Repository
+	repo         Repository
+	symbolCheck  SymbolChecker
+	symbolCreate SymbolCreator
 }
 
 // NewService creates a new model portfolio service.
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+// symbolCheck and symbolCreate may be nil if inline symbol creation is not needed.
+func NewService(repo Repository, symbolCheck SymbolChecker, symbolCreate SymbolCreator) *Service {
+	return &Service{
+		repo:         repo,
+		symbolCheck:  symbolCheck,
+		symbolCreate: symbolCreate,
+	}
 }
 
 // Create validates and persists a new model portfolio.
+// If symbol checking/creation is configured, missing symbols are auto-created.
 func (s *Service) Create(ctx context.Context, req CreateRequest) (ModelPortfolio, error) {
 	if err := ValidateCreateRequest(req); err != nil {
 		return ModelPortfolio{}, err
@@ -36,6 +55,11 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (ModelPortfolio
 	_, err := s.repo.GetByName(ctx, req.Name)
 	if err == nil {
 		return ModelPortfolio{}, ErrNameExists
+	}
+
+	// Ensure all entry symbols exist; auto-create missing ones.
+	if err := s.ensureSymbols(ctx, req.Entries); err != nil {
+		return ModelPortfolio{}, fmt.Errorf("ensure symbols: %w", err)
 	}
 
 	mp := ModelPortfolio{
@@ -75,6 +99,7 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]ModelPortfolio
 
 // Update validates and updates an existing model portfolio.
 // Name is only changed if provided in the request.
+// If symbol checking/creation is configured, missing symbols are auto-created.
 func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (ModelPortfolio, error) {
 	if err := ValidateUpdateRequest(req); err != nil {
 		return ModelPortfolio{}, err
@@ -94,6 +119,11 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (Mode
 			return ModelPortfolio{}, ErrNameExists
 		}
 		existing.Name = *req.Name
+	}
+
+	// Ensure all entry symbols exist; auto-create missing ones.
+	if err := s.ensureSymbols(ctx, req.Entries); err != nil {
+		return ModelPortfolio{}, fmt.Errorf("ensure symbols: %w", err)
 	}
 
 	existing.Entries = req.Entries
@@ -137,4 +167,22 @@ func (s *Service) GetAllForSelector(ctx context.Context) ([]ModelPortfolioSummar
 		}
 	}
 	return summaries, nil
+}
+
+// ensureSymbols checks that every symbol in the entries exists in the system.
+// If symbol checking/creation is configured and a symbol is missing, it is
+// auto-created (internalSymbol == ticker, marketDataSymbol == ticker).
+// If symbol checking is not configured, the check is skipped (backward compat).
+func (s *Service) ensureSymbols(ctx context.Context, entries []ModelPortfolioEntry) error {
+	if s.symbolCheck == nil || s.symbolCreate == nil {
+		return nil
+	}
+	for _, e := range entries {
+		if !s.symbolCheck.SymbolExists(ctx, e.Symbol) {
+			if err := s.symbolCreate.CreateSymbol(ctx, e.Symbol, e.Symbol); err != nil {
+				return fmt.Errorf("create symbol %q: %w", e.Symbol, err)
+			}
+		}
+	}
+	return nil
 }
