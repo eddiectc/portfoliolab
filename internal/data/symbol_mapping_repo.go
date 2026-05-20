@@ -221,6 +221,20 @@ func (r *SymbolMappingRepository) ListBenchmarks(ctx context.Context) ([]symbolm
 	return mappings, nil
 }
 
+// AllMarketDataSymbols returns all symbol mappings for market data fetching.
+// Returns the market_data_symbol (Yahoo Finance ticker) for each.
+func (r *SymbolMappingRepository) AllMarketDataSymbols(ctx context.Context) ([]string, error) {
+	rows, err := r.q.ListAllMarketDataSymbols(ctx, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("list market data symbols: %w", err)
+	}
+	symbols := make([]string, len(rows))
+	for i, row := range rows {
+		symbols[i] = row.MarketDataSymbol
+	}
+	return symbols, nil
+}
+
 // IsBenchmark checks if the given market_data_symbol is marked as a benchmark.
 func (r *SymbolMappingRepository) IsBenchmark(ctx context.Context, marketDataSymbol string) (bool, error) {
 	benchmarks, err := r.ListBenchmarks(ctx)

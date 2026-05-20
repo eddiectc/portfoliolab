@@ -46,3 +46,8 @@ DELETE FROM broker_symbol_mappings WHERE symbol_mapping_id = ?;
 
 -- name: ListBenchmarkSymbols :many
 SELECT * FROM symbol_mappings WHERE is_benchmark = 1 ORDER BY internal_symbol;
+
+-- name: ListAllMarketDataSymbols :many
+-- All symbols for market data fetching.
+SELECT internal_symbol, market_data_symbol FROM symbol_mappings
+ORDER BY internal_symbol;

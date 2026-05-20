@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
@@ -24,11 +23,9 @@ type MarketCacheScheduler interface {
 
 // SymbolDiscoverer finds symbols and FX pairs that need market data.
 type SymbolDiscoverer interface {
-	// ActiveSymbols returns symbols with open positions.
-	// Key: symbol, Value: earliest transaction date for that symbol.
-	ActiveSymbols(ctx context.Context) (map[string]time.Time, error)
-	// AllSymbols returns all symbols with any transactions (open + closed).
-	AllSymbols(ctx context.Context) (map[string]time.Time, error)
+	// AllSymbols returns all market_data_symbols from symbol_mappings.
+	// These are the Yahoo Finance tickers used for fetching quotes and history.
+	AllSymbols(ctx context.Context) ([]string, error)
 	// ActiveFxPairs returns FX pairs needed for open positions.
 	// Key: "BASE/QUOTE", Value: earliest transaction date.
 	ActiveFxPairs(ctx context.Context) (map[string]time.Time, error)
@@ -47,11 +44,6 @@ type MarketDataRepository interface {
 type MarketDataFetcher interface {
 	FetchQuotesBatch(ctx context.Context, symbols []string) map[string]*market.MarketData
 	FetchHistoricalPricesBatch(ctx context.Context, symbols []string, start, end time.Time) (map[string][]market.HistoricalPrice, []string)
-}
-
-// BenchmarkSymbolLister finds user-defined benchmark symbols.
-type BenchmarkSymbolLister interface {
-	ListBenchmarks(ctx context.Context) ([]symbolmapping.SymbolMapping, error)
 }
 
 // SymbolDetailsRefreshSource finds stale symbol details and refreshes them.
@@ -84,7 +76,6 @@ type MarketCache struct {
 	fetcher          MarketDataFetcher
 	repo             MarketDataRepository
 	discoverer       SymbolDiscoverer
-	benchmarkLister  BenchmarkSymbolLister
 	symbolDetailsRefresh SymbolDetailsRefreshSource
 	logger           *slog.Logger
 	tickerInterval   time.Duration
@@ -120,12 +111,6 @@ func New(fetcher MarketDataFetcher, repo MarketDataRepository, discoverer Symbol
 	}
 }
 
-// WithBenchmarkLister sets the benchmark symbol lister for user-defined benchmarks.
-func (m *MarketCache) WithBenchmarkLister(lister BenchmarkSymbolLister) *MarketCache {
-	m.benchmarkLister = lister
-	return m
-}
-
 // WithSymbolDetailsRefresh sets the symbol details refresh source for
 // background refreshing of stale symbol details.
 func (m *MarketCache) WithSymbolDetailsRefresh(source SymbolDetailsRefreshSource) *MarketCache {
@@ -145,12 +130,6 @@ func (m *MarketCache) Start(ctx context.Context) {
 	m.wg.Add(2)
 	go m.backgroundWorker()
 	go m.periodicTicker()
-
-	// Fetch benchmark data on startup (gap-fill only) so it's available
-	// without requiring a manual "Refresh All" click.
-	go func() {
-		m.gapFillBenchmarks(ctx)
-	}()
 }
 
 // Stop gracefully shuts down background goroutines.
@@ -441,7 +420,7 @@ func (m *MarketCache) periodicTicker() {
 	}
 }
 
-// doRefresh performs one refresh cycle: current quotes for active symbols and
+// doRefresh performs one refresh cycle: current quotes for all symbols and
 // FX pairs, plus historical gap-fill (skipped if a manual refresh is in progress).
 func (m *MarketCache) doRefresh(ctx context.Context) {
 	if ctx.Err() != nil {
@@ -449,20 +428,15 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 	}
 
 	// Discover symbols and FX pairs.
-	activeSymbols, _ := m.discoverer.ActiveSymbols(ctx)
-	allSymbols, _ := m.discoverer.AllSymbols(ctx)
+	symbols, _ := m.discoverer.AllSymbols(ctx)
 	activeFxPairs, _ := m.discoverer.ActiveFxPairs(ctx)
 
 	if m.logger != nil {
-		m.logger.Debug("refresh cycle", "activeSymbols", len(activeSymbols), "allSymbols", len(allSymbols), "activeFxPairs", len(activeFxPairs))
+		m.logger.Debug("refresh cycle", "symbols", len(symbols), "activeFxPairs", len(activeFxPairs))
 	}
 
-	// Refresh current quotes for active symbols.
-	if len(activeSymbols) > 0 {
-		symbols := make([]string, 0, len(activeSymbols))
-		for sym := range activeSymbols {
-			symbols = append(symbols, sym)
-		}
+	// Refresh current quotes for all symbols.
+	if len(symbols) > 0 {
 		quotes := m.fetcher.FetchQuotesBatch(ctx, symbols)
 		if m.logger != nil {
 			m.logger.Debug("current quotes fetched", "requested", len(symbols), "received", len(quotes))
@@ -485,7 +459,7 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 	m.mu.RUnlock()
 
 	if !refreshAllInProgress {
-		m.gapFillHistorical(ctx, allSymbols)
+		m.gapFillHistorical(ctx, symbols)
 	} else {
 		if m.logger != nil {
 			m.logger.Debug("skipping historical gap-fill (manual refresh in progress)")
@@ -498,7 +472,7 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 	// Update status.
 	m.mu.Lock()
 	m.lastRefresh = time.Now()
-	m.totalSymbols = len(allSymbols) + len(activeFxPairs)
+	m.totalSymbols = len(symbols) + len(activeFxPairs)
 	m.mu.Unlock()
 }
 
@@ -519,19 +493,15 @@ func (m *MarketCache) refreshFxQuote(ctx context.Context, pair string) {
 }
 
 // gapFillHistorical checks each symbol's cached date range and schedules
-// fetches for any gaps between the earliest transaction date and now.
-func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[string]time.Time) {
-	if len(allSymbols) == 0 {
+// fetches for any gaps between the latest cached date and now.
+func (m *MarketCache) gapFillHistorical(ctx context.Context, symbols []string) {
+	if len(symbols) == 0 {
 		if m.logger != nil {
 			m.logger.Debug("gap-fill: no symbols to check")
 		}
 		return
 	}
 
-	symbols := make([]string, 0, len(allSymbols))
-	for sym := range allSymbols {
-		symbols = append(symbols, sym)
-	}
 	latestDates := m.repo.GetLatestPriceDatePerSymbol(ctx, symbols)
 
 	if m.logger != nil {
@@ -542,7 +512,7 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 	// Truncate to date-only for fair comparison with DB dates (YYYY-MM-DD midnight).
 	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
-	for sym := range allSymbols {
+	for _, sym := range symbols {
 		latestDate, hasCache := latestDates[sym]
 
 		var fetchStart time.Time
@@ -582,192 +552,20 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, allSymbols map[stri
 	}
 }
 
-// FetchBenchmarkHistorical fetches full historical prices for a single benchmark
-// symbol from 2000 to now. Runs synchronously with its own timeout context.
-func (m *MarketCache) FetchBenchmarkHistorical(symbol string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	now := time.Now().UTC()
-	m.fetchBenchmarkDirect(ctx, symbol, fromDate, now)
-}
-
-// RefreshBenchmarks fetches historical prices for all user-defined benchmark
-// symbols from 2000 to now. Used by RefreshAll (manual full refresh).
-// If no benchmark lister is configured, it is a no-op.
-func (m *MarketCache) RefreshBenchmarks(ctx context.Context) {
-	if m.benchmarkLister == nil {
-		if m.logger != nil {
-			m.logger.Debug("benchmark refresh skipped (no lister configured)")
-		}
-		return
-	}
-
-	benchmarks, err := m.benchmarkLister.ListBenchmarks(ctx)
-	if err != nil {
-		if m.logger != nil {
-			m.logger.Warn("failed to list benchmarks", "error", err)
-		}
-		return
-	}
-
-	if m.logger != nil {
-		m.logger.Info("refreshing benchmarks (full)", "count", len(benchmarks))
-	}
-
-	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	now := time.Now().UTC()
-
-	for _, bm := range benchmarks {
-		ticker := bm.MarketDataSymbol
-		m.mu.Lock()
-		m.inProgress[ticker] = true
-		m.mu.Unlock()
-
-		m.fetchBenchmarkDirect(ctx, ticker, fromDate, now)
-
-		m.mu.Lock()
-		delete(m.inProgress, ticker)
-		m.mu.Unlock()
-	}
-
-	if m.logger != nil {
-		m.logger.Info("benchmark refresh completed", "count", len(benchmarks))
-	}
-}
-
-// gapFillBenchmarks fetches missing or stale benchmark data only.
-// Used on startup to avoid fetching everything when cache is current.
-// If no benchmark lister is configured, it is a no-op.
-func (m *MarketCache) gapFillBenchmarks(ctx context.Context) {
-	if m.benchmarkLister == nil {
-		if m.logger != nil {
-			m.logger.Debug("benchmark gap-fill skipped (no lister configured)")
-		}
-		return
-	}
-
-	benchmarks, err := m.benchmarkLister.ListBenchmarks(ctx)
-	if err != nil {
-		if m.logger != nil {
-			m.logger.Warn("failed to list benchmarks for gap-fill", "error", err)
-		}
-		return
-	}
-
-	if m.logger != nil {
-		m.logger.Info("gap-fill benchmarks", "count", len(benchmarks))
-	}
-
-	now := time.Now().UTC()
-	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	fromDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	// Check latest cached dates for all benchmarks.
-	tickers := make([]string, 0, len(benchmarks))
-	for _, bm := range benchmarks {
-		tickers = append(tickers, bm.MarketDataSymbol)
-	}
-	latestDates := m.repo.GetLatestPriceDatePerSymbol(ctx, tickers)
-
-	for _, bm := range benchmarks {
-		ticker := bm.MarketDataSymbol
-		latestDate, hasCache := latestDates[ticker]
-
-		var fetchStart time.Time
-		if !hasCache {
-			// No cache at all — fetch from 2000.
-			fetchStart = fromDate
-		} else if latestDate.Before(tradingDayBeforeOrOn(nowDate)) {
-			// Cache exists but not current — fetch gap.
-			fetchStart = nextTradingDay(*latestDate)
-		} else {
-			// Fully covered — skip.
-			if m.logger != nil {
-				m.logger.Debug("benchmark cache current, skipping", "ticker", ticker, "latestCached", latestDate.Format("2006-01-02"))
-			}
-			continue
-		}
-
-		// Skip if fetchStart is in the future.
-		if fetchStart.After(nowDate) {
-			continue
-		}
-
-		m.mu.Lock()
-		m.inProgress[ticker] = true
-		m.mu.Unlock()
-
-		m.fetchBenchmarkDirect(ctx, ticker, fetchStart, now)
-
-		m.mu.Lock()
-		delete(m.inProgress, ticker)
-		m.mu.Unlock()
-	}
-
-	if m.logger != nil {
-		m.logger.Info("benchmark gap-fill completed", "count", len(benchmarks))
-	}
-}
-
-// fetchBenchmarkDirect fetches historical prices for a benchmark ticker and
-// upserts them. Uses the provided context (called from RefreshAll).
-func (m *MarketCache) fetchBenchmarkDirect(ctx context.Context, ticker string, fromDate, toDate time.Time) {
-	if m.logger != nil {
-		m.logger.Debug("fetching benchmark prices", "ticker", ticker, "fromDate", fromDate.Format("2006-01-02"), "toDate", toDate.Format("2006-01-02"))
-	}
-	prices, failed := m.fetcher.FetchHistoricalPricesBatch(ctx, []string{ticker}, fromDate, toDate)
-
-	if len(failed) > 0 {
-		m.mu.Lock()
-		m.failedSymbols[ticker] = "fetch failed"
-		m.mu.Unlock()
-		if m.logger != nil {
-			m.logger.Warn("failed to fetch benchmark prices", "ticker", ticker)
-		}
-		return
-	}
-
-	if p, ok := prices[ticker]; ok && len(p) > 0 {
-		if err := m.repo.UpsertHistoricalPrices(ctx, ticker, p, "stock"); err != nil {
-			m.mu.Lock()
-			m.failedSymbols[ticker] = err.Error()
-			m.mu.Unlock()
-			if m.logger != nil {
-				m.logger.Warn("failed to upsert benchmark prices", "ticker", ticker, "error", err)
-			}
-		} else {
-			m.mu.Lock()
-			delete(m.failedSymbols, ticker)
-			m.mu.Unlock()
-			if m.logger != nil {
-				m.logger.Info("cached benchmark prices", "ticker", ticker, "count", len(p), "dateRange", fmt.Sprintf("%s to %s", p[0].Date.Format("2006-01-02"), p[len(p)-1].Date.Format("2006-01-02")))
-			}
-		}
-	} else if m.logger != nil {
-		m.logger.Debug("benchmark fetch returned no prices", "ticker", ticker)
-	}
-}
-
 // --- RefreshAll ---
 
-// doRefreshAll performs a full refresh of all symbols, FX pairs, and benchmarks:
-// current quotes plus historical from the earliest transaction date.
+// doRefreshAll performs a full refresh of all symbols and FX pairs:
+// current quotes plus historical from 2000.
 func (m *MarketCache) doRefreshAll(ctx context.Context) {
-	allSymbols, _ := m.discoverer.AllSymbols(ctx)
-	activeSymbols, _ := m.discoverer.ActiveSymbols(ctx)
+	symbols, _ := m.discoverer.AllSymbols(ctx)
 	activeFxPairs, _ := m.discoverer.ActiveFxPairs(ctx)
 
 	if m.logger != nil {
-		m.logger.Info("refresh-all: discovered symbols", "allSymbols", len(allSymbols), "activeSymbols", len(activeSymbols), "activeFxPairs", len(activeFxPairs))
+		m.logger.Info("refresh-all: discovered symbols", "symbols", len(symbols), "activeFxPairs", len(activeFxPairs))
 	}
 
-	// Refresh current quotes for active symbols.
-	if len(activeSymbols) > 0 {
-		symbols := make([]string, 0, len(activeSymbols))
-		for sym := range activeSymbols {
-			symbols = append(symbols, sym)
-		}
+	// Refresh current quotes for all symbols.
+	if len(symbols) > 0 {
 		quotes := m.fetcher.FetchQuotesBatch(ctx, symbols)
 		for sym, quote := range quotes {
 			if err := m.repo.Upsert(ctx, quote); err != nil {
@@ -782,7 +580,7 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 	}
 
 	// Fetch historical for all symbols.
-	for sym := range allSymbols {
+	for _, sym := range symbols {
 		m.mu.Lock()
 		m.inProgress[sym] = true
 		m.mu.Unlock()
@@ -806,9 +604,6 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 		delete(m.inProgress, pair)
 		m.mu.Unlock()
 	}
-
-	// Fetch historical for user-defined benchmarks.
-	m.RefreshBenchmarks(ctx)
 
 	if m.logger != nil {
 		m.logger.Info("refresh-all: completed")
