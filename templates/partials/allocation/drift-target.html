@@ -1,0 +1,94 @@
+{{define "partials/allocation/drift-target"}}
+{{if .Drift}}
+<div class="analysis-section" style="margin-top:2rem;">
+    <h2>Target Allocation &amp; Drift</h2>
+
+    {{if .DriftWarning}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        ⚠ {{.DriftWarning}}
+    </div>
+    {{end}}
+
+    {{if not .Drift.HasTarget}}
+    <p class="empty-state">No target allocation saved for this portfolio. Use the form below to set target weights.</p>
+    {{else}}
+
+    {{/* Drift table */}}
+    {{if .Drift.Rows}}
+    <table class="data-table drift-table">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th class="num">Actual %</th>
+                <th class="num">Target %</th>
+                <th class="num">Drift</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Drift.Rows}}
+            <tr>
+                <td>{{.Symbol}}</td>
+                <td class="num">{{formatPct .ActualPct.String}}%</td>
+                <td class="num">{{formatPct .TargetPct.String}}%</td>
+                <td class="num drift-{{if .IsBalanced}}balanced{{else}}{{sign .DriftPct.String}}{{end}}">
+                    {{.DriftPct.String}}%
+                </td>
+                <td>{{if .IsBalanced}}✓ Balanced{{else}}⚠ Off-target{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+
+    {{end}}
+
+    {{/* Target editing form */}}
+    <div style="margin-top:1.5rem;">
+        <h3>{{if .Drift.HasTarget}}Edit{{else}}Set{{end}} Target Allocation</h3>
+
+        {{if .TargetWarning}}
+        <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+            ⚠ {{.TargetWarning}}
+        </div>
+        {{end}}
+
+        <form method="POST" action="/allocation/target">
+            <input type="hidden" name="portfolio_id" value="{{.SelectedPortfolio}}">
+            <div id="target-entries">
+                {{/* Existing targets */}}
+                {{range $idx, $target := .Targets}}
+                <div class="target-entry" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                    <input type="text" name="symbol_{{$idx}}" value="{{$target.Symbol}}" class="form-control" style="width:120px;" readonly>
+                    <input type="text" name="target_pct_{{$idx}}" value="{{$target.TargetPct.String}}" class="form-control" style="width:100px;" step="0.1" placeholder="%">
+                    <span class="text-muted">%</span>
+                </div>
+                {{end}}
+                {{/* Empty targets — show 3 blank rows */}}
+                {{if not .Targets}}
+                {{range $idx := slice 0 1 2}}
+                <div class="target-entry" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                    <input type="text" name="symbol_{{$idx}}" class="form-control" style="width:120px;" placeholder="Symbol">
+                    <input type="text" name="target_pct_{{$idx}}" class="form-control" style="width:100px;" step="0.1" placeholder="%">
+                    <span class="text-muted">%</span>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+            <div style="margin-top:0.5rem;">
+                <button type="button" class="btn btn-sm" onclick="addTargetEntry()">+ Add Symbol</button>
+                <button type="submit" class="btn btn-sm btn-primary">Save Targets</button>
+            </div>
+            <p class="section-note">Target percentages must sum to exactly 100%. Each percentage must be between 0 and 100.</p>
+        </form>
+
+        {{if .Drift.HasTarget}}
+        <form method="POST" action="/allocation/target/delete" style="margin-top:1rem;">
+            <input type="hidden" name="portfolio_id" value="{{.SelectedPortfolio}}">
+            <button type="submit" class="btn btn-sm btn-danger">Delete All Targets</button>
+        </form>
+        {{end}}
+    </div>
+</div>
+{{end}}
+{{end}}

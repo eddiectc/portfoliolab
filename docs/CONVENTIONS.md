@@ -45,6 +45,7 @@
 - Use `github.com/govalues/decimal` for all monetary values (prices, costs, P&L) — never `float64`
 - Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
 - Document all rounding rules and edge cases in code comments
+- **Trade suggestions need price resolution for unheld symbols** — when computing rebalancing or trade suggestions, symbols in the target allocation may not yet be held. The interface (e.g., `PositionSource`) must expose a price lookup method (e.g., `GetMarketPrice`) independent of position enrichment.
 
 ## Database (SQLite)
 - Use `sqlc` for type-safe queries — write SQL, generate Go
