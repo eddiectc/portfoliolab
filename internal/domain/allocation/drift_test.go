@@ -400,7 +400,7 @@ func TestComputeDrift_WithCash(t *testing.T) {
 		targets: map[int64][]TargetAllocation{
 			1: {
 				{PortfolioID: 1, Symbol: "AAPL", TargetPct: decimal.MustParse("50.0")},
-				{PortfolioID: 1, Symbol: "Cash", TargetPct: decimal.MustParse("50.0")},
+				{PortfolioID: 1, Symbol: "$CASH", TargetPct: decimal.MustParse("50.0")},
 			},
 		},
 	}
@@ -424,7 +424,7 @@ func TestComputeDrift_WithCash(t *testing.T) {
 	}
 
 	// Cash: actual 40%, target 50%, drift -10%
-	cash, ok := rowMap["Cash"]
+	cash, ok := rowMap["$CASH"]
 	if !ok {
 		t.Fatal("Cash not found in drift rows")
 	}

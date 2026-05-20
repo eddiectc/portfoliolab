@@ -449,7 +449,7 @@ func TestComputeRebalancingSuggestions_CashDrift(t *testing.T) {
 		targets: map[int64][]TargetAllocation{
 			1: {
 				{PortfolioID: 1, Symbol: "AAPL", TargetPct: decimal.MustParse("50.0")},
-				{PortfolioID: 1, Symbol: "Cash", TargetPct: decimal.MustParse("50.0")},
+				{PortfolioID: 1, Symbol: "$CASH", TargetPct: decimal.MustParse("50.0")},
 			},
 		},
 	}
@@ -469,7 +469,7 @@ func TestComputeRebalancingSuggestions_CashDrift(t *testing.T) {
 
 	// Cash should not be in suggestions.
 	for _, s := range result.Suggestions {
-		if s.Symbol == "Cash" {
+		if s.Symbol == "$CASH" {
 			t.Error("Cash should not be in suggestions")
 		}
 	}

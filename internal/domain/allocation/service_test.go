@@ -306,8 +306,8 @@ func TestComputeAllocation_CashOnly(t *testing.T) {
 	if result.CashRow == nil {
 		t.Fatal("expected cash row, got nil")
 	}
-	if result.CashRow.Symbol != "Cash" {
-		t.Errorf("cash symbol = %q, want %q", result.CashRow.Symbol, "Cash")
+	if result.CashRow.Symbol != "$CASH" {
+		t.Errorf("cash symbol = %q, want %q", result.CashRow.Symbol, "$CASH")
 	}
 	if !result.CashRow.AllocationPct.Equal(decimal.MustParse("100.0")) {
 		t.Errorf("cash allocation_pct = %v, want 100.0", result.CashRow.AllocationPct)

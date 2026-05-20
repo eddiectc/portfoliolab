@@ -197,7 +197,7 @@ func TestSaveTargetAllocation_Validation(t *testing.T) {
 			entries: []TargetEntry{
 				{Symbol: "AAPL", TargetPct: decimal.MustParse("40.0")},
 				{Symbol: "MSFT", TargetPct: decimal.MustParse("35.0")},
-				{Symbol: "Cash", TargetPct: decimal.MustParse("25.0")},
+				{Symbol: "$CASH", TargetPct: decimal.MustParse("25.0")},
 			},
 			wantErr: "",
 		},
@@ -415,7 +415,7 @@ func TestSaveThenGetTargetAllocation(t *testing.T) {
 	entries := []TargetEntry{
 		{Symbol: "AAPL", TargetPct: decimal.MustParse("50.0")},
 		{Symbol: "MSFT", TargetPct: decimal.MustParse("30.0")},
-		{Symbol: "Cash", TargetPct: decimal.MustParse("20.0")},
+		{Symbol: "$CASH", TargetPct: decimal.MustParse("20.0")},
 	}
 
 	err := svc.SaveTargetAllocation(ctx, 1, entries)
@@ -444,7 +444,7 @@ func TestSaveThenGetTargetAllocation(t *testing.T) {
 	if pct, ok := targetMap["MSFT"]; !ok || !pct.Equal(decimal.MustParse("30.0")) {
 		t.Errorf("MSFT target_pct = %v, want 30.0", pct)
 	}
-	if pct, ok := targetMap["Cash"]; !ok || !pct.Equal(decimal.MustParse("20.0")) {
+	if pct, ok := targetMap["$CASH"]; !ok || !pct.Equal(decimal.MustParse("20.0")) {
 		t.Errorf("Cash target_pct = %v, want 20.0", pct)
 	}
 }
