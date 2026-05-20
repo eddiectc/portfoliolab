@@ -18,6 +18,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
@@ -159,6 +160,12 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		trading212import.WithPositionRecalculator(positionSvc), trading212import.WithLogger(logger))
 	t212Handler := handlers.NewTrading212ImportHandler(t212Svc, symbolMappingSvc)
 	t212Handler.RegisterRoutes(r)
+
+	// Model Portfolio API
+	modelPortfolioRepo := data.NewModelPortfolioRepository(db)
+	modelPortfolioSvc := modelportfolio.NewService(modelPortfolioRepo)
+	modelPortfolioHandler := handlers.NewModelPortfolioHandler(modelPortfolioSvc)
+	modelPortfolioHandler.RegisterRoutes(r)
 
 	// Portfolio web pages
 	renderer, err := web.NewRenderer(cfg.templatesDir)

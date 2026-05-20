@@ -759,6 +759,84 @@ Returns suggested trades to close the gap between actual and target allocation. 
 
 ---
 
+## Model Portfolios
+
+Named allocation blueprints (symbol + weight %) that can be created, managed, and applied as target allocations on real portfolios.
+
+### List Model Portfolios
+
+```
+GET /api/model-portfolios?limit=&offset=
+```
+
+**Response:** `200 OK` — `ModelPortfolio[]`
+
+### Create Model Portfolio
+
+```
+POST /api/model-portfolios
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Portfolio name (unique, 1–100 chars) |
+| `entries` | array | yes | Array of `{symbol, weight_pct}` entries |
+
+**Entries fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `symbol` | string | yes | Symbol (e.g. `AAPL`) |
+| `weight_pct` | number | yes | Weight percentage (> 0, all must sum to 100) |
+
+**Response:** `201 Created` — `ModelPortfolio`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `INVALID_NAME` | 400 | Name is empty or exceeds 100 characters |
+| `MODEL_PORTFOLIO_NAME_EXISTS` | 409 | A model portfolio with this name already exists |
+| `EMPTY_ENTRIES` | 400 | At least one entry is required |
+| `INVALID_WEIGHT` | 400 | Each weight must be greater than 0% |
+| `DUPLICATE_SYMBOL` | 400 | Entries contain duplicate symbols |
+| `weight_sum_not_100` | 400 | Weights must sum to exactly 100% (includes delta in message) |
+
+### Get Model Portfolio
+
+```
+GET /api/model-portfolios/{id}
+```
+
+**Response:** `200 OK` — `ModelPortfolio` | `404` — not found
+
+### Update Model Portfolio
+
+```
+PATCH /api/model-portfolios/{id}
+```
+
+**Request body:** (all fields optional except `entries`)
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | New name |
+| `entries` | array | Updated entries array |
+
+**Response:** `200 OK` — `ModelPortfolio` | `404` — not found
+
+### Delete Model Portfolio
+
+```
+DELETE /api/model-portfolios/{id}
+```
+
+**Response:** `204 No Content` | `404` — not found
+
+---
+
 ## Type Reference
 
 ### Portfolio
@@ -955,6 +1033,21 @@ Returns suggested trades to close the gap between actual and target allocation. 
   "total_dollar_value": 750.00,
   "warnings": [],
   "is_balanced": false
+}
+```
+
+### ModelPortfolio
+
+```json
+{
+  "id": 1,
+  "name": "60/40 Portfolio",
+  "entries": [
+    {"symbol": "AAPL", "weight_pct": "60.00"},
+    {"symbol": "BND", "weight_pct": "40.00"}
+  ],
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
 
