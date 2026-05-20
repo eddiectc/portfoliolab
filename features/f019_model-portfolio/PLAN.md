@@ -46,17 +46,17 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** Reject invalid weights, reject negative/zero weights, reject duplicate name
 **Description:** Define domain types (`ModelPortfolio`, `ModelPortfolioEntry`) and validation logic (weights sum to 100%, each > 0%, unique name, name length ≤ 100).
 
-- [ ] Create `internal/domain/modelportfolio/model_portfolio.go` with:
+- [x] Create `internal/domain/modelportfolio/model_portfolio.go` with:
   - `ModelPortfolio` struct (ID, Name, Entries `[]ModelPortfolioEntry`, CreatedAt, UpdatedAt)
   - `ModelPortfolioEntry` struct (Symbol, WeightPct decimal.Decimal) — marshaled to/from JSON
   - `CreateRequest` / `UpdateRequest` DTOs
   - Error variables: `ErrNotFound`, `ErrNameExists`, `ErrInvalidName`, `ErrWeightSumNot100`, `ErrInvalidWeight`, `ErrDuplicateSymbol`, `ErrEmptyEntries`
   - `ModelPortfolioError` type (Code, Message) for sum/weight errors with details
-- [ ] Create `internal/domain/modelportfolio/validator.go` with:
+- [x] Create `internal/domain/modelportfolio/validator.go` with:
   - `ValidateCreateRequest()` — name length, non-empty
   - `ValidateEntries()` — each weight > 0, no duplicate symbols, sum == 100 (0.01% tolerance)
   - Error messages include current total and delta (matching allocation pattern)
-- [ ] Write unit tests: `validator_test.go` with table-driven tests for all validation rules
+- [x] Write unit tests: `validator_test.go` with table-driven tests for all validation rules
 
 **Verification:** All validator unit tests pass; covers happy path, sum≠100, negative weight, zero weight, empty entries, duplicate symbols, name too long, empty name.
 
