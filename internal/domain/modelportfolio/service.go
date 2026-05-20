@@ -11,6 +11,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id int64) (ModelPortfolio, error)
 	GetByName(ctx context.Context, name string) (ModelPortfolio, error)
 	List(ctx context.Context, limit, offset int) ([]ModelPortfolio, error)
+	ListAll(ctx context.Context) ([]ModelPortfolio, error)
 	Update(ctx context.Context, mp ModelPortfolio) (ModelPortfolio, error)
 	Delete(ctx context.Context, id int64) error
 }
@@ -90,6 +91,19 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]ModelPortfolio
 	ports, err := s.repo.List(ctx, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list model portfolios: %w", err)
+	}
+	if ports == nil {
+		ports = []ModelPortfolio{}
+	}
+	return ports, nil
+}
+
+// ListAll returns all model portfolios without pagination.
+// Returns an empty slice (not nil) when no portfolios exist.
+func (s *Service) ListAll(ctx context.Context) ([]ModelPortfolio, error) {
+	ports, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all model portfolios: %w", err)
 	}
 	if ports == nil {
 		ports = []ModelPortfolio{}

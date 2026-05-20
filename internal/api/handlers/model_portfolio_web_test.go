@@ -163,6 +163,15 @@ func (r *testModelPortfolioRepoForWeb) List(_ context.Context, limit, offset int
 	return result, nil
 }
 
+func (r *testModelPortfolioRepoForWeb) ListAll(_ context.Context) ([]modelportfolio.ModelPortfolio, error) {
+	var result []modelportfolio.ModelPortfolio
+	for _, mp := range r.portfolios {
+		cp := *mp
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (r *testModelPortfolioRepoForWeb) Update(_ context.Context, mp modelportfolio.ModelPortfolio) (modelportfolio.ModelPortfolio, error) {
 	oldName := r.portfolios[mp.ID].Name
 	r.portfolios[mp.ID] = &mp

@@ -91,6 +91,20 @@ func (m *mockRepo) List(_ context.Context, limit, offset int) ([]ModelPortfolio,
 	return all[offset:end], nil
 }
 
+func (m *mockRepo) ListAll(_ context.Context) ([]ModelPortfolio, error) {
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+	all := make([]ModelPortfolio, 0, len(m.portfolios))
+	for _, mp := range m.portfolios {
+		all = append(all, mp)
+	}
+	if len(all) == 0 {
+		return []ModelPortfolio{}, nil
+	}
+	return all, nil
+}
+
 func (m *mockRepo) Update(_ context.Context, mp ModelPortfolio) (ModelPortfolio, error) {
 	if m.updateErr != nil {
 		return ModelPortfolio{}, m.updateErr
@@ -430,6 +444,35 @@ func TestList_RepoError(t *testing.T) {
 	_, err := svc.List(ctx, 10, 0)
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestListAll_HappyPath(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewService(repo, nil, nil)
+
+	_, _ = repo.Create(ctx, ModelPortfolio{ID: 1, Name: "Alpha", Entries: []ModelPortfolioEntry{{Symbol: "AAPL", WeightPct: decimal.MustParse("100.0")}}})
+	_, _ = repo.Create(ctx, ModelPortfolio{ID: 2, Name: "Beta", Entries: []ModelPortfolioEntry{{Symbol: "MSFT", WeightPct: decimal.MustParse("100.0")}}})
+
+	result, err := svc.ListAll(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("expected 2 portfolios, got %d", len(result))
+	}
+}
+
+func TestListAll_EmptyReturnsSliceNotNil(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewService(repo, nil, nil)
+
+	result, err := svc.ListAll(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected empty slice, got nil")
 	}
 }
 
