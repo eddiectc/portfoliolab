@@ -111,19 +111,19 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** List model portfolios, empty list, create, edit, delete, reject duplicate name
 **Description:** Server-rendered web pages for managing model portfolios.
 
-- [ ] Create `internal/api/handlers/model_portfolio_web.go`:
+- [x] Create `internal/api/handlers/model_portfolio_web.go`:
   - `ModelPortfolioWebHandler` struct
-  - `HandleList` — GET `/model-portfolios` (list page with empty state)
-  - `HandleCreate` — GET `/model-portfolios/new` (form page)
-  - `HandleCreatePost` — POST `/model-portfolios` (save, redirect with flash)
-  - `HandleEdit` — GET `/model-portfolios/{id}` (edit form)
-  - `HandleEditPost` — POST `/model-portfolios/{id}` (save, redirect with flash)
-  - `HandleDeletePost` — POST `/model-portfolios/{id}/delete` (delete, redirect with flash)
+  - `HandleListPage` — GET `/model-portfolios` (list page with empty state)
+  - `HandleNewPage` — GET `/model-portfolios/new` (form page)
+  - `HandleCreatePage` — POST `/model-portfolios` (save, redirect with flash)
+  - `HandleEditPage` — GET `/model-portfolios/{id}/edit` (edit form)
+  - `HandleEditPost` — POST `/model-portfolios/{id}/edit` (save, redirect with flash)
+  - `HandleDeletePage` — POST `/model-portfolios/{id}/delete` (delete, redirect with flash)
   - Fetch symbols for autocomplete datalist
-- [ ] Create `templates/model_portfolio/list.html` — table of portfolios (name, symbol count, created date, edit/delete links), empty state with "create first" prompt
-- [ ] Create `templates/model_portfolio/form.html` — name input, dynamic symbol+weight rows (JS add/remove), total % calculator, symbol autocomplete datalist
-- [ ] Wire web handler into `internal/api/router.go`
-- [ ] Write web handler tests: `model_portfolio_web_test.go` (renders 200, POST redirects 303)
+- [x] Create `templates/model_portfolio/list.html` — table of portfolios (name, entries with symbols+weights, created date, edit/delete links), empty state with "create first" prompt
+- [x] Create `templates/model_portfolio/form.html` — name input, dynamic symbol+weight rows (JS add/remove), total % calculator, symbol autocomplete datalist
+- [x] Wire web handler into `internal/api/router.go`
+- [x] Write web handler tests: `model_portfolio_web_test.go` (renders 200, POST redirects 303)
 
 **Verification:** Pages render 200; form POST redirects 303; empty state shown when no portfolios; web handler tests pass.
 

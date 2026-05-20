@@ -1,0 +1,99 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>{{.Title}}</h1>
+</div>
+
+<form action="{{.Action}}" method="POST" class="form">
+    {{if .Error}}
+    <div class="alert alert-error">{{.Error}}</div>
+    {{end}}
+
+    <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="{{.Name}}" required maxlength="100" placeholder="e.g. 60/40 Balanced">
+        <small>1-100 characters, must be unique</small>
+    </div>
+
+    <fieldset style="border:1px solid #dee2e6;border-radius:4px;padding:1rem;margin-bottom:1rem;">
+        <legend style="font-size:1rem;font-weight:600;padding:0 0.5rem;">Allocation Entries</legend>
+        <p class="section-note">Each entry maps a symbol to a target weight percentage. Weights must sum to exactly 100%.</p>
+
+        {{/* Autocomplete datalist for symbols */}}
+        <datalist id="symbol-list">
+            {{range .Symbols}}
+            <option value="{{.InternalSymbol}}">
+            {{end}}
+        </datalist>
+
+        <div id="entry-container">
+            {{range .Entries}}
+            <div class="entry-row" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                <input type="text" name="symbol" value="{{.Symbol}}" class="form-control" style="width:120px;" list="symbol-list" placeholder="Symbol" required>
+                <input type="text" name="weight" value="{{.WeightPct}}" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTotal()" required>
+                <span class="text-muted">%</span>
+                <button type="button" class="btn btn-sm" onclick="removeEntry(this)" title="Remove" style="color:#dc3545;font-weight:bold;padding:2px 8px;">&times;</button>
+            </div>
+            {{end}}
+        </div>
+
+        <div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="btn btn-sm" onclick="addEntry()">+ Add Symbol</button>
+            <span id="entry-total" style="margin-left:auto;font-weight:bold;font-size:0.9em;">Total: 0%</span>
+        </div>
+    </fieldset>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{.SubmitText}}</button>
+        <a href="{{.CancelHref}}" class="btn">Cancel</a>
+    </div>
+</form>
+
+<script>
+function addEntry() {
+    var container = document.getElementById('entry-container');
+    var div = document.createElement('div');
+    div.className = 'entry-row';
+    div.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
+    div.innerHTML =
+        '<input type="text" name="symbol" class="form-control" style="width:120px;" list="symbol-list" placeholder="Symbol" required>' +
+        '<input type="text" name="weight" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTotal()" required>' +
+        '<span class="text-muted">%</span>' +
+        '<button type="button" class="btn btn-sm" onclick="removeEntry(this)" title="Remove" style="color:#dc3545;font-weight:bold;padding:2px 8px;">&times;</button>';
+    container.appendChild(div);
+    calculateTotal();
+}
+
+function removeEntry(btn) {
+    var container = document.getElementById('entry-container');
+    var row = btn.closest('.entry-row');
+    row.remove();
+    calculateTotal();
+}
+
+function calculateTotal() {
+    var inputs = document.querySelectorAll('[name="weight"]');
+    var total = 0;
+    for (var i = 0; i < inputs.length; i++) {
+        var val = parseFloat(inputs[i].value);
+        if (!isNaN(val)) {
+            total += val;
+        }
+    }
+    total = Math.round(total * 10) / 10; // round to 1dp
+    var el = document.getElementById('entry-total');
+    if (!el) return;
+    el.textContent = 'Total: ' + total + '%';
+    if (total === 100) {
+        el.style.color = '#198754'; // green
+    } else {
+        el.style.color = '#dc3545'; // red
+    }
+}
+
+// Calculate total on page load.
+calculateTotal();
+</script>
+
+{{end}}
+
+{{template "base" .}}

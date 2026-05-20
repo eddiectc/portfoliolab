@@ -232,6 +232,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		allocWebHandler := handlers.NewAllocationWebHandler(allocHandler, portfolioSvc, symbolMappingSvc, allocSvc, renderer)
 		allocWebHandler.RegisterRoutes(r)
 
+		// Model Portfolio web pages
+		modelPortfolioWebHandler := handlers.NewModelPortfolioWebHandler(modelPortfolioSvc, symbolMappingSvc, renderer)
+		modelPortfolioWebHandler.RegisterRoutes(r)
+
 		// Root redirect
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/portfolios", http.StatusSeeOther)
