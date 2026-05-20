@@ -92,6 +92,19 @@ func (r *testSMRepo) GetAll(_ context.Context, limit, offset int) ([]symbolmappi
 	return result, nil
 }
 
+func (r *testSMRepo) ListAll(_ context.Context) ([]symbolmapping.SymbolMapping, error) {
+	var result []symbolmapping.SymbolMapping
+	for _, sm := range r.mappings {
+		cp := *sm
+		if len(sm.BrokerSymbols) > 0 {
+			cp.BrokerSymbols = make([]symbolmapping.BrokerSymbol, len(sm.BrokerSymbols))
+			copy(cp.BrokerSymbols, sm.BrokerSymbols)
+		}
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (r *testSMRepo) Update(_ context.Context, sm *symbolmapping.SymbolMapping) error {
 	old, ok := r.mappings[sm.ID]
 	if !ok {

@@ -61,7 +61,7 @@ type t212PreviewPageData struct {
 
 // HandleImportPage renders GET /transactions/import/trading212 — the upload page.
 func (h *Trading212ImportWebHandler) HandleImportPage(w http.ResponseWriter, r *http.Request) {
-	accounts, err := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, err := h.accountSvc.ListAll(r.Context())
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -217,7 +217,7 @@ func (h *Trading212ImportWebHandler) HandleConfirmPost(w http.ResponseWriter, r 
 
 // renderImportPage re-renders the upload page with an error message.
 func (h *Trading212ImportWebHandler) renderImportPage(w http.ResponseWriter, r *http.Request, errMsg string) {
-	accounts, _ := h.accountSvc.List(r.Context(), 0, 0)
+	accounts, _ := h.accountSvc.ListAll(r.Context())
 	if accounts == nil {
 		accounts = []account.Account{}
 	}

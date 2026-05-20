@@ -26,22 +26,22 @@ var commonCurrencies = []string{
 // template fields are present and prevent "can't evaluate field" panics.
 type portfolioFormPageData struct {
 	web.PageData
-	Name            string
+	Name             string
 	SelectedCurrency string
-	Currencies      []string
-	Action          string
-	SubmitText      string
-	CancelHref      string
+	Currencies       []string
+	Action           string
+	SubmitText       string
+	CancelHref       string
 }
 
 // newPortfolioFormPageData creates a portfolioFormPageData with common defaults.
 func newPortfolioFormPageData(pd web.PageData, action, submitText, cancelHref string) *portfolioFormPageData {
 	return &portfolioFormPageData{
-		PageData:         pd,
-		Currencies:       commonCurrencies,
-		Action:           action,
-		SubmitText:       submitText,
-		CancelHref:       cancelHref,
+		PageData:   pd,
+		Currencies: commonCurrencies,
+		Action:     action,
+		SubmitText: submitText,
+		CancelHref: cancelHref,
 	}
 }
 
@@ -77,7 +77,7 @@ func (h *PortfolioWebHandler) RegisterRoutes(r *chi.Mux) {
 
 // HandleListPage renders GET /portfolios.
 func (h *PortfolioWebHandler) HandleListPage(w http.ResponseWriter, r *http.Request) {
-	portfolios, err := h.service.List(r.Context(), 0, 0)
+	portfolios, err := h.service.ListAll(r.Context())
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return

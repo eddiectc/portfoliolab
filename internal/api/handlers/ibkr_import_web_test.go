@@ -479,6 +479,15 @@ func (m *mockSymbolRepoForImport) GetAll(_ context.Context, _, _ int) ([]symbolm
 	return result, nil
 }
 
+func (m *mockSymbolRepoForImport) ListAll(_ context.Context) ([]symbolmapping.SymbolMapping, error) {
+	result := make([]symbolmapping.SymbolMapping, 0, len(m.mappings))
+	for _, sm := range m.mappings {
+		cp := *sm
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (m *mockSymbolRepoForImport) GetByInternalSymbol(_ context.Context, symbol string) (*symbolmapping.SymbolMapping, error) {
 	for _, sm := range m.mappings {
 		if sm.InternalSymbol == symbol {

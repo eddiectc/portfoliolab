@@ -79,6 +79,15 @@ func (r *testSymbolRepoForWeb) GetAll(_ context.Context, limit, offset int) ([]s
 	return result, nil
 }
 
+func (r *testSymbolRepoForWeb) ListAll(_ context.Context) ([]symbolmapping.SymbolMapping, error) {
+	var result []symbolmapping.SymbolMapping
+	for _, sm := range r.symbols {
+		cp := *sm
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (r *testSymbolRepoForWeb) Update(_ context.Context, sm *symbolmapping.SymbolMapping) error {
 	r.symbols[sm.InternalSymbol] = sm
 	return nil

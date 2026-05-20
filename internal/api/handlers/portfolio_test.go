@@ -61,6 +61,15 @@ func (r *testPortfolioRepo) GetAll(_ context.Context, limit, offset int) ([]port
 	return result, nil
 }
 
+func (r *testPortfolioRepo) ListAll(_ context.Context) ([]portfolio.Portfolio, error) {
+	var result []portfolio.Portfolio
+	for _, p := range r.portfolios {
+		cp := *p
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (r *testPortfolioRepo) Update(_ context.Context, p *portfolio.Portfolio) error {
 	r.portfolios[p.ID] = p
 	return nil

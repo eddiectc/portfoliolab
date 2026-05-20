@@ -15,11 +15,11 @@ import (
 // accountFormPageData is the shared data struct for the account form template.
 type accountFormPageData struct {
 	web.PageData
-	Name            string
-	PortfolioID     int64
-	Action          string
-	SubmitText      string
-	CancelHref      string
+	Name        string
+	PortfolioID int64
+	Action      string
+	SubmitText  string
+	CancelHref  string
 }
 
 // newAccountFormPageData creates an accountFormPageData with common defaults.
@@ -35,12 +35,12 @@ func newAccountFormPageData(pd web.PageData, portfolioID int64, action, submitTe
 
 // accountDetail is the display struct for the account detail page.
 type accountDetail struct {
-	ID              int64
-	Name            string
-	PortfolioID     int64
-	PortfolioName   string
-	CreatedAt       string
-	UpdatedAt       string
+	ID            int64
+	Name          string
+	PortfolioID   int64
+	PortfolioName string
+	CreatedAt     string
+	UpdatedAt     string
 }
 
 // AccountWebHandler handles server-rendered account pages.
@@ -145,7 +145,7 @@ func (h *AccountWebHandler) HandleDetailPage(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get portfolio name
-	portfolios, _ := h.portfolioSvc.List(r.Context(), 0, 0)
+	portfolios, _ := h.portfolioSvc.ListAll(r.Context())
 	portfolioName := ""
 	for _, p := range portfolios {
 		if p.ID == a.PortfolioID {

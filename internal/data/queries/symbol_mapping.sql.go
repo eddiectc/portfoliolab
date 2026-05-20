@@ -236,6 +236,41 @@ func (q *Queries) ListAllMarketDataSymbols(ctx context.Context, db DBTX) ([]List
 	return items, nil
 }
 
+const listAllSymbolMappings = `-- name: ListAllSymbolMappings :many
+SELECT id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at FROM symbol_mappings
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListAllSymbolMappings(ctx context.Context, db DBTX) ([]SymbolMapping, error) {
+	rows, err := db.QueryContext(ctx, listAllSymbolMappings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SymbolMapping{}
+	for rows.Next() {
+		var i SymbolMapping
+		if err := rows.Scan(
+			&i.ID,
+			&i.InternalSymbol,
+			&i.MarketDataSymbol,
+			&i.IsBenchmark,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBenchmarkSymbols = `-- name: ListBenchmarkSymbols :many
 SELECT id, internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at FROM symbol_mappings WHERE is_benchmark = 1 ORDER BY internal_symbol
 `

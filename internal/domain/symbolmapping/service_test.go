@@ -15,9 +15,9 @@ import (
 
 type mockRepo struct {
 	mappings      map[int64]*SymbolMapping
-	byInternal    map[string]int64 // internal_symbol -> id
+	byInternal    map[string]int64          // internal_symbol -> id
 	brokerSymbols map[int64][]*BrokerSymbol // mapping_id -> broker symbols
-	byBroker      map[string]*BrokerSymbol // "brokerName|brokerSymbol" -> BrokerSymbol
+	byBroker      map[string]*BrokerSymbol  // "brokerName|brokerSymbol" -> BrokerSymbol
 	nextID        int64
 	err           error
 	inUseIDs      map[int64]bool // IDs that have referencing transactions
@@ -106,6 +106,22 @@ func (m *mockRepo) GetAll(_ context.Context, limit, offset int) ([]SymbolMapping
 	}
 	if limit < len(result) {
 		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (m *mockRepo) ListAll(_ context.Context) ([]SymbolMapping, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	var result []SymbolMapping
+	for _, sm := range m.mappings {
+		cp := *sm
+		if len(sm.BrokerSymbols) > 0 {
+			cp.BrokerSymbols = make([]BrokerSymbol, len(sm.BrokerSymbols))
+			copy(cp.BrokerSymbols, sm.BrokerSymbols)
+		}
+		result = append(result, cp)
 	}
 	return result, nil
 }
@@ -391,8 +407,8 @@ func TestService_Create_SkipsEmptyBrokerSymbols(t *testing.T) {
 		MarketDataSymbol: "AAPL",
 		BrokerSymbols: []BrokerSymbolRequest{
 			{BrokerName: "IBKR", BrokerSymbol: "AAPL.US"},
-			{BrokerName: "", BrokerSymbol: ""},       // should be skipped
-			{BrokerName: "T212", BrokerSymbol: ""},   // should be skipped (empty symbol)
+			{BrokerName: "", BrokerSymbol: ""},     // should be skipped
+			{BrokerName: "T212", BrokerSymbol: ""}, // should be skipped (empty symbol)
 		},
 	})
 	if err != nil {

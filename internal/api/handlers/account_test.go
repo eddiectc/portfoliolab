@@ -65,6 +65,15 @@ func (r *testAccountRepo) GetAll(_ context.Context, limit, offset int) ([]accoun
 	return result, nil
 }
 
+func (r *testAccountRepo) ListAll(_ context.Context) ([]account.Account, error) {
+	var result []account.Account
+	for _, a := range r.accounts {
+		cp := *a
+		result = append(result, cp)
+	}
+	return result, nil
+}
+
 func (r *testAccountRepo) GetByPortfolio(_ context.Context, portfolioID int64, limit, offset int) ([]account.Account, error) {
 	ids := r.byPortfolio[portfolioID]
 	var result []account.Account
