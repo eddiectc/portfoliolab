@@ -30,5 +30,5 @@ Feature IDs are sequential: f001, f002, etc.
 | f016 | Symbol Details — Geographic Data | done | f015 |
 | f017 | Portfolio Analysis | done | f009, f010, f011, f015, f016 |
 | f018 | Allocation | done | f009, f010, f011, f001 |
-| f019 | Model Portfolio | spec | f003, f009, f011, f018 |
+| f019 | Model Portfolio | in-progress | f003, f009, f011, f018 |
 | f020 | Portfolio Comparison | spec | f019, f009, f010, f011, f012, f015 |

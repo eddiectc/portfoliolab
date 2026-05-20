@@ -413,6 +413,57 @@ func TestMigration_TargetAllocationsIndexExists(t *testing.T) {
 	}
 }
 
+func TestMigration_ModelPortfoliosTableExists(t *testing.T) {
+	db := setupTestDB(t)
+
+	var tableName string
+	err := db.QueryRow(`
+		SELECT name FROM sqlite_master
+		WHERE type='table' AND name='model_portfolios'
+	`).Scan(&tableName)
+	if err != nil {
+		t.Fatalf("model_portfolios table not found: %v", err)
+	}
+	if tableName != "model_portfolios" {
+		t.Errorf("expected 'model_portfolios', got %q", tableName)
+	}
+}
+
+func TestMigration_ModelPortfoliosColumnsExist(t *testing.T) {
+	db := setupTestDB(t)
+
+	for _, col := range []string{"id", "name", "entries", "created_at", "updated_at"} {
+		var name string
+		err := db.QueryRow(`
+			SELECT name FROM pragma_table_info('model_portfolios')
+			WHERE name = ?
+		`, col).Scan(&name)
+		if err != nil {
+			t.Errorf("column %s not found in model_portfolios: %v", col, err)
+		}
+	}
+}
+
+func TestMigration_ModelPortfoliosNameUniqueConstraint(t *testing.T) {
+	db := setupTestDB(t)
+
+	_, err := db.Exec(
+		"INSERT INTO model_portfolios (name, entries) VALUES (?, ?)",
+		"Test Model", "[]",
+	)
+	if err != nil {
+		t.Fatalf("insert first model portfolio: %v", err)
+	}
+
+	_, err = db.Exec(
+		"INSERT INTO model_portfolios (name, entries) VALUES (?, ?)",
+		"Test Model", "[]",
+	)
+	if err == nil {
+		t.Fatal("expected UNIQUE constraint violation on name, got nil")
+	}
+}
+
 func TestMigration_MarketDataUpdatedAtColumnExists(t *testing.T) {
 	db := setupTestDB(t)
 

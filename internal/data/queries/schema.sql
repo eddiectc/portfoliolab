@@ -142,6 +142,14 @@ CREATE TABLE target_allocations (
 CREATE INDEX idx_target_allocations_portfolio_id
     ON target_allocations(portfolio_id);
 
+CREATE TABLE model_portfolios (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL UNIQUE,
+    entries    TEXT    NOT NULL,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE market_data (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol      TEXT    NOT NULL,
