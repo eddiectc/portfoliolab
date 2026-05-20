@@ -626,26 +626,7 @@ func (s *Service) ComputeRebalancingSuggestions(ctx context.Context, filter Allo
 
 	totalValue := actual.TotalValueBase
 
-	// 3. Build price lookup from allocation rows (for symbols currently held).
-	// Price = MarketValue / total_quantity from account breakdown.
-	priceMap := make(map[string]decimal.Decimal)
-	for _, row := range actual.Rows {
-		var totalQty, totalMV decimal.Decimal
-		for _, ab := range row.AccountBreakdown {
-			totalQty, _ = totalQty.Add(ab.Quantity)
-			if ab.MarketValueBase != nil {
-				totalMV, _ = totalMV.Add(*ab.MarketValueBase)
-			} else {
-				totalMV, _ = totalMV.Add(ab.MarketValue)
-			}
-		}
-		if !totalQty.IsZero() {
-			price, _ := totalMV.Quo(totalQty)
-			priceMap[row.Symbol] = price
-		}
-	}
-
-	// 4. Generate suggestions for symbols with |drift| > tolerance.
+	// 3. Generate suggestions for symbols with |drift| > tolerance.
 	var suggestions []RebalanceSuggestion
 	var warnings []string
 
@@ -666,32 +647,17 @@ func (s *Service) ComputeRebalancingSuggestions(ctx context.Context, filter Allo
 		driftValue, _ := absDrift.Quo(decimal.MustNew(10000, 2)) // drift_pct / 100
 		driftValue, _ = driftValue.Mul(totalValue)
 
-		// Resolve price.
-		var price decimal.Decimal
-		var hasPrice bool
-
-		if p, ok := priceMap[row.Symbol]; ok {
-			price = p
-			hasPrice = true
-		} else {
-			// Symbol not currently held — look up market price.
-			marketPrice, err := s.positions.GetMarketPrice(ctx, row.Symbol)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("failed to get market price for %s: %v", row.Symbol, err))
-				continue
-			}
-			if marketPrice == nil || marketPrice.IsZero() {
-				warnings = append(warnings, fmt.Sprintf("market data unavailable for %s — excluded from rebalancing suggestions", row.Symbol))
-				continue
-			}
-			price = *marketPrice
-			hasPrice = true
+		// Resolve price from market data cache.
+		marketPrice, err := s.positions.GetMarketPrice(ctx, row.Symbol)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("failed to get market price for %s: %v", row.Symbol, err))
+			continue
 		}
-
-		if !hasPrice {
+		if marketPrice == nil || marketPrice.IsZero() {
 			warnings = append(warnings, fmt.Sprintf("market data unavailable for %s — excluded from rebalancing suggestions", row.Symbol))
 			continue
 		}
+		price := *marketPrice
 
 		// Compute shares.
 		shares, _ := driftValue.Quo(price)
