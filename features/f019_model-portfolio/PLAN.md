@@ -90,7 +90,7 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
 **Corresponds to:** All scenarios (API layer)
 **Description:** REST API handlers for model portfolio CRUD with consistent error responses.
 
-- [ ] Create `internal/api/handlers/model_portfolio.go`:
+- [x] Create `internal/api/handlers/model_portfolio.go`:
   - `ModelPortfolioHandler` struct with service dependency
   - `RegisterRoutes()` — mounts CRUD routes under `/api/model-portfolios`
   - `HandleList` — GET `/api/model-portfolios` (paginated)
@@ -99,9 +99,9 @@ Tasks 1–3 are foundational (data layer). Tasks 4–6 build the model portfolio
   - `HandleUpdate` — PATCH `/api/model-portfolios/{id}`
   - `HandleDelete` — DELETE `/api/model-portfolios/{id}`
   - Error handler mapping domain errors to HTTP status codes
-- [ ] Write unit tests: `model_portfolio_test.go` with `httptest.NewRecorder` + mock service
-- [ ] Wire handler into `internal/api/router.go`
-- [ ] Update `API.md` with model portfolio endpoint documentation
+- [x] Write unit tests: `model_portfolio_test.go` with `httptest.NewRecorder` + mock service
+- [x] Wire handler into `internal/api/router.go`
+- [x] Update `API.md` with model portfolio endpoint documentation
 
 **Verification:** All API handler tests pass; routes registered on router; API.md updated.
 
