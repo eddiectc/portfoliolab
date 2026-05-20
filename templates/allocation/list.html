@@ -61,7 +61,21 @@ function toggleRow(btn) {
     }
 }
 
-var targetIndex = {{len .Targets}};
+// Start targetIndex after all pre-rendered rows (existing targets + blank rows).
+// When there are existing targets, blank rows are not rendered, so index = len(Targets).
+// When there are no targets, 3 blank rows are rendered, so index = 3.
+var targetIndex = (function() {
+    var existing = document.querySelectorAll('[name^="symbol_"]');
+    var maxIdx = -1;
+    for (var i = 0; i < existing.length; i++) {
+        var match = existing[i].name.match(/symbol_(\d+)$/);
+        if (match) {
+            var idx = parseInt(match[1], 10);
+            if (idx > maxIdx) maxIdx = idx;
+        }
+    }
+    return maxIdx + 1;
+})();
 function addTargetEntry() {
     var container = document.getElementById('target-entries');
     var div = document.createElement('div');
