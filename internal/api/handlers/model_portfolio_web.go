@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ type modelPortfolioFormPageData struct {
 
 // modelPortfolioEntryForm holds a single symbol+weight row for the form.
 type modelPortfolioEntryForm struct {
-	Symbol   string
+	Symbol    string
 	WeightPct string
 }
 
@@ -48,9 +49,9 @@ func newModelPortfolioFormPageData(pd web.PageData, symbols []symbolmapping.Symb
 
 // ModelPortfolioWebHandler handles server-rendered model portfolio pages.
 type ModelPortfolioWebHandler struct {
-	service     *modelportfolio.Service
-	symbolSvc   *symbolmapping.Service
-	renderer    *web.Renderer
+	service   *modelportfolio.Service
+	symbolSvc *symbolmapping.Service
+	renderer  *web.Renderer
 }
 
 // NewModelPortfolioWebHandler creates a new model portfolio web handler.
@@ -106,7 +107,10 @@ func (h *ModelPortfolioWebHandler) HandleListPage(w http.ResponseWriter, r *http
 
 // HandleNewPage renders GET /model-portfolios/new.
 func (h *ModelPortfolioWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request) {
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0) // symbols are optional autocomplete data — empty list is acceptable fallback
+	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	if err != nil {
+		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
+	}
 	if symbols == nil {
 		symbols = []symbolmapping.SymbolMapping{}
 	}
@@ -166,7 +170,7 @@ func parseEntriesForm(r *http.Request) []modelPortfolioEntryForm {
 		weightStr := strings.TrimSpace(weights[i])
 		if symbol != "" || weightStr != "" {
 			result = append(result, modelPortfolioEntryForm{
-				Symbol:   symbol,
+				Symbol:    symbol,
 				WeightPct: weightStr,
 			})
 		}
@@ -176,7 +180,10 @@ func parseEntriesForm(r *http.Request) []modelPortfolioEntryForm {
 
 // HandleCreatePage handles POST /model-portfolios (form submission).
 func (h *ModelPortfolioWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Request) {
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0) // symbols are optional autocomplete data — empty list is acceptable fallback
+	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	if err != nil {
+		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
+	}
 	if symbols == nil {
 		symbols = []symbolmapping.SymbolMapping{}
 	}
@@ -223,7 +230,10 @@ func (h *ModelPortfolioWebHandler) HandleEditPage(w http.ResponseWriter, r *http
 		return
 	}
 
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0) // symbols are optional autocomplete data — empty list is acceptable fallback
+	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	if err != nil {
+		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
+	}
 	if symbols == nil {
 		symbols = []symbolmapping.SymbolMapping{}
 	}
@@ -231,7 +241,7 @@ func (h *ModelPortfolioWebHandler) HandleEditPage(w http.ResponseWriter, r *http
 	var formEntries []modelPortfolioEntryForm
 	for _, e := range mp.Entries {
 		formEntries = append(formEntries, modelPortfolioEntryForm{
-			Symbol:   e.Symbol,
+			Symbol:    e.Symbol,
 			WeightPct: e.WeightPct.String(),
 		})
 	}
@@ -258,7 +268,10 @@ func (h *ModelPortfolioWebHandler) HandleEditPost(w http.ResponseWriter, r *http
 		return
 	}
 
-	symbols, _ := h.symbolSvc.List(r.Context(), 0, 0) // symbols are optional autocomplete data — empty list is acceptable fallback
+	symbols, err := h.symbolSvc.List(r.Context(), 0, 0)
+	if err != nil {
+		slog.Warn("failed to fetch symbols for autocomplete", "error", err)
+	}
 	if symbols == nil {
 		symbols = []symbolmapping.SymbolMapping{}
 	}

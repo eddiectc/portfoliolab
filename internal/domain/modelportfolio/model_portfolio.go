@@ -8,11 +8,11 @@ import (
 // pairs that sum to 100%. It can be applied as a target allocation on any
 // real portfolio.
 type ModelPortfolio struct {
-	ID        int64                `json:"id"`
-	Name      string               `json:"name"`
+	ID        int64                 `json:"id"`
+	Name      string                `json:"name"`
 	Entries   []ModelPortfolioEntry `json:"entries"`
-	CreatedAt string               `json:"created_at"`
-	UpdatedAt string               `json:"updated_at"`
+	CreatedAt string                `json:"created_at"`
+	UpdatedAt string                `json:"updated_at"`
 }
 
 // ModelPortfolioEntry maps a symbol to a target weight percentage.
@@ -36,9 +36,9 @@ type UpdateRequest struct {
 // ModelPortfolioSummary holds lightweight data for dropdown selectors
 // (id, name, entry count) without the full entries payload.
 type ModelPortfolioSummary struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	EntryCount  int    `json:"entry_count"`
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	EntryCount int    `json:"entry_count"`
 }
 
 // --- Errors ---

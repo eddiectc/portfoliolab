@@ -205,7 +205,6 @@ func TestValidateCreateRequest_WeightSumNot100(t *testing.T) {
 				),
 			},
 		},
-
 	}
 
 	for _, tt := range tests {
@@ -248,7 +247,7 @@ func TestValidateUpdateRequest_Valid(t *testing.T) {
 		{
 			name: "update both",
 			req: UpdateRequest{
-				Name:    strPtr("Updated"),
+				Name: strPtr("Updated"),
 				Entries: entries(
 					entryPair{symbol: "GOOGL", pct: 5000},
 					entryPair{symbol: "AMZN", pct: 5000},

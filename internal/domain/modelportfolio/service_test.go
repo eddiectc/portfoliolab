@@ -13,15 +13,15 @@ var ctx = context.Background()
 // --- Mock ---
 
 type mockRepo struct {
-	portfolios  map[int64]ModelPortfolio // id -> portfolio (domain type, entries already unmarshaled)
-	nameIndex   map[string]int64         // name -> id
-	nextID      int64
-	creates     []ModelPortfolio
-	createsErr  error
-	getErr      error
-	listErr     error
-	updateErr   error
-	deleteErr   error
+	portfolios map[int64]ModelPortfolio // id -> portfolio (domain type, entries already unmarshaled)
+	nameIndex  map[string]int64         // name -> id
+	nextID     int64
+	creates    []ModelPortfolio
+	createsErr error
+	getErr     error
+	listErr    error
+	updateErr  error
+	deleteErr  error
 }
 
 func newMockRepo() *mockRepo {
@@ -316,8 +316,8 @@ func TestGet_HappyPath(t *testing.T) {
 
 	// Pre-populate.
 	_, _ = repo.Create(ctx, ModelPortfolio{
-		ID:    1,
-		Name:  "Test Portfolio",
+		ID:   1,
+		Name: "Test Portfolio",
 		Entries: []ModelPortfolioEntry{
 			{Symbol: "AAPL", WeightPct: decimal.MustParse("50.0")},
 			{Symbol: "MSFT", WeightPct: decimal.MustParse("50.0")},
@@ -439,8 +439,8 @@ func TestUpdate_HappyPath(t *testing.T) {
 
 	// Pre-populate.
 	_, _ = repo.Create(ctx, ModelPortfolio{
-		ID:    1,
-		Name:  "Old Name",
+		ID:   1,
+		Name: "Old Name",
 		Entries: []ModelPortfolioEntry{
 			{Symbol: "AAPL", WeightPct: decimal.MustParse("100.0")},
 		},
@@ -471,8 +471,8 @@ func TestUpdate_NameOnly(t *testing.T) {
 	svc := NewService(repo, nil, nil)
 
 	_, _ = repo.Create(ctx, ModelPortfolio{
-		ID:    1,
-		Name:  "Old Name",
+		ID:   1,
+		Name: "Old Name",
 		Entries: []ModelPortfolioEntry{
 			{Symbol: "AAPL", WeightPct: decimal.MustParse("100.0")},
 		},

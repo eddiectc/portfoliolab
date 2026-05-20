@@ -376,8 +376,8 @@ func TestModelPortfolioHandleCreatePage_DuplicateName(t *testing.T) {
 	handler, _, repo := setupMPWebHandler(t)
 
 	repo.portfolios[1] = &modelportfolio.ModelPortfolio{
-		ID:   1,
-		Name: "Existing",
+		ID:      1,
+		Name:    "Existing",
 		Entries: []modelportfolio.ModelPortfolioEntry{{Symbol: "AAPL", WeightPct: decimal.MustNew(10000, 2)}},
 	}
 	repo.names["Existing"] = 1
@@ -464,8 +464,8 @@ func TestModelPortfolioHandleEditPost_ValidSubmission(t *testing.T) {
 	handler, _, repo := setupMPWebHandler(t)
 
 	repo.portfolios[1] = &modelportfolio.ModelPortfolio{
-		ID:   1,
-		Name: "Old Name",
+		ID:      1,
+		Name:    "Old Name",
 		Entries: []modelportfolio.ModelPortfolioEntry{{Symbol: "AAPL", WeightPct: decimal.MustNew(10000, 2)}},
 	}
 	repo.names["Old Name"] = 1
@@ -491,8 +491,8 @@ func TestModelPortfolioHandleDeletePage_Success(t *testing.T) {
 	handler, _, repo := setupMPWebHandler(t)
 
 	repo.portfolios[1] = &modelportfolio.ModelPortfolio{
-		ID:   1,
-		Name: "To Delete",
+		ID:      1,
+		Name:    "To Delete",
 		Entries: []modelportfolio.ModelPortfolioEntry{{Symbol: "AAPL", WeightPct: decimal.MustNew(10000, 2)}},
 	}
 	repo.names["To Delete"] = 1
