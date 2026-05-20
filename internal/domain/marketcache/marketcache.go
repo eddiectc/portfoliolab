@@ -512,43 +512,31 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, symbols []string) {
 	// Truncate to date-only for fair comparison with DB dates (YYYY-MM-DD midnight).
 	nowDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
+	var scheduled, skipped, future int
 	for _, sym := range symbols {
 		latestDate, hasCache := latestDates[sym]
 
 		var fetchStart time.Time
 		if !hasCache {
-			// No cache at all — fetch from historicalFrom (e.g. 2000-01-01)
-			// so analysis (momentum, correlation) has sufficient data.
 			fetchStart = m.historicalFrom
-			if m.logger != nil {
-				m.logger.Debug("gap-fill: no cache, scheduling full fetch", "symbol", sym, "fromDate", fetchStart.Format("2006-01-02"))
-			}
 		} else if latestDate.Before(tradingDayBeforeOrOn(nowDate)) {
-			// Cache exists but not current — fetch from next trading day after
-			// the latest cached date to now. Skips weekends so Yahoo actually
-			// has data for the requested range.
 			fetchStart = nextTradingDay(*latestDate)
-			if m.logger != nil {
-				m.logger.Debug("gap-fill: cache stale, scheduling gap fetch", "symbol", sym, "latestCached", latestDate.Format("2006-01-02"), "fetchStart", fetchStart.Format("2006-01-02"))
-			}
 		} else {
-			// Fully covered — skip.
-			if m.logger != nil {
-				m.logger.Debug("gap-fill: cache current, skipping", "symbol", sym, "latestCached", latestDate.Format("2006-01-02"))
-			}
+			skipped++
 			continue
 		}
 
-		// Skip if fetchStart is in the future (e.g. latest cached date was
-		// Friday, next trading day is Monday, but today is Saturday).
 		if fetchStart.After(nowDate) {
-			if m.logger != nil {
-				m.logger.Debug("gap-fill: fetchStart in future, skipping", "symbol", sym, "fetchStart", fetchStart.Format("2006-01-02"), "nowDate", nowDate.Format("2006-01-02"))
-			}
+			future++
 			continue
 		}
 
 		m.ScheduleSymbolFetch(sym, fetchStart)
+		scheduled++
+	}
+
+	if m.logger != nil {
+		m.logger.Debug("gap-fill completed", "scheduled", scheduled, "skipped", skipped, "future", future)
 	}
 }
 
