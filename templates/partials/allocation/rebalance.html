@@ -1,0 +1,52 @@
+{{define "partials/allocation/rebalance"}}
+{{if and .Rebalance .Drift .Drift.HasTarget}}
+<div class="analysis-section" style="margin-top:2rem;">
+    <h2>Rebalancing Suggestions</h2>
+
+    {{if .RebalanceWarning}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        ⚠ {{.RebalanceWarning}}
+    </div>
+    {{end}}
+
+    {{if .Rebalance.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Rebalance.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if .Rebalance.IsBalanced}}
+    <p class="empty-state">Portfolio is balanced — all holdings are within the 5% drift tolerance.</p>
+    {{else if .Rebalance.Suggestions}}
+    <p class="section-description">Suggested trades to close the gap between actual and target allocation. These are informational only — no trading execution.</p>
+
+    <table class="data-table rebalance-table">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Direction</th>
+                <th class="num">Shares</th>
+                <th class="num">Dollar Value</th>
+                <th class="num">Drift Reduction</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Rebalance.Suggestions}}
+            <tr>
+                <td>{{.Symbol}}</td>
+                <td><span class="rebalance-{{.Direction}}">{{.Direction}}</span></td>
+                <td class="num">{{.Shares.String}}</td>
+                <td class="num">{{formatMoney .DollarValue.String}} {{$.BaseCurrency}}</td>
+                <td class="num">{{.DriftReduction.String}}%</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+    <div style="margin-top:0.5rem;padding:0.5rem;background:#f8f9fa;border-radius:4px;">
+        <strong>Total trade value:</strong> {{formatMoney .Rebalance.TotalDollarValue.String}} {{.BaseCurrency}}
+    </div>
+    {{end}}
+</div>
+{{end}}
+{{end}}

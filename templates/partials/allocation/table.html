@@ -1,0 +1,115 @@
+{{define "partials/allocation/table"}}
+{{/* Last updated */}}
+{{if .LastUpdatedText}}
+<p class="text-muted" style="margin-top:0.5rem;font-size:0.85em;">Last updated: {{.LastUpdatedText}}</p>
+{{end}}
+
+{{/* Warnings */}}
+{{if .Allocation.Warnings}}
+<div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+    {{range .Allocation.Warnings}}⚠ {{.}}<br>{{end}}
+</div>
+{{end}}
+
+{{/* Empty state message */}}
+{{if .Allocation.Message}}
+<p class="empty-state">{{.Allocation.Message}}</p>
+{{end}}
+
+{{/* Total portfolio value */}}
+{{if .Allocation.Rows}}
+<div style="margin-bottom:1rem;padding:0.75rem;background:#f8f9fa;border-radius:4px;">
+    <strong>Total Value:</strong> {{formatMoney .Allocation.TotalValueBase}} {{.BaseCurrency}}
+</div>
+{{end}}
+
+{{/* Allocation table */}}
+{{if .Allocation.Rows}}
+<table class="data-table allocation-table">
+    <thead>
+        <tr>
+            <th style="width:20px;"></th>
+            <th>Symbol</th>
+            <th class="num">Market Value</th>
+            <th class="num">Actual %</th>
+            <th class="num">Currency</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Allocation.Rows}}
+        <tr class="allocation-row">
+            <td><button class="expand-btn" onclick="toggleRow(this)" title="Toggle account breakdown">▶</button></td>
+            <td><strong>{{.Symbol}}</strong></td>
+            <td class="num">{{if .MarketValueBase}}{{formatMoney .MarketValueBase.String}}{{else}}{{formatMoney .MarketValue.String}}{{end}}</td>
+            <td class="num">{{formatPct .AllocationPct.String}}%</td>
+            <td class="num">{{.Currency}}</td>
+        </tr>
+        {{/* Account breakdown (hidden by default) */}}
+        {{if .AccountBreakdown}}
+        <tr class="breakdown-row" style="display:none;">
+            <td colspan="5" style="padding:0;">
+                <table class="data-table breakdown-table" style="margin:0;">
+                    <thead>
+                        <tr>
+                            <th>Account</th>
+                            <th class="num">Quantity</th>
+                            <th class="num">Market Value</th>
+                            <th class="num">% of Symbol</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .AccountBreakdown}}
+                        <tr>
+                            <td>{{.AccountName}}</td>
+                            <td class="num">{{.Quantity.String}}</td>
+                            <td class="num">{{if .MarketValueBase}}{{formatMoney .MarketValueBase.String}}{{else}}{{formatMoney .MarketValue.String}}{{end}}</td>
+                            <td class="num">{{formatPct .PctOfSymbol.String}}%</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {{end}}
+        {{end}}
+
+        {{/* Cash row */}}
+        {{if .Allocation.CashRow}}
+        <tr class="allocation-row cash-row">
+            <td><button class="expand-btn" onclick="toggleRow(this)" title="Toggle account breakdown">▶</button></td>
+            <td><strong>{{.Allocation.CashRow.Symbol}}</strong></td>
+            <td class="num">{{formatMoney .Allocation.CashRow.MarketValue.String}}</td>
+            <td class="num">{{formatPct .Allocation.CashRow.AllocationPct.String}}%</td>
+            <td class="num">{{.Allocation.CashRow.Currency}}</td>
+        </tr>
+        {{if .Allocation.CashRow.AccountBreakdown}}
+        <tr class="breakdown-row" style="display:none;">
+            <td colspan="5" style="padding:0;">
+                <table class="data-table breakdown-table" style="margin:0;">
+                    <thead>
+                        <tr>
+                            <th>Account</th>
+                            <th class="num">Quantity</th>
+                            <th class="num">Market Value</th>
+                            <th class="num">% of Symbol</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Allocation.CashRow.AccountBreakdown}}
+                        <tr>
+                            <td>{{.AccountName}}</td>
+                            <td class="num">{{.Quantity.String}}</td>
+                            <td class="num">{{if .MarketValueBase}}{{formatMoney .MarketValueBase.String}}{{else}}{{formatMoney .MarketValue.String}}{{end}}</td>
+                            <td class="num">{{formatPct .PctOfSymbol.String}}%</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {{end}}
+        {{end}}
+    </tbody>
+</table>
+{{end}}
+{{end}}
