@@ -53,6 +53,13 @@
         </div>
         {{end}}
 
+        {{/* Autocomplete datalist for symbols */}}
+        <datalist id="symbol-list">
+            {{range .Symbols}}
+            <option value="{{.InternalSymbol}}">
+            {{end}}
+        </datalist>
+
         <form method="POST" action="/allocation/target">
             <input type="hidden" name="portfolio_id" value="{{.SelectedPortfolio}}">
             <div id="target-entries">
@@ -68,7 +75,7 @@
                 {{if not .Targets}}
                 {{range $idx := slice 0 1 2}}
                 <div class="target-entry" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
-                    <input type="text" name="symbol_{{$idx}}" class="form-control" style="width:120px;" placeholder="Symbol">
+                    <input type="text" name="symbol_{{$idx}}" class="form-control" style="width:120px;" placeholder="Symbol" list="symbol-list">
                     <input type="text" name="target_pct_{{$idx}}" class="form-control" style="width:100px;" step="0.1" placeholder="%" oninput="calculateTargetTotal()">
                     <span class="text-muted">%</span>
                 </div>
