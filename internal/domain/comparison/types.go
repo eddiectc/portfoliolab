@@ -23,7 +23,7 @@ type ComparisonRequest struct {
 	PortfolioBID   int64         // model portfolio ID or real portfolio ID
 	PortfolioBType PortfolioType // "model" or "real"
 	// Period
-	Period   string    // "1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"
+	Period   string     // "1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"
 	DateFrom *time.Time // optional custom start
 	DateTo   *time.Time // optional custom end
 	// Base currency for all values.
@@ -35,27 +35,27 @@ type ComparisonRequest struct {
 
 // ComparisonResult is the top-level envelope returned by ComputeComparison.
 type ComparisonResult struct {
-	ComputedAt    time.Time            `json:"computed_at"`
-	PortfolioA    *PortfolioComparison `json:"portfolio_a"`
-	PortfolioB    *PortfolioComparison `json:"portfolio_b"`
-	CrossMetrics  *CrossPortfolioMetrics `json:"cross_metrics,omitempty"`
-	Warnings      []string             `json:"warnings,omitempty"`
-	Message       string               `json:"message,omitempty"` // empty-state message when data unavailable
+	ComputedAt   time.Time              `json:"computed_at"`
+	PortfolioA   *PortfolioComparison   `json:"portfolio_a"`
+	PortfolioB   *PortfolioComparison   `json:"portfolio_b"`
+	CrossMetrics *CrossPortfolioMetrics `json:"cross_metrics,omitempty"`
+	Warnings     []string               `json:"warnings,omitempty"`
+	Message      string                 `json:"message,omitempty"` // empty-state message when data unavailable
 }
 
 // PortfolioComparison holds the per-portfolio metrics for one side of the comparison.
 type PortfolioComparison struct {
-	ID            int64            `json:"id"`
-	Name          string           `json:"name"`
-	Type          PortfolioType    `json:"type"`
-	ReturnMetrics *ReturnMetrics   `json:"return_metrics,omitempty"`
-	RiskMetrics   *RiskMetrics     `json:"risk_metrics,omitempty"`
-	Drawdown      *DrawdownResult  `json:"drawdown,omitempty"`
-	YearlyReturns []YearlyReturn   `json:"yearly_returns,omitempty"`
-	PeriodExtremes *PeriodExtremes `json:"period_extremes,omitempty"`
+	ID                 int64               `json:"id"`
+	Name               string              `json:"name"`
+	Type               PortfolioType       `json:"type"`
+	ReturnMetrics      *ReturnMetrics      `json:"return_metrics,omitempty"`
+	RiskMetrics        *RiskMetrics        `json:"risk_metrics,omitempty"`
+	Drawdown           *DrawdownResult     `json:"drawdown,omitempty"`
+	YearlyReturns      []YearlyReturn      `json:"yearly_returns,omitempty"`
+	PeriodExtremes     *PeriodExtremes     `json:"period_extremes,omitempty"`
 	ReturnDistribution *ReturnDistribution `json:"return_distribution,omitempty"`
-	Warnings      []string         `json:"warnings,omitempty"`
-	Message       string           `json:"message,omitempty"` // empty-state message
+	Warnings           []string            `json:"warnings,omitempty"`
+	Message            string              `json:"message,omitempty"` // empty-state message
 }
 
 // ReturnMetrics holds summary return calculations for a portfolio.
@@ -78,31 +78,31 @@ type RiskMetrics struct {
 
 // DrawdownResult holds drawdown statistics.
 type DrawdownResult struct {
-	MaxDrawdownPct      *decimal.Decimal `json:"max_drawdown_pct,omitempty"`
-	CurrentDrawdownPct  *decimal.Decimal `json:"current_drawdown_pct,omitempty"`
+	MaxDrawdownPct       *decimal.Decimal `json:"max_drawdown_pct,omitempty"`
+	CurrentDrawdownPct   *decimal.Decimal `json:"current_drawdown_pct,omitempty"`
 	DrawdownDurationDays *int             `json:"drawdown_duration_days,omitempty"`
 }
 
 // YearlyReturn holds a calendar year and its percentage return.
 type YearlyReturn struct {
-	Year      int             `json:"year"`
+	Year      int              `json:"year"`
 	ReturnPct *decimal.Decimal `json:"return_pct,omitempty"`
 }
 
 // CrossPortfolioMetrics holds the metrics computed between two portfolios.
 type CrossPortfolioMetrics struct {
-	BetaAlpha      *BetaAlphaResult        `json:"beta_alpha,omitempty"`
-	Correlation    *PortfolioCorrelationResult `json:"correlation,omitempty"`
-	Overlap        *OverlapResult          `json:"overlap,omitempty"`
-	Warnings       []string                `json:"warnings,omitempty"`
+	BetaAlpha   *BetaAlphaResult            `json:"beta_alpha,omitempty"`
+	Correlation *PortfolioCorrelationResult `json:"correlation,omitempty"`
+	Overlap     *OverlapResult              `json:"overlap,omitempty"`
+	Warnings    []string                    `json:"warnings,omitempty"`
 }
 
 // OverlapResult holds portfolio overlap information.
 type OverlapResult struct {
-	TopHoldingsA []HoldingWeight `json:"top_holdings_a"`
-	TopHoldingsB []HoldingWeight `json:"top_holdings_b"`
+	TopHoldingsA []HoldingWeight  `json:"top_holdings_a"`
+	TopHoldingsB []HoldingWeight  `json:"top_holdings_b"`
 	OverlapPct   *decimal.Decimal `json:"overlap_pct,omitempty"`
-	Warnings     []string        `json:"warnings,omitempty"`
+	Warnings     []string         `json:"warnings,omitempty"`
 }
 
 // HoldingWeight maps a symbol to its weight in a portfolio.
@@ -120,5 +120,3 @@ type modelPortfolioData struct {
 	Weights  []ModelPortfolioWeight
 	Currency string // base currency of the portfolio
 }
-
-

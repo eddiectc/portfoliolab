@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -133,6 +134,25 @@ func (m *mockPortfolioCurrencySource) GetPortfolioCurrency(_ context.Context, id
 		return "", fmt.Errorf("portfolio not found")
 	}
 	return c, nil
+}
+
+type mockAllocationSource struct {
+	results map[int64]*allocation.AllocationResult
+	err     error
+}
+
+func (m *mockAllocationSource) ComputeAllocation(_ context.Context, filter allocation.AllocationFilter) (*allocation.AllocationResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if len(filter.PortfolioIDs) == 0 {
+		return nil, fmt.Errorf("portfolio IDs required")
+	}
+	r, ok := m.results[filter.PortfolioIDs[0]]
+	if !ok {
+		return nil, fmt.Errorf("allocation not found")
+	}
+	return r, nil
 }
 
 // --- Helpers ---
@@ -269,6 +289,7 @@ func TestComputeComparison_ModelVsModel(t *testing.T) {
 		},
 		nil, // fxRates not needed (all USD)
 		nil, // portfolioCurrency not needed
+		nil, // allocation not needed for model-vs-model
 	)
 
 	// Use explicit date range that covers the test data.
@@ -318,7 +339,7 @@ func TestComputeComparison_ModelVsModel(t *testing.T) {
 
 	// AAPL went from 100 to 110 = 10% return.
 	// Model B is 100% AAPL, so simple return should be ~10%.
-	tol := decimal.MustNew(1, 2) // 0.01 tolerance
+	tol := decimal.MustNew(1, 2)       // 0.01 tolerance
 	want10 := decimal.MustNew(1000, 2) // 10.00
 	almostEqual(t, result.PortfolioB.ReturnMetrics.SimpleReturnPct, &want10, tol)
 
@@ -380,6 +401,7 @@ func TestComputeComparison_ModelVsReal(t *testing.T) {
 				99: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	// Use explicit date range that covers the test data.
@@ -448,6 +470,7 @@ func TestComputeComparison_RealVsReal(t *testing.T) {
 				2: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -500,6 +523,7 @@ func TestComputeComparison_EmptyRealPortfolio(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -540,6 +564,7 @@ func TestComputeComparison_ModelPortfolioNotFound(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -570,6 +595,7 @@ func TestComputeComparison_EquityCurveSourceError(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -611,6 +637,7 @@ func TestComputeComparison_MissingMarketData(t *testing.T) {
 		},
 		nil,
 		nil,
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -652,8 +679,8 @@ func TestComputeComparison_CustomDateRange(t *testing.T) {
 		{Symbol: "SYM", WeightPct: decimal.MustNew(10000, 2)},
 	})
 
-	from := time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC)  // Jan 6
-	to := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)    // Jan 15
+	from := time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC) // Jan 6
+	to := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)  // Jan 15
 
 	svc := NewService(
 		&mockModelPortfolioSource{
@@ -677,6 +704,7 @@ func TestComputeComparison_CustomDateRange(t *testing.T) {
 		},
 		nil,
 		nil,
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -723,7 +751,7 @@ func TestComputeComparison_PeriodExtremes(t *testing.T) {
 		nil,
 		&mockEquityCurveSource{
 			result: &performance.PerformanceResult{
-				EquityCurve: buildPerformanceEquityCurve(base, values),
+				EquityCurve:  buildPerformanceEquityCurve(base, values),
 				BaseCurrency: "USD",
 			},
 		},
@@ -736,6 +764,7 @@ func TestComputeComparison_PeriodExtremes(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -776,7 +805,7 @@ func TestComputeComparison_RiskMetrics(t *testing.T) {
 		nil,
 		&mockEquityCurveSource{
 			result: &performance.PerformanceResult{
-				EquityCurve: buildPerformanceEquityCurve(base, values),
+				EquityCurve:  buildPerformanceEquityCurve(base, values),
 				BaseCurrency: "USD",
 			},
 		},
@@ -789,6 +818,7 @@ func TestComputeComparison_RiskMetrics(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -823,15 +853,15 @@ func TestComputeComparison_Drawdown(t *testing.T) {
 	_ = base // used in buildPerformanceEquityCurve
 	values := []float64{
 		100, 102, 105, 108, 110, // peak at 110
-		108, 105, 102, 98, 95,   // drawdown to 95 (max DD ~13.6%)
-		97, 100, 103, 105,       // partial recovery
+		108, 105, 102, 98, 95, // drawdown to 95 (max DD ~13.6%)
+		97, 100, 103, 105, // partial recovery
 	}
 
 	svc := NewService(
 		nil,
 		&mockEquityCurveSource{
 			result: &performance.PerformanceResult{
-				EquityCurve: buildPerformanceEquityCurve(base, values),
+				EquityCurve:  buildPerformanceEquityCurve(base, values),
 				BaseCurrency: "USD",
 			},
 		},
@@ -844,6 +874,7 @@ func TestComputeComparison_Drawdown(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -900,7 +931,7 @@ func TestComputeComparison_CAGR(t *testing.T) {
 		nil,
 		&mockEquityCurveSource{
 			result: &performance.PerformanceResult{
-				EquityCurve: buildPerformanceEquityCurve(base, values),
+				EquityCurve:  buildPerformanceEquityCurve(base, values),
 				BaseCurrency: "USD",
 			},
 		},
@@ -913,6 +944,7 @@ func TestComputeComparison_CAGR(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -958,7 +990,7 @@ func TestComputeComparison_YearlyReturns(t *testing.T) {
 		nil,
 		&mockEquityCurveSource{
 			result: &performance.PerformanceResult{
-				EquityCurve: buildPerformanceEquityCurve(base, values),
+				EquityCurve:  buildPerformanceEquityCurve(base, values),
 				BaseCurrency: "USD",
 			},
 		},
@@ -971,6 +1003,7 @@ func TestComputeComparison_YearlyReturns(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -1002,7 +1035,7 @@ func TestComputeComparison_BetaAlpha_Identical(t *testing.T) {
 		nil,
 		&mockEquityCurveSource{
 			result: &performance.PerformanceResult{
-				EquityCurve: buildPerformanceEquityCurve(base, values),
+				EquityCurve:  buildPerformanceEquityCurve(base, values),
 				BaseCurrency: "USD",
 			},
 		},
@@ -1015,6 +1048,7 @@ func TestComputeComparison_BetaAlpha_Identical(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -1072,7 +1106,7 @@ func TestComputeComparison_ShortData(t *testing.T) {
 		nil,
 		&mockEquityCurveSource{
 			result: &performance.PerformanceResult{
-				EquityCurve: buildPerformanceEquityCurve(base, values),
+				EquityCurve:  buildPerformanceEquityCurve(base, values),
 				BaseCurrency: "USD",
 			},
 		},
@@ -1085,6 +1119,7 @@ func TestComputeComparison_ShortData(t *testing.T) {
 				1: "USD",
 			},
 		},
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -1151,6 +1186,7 @@ func TestComputeComparison_FXConversion(t *testing.T) {
 		},
 		nil,
 		nil,
+		nil, // allocation not needed
 	)
 
 	req := ComparisonRequest{
@@ -1240,6 +1276,278 @@ func TestBuildNavCurve_Empty(t *testing.T) {
 	result := buildNavCurve([]EquityCurvePoint{})
 	if len(result) != 0 {
 		t.Errorf("got %d points, want 0", len(result))
+	}
+}
+
+func TestComputeComparison_OverlapModelVsModel(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// AAPL: 10 days of prices
+	aaplPrices := buildPriceSeries(base, []float64{100, 101, 102, 100, 103, 105, 104, 106, 108, 110}, "USD")
+	// GOOG: 10 days of prices
+	googPrices := buildPriceSeries(base, []float64{200, 202, 201, 199, 203, 205, 207, 210, 215, 220}, "USD")
+
+	// Model A: 50% AAPL + 50% GOOG
+	modelA := buildModelPortfolio(1, "Tech Growth", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: decimal.MustNew(5000, 2)},
+		{Symbol: "GOOG", WeightPct: decimal.MustNew(5000, 2)},
+	})
+	// Model B: 100% AAPL
+	modelB := buildModelPortfolio(2, "AAPL Only", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: decimal.MustNew(10000, 2)},
+	})
+
+	from := base
+	to := base.AddDate(0, 0, 9)
+
+	svc := NewService(
+		&mockModelPortfolioSource{
+			portfolios: map[int64]modelportfolio.ModelPortfolio{
+				1: modelA,
+				2: modelB,
+			},
+		},
+		nil,
+		&mockMarketHistorySource{
+			prices: map[string][]market.HistoricalPrice{
+				"AAPL": aaplPrices,
+				"GOOG": googPrices,
+			},
+		},
+		&mockMarketDataSymbolResolver{
+			symbols: map[string]string{},
+		},
+		&mockSymbolDetailsSource{
+			details: map[string]*symbol.SymbolDetails{
+				"AAPL": {Currency: "USD", QuoteType: "EQUITY", ShortName: "Apple Inc."},
+				"GOOG": {Currency: "USD", QuoteType: "EQUITY", ShortName: "Alphabet Inc."},
+			},
+		},
+		nil,
+		nil,
+		nil, // allocation not needed for model-vs-model
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   1,
+		PortfolioAType: PortTypeModel,
+		PortfolioBID:   2,
+		PortfolioBType: PortTypeModel,
+		DateFrom:       &from,
+		DateTo:         &to,
+		BaseCurrency:   "USD",
+		StartingValue:  decimal.MustNew(1000000, 2),
+	}
+
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
+	}
+
+	// Overlap should be computed for model-vs-model.
+	if result.CrossMetrics == nil {
+		t.Fatal("CrossMetrics is nil")
+	}
+	if result.CrossMetrics.Overlap == nil {
+		t.Fatal("CrossMetrics.Overlap is nil — overlap should be computed for model-vs-model")
+	}
+
+	// AAPL is in both portfolios, GOOG is only in A.
+	// Jaccard: |{AAPL} ∩ {AAPL, GOOG}| / |{AAPL} ∪ {AAPL, GOOG}| = 1/2 = 50%.
+	overlapPct, _ := result.CrossMetrics.Overlap.OverlapPct.Float64()
+	if overlapPct < 49 || overlapPct > 51 {
+		t.Errorf("OverlapPct = %.2f, want ~50.00", overlapPct)
+	}
+
+	// Top holdings should be populated.
+	if len(result.CrossMetrics.Overlap.TopHoldingsA) == 0 {
+		t.Error("TopHoldingsA is empty")
+	}
+	if len(result.CrossMetrics.Overlap.TopHoldingsB) == 0 {
+		t.Error("TopHoldingsB is empty")
+	}
+}
+
+func TestComputeComparison_OverlapModelVsReal(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	aaplPrices := buildPriceSeries(base, []float64{100, 102, 101, 103, 105, 104, 106, 108, 110, 112}, "USD")
+	modelA := buildModelPortfolio(1, "Model", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: decimal.MustNew(10000, 2)},
+	})
+
+	realCurve := buildPerformanceEquityCurve(base, []float64{
+		10000, 10200, 10100, 10300, 10500, 10400, 10600, 10800, 11000, 11200,
+	})
+
+	from := base
+	to := base.AddDate(0, 0, 9)
+
+	svc := NewService(
+		&mockModelPortfolioSource{
+			portfolios: map[int64]modelportfolio.ModelPortfolio{
+				1: modelA,
+			},
+		},
+		&mockEquityCurveSource{
+			result: &performance.PerformanceResult{
+				EquityCurve:  realCurve,
+				BaseCurrency: "USD",
+			},
+		},
+		&mockMarketHistorySource{
+			prices: map[string][]market.HistoricalPrice{
+				"AAPL": aaplPrices,
+			},
+		},
+		&mockMarketDataSymbolResolver{
+			symbols: map[string]string{},
+		},
+		&mockSymbolDetailsSource{
+			details: map[string]*symbol.SymbolDetails{
+				"AAPL": {Currency: "USD", QuoteType: "EQUITY"},
+			},
+		},
+		nil,
+		&mockPortfolioCurrencySource{
+			currencies: map[int64]string{
+				99: "USD",
+			},
+		},
+		nil, // allocation not provided — overlap should be nil
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   1,
+		PortfolioAType: PortTypeModel,
+		PortfolioBID:   99,
+		PortfolioBType: PortTypeReal,
+		DateFrom:       &from,
+		DateTo:         &to,
+		BaseCurrency:   "USD",
+		StartingValue:  decimal.MustNew(1000000, 2),
+	}
+
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
+	}
+
+	// Overlap should be nil when allocation source is not provided.
+	if result.CrossMetrics == nil {
+		t.Fatal("CrossMetrics is nil")
+	}
+	if result.CrossMetrics.Overlap != nil {
+		t.Error("CrossMetrics.Overlap should be nil when allocation source is not provided")
+	}
+}
+
+func TestComputeComparison_OverlapRealVsReal(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	curveA := buildPerformanceEquityCurve(base, []float64{
+		10000, 10200, 10100, 10300, 10500, 10400, 10600, 10800, 11000, 11200,
+	})
+
+	from := base
+	to := base.AddDate(0, 0, 9)
+
+	allocPct50 := decimal.MustNew(5000, 2)
+	allocPct30 := decimal.MustNew(3000, 2)
+	allocPct20 := decimal.MustNew(2000, 2)
+
+	allocA := &allocation.AllocationResult{
+		Rows: []allocation.AllocationRow{
+			{Symbol: "AAPL", AllocationPct: allocPct50, HasMarketData: true, Currency: "USD"},
+			{Symbol: "GOOG", AllocationPct: allocPct30, HasMarketData: true, Currency: "USD"},
+			{Symbol: "MSFT", AllocationPct: allocPct20, HasMarketData: true, Currency: "USD"},
+		},
+		TotalValueBase:      decimal.MustNew(1000000, 2),
+		BaseCurrency:        "USD",
+		MarketDataAvailable: true,
+	}
+
+	allocB := &allocation.AllocationResult{
+		Rows: []allocation.AllocationRow{
+			{Symbol: "AAPL", AllocationPct: allocPct50, HasMarketData: true, Currency: "USD"},
+			{Symbol: "MSFT", AllocationPct: allocPct50, HasMarketData: true, Currency: "USD"},
+		},
+		TotalValueBase:      decimal.MustNew(1000000, 2),
+		BaseCurrency:        "USD",
+		MarketDataAvailable: true,
+	}
+
+	svc := NewService(
+		nil,
+		&mockEquityCurveSource{
+			result: &performance.PerformanceResult{
+				EquityCurve:  curveA,
+				BaseCurrency: "USD",
+			},
+		},
+		nil,
+		nil,
+		&mockSymbolDetailsSource{
+			details: map[string]*symbol.SymbolDetails{
+				"AAPL": {Currency: "USD", QuoteType: "EQUITY", ShortName: "Apple Inc."},
+				"GOOG": {Currency: "USD", QuoteType: "EQUITY", ShortName: "Alphabet Inc."},
+				"MSFT": {Currency: "USD", QuoteType: "EQUITY", ShortName: "Microsoft Corp."},
+			},
+		},
+		nil,
+		&mockPortfolioCurrencySource{
+			currencies: map[int64]string{
+				1: "USD",
+				2: "USD",
+			},
+		},
+		&mockAllocationSource{
+			results: map[int64]*allocation.AllocationResult{
+				1: allocA,
+				2: allocB,
+			},
+		},
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   1,
+		PortfolioAType: PortTypeReal,
+		PortfolioBID:   2,
+		PortfolioBType: PortTypeReal,
+		DateFrom:       &from,
+		DateTo:         &to,
+		BaseCurrency:   "USD",
+	}
+
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
+	}
+
+	// Overlap should be computed for real-vs-real when allocation source is provided.
+	if result.CrossMetrics == nil {
+		t.Fatal("CrossMetrics is nil")
+	}
+	if result.CrossMetrics.Overlap == nil {
+		t.Fatal("CrossMetrics.Overlap is nil — should be computed for real-vs-real with allocation source")
+	}
+
+	// AAPL and MSFT are in both portfolios, GOOG only in A.
+	// Jaccard: |{AAPL, MSFT}| / |{AAPL, GOOG, MSFT}| = 2/3 ≈ 66.7%.
+	if result.CrossMetrics.Overlap.OverlapPct == nil {
+		t.Fatal("OverlapPct is nil")
+	}
+	overlapPct, _ := result.CrossMetrics.Overlap.OverlapPct.Float64()
+	if overlapPct < 65 || overlapPct > 68 {
+		t.Errorf("OverlapPct = %.2f, want ~66.67", overlapPct)
+	}
+
+	// Top holdings should be populated.
+	if len(result.CrossMetrics.Overlap.TopHoldingsA) == 0 {
+		t.Error("TopHoldingsA is empty")
+	}
+	if len(result.CrossMetrics.Overlap.TopHoldingsB) == 0 {
+		t.Error("TopHoldingsB is empty")
 	}
 }
 

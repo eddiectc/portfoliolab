@@ -28,7 +28,7 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 - [x] Handle FX conversion for foreign-denominated symbols using cached FX rates (reuse `performance.fx_conversion.go` pattern)
 - [x] Add period clipping logic: clip to earliest available data across all symbols; track which symbols have limited history
 - [x] Add `SimulateEquityCurveTest` table-driven tests in `simulation_test.go` covering: normal case, single symbol, FX conversion, missing data for some symbols, empty input, starting value edge cases
-- [ ] Wire simulation into the comparison service (Task 3) — placeholder interface only
+- [x] Wire simulation into the comparison service (Task 3) — wired via `resolveModelPortfolio` → `SimulateEquityCurve`
 
 **Verification:** `go test ./internal/domain/comparison/` passes with >80% coverage on simulation.go. Simulated equity curve for a known 2-symbol portfolio (e.g., 50% AAPL + 50% GOOG, $10,000 start) produces correct daily values when fed manually constructed prices.
 
@@ -61,7 +61,8 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 - [x] Handle portfolio type dispatch: model portfolio → simulate equity curve; real portfolio → call existing `position.ComputeEquityCurve`
 - [x] Compute per-portfolio metrics: daily returns (reuse `performance.ComputeDailyReturns`), risk metrics (reuse `performance.ComputeRiskMetrics`), drawdown (reuse `performance.ComputeDrawdownAnalysis`), yearly performance (reuse `performance.ComputeYearlyPerformance`)
 - [x] **TWR normalization for real portfolios**: before feeding the equity curve to `ComputePeriodExtremes` (and any other simple-return metric), normalize the real portfolio curve to time-weighted returns (reset to 1.0 at each cash flow). Model portfolios skip this step (no cash flows → simple == TWR). This ensures period extremes are comparable across portfolio types.
-- [x] Compute cross-portfolio metrics: beta/alpha, correlation, overlap (from Task 4)
+- [x] Compute cross-portfolio metrics: beta/alpha, correlation
+- [x] Compute cross-portfolio overlap (from Task 4) — wired via `AllocationSource` interface that reuses the allocation service's `ComputeAllocation` (resolves accounts → fetches positions → enriches with market data → allocation percentages). Model portfolios use their weights directly. Both paths convert to `PortfolioHolding` for the overlap computation.
 - [x] Handle edge cases: real portfolio with no transactions (empty metrics + message), model portfolio with missing data (warning + clipped period), insufficient data for risk metrics (<30 trading days → N/A)
 - [x] Write service tests with hand-written mocks in `service_test.go` — mock model portfolio source, equity curve source, market data history. Test: model-vs-model, model-vs-real, real-vs-real, empty real portfolio, missing market data
 

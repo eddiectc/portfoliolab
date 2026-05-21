@@ -2,6 +2,7 @@
 
 ## Decisions
 - 2026-05-21: `SimulateEquityCurve` uses buy-and-hold logic: `value[date] = allocated * (price[date] / basePrice)` where basePrice is the first available price for each symbol. This gives dimensionally correct portfolio values that start at the starting value on day 0.
+- 2026-05-21: Overlap for real portfolios uses the allocation service via an `AllocationSource` interface rather than duplicating the position-fetching pipeline. The allocation service already resolves accounts → fetches open positions → enriches with market data → computes allocation percentages. The comparison service calls `ComputeAllocation` and converts `AllocationRow`s to `PortfolioHolding`s for overlap computation. This follows the "reuse existing infrastructure" principle and avoids circular dependencies (allocation doesn't import comparison).
 - 2026-05-21: Extracted `stats` package (`internal/domain/stats`) with `PearsonCorrelation`, `AlignSeries`, `RoundTo2`, `RoundTo4`. Both `analysis` and `comparison` import it. Replaced duplicate implementations in `analysis/correlation.go` (pearsonCorrelation), `analysis/overlap.go` (roundTo2/4), and `comparison/metrics.go` (pearsonCorr, alignDailyReturns). Also updated `allocation.go`, `factor_exposure.go`, `stress.go` and their test files.
 - 2026-05-21: `metrics.go` uses `stats.AlignSeries` for date-aligned return pairing. The thin wrapper `alignDailyReturns` converts `equityCurveDailyReturn` to string-keyed maps before delegating to `stats.AlignSeries`.
 - 2026-05-21: `ComputePeriodExtremes` computes yearly/monthly returns as simple first-to-last within each period. For model portfolios (no cash flows), simple == TWR. For real portfolios, the service layer (Task 3) must TWR-normalize the equity curve (reset to 1.0 at each cash flow) before calling `ComputePeriodExtremes`, so period extremes are always time-weighted and comparable across portfolio types.
@@ -17,7 +18,10 @@
 - 2026-05-21: The `OverlapResult` type in `comparison/types.go` (Task 3) was reused for `ComputeCrossPortfolioOverlap` (Task 4) — same struct, same field names. This avoids duplication and means the API layer can return both cross-portfolio overlap and intra-portfolio overlap through the same type.
 
 ## Deviations from Plan
-- None yet.
+- 2026-05-21: Cross-portfolio overlap (`ComputeCrossPortfolioOverlap`) is wired into the service (Task 3). Model portfolios use their weights directly. Real portfolios use the `AllocationSource` interface (wrapping the allocation service's `ComputeAllocation`) to get current position weights. This avoids duplicating the allocation pipeline (resolve accounts → fetch positions → enrich with market data → compute percentages). The allocation service already does all this. `CrossMetrics.Overlap` is populated for model-vs-model, real-vs-real, and model-vs-real (when allocation source is provided).
+- 2026-05-21: `fetchFxRates` now logs warnings (via `slogger`) and returns a warnings slice instead of silently swallowing errors. The caller (`resolveModelPortfolio`) appends FX warnings to the result warnings list. This was not in the original plan but addresses the silent failure audit finding.
+- 2026-05-21: `resolveBaseCurrency` for model portfolios was documented as an intentional design (model portfolios are currency-agnostic; base currency comes from the comparison request). Added clarifying doc comment. No behavioral change.
+- 2026-05-21: `computeReturnMetrics` TWR comment was misleading — claimed TWR normalization is "handled in prepareCurveForExtremes" but that function only normalizes the curve for period extremes, not the TWRPct field itself. Updated comment to clarify that TWRPct is an approximation (simple return of NAV-based curve for real portfolios).
 
 ## Future Improvements
 - Consider interpolating missing daily prices (e.g., forward-fill from last known) so the curve doesn't have gaps when symbols have non-overlapping trading days.

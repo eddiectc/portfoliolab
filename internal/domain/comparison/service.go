@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -51,6 +52,11 @@ type PortfolioCurrencySource interface {
 	GetPortfolioCurrency(ctx context.Context, portfolioID int64) (string, error)
 }
 
+// AllocationSource computes the allocation breakdown for a portfolio.
+type AllocationSource interface {
+	ComputeAllocation(ctx context.Context, filter allocation.AllocationFilter) (*allocation.AllocationResult, error)
+}
+
 // --- Service ---
 
 // Service orchestrates portfolio comparisons. It resolves portfolio inputs
@@ -63,6 +69,7 @@ type Service struct {
 	symbolDetails     SymbolDetailsSource
 	fxRates           FxRateSource
 	portfolioCurrency PortfolioCurrencySource
+	allocation        AllocationSource
 	logger            *slog.Logger
 }
 
@@ -75,6 +82,7 @@ func NewService(
 	symbolDetails SymbolDetailsSource,
 	fxRates FxRateSource,
 	portfolioCurrency PortfolioCurrencySource,
+	allocation AllocationSource,
 ) *Service {
 	return &Service{
 		modelPortfolios:   modelPortfolios,
@@ -84,6 +92,7 @@ func NewService(
 		symbolDetails:     symbolDetails,
 		fxRates:           fxRates,
 		portfolioCurrency: portfolioCurrency,
+		allocation:        allocation,
 	}
 }
 
@@ -140,11 +149,11 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 	// Check if both portfolios have insufficient data.
 	if len(aCurve) < 2 && len(bCurve) < 2 {
 		return &ComparisonResult{
-			ComputedAt:   result.ComputedAt,
-			PortfolioA:   s.emptyPortfolioComparison(aData, "Insufficient data for comparison (fewer than 2 data points)"),
-			PortfolioB:   s.emptyPortfolioComparison(bData, "Insufficient data for comparison (fewer than 2 data points)"),
-			Warnings:     result.Warnings,
-			Message:      "Insufficient data for both portfolios. Ensure market data is cached for all symbols.",
+			ComputedAt: result.ComputedAt,
+			PortfolioA: s.emptyPortfolioComparison(aData, "Insufficient data for comparison (fewer than 2 data points)"),
+			PortfolioB: s.emptyPortfolioComparison(bData, "Insufficient data for comparison (fewer than 2 data points)"),
+			Warnings:   result.Warnings,
+			Message:    "Insufficient data for both portfolios. Ensure market data is cached for all symbols.",
 		}, nil
 	}
 
@@ -154,7 +163,7 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 
 	// Compute cross-portfolio metrics (only if both have sufficient data).
 	if len(aCurve) >= 2 && len(bCurve) >= 2 {
-		result.CrossMetrics = s.computeCrossMetrics(ctx, aCurve, bCurve, req, dateFrom, dateTo, baseCurrency)
+		result.CrossMetrics = s.computeCrossMetrics(ctx, aCurve, bCurve, aData, bData, req, dateFrom, dateTo, baseCurrency)
 	}
 
 	return result, nil
@@ -203,6 +212,10 @@ func (s *Service) resolveDateRange(req ComparisonRequest) (time.Time, time.Time)
 }
 
 // resolveBaseCurrency tries to determine the base currency for a portfolio.
+// Real portfolios have an explicit base currency. Model portfolios do not —
+// they are currency-agnostic (the base currency is set by the comparison request).
+// Returns empty string for model portfolios; the caller falls back to the
+// request's BaseCurrency or USD.
 func (s *Service) resolveBaseCurrency(ctx context.Context, portfolioID int64, portType PortfolioType) (string, error) {
 	if portType == PortTypeReal && s.portfolioCurrency != nil {
 		return s.portfolioCurrency.GetPortfolioCurrency(ctx, portfolioID)
@@ -212,8 +225,8 @@ func (s *Service) resolveBaseCurrency(ctx context.Context, portfolioID int64, po
 		if err != nil {
 			return "", err
 		}
-		// Model portfolios inherit currency from their first entry's symbol.
-		// For now, return empty — the caller will use the request's base currency.
+		// Model portfolios are currency-agnostic — base currency comes from the request.
+		return "", nil
 	}
 	return "", nil
 }
@@ -260,9 +273,10 @@ func (s *Service) resolveModelPortfolio(
 	pricesBySym, pricesWarnings := s.fetchHistoricalPricesForWeights(ctx, weights, dateFrom, dateTo)
 
 	// Fetch FX rates if needed.
-	fxRates := s.fetchFxRates(ctx, weights, baseCurrency, dateFrom, dateTo)
+	fxRates, fxWarnings := s.fetchFxRates(ctx, weights, baseCurrency, dateFrom, dateTo)
 
 	warnings := append(symbolWarnings, pricesWarnings...)
+	warnings = append(warnings, fxWarnings...)
 
 	// Simulate equity curve.
 	simInput := SimulateEquityCurveInput{
@@ -384,8 +398,8 @@ func (s *Service) fetchHistoricalPricesForWeights(ctx context.Context, weights [
 }
 
 // fetchFxRates fetches historical FX rates for symbols whose currency differs
-// from the base currency. Returns prices keyed by FX pair.
-func (s *Service) fetchFxRates(ctx context.Context, weights []ModelPortfolioWeight, baseCurrency string, dateFrom, dateTo time.Time) map[string][]market.HistoricalPrice {
+// from the base currency. Returns prices keyed by FX pair and any warnings.
+func (s *Service) fetchFxRates(ctx context.Context, weights []ModelPortfolioWeight, baseCurrency string, dateFrom, dateTo time.Time) (map[string][]market.HistoricalPrice, []string) {
 	fxRates := make(map[string][]market.HistoricalPrice)
 
 	// Collect unique FX pairs.
@@ -397,15 +411,27 @@ func (s *Service) fetchFxRates(ctx context.Context, weights []ModelPortfolioWeig
 		}
 	}
 
+	var fxWarnings []string
 	for pair := range pairSet {
 		prices, err := s.marketHistory.GetHistoricalPrices(ctx, pair, dateFrom, dateTo)
-		if err != nil || len(prices) == 0 {
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Warn("failed to fetch FX rates", "pair", pair, "error", err)
+			}
+			fxWarnings = append(fxWarnings, fmt.Sprintf("failed to fetch FX rates for %s: %v", pair, err))
+			continue
+		}
+		if len(prices) == 0 {
+			if s.logger != nil {
+				s.logger.Info("no FX rate data, spot rate fallback will be used", "pair", pair)
+			}
+			fxWarnings = append(fxWarnings, fmt.Sprintf("no FX rate data for %s — spot rate fallback will be used", pair))
 			continue
 		}
 		fxRates[pair] = prices
 	}
 
-	return fxRates
+	return fxRates, fxWarnings
 }
 
 // convertToComparisonCurve converts simulation output equity curve points
@@ -444,8 +470,8 @@ type modelPortfolioMeta struct {
 	Currency string
 }
 
-func (m *modelPortfolioMeta) getID() int64       { return m.ID }
-func (m *modelPortfolioMeta) getName() string     { return m.Name }
+func (m *modelPortfolioMeta) getID() int64           { return m.ID }
+func (m *modelPortfolioMeta) getName() string        { return m.Name }
 func (m *modelPortfolioMeta) getType() PortfolioType { return PortTypeModel }
 
 // realPortfolioMeta implements portfolioMeta for real portfolios.
@@ -456,8 +482,8 @@ type realPortfolioMeta struct {
 	Warnings     []string
 }
 
-func (r *realPortfolioMeta) getID() int64       { return r.ID }
-func (r *realPortfolioMeta) getName() string     { return r.Name }
+func (r *realPortfolioMeta) getID() int64           { return r.ID }
+func (r *realPortfolioMeta) getName() string        { return r.Name }
 func (r *realPortfolioMeta) getType() PortfolioType { return PortTypeReal }
 
 // emptyPortfolioComparison returns a PortfolioComparison with an empty-state message.
@@ -522,6 +548,11 @@ func (s *Service) computeReturnMetrics(curve []EquityCurvePoint) *ReturnMetrics 
 	metrics.DaysElapsed = cagr.DaysElapsed
 
 	// Simple return (first-to-last).
+	// Float64() errors are ignored here: the equity curve values are produced
+	// by this same domain layer (simulation or performance), so they are always
+	// valid decimals. The float64 round-trip is used only for the ratio
+	// calculation, consistent with the plan's "float64 for intermediate
+	// computation" technical decision.
 	if len(curve) >= 2 {
 		firstF, _ := curve[0].PortfolioValue.Float64()
 		lastF, _ := curve[len(curve)-1].PortfolioValue.Float64()
@@ -543,10 +574,10 @@ func (s *Service) computeReturnMetrics(curve []EquityCurvePoint) *ReturnMetrics 
 	}
 
 	// For model portfolios (no cash flows), TWR == simple return.
-	// For real portfolios, TWR is computed from breakpoints.
-	// Since we don't have breakpoints here, use simple return as TWR for both.
-	// This is correct for model portfolios. For real portfolios, the TWR
-	// normalization is handled in prepareCurveForExtremes.
+	// For real portfolios, TWR is approximated by the simple return of the
+	// NavPerUnit-based curve (see prepareCurveForExtremes). The TWRPct field
+	// is set to SimpleReturnPct as a close approximation; an exact TWR would
+	// require cash-flow breakpoint data not available at this layer.
 
 	if metrics.SimpleReturnPct != nil {
 		metrics.TWRPct = metrics.SimpleReturnPct
@@ -555,8 +586,6 @@ func (s *Service) computeReturnMetrics(curve []EquityCurvePoint) *ReturnMetrics 
 
 	return metrics
 }
-
-
 
 // computeRiskMetrics computes volatility, Sharpe, Sortino from daily returns.
 func (s *Service) computeRiskMetrics(curve []EquityCurvePoint) *RiskMetrics {
@@ -595,8 +624,8 @@ func (s *Service) computeDrawdown(curve []EquityCurvePoint) *DrawdownResult {
 	drawdown := performance.ComputeDrawdownAnalysis(navPoints)
 
 	return &DrawdownResult{
-		MaxDrawdownPct:      drawdown.MaxDrawdownPct,
-		CurrentDrawdownPct:  drawdown.CurrentDrawdownPct,
+		MaxDrawdownPct:       drawdown.MaxDrawdownPct,
+		CurrentDrawdownPct:   drawdown.CurrentDrawdownPct,
 		DrawdownDurationDays: drawdown.DrawdownDurationDays,
 	}
 }
@@ -655,10 +684,11 @@ func buildNavCurve(curve []EquityCurvePoint) []EquityCurvePoint {
 	return result
 }
 
-// computeCrossMetrics computes cross-portfolio metrics (beta/alpha, correlation).
+// computeCrossMetrics computes cross-portfolio metrics (beta/alpha, correlation, overlap).
 func (s *Service) computeCrossMetrics(
 	ctx context.Context,
 	aCurve, bCurve []EquityCurvePoint,
+	aData, bData portfolioMeta,
 	req ComparisonRequest,
 	dateFrom, dateTo time.Time,
 	baseCurrency string,
@@ -673,7 +703,125 @@ func (s *Service) computeCrossMetrics(
 	correlation := ComputePortfolioCorrelation(aCurve, bCurve)
 	cross.Correlation = &correlation
 
+	// Overlap — only available when both portfolios have holdings data
+	// (i.e. both are model portfolios with known weights).
+	overlap := s.computeOverlap(ctx, aData, bData)
+	if overlap != nil {
+		cross.Overlap = overlap
+	}
+
 	return cross
 }
 
+// computeOverlap computes cross-portfolio holdings overlap.
+// Returns nil if either portfolio lacks holdings data (e.g. real portfolios).
+func (s *Service) computeOverlap(ctx context.Context, aData, bData portfolioMeta) *OverlapResult {
+	holdingsA, okA := s.buildPortfolioHoldings(ctx, aData)
+	holdingsB, okB := s.buildPortfolioHoldings(ctx, bData)
 
+	if !okA || !okB {
+		// Overlap requires holdings data from both portfolios.
+		// Real portfolios (equity curve only) don't expose positions.
+		return nil
+	}
+
+	return ComputeCrossPortfolioOverlap(CrossPortfolioOverlapInput{
+		PortfolioA: holdingsA,
+		PortfolioB: holdingsB,
+	})
+}
+
+// buildPortfolioHoldings converts portfolio metadata to holdings suitable for
+// overlap computation. Returns (holdings, ok). ok is false when the portfolio
+// type doesn't expose holdings.
+func (s *Service) buildPortfolioHoldings(ctx context.Context, meta portfolioMeta) ([]PortfolioHolding, bool) {
+	switch m := meta.(type) {
+	case *modelPortfolioMeta:
+		return s.buildModelHoldings(ctx, m)
+	case *realPortfolioMeta:
+		return s.buildRealHoldings(ctx, m)
+	default:
+		return nil, false
+	}
+}
+
+// buildModelHoldings builds holdings from a model portfolio's weights.
+func (s *Service) buildModelHoldings(ctx context.Context, meta *modelPortfolioMeta) ([]PortfolioHolding, bool) {
+	holdings := make([]PortfolioHolding, 0, len(meta.Weights))
+	for _, w := range meta.Weights {
+		weightPct, _ := w.Weight.Mul(decimal.MustNew(10000, 2)) // fraction → percentage
+		holding := PortfolioHolding{
+			Symbol:    w.Symbol,
+			WeightPct: weightPct,
+			QuoteType: "EQUITY", // default
+		}
+
+		// Enrich with symbol details (quote type, name, top holdings for ETFs).
+		if s.symbolDetails != nil {
+			details, err := s.symbolDetails.GetByInternalSymbol(ctx, w.Symbol)
+			if err == nil && details != nil {
+				if details.QuoteType != "" {
+					holding.QuoteType = details.QuoteType
+				}
+				if details.ShortName != "" {
+					holding.Name = details.ShortName
+				}
+				holding.TopHoldings = details.TopHoldings
+			}
+		}
+
+		holdings = append(holdings, holding)
+	}
+
+	return holdings, true
+}
+
+// buildRealHoldings builds holdings from a real portfolio's current allocation.
+// Uses the allocation service to get the allocation breakdown, then converts
+// each row to a PortfolioHolding.
+func (s *Service) buildRealHoldings(ctx context.Context, meta *realPortfolioMeta) ([]PortfolioHolding, bool) {
+	if s.allocation == nil {
+		return nil, false
+	}
+
+	result, err := s.allocation.ComputeAllocation(ctx, allocation.AllocationFilter{
+		PortfolioIDs: []int64{meta.ID},
+	})
+	if err != nil {
+		if s.logger != nil {
+			s.logger.Warn("failed to compute allocation for overlap", "portfolioID", meta.ID, "error", err)
+		}
+		return nil, false
+	}
+
+	if !result.MarketDataAvailable || len(result.Rows) == 0 {
+		return nil, false
+	}
+
+	holdings := make([]PortfolioHolding, 0, len(result.Rows))
+	for _, row := range result.Rows {
+		holding := PortfolioHolding{
+			Symbol:    row.Symbol,
+			WeightPct: row.AllocationPct,
+			QuoteType: "EQUITY", // default
+		}
+
+		// Enrich with symbol details (quote type, name, top holdings for ETFs).
+		if s.symbolDetails != nil {
+			details, err := s.symbolDetails.GetByInternalSymbol(ctx, row.Symbol)
+			if err == nil && details != nil {
+				if details.QuoteType != "" {
+					holding.QuoteType = details.QuoteType
+				}
+				if details.ShortName != "" {
+					holding.Name = details.ShortName
+				}
+				holding.TopHoldings = details.TopHoldings
+			}
+		}
+
+		holdings = append(holdings, holding)
+	}
+
+	return holdings, true
+}
