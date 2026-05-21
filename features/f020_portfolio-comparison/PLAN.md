@@ -60,6 +60,7 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 - [ ] Implement `Service` struct and `ComputeComparison` method in `internal/domain/comparison/service.go`
 - [ ] Handle portfolio type dispatch: model portfolio → simulate equity curve; real portfolio → call existing `position.ComputeEquityCurve`
 - [ ] Compute per-portfolio metrics: daily returns (reuse `performance.ComputeDailyReturns`), risk metrics (reuse `performance.ComputeRiskMetrics`), drawdown (reuse `performance.ComputeDrawdownAnalysis`), yearly performance (reuse `performance.ComputeYearlyPerformance`)
+- [ ] **TWR normalization for real portfolios**: before feeding the equity curve to `ComputePeriodExtremes` (and any other simple-return metric), normalize the real portfolio curve to time-weighted returns (reset to 1.0 at each cash flow). Model portfolios skip this step (no cash flows → simple == TWR). This ensures period extremes are comparable across portfolio types.
 - [ ] Compute cross-portfolio metrics: beta/alpha, correlation, overlap (from Task 4)
 - [ ] Handle edge cases: real portfolio with no transactions (empty metrics + message), model portfolio with missing data (warning + clipped period), insufficient data for risk metrics (<30 trading days → N/A)
 - [ ] Write service tests with hand-written mocks in `service_test.go` — mock model portfolio source, equity curve source, market data history. Test: model-vs-model, model-vs-real, real-vs-real, empty real portfolio, missing market data
