@@ -55,15 +55,15 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 **Description:** Create the service layer that resolves portfolio inputs (model or real), fetches required data (historical prices, equity curves, symbol details), and computes the full comparison result. Follows the `analysis.Service` pattern: interface-based dependencies, single `ComputeComparison` entry point.
 
-- [ ] Define `ComparisonRequest` and `ComparisonResult` types in `internal/domain/comparison/types.go` — request has portfolio IDs/types, period, base currency, starting value; result has per-portfolio metrics + cross-portfolio metrics + warnings
-- [ ] Define service interfaces: `ModelPortfolioSource`, `EquityCurveSource` (for real portfolios), `MarketDataHistorySource`, `MarketDataSymbolResolver`, `SymbolDetailsSource`, `FxRateSource`
-- [ ] Implement `Service` struct and `ComputeComparison` method in `internal/domain/comparison/service.go`
-- [ ] Handle portfolio type dispatch: model portfolio → simulate equity curve; real portfolio → call existing `position.ComputeEquityCurve`
-- [ ] Compute per-portfolio metrics: daily returns (reuse `performance.ComputeDailyReturns`), risk metrics (reuse `performance.ComputeRiskMetrics`), drawdown (reuse `performance.ComputeDrawdownAnalysis`), yearly performance (reuse `performance.ComputeYearlyPerformance`)
-- [ ] **TWR normalization for real portfolios**: before feeding the equity curve to `ComputePeriodExtremes` (and any other simple-return metric), normalize the real portfolio curve to time-weighted returns (reset to 1.0 at each cash flow). Model portfolios skip this step (no cash flows → simple == TWR). This ensures period extremes are comparable across portfolio types.
-- [ ] Compute cross-portfolio metrics: beta/alpha, correlation, overlap (from Task 4)
-- [ ] Handle edge cases: real portfolio with no transactions (empty metrics + message), model portfolio with missing data (warning + clipped period), insufficient data for risk metrics (<30 trading days → N/A)
-- [ ] Write service tests with hand-written mocks in `service_test.go` — mock model portfolio source, equity curve source, market data history. Test: model-vs-model, model-vs-real, real-vs-real, empty real portfolio, missing market data
+- [x] Define `ComparisonRequest` and `ComparisonResult` types in `internal/domain/comparison/types.go` — request has portfolio IDs/types, period, base currency, starting value; result has per-portfolio metrics + cross-portfolio metrics + warnings
+- [x] Define service interfaces: `ModelPortfolioSource`, `EquityCurveSource` (for real portfolios), `MarketDataHistorySource`, `MarketDataSymbolResolver`, `SymbolDetailsSource`, `FxRateSource`
+- [x] Implement `Service` struct and `ComputeComparison` method in `internal/domain/comparison/service.go`
+- [x] Handle portfolio type dispatch: model portfolio → simulate equity curve; real portfolio → call existing `position.ComputeEquityCurve`
+- [x] Compute per-portfolio metrics: daily returns (reuse `performance.ComputeDailyReturns`), risk metrics (reuse `performance.ComputeRiskMetrics`), drawdown (reuse `performance.ComputeDrawdownAnalysis`), yearly performance (reuse `performance.ComputeYearlyPerformance`)
+- [x] **TWR normalization for real portfolios**: before feeding the equity curve to `ComputePeriodExtremes` (and any other simple-return metric), normalize the real portfolio curve to time-weighted returns (reset to 1.0 at each cash flow). Model portfolios skip this step (no cash flows → simple == TWR). This ensures period extremes are comparable across portfolio types.
+- [x] Compute cross-portfolio metrics: beta/alpha, correlation, overlap (from Task 4)
+- [x] Handle edge cases: real portfolio with no transactions (empty metrics + message), model portfolio with missing data (warning + clipped period), insufficient data for risk metrics (<30 trading days → N/A)
+- [x] Write service tests with hand-written mocks in `service_test.go` — mock model portfolio source, equity curve source, market data history. Test: model-vs-model, model-vs-real, real-vs-real, empty real portfolio, missing market data
 
 **Verification:** `go test ./internal/domain/comparison/` passes. Service returns correct ComparisonResult for a model-vs-model scenario with mocked data. Real portfolio with no transactions returns empty metrics with explanatory message.
 
@@ -74,9 +74,9 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 **Description:** Extend existing overlap and correlation computations to support the comparison context (two portfolios side-by-side). The existing `analysis.ComputeOverlap` works on a single portfolio's positions; the comparison needs top-10 holdings per portfolio + overlap percentage.
 
-- [ ] Add `ComputeCrossPortfolioOverlap` in `internal/domain/comparison/overlap.go` — takes two sets of (symbol, weight) pairs, resolves ETF holdings for each, produces top-10 per portfolio + overlap percentage. Reuse `analysis.buildHoldingMap` and `symbol.TopHolding` patterns.
-- [ ] Add `ComputeIntraPortfolioCorrelation` in `internal/domain/comparison/correlation.go` — takes historical prices for symbols within one portfolio, produces correlation matrix. Thin wrapper around `analysis.ComputeCorrelation` adapted for model portfolio weights (not position-based weights).
-- [ ] Write tests in `overlap_test.go` and `correlation_test.go`: two portfolios with shared ETF holdings, portfolios with no ETFs (atomic symbols), single-symbol portfolio, symbols with no holdings data
+- [x] Add `ComputeCrossPortfolioOverlap` in `internal/domain/comparison/overlap.go` — takes two sets of (symbol, weight) pairs, resolves ETF holdings for each, produces top-10 per portfolio + overlap percentage. Reuse `analysis.buildHoldingMap` and `symbol.TopHolding` patterns.
+- [x] Add `ComputeIntraPortfolioCorrelation` in `internal/domain/comparison/correlation.go` — takes historical prices for symbols within one portfolio, produces correlation matrix. Thin wrapper around `analysis.ComputeCorrelation` adapted for model portfolio weights (not position-based weights).
+- [x] Write tests in `overlap_test.go` and `correlation_test.go`: two portfolios with shared ETF holdings, portfolios with no ETFs (atomic symbols), single-symbol portfolio, symbols with no holdings data
 
 **Verification:** `go test ./internal/domain/comparison/` passes. Two portfolios sharing 3 ETF holdings produce correct overlap percentage. Portfolio with only stocks (no ETFs) produces top-10 as the stocks themselves.
 

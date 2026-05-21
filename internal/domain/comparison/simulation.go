@@ -46,10 +46,14 @@ type SimulateEquityCurveOutput struct {
 
 // EquityCurvePoint is a single data point on the equity curve.
 // Date is the trading day. PortfolioValue is the total market value of all
-// weighted positions, converted to the base currency.
+// weighted positions, converted to the base currency. NavPerUnit is the
+// time-weighted NAV per unit (cash-flow-independent). For model portfolios
+// (single initial deposit), NavPerUnit == PortfolioValue. For real portfolios,
+// it is computed by the performance layer via unitization.
 type EquityCurvePoint struct {
 	Date           time.Time       `json:"date"`
 	PortfolioValue decimal.Decimal `json:"portfolio_value"`
+	NavPerUnit     *decimal.Decimal `json:"nav_per_unit"`
 }
 
 // SimulateEquityCurve computes a buy-and-hold equity curve for a model
@@ -394,6 +398,7 @@ func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioW
 		curve = append(curve, EquityCurvePoint{
 			Date:           date,
 			PortfolioValue: totalValue,
+			NavPerUnit:     &totalValue, // model portfolio: single deposit, NAV == value
 		})
 	}
 

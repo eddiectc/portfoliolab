@@ -298,6 +298,14 @@ func TestSimulateEquityCurve(t *testing.T) {
 			if tt.wantCurveLen > 0 {
 				assertCurveValueApprox(t, tt.name, output.EquityCurve, 0, tt.wantFirstValue)
 				assertCurveValueApprox(t, tt.name, output.EquityCurve, tt.wantCurveLen-1, tt.wantLastValue)
+				// NavPerUnit must be set for every point (model portfolio = single deposit).
+				for i, p := range output.EquityCurve {
+					if p.NavPerUnit == nil {
+						t.Errorf("%s: point %d NavPerUnit is nil, want non-nil", tt.name, i)
+					} else if !p.NavPerUnit.Equal(p.PortfolioValue) {
+						t.Errorf("%s: point %d NavPerUnit = %v, want == PortfolioValue %v", tt.name, i, p.NavPerUnit, p.PortfolioValue)
+					}
+				}
 			}
 
 			if len(output.Warnings) < tt.wantMinWarnings {
