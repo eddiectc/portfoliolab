@@ -1,8 +1,7 @@
 package analysis
 
 import (
-	"math"
-
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
@@ -126,7 +125,7 @@ func computePairOverlap(a, b PositionWithDetails) OverlapPair {
 		ETFA:            a.Symbol,
 		ETFB:            b.Symbol,
 		OverlappingCount: overlappingCount,
-		CombinedWeightPct: roundTo2(combinedWeightPct),
+		CombinedWeightPct: stats.RoundTo2(combinedWeightPct),
 	}
 }
 
@@ -182,7 +181,7 @@ func computeConcentratedStocks(etfs []PositionWithDetails) []ConcentratedStock {
 		stocks = append(stocks, ConcentratedStock{
 			Symbol:        sym,
 			Name:          info.name,
-			TotalWeightPct: roundTo2(info.totalWeight),
+			TotalWeightPct: stats.RoundTo2(info.totalWeight),
 			HeldByETFs:    etfList,
 		})
 	}
@@ -209,17 +208,4 @@ func sortByWeightDesc(stocks []ConcentratedStock) {
 	}
 }
 
-// roundTo2 rounds a float64 to 2 decimal places.
-// Normalizes -0 to 0 to avoid JSON serializing as -0.
-func roundTo2(v float64) float64 {
-	result := math.Round(v*100) / 100
-	if result == 0 {
-		return 0 // normalize -0 to 0
-	}
-	return result
-}
 
-// roundTo4 rounds a float64 to 4 decimal places.
-func roundTo4(v float64) float64 {
-	return math.Round(v*10000) / 10000
-}

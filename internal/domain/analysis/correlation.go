@@ -1,12 +1,12 @@
 package analysis
 
 import (
-	"math"
 	"sort"
 	"strconv"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 )
 
 const (
@@ -147,8 +147,8 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 				warnings = append(warnings,
 					symA+" ↔ "+symB+": only "+strconv.Itoa(overlap)+" overlapping days (minimum "+strconv.Itoa(minOverlap)+")")
 			} else {
-				corr, _ := pearsonCorrelation(x, y)
-				rounded := roundTo2(corr)
+				corr, _ := stats.PearsonCorrelation(x, y)
+				rounded := stats.RoundTo2(corr)
 				matrix[i][j] = &rounded
 				matrix[j][i] = &rounded
 			}
@@ -248,85 +248,23 @@ func computeDailyReturnsWithDates(series []market.HistoricalPrice) []dailyReturn
 // alignReturns takes two sets of dated daily returns and produces aligned
 // float64 slices (matching dates in the same order) plus the overlap count.
 // x always corresponds to series a, y to series b.
+// Delegates to stats.AlignSeries after converting to string-keyed maps.
 func alignReturns(a, b []dailyReturn) ([]float64, []float64, int) {
-	// Build date→return map for the smaller series for lookup efficiency.
-	var mapFromA bool // true if the map is built from a
-	var dateMap map[int64]float64
-	var walk []dailyReturn // the series we iterate over
-
-	if len(a) <= len(b) {
-		mapFromA = true
-		dateMap = make(map[int64]float64, len(a))
-		for _, r := range a {
-			dateMap[r.date] = r.return_
-		}
-		walk = b
-	} else {
-		mapFromA = false
-		dateMap = make(map[int64]float64, len(b))
-		for _, r := range b {
-			dateMap[r.date] = r.return_
-		}
-		walk = a
-	}
-
-	x := make([]float64, 0, len(dateMap))
-	y := make([]float64, 0, len(dateMap))
-
-	for _, wr := range walk {
-		mapped, ok := dateMap[wr.date]
-		if !ok {
-			continue
-		}
-		if mapFromA {
-			// walk is b, map is a: mapped=a, wr=b
-			x = append(x, mapped)
-			y = append(y, wr.return_)
-		} else {
-			// walk is a, map is b: wr=a, mapped=b
-			x = append(x, wr.return_)
-			y = append(y, mapped)
-		}
-	}
-
-	return x, y, len(x)
+	mapA := dailyReturnsToMap(a)
+	mapB := dailyReturnsToMap(b)
+	return stats.AlignSeries(mapA, mapB)
 }
 
-// pearsonCorrelation computes the Pearson correlation coefficient of two
-// equally-lengthed float64 series. Returns the coefficient and sample count.
-// If either series has zero variance, returns 0.
-func pearsonCorrelation(x, y []float64) (float64, int) {
-	n := len(x)
-	if n == 0 || n != len(y) {
-		return 0, 0
+// dailyReturnsToMap converts a slice of dated daily returns to a
+// string-keyed map for use with stats.AlignSeries.
+func dailyReturnsToMap(rets []dailyReturn) map[string]float64 {
+	m := make(map[string]float64, len(rets))
+	for _, r := range rets {
+		// Use int64 unix timestamp formatted as string for consistent keys.
+		key := strconv.FormatInt(r.date, 10)
+		m[key] = r.return_
 	}
-
-	// Compute means.
-	sumX, sumY := 0.0, 0.0
-	for i := 0; i < n; i++ {
-		sumX += x[i]
-		sumY += y[i]
-	}
-	meanX := sumX / float64(n)
-	meanY := sumY / float64(n)
-
-	// Compute numerator and denominators.
-	num := 0.0
-	sumDx2 := 0.0
-	sumDy2 := 0.0
-	for i := 0; i < n; i++ {
-		dx := x[i] - meanX
-		dy := y[i] - meanY
-		num += dx * dy
-		sumDx2 += dx * dx
-		sumDy2 += dy * dy
-	}
-
-	if sumDx2 == 0 || sumDy2 == 0 {
-		return 0, n
-	}
-
-	return num / math.Sqrt(sumDx2*sumDy2), n
+	return m
 }
 
 // sortedSymbols returns the symbols from the prices map in sorted order.

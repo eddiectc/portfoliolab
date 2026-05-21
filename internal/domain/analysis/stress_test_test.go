@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"github.com/govalues/decimal"
 )
 
@@ -348,5 +349,5 @@ func TestPredefinedScenarios_Init(t *testing.T) {
 
 // Helper: strconvFixedPct formats a float64 percentage for decimal parsing.
 func strconvFixedPct(v float64) string {
-	return strconv.FormatFloat(roundTo2(v), 'f', 2, 64)
+	return strconv.FormatFloat(stats.RoundTo2(v), 'f', 2, 64)
 }
