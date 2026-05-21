@@ -167,7 +167,7 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 // GetAllForSelector returns lightweight summaries for dropdown selectors
 // (id, name, entry count) without the full entries payload.
 func (s *Service) GetAllForSelector(ctx context.Context) ([]ModelPortfolioSummary, error) {
-	ports, err := s.repo.List(ctx, 1000, 0)
+	ports, err := s.repo.ListAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list model portfolios for selector: %w", err)
 	}

@@ -213,6 +213,10 @@ func TestValidateCreateRequest_WeightSumNot100(t *testing.T) {
 			if err == nil {
 				t.Error("expected error for weight sum != 100, got nil")
 			}
+			// Dynamic error (with total/delta) should still match the sentinel via errors.Is.
+			if !errors.Is(err, ErrWeightSumNot100) {
+				t.Errorf("expected errors.Is(ErrWeightSumNot100), got: %v", err)
+			}
 			// Error message should include total and delta.
 			if !strings.Contains(err.Error(), "current total:") {
 				t.Errorf("expected error message with total/delta, got: %v", err)

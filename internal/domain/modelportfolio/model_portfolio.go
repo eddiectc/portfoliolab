@@ -73,3 +73,11 @@ type ModelPortfolioError struct {
 func (e *ModelPortfolioError) Error() string {
 	return e.Message
 }
+
+// Is implements errors.Is: two ModelPortfolioErrors match when their codes are equal.
+// This allows errors.Is(err, ErrWeightSumNot100) to match dynamically-created errors
+// that carry the same code but a different (more detailed) message.
+func (e *ModelPortfolioError) Is(target error) bool {
+	t, ok := target.(*ModelPortfolioError)
+	return ok && e.Code == t.Code
+}
