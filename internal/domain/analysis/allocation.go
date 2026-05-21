@@ -3,6 +3,7 @@ package analysis
 import (
 	"sort"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
@@ -63,9 +64,9 @@ func ComputeSectorAllocation(positions []PositionWithDetails) *AllocationResult 
 
 	// Round values and sort.
 	for k, v := range breakdown {
-		breakdown[k] = roundTo2(v)
+		breakdown[k] = stats.RoundTo2(v)
 	}
-	unknownWeight = roundTo2(unknownWeight)
+	unknownWeight = stats.RoundTo2(unknownWeight)
 
 	return &AllocationResult{
 		Breakdown:        breakdown,
@@ -125,9 +126,9 @@ func ComputeGeographicAllocation(positions []PositionWithDetails) *AllocationRes
 
 	// Round values.
 	for k, v := range breakdown {
-		breakdown[k] = roundTo2(v)
+		breakdown[k] = stats.RoundTo2(v)
 	}
-	unknownWeight = roundTo2(unknownWeight)
+	unknownWeight = stats.RoundTo2(unknownWeight)
 
 	return &AllocationResult{
 		Breakdown:        breakdown,

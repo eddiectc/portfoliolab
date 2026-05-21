@@ -39,12 +39,12 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 **Description:** Add pure computation functions for metrics that compare two portfolios against each other. These complement existing `performance.ComputeRiskMetrics` (which computes per-portfolio Sharpe/volatility) and `analysis.ComputeCorrelation` (which computes intra-portfolio symbol correlation).
 
-- [ ] Add `ComputeCAGR` in `internal/domain/comparison/metrics.go` — compound annual growth rate from start/end values and days elapsed
-- [ ] Add `ComputeBetaAlpha` in `internal/domain/comparison/metrics.go` — beta and alpha of portfolio A relative to portfolio B, using aligned daily returns (Pearson regression; reuse `analysis.pearsonCorrelation` and `analysis.alignReturns` patterns)
-- [ ] Add `ComputePortfolioCorrelation` in `internal/domain/comparison/metrics.go` — overall correlation between two portfolio daily return series (reuse `analysis.alignReturns` + `analysis.pearsonCorrelation`)
-- [ ] Add `ComputePeriodExtremes` in `internal/domain/comparison/metrics.go` — best/worst month, best/worst year, win rate from equity curve points
-- [ ] Add `ComputeReturnDistribution` in `internal/domain/comparison/metrics.go` — annual/monthly return frequency histogram buckets
-- [ ] Write table-driven tests in `metrics_test.go` for each function: normal case, identical portfolios (correlation=1.0, beta=1.0, alpha=0), short data (<30 days → N/A), empty input, zero volatility edge case
+- [x] Add `ComputeCAGR` in `internal/domain/comparison/metrics.go` — compound annual growth rate from start/end values and days elapsed
+- [x] Add `ComputeBetaAlpha` in `internal/domain/comparison/metrics.go` — beta and alpha of portfolio A relative to portfolio B, using aligned daily returns (Pearson regression; reuse `analysis.pearsonCorrelation` and `analysis.alignReturns` patterns)
+- [x] Add `ComputePortfolioCorrelation` in `internal/domain/comparison/metrics.go` — overall correlation between two portfolio daily return series (reuse `analysis.alignReturns` + `analysis.pearsonCorrelation`)
+- [x] Add `ComputePeriodExtremes` in `internal/domain/comparison/metrics.go` — best/worst month, best/worst year, win rate from equity curve points
+- [x] Add `ComputeReturnDistribution` in `internal/domain/comparison/metrics.go` — annual/monthly return frequency histogram buckets
+- [x] Write table-driven tests in `metrics_test.go` for each function: normal case, identical portfolios (correlation=1.0, beta=1.0, alpha=0), short data (<30 days → N/A), empty input, zero volatility edge case
 
 **Verification:** `go test ./internal/domain/comparison/` passes. CAGR for a portfolio that doubles in exactly 1 year = ~100%. Beta of identical series = 1.0. Correlation of identical series = 1.0.
 

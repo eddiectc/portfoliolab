@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strconv"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"github.com/govalues/decimal"
 )
 
@@ -64,10 +65,10 @@ func computeScenarioImpact(scenario StressScenario, breakdown map[string]float64
 		}
 		contribution := weight * sectorReturn / 100.0
 		estimatedReturn += contribution
-		sectorContributions[sector] = roundTo2(contribution)
+		sectorContributions[sector] = stats.RoundTo2(contribution)
 	}
 
-	estimatedReturn = roundTo2(estimatedReturn)
+	estimatedReturn = stats.RoundTo2(estimatedReturn)
 
 	// Dollar impact: portfolio value × estimated return / 100.
 	returnDecimal := decimal.MustParse(strconv.FormatFloat(estimatedReturn, 'f', 2, 64))
@@ -85,5 +86,5 @@ func computeScenarioImpact(scenario StressScenario, breakdown map[string]float64
 
 // formatPct formats a percentage value for display in warnings.
 func formatPct(v float64) string {
-	return strconv.FormatFloat(roundTo2(v), 'f', 2, 64) + "%"
+	return strconv.FormatFloat(stats.RoundTo2(v), 'f', 2, 64) + "%"
 }

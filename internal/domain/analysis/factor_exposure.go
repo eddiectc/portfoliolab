@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
@@ -175,10 +176,10 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 	// Compute weighted P/E and P/B.
 	var weightedPE, weightedPB float64
 	if peTrackedWeight > 0 {
-		weightedPE = roundTo2(peWeightedSum / peTrackedWeight)
+		weightedPE = stats.RoundTo2(peWeightedSum / peTrackedWeight)
 	}
 	if pbTrackedWeight > 0 {
-		weightedPB = roundTo2(pbWeightedSum / pbTrackedWeight)
+		weightedPB = stats.RoundTo2(pbWeightedSum / pbTrackedWeight)
 	}
 
 	// Determine value/growth tilt.
@@ -195,9 +196,9 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 	// This way the percentages sum to <100% when coverage is partial — the gap is the signal.
 	var sizeTiltStr string
 	var largeCapPct, midCapPct, smallCapPct float64
-	largeCapPct = roundTo2(largeCapWeight)
-	midCapPct = roundTo2(midCapWeight)
-	smallCapPct = roundTo2(smallCapWeight)
+	largeCapPct = stats.RoundTo2(largeCapWeight)
+	midCapPct = stats.RoundTo2(midCapWeight)
+	smallCapPct = stats.RoundTo2(smallCapWeight)
 	if sizeTrackedWeight > 0 {
 		sizeTiltStr = classifySizeTilt(largeCapPct, midCapPct, smallCapPct)
 	}
@@ -211,19 +212,19 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 	// HHI and interpretation.
 	// HHI operates in 0–1 range with meaningful differences at 4+ decimal places,
 	// so use roundTo4 instead of roundTo2 (which would zero out diversified portfolios).
-	hhi := roundTo4(hhiSum)
+	hhi := stats.RoundTo4(hhiSum)
 	interpretation := classifyHHI(hhi)
 
 	// Top holding as percentage of portfolio.
-	topHoldingPct := roundTo2(topWeight * 100)
+	topHoldingPct := stats.RoundTo2(topWeight * 100)
 
 	// Quality: weighted P/CF and P/Sales.
 	var weightedPCF, weightedPS float64
 	if pcfTrackedWeight > 0 {
-		weightedPCF = roundTo2(pcfWeightedSum / pcfTrackedWeight)
+		weightedPCF = stats.RoundTo2(pcfWeightedSum / pcfTrackedWeight)
 	}
 	if psTrackedWeight > 0 {
-		weightedPS = roundTo2(psWeightedSum / psTrackedWeight)
+		weightedPS = stats.RoundTo2(psWeightedSum / psTrackedWeight)
 	}
 
 	// Quality tilt: lower P/CF and P/Sales = higher quality.
@@ -241,10 +242,10 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 	// Cost: weighted expense ratio and turnover.
 	var weightedExpense, weightedTurnover float64
 	if expenseTrackedWeight > 0 {
-		weightedExpense = roundTo2(expenseWeightedSum / expenseTrackedWeight)
+		weightedExpense = stats.RoundTo2(expenseWeightedSum / expenseTrackedWeight)
 	}
 	if turnTrackedWeight > 0 {
-		weightedTurnover = roundTo2(turnWeightedSum / turnTrackedWeight)
+		weightedTurnover = stats.RoundTo2(turnWeightedSum / turnTrackedWeight)
 	}
 
 	if expenseTrackedWeight == 0 && turnTrackedWeight == 0 {
@@ -343,13 +344,13 @@ func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string]
 
 	var avg3M, avg6M, avg12M float64
 	if trackedWeight3M > 0 {
-		avg3M = roundTo2(return3M / trackedWeight3M)
+		avg3M = stats.RoundTo2(return3M / trackedWeight3M)
 	}
 	if trackedWeight6M > 0 {
-		avg6M = roundTo2(return6M / trackedWeight6M)
+		avg6M = stats.RoundTo2(return6M / trackedWeight6M)
 	}
 	if trackedWeight12M > 0 {
-		avg12M = roundTo2(return12M / trackedWeight12M)
+		avg12M = stats.RoundTo2(return12M / trackedWeight12M)
 	}
 
 	tilt := classifyMomentum(avg3M, avg6M, avg12M)
@@ -489,7 +490,7 @@ func computeVolatility(positions []PositionWithDetails, pricesBySymbol map[strin
 
 	var avgVol float64
 	if volTrackedWeight > 0 {
-		avgVol = roundTo2(volWeightedSum / volTrackedWeight)
+		avgVol = stats.RoundTo2(volWeightedSum / volTrackedWeight)
 	}
 
 	tilt := classifyVolatility(avgVol)

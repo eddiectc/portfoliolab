@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 	"github.com/govalues/decimal"
@@ -60,7 +61,7 @@ func TestComputeFactorExposure_HappyPath(t *testing.T) {
 	// HHI = 0.03² + 0.024² + 0.018² + 0.024² + 0.016²
 	//     = 0.0009 + 0.000576 + 0.000324 + 0.000576 + 0.000256
 	//     = 0.002632 → roundTo4 = 0.0026
-	expectedHHI := roundTo4(0.03*0.03 + 0.024*0.024 + 0.018*0.018 + 0.024*0.024 + 0.016*0.016)
+	expectedHHI := stats.RoundTo4(0.03*0.03 + 0.024*0.024 + 0.018*0.018 + 0.024*0.024 + 0.016*0.016)
 	if result.Concentration.HHI != expectedHHI {
 		t.Errorf("HHI = %.4f, want %.4f", result.Concentration.HHI, expectedHHI)
 	}
@@ -119,7 +120,7 @@ func TestComputeFactorExposure_SingleETF(t *testing.T) {
 	}
 
 	// HHI: 0.04² + 0.03² = 0.0016 + 0.0009 = 0.0025
-	expectedHHI := roundTo4(0.04*0.04 + 0.03*0.03)
+	expectedHHI := stats.RoundTo4(0.04*0.04 + 0.03*0.03)
 	if result.Concentration.HHI != expectedHHI {
 		t.Errorf("HHI = %.4f, want %.4f", result.Concentration.HHI, expectedHHI)
 	}
@@ -170,7 +171,7 @@ func TestComputeFactorExposure_MixedETFAndStock(t *testing.T) {
 	// HHI = 0.042² + 0.036² + 0.25² + 0.15²
 	//     = 0.001764 + 0.001296 + 0.0625 + 0.0225
 	//     = 0.08806 → roundTo4 = 0.0881
-	expectedHHI := roundTo4(0.042*0.042 + 0.036*0.036 + 0.25*0.25 + 0.15*0.15)
+	expectedHHI := stats.RoundTo4(0.042*0.042 + 0.036*0.036 + 0.25*0.25 + 0.15*0.15)
 	if result.Concentration.HHI != expectedHHI {
 		t.Errorf("HHI = %.4f, want %.4f", result.Concentration.HHI, expectedHHI)
 	}
@@ -310,7 +311,7 @@ func TestComputeFactorExposure_HHICalculation(t *testing.T) {
 	// HHI = 0.3333² + 0.3333² + 0.3334²
 	//     = 0.111089 + 0.111089 + 0.111156
 	//     = 0.333334 → roundTo4 = 0.3333
-	expectedHHI := roundTo4(0.3333*0.3333 + 0.3333*0.3333 + 0.3334*0.3334)
+	expectedHHI := stats.RoundTo4(0.3333*0.3333 + 0.3333*0.3333 + 0.3334*0.3334)
 	if result.Concentration.HHI != expectedHHI {
 		t.Errorf("HHI = %.4f, want %.4f", result.Concentration.HHI, expectedHHI)
 	}

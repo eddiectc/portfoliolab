@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
@@ -235,7 +236,7 @@ func TestPearsonCorrelation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, n := pearsonCorrelation(tt.x, tt.y)
+			r, n := stats.PearsonCorrelation(tt.x, tt.y)
 			if n != tt.wantN {
 				t.Errorf("n = %d, want %d", n, tt.wantN)
 			}
