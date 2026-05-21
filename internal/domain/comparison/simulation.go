@@ -38,6 +38,10 @@ type SimulateEquityCurveOutput struct {
 	// LimitedHistorySymbols lists symbols whose data does not cover the
 	// full requested period. The consumer should display a warning.
 	LimitedHistorySymbols []string
+	// PeriodClipped is true when the effective period (intersection of
+	// available data) is shorter than the requested period. The consumer
+	// should display the actual effective period to the user.
+	PeriodClipped bool
 }
 
 // EquityCurvePoint is a single data point on the equity curve.
@@ -83,7 +87,21 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 	// Clip period to the intersection of available data.
 	clipFrom, clipTo, limitedSymbols, missingSymbols := clipPeriod(input.Weights, input.PricesBySym, input.DateFrom, input.DateTo)
 
+	// Detect if the effective period is shorter than requested.
+	periodClipped := false
+	if !input.DateFrom.IsZero() && clipFrom.After(input.DateFrom) {
+		periodClipped = true
+	}
+	if !input.DateTo.IsZero() && clipTo.Before(input.DateTo) {
+		periodClipped = true
+	}
+
 	var warnings []string
+	if periodClipped {
+		warnings = append(warnings,
+			"period clipped: "+clipFrom.Format("2006-01-02")+" to "+clipTo.Format("2006-01-02")+
+			" (requested "+input.DateFrom.Format("2006-01-02")+" to "+input.DateTo.Format("2006-01-02")+")")
+	}
 	for _, sym := range missingSymbols {
 		warnings = append(warnings, "no price data for "+sym)
 	}
@@ -104,6 +122,7 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 			EquityCurve:             []EquityCurvePoint{},
 			Warnings:                warnings,
 			LimitedHistorySymbols:   limitedSymbols,
+			PeriodClipped:           periodClipped,
 		}
 	}
 
@@ -114,6 +133,7 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 			EquityCurve:             []EquityCurvePoint{},
 			Warnings:                warnings,
 			LimitedHistorySymbols:   limitedSymbols,
+			PeriodClipped:           periodClipped,
 		}
 	}
 
@@ -126,6 +146,7 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 		DateTo:                clipTo,
 		Warnings:              warnings,
 		LimitedHistorySymbols: limitedSymbols,
+		PeriodClipped:         periodClipped,
 	}
 }
 
@@ -189,6 +210,11 @@ func neededFxPairs(weights []ModelPortfolioWeight, baseCurrency string) []string
 // clipPeriod determines the overlapping date range across all symbols and
 // identifies symbols with limited or missing data.
 //
+// Symbols are checked against the *requested* period (dateFrom/dateTo), not
+// the clipped period. This ensures a symbol with only 1Y of data is flagged
+// as limited even when the user requests 3Y and the effective period is
+// clipped to 1Y.
+//
 // Returns (clipFrom, clipTo, limitedSymbols, missingSymbols).
 // If no symbols have data, clipFrom > clipTo (empty range).
 func clipPeriod(weights []ModelPortfolioWeight, pricesBySym map[string][]market.HistoricalPrice, dateFrom, dateTo time.Time) (time.Time, time.Time, []string, []string) {
@@ -225,25 +251,18 @@ func clipPeriod(weights []ModelPortfolioWeight, pricesBySym map[string][]market.
 		return time.Time{}, time.Time{}, nil, missingSymbols
 	}
 
-	// Apply user-specified date constraints.
-	if !dateFrom.IsZero() && dateFrom.After(earliest) {
-		earliest = dateFrom
-	}
-	if !dateTo.IsZero() && dateTo.Before(latest) {
-		latest = dateTo
-	}
-
-	// Determine the effective period for checking coverage.
-	effectiveFrom := earliest
-	effectiveTo := latest
+	// Determine the effective (requested) period for coverage checks.
+	// Use the user's requested dates when provided, otherwise the raw data range.
+	checkFrom := earliest
+	checkTo := latest
 	if !dateFrom.IsZero() {
-		effectiveFrom = dateFrom
+		checkFrom = dateFrom
 	}
 	if !dateTo.IsZero() {
-		effectiveTo = dateTo
+		checkTo = dateTo
 	}
 
-	// Check which symbols have limited data relative to the effective period.
+	// Check which symbols have limited data relative to the requested period.
 	for _, w := range weights {
 		prices, ok := pricesBySym[w.MarketSym]
 		if !ok || len(prices) == 0 {
@@ -252,11 +271,19 @@ func clipPeriod(weights []ModelPortfolioWeight, pricesBySym map[string][]market.
 		symEarliest := prices[0].Date
 		symLatest := prices[len(prices)-1].Date
 
-		coversFrom := !symEarliest.After(effectiveFrom)
-		coversTo := !symLatest.Before(effectiveTo)
+		coversFrom := !symEarliest.After(checkFrom)
+		coversTo := !symLatest.Before(checkTo)
 		if !coversFrom || !coversTo {
 			limitedSymbols = append(limitedSymbols, w.Symbol)
 		}
+	}
+
+	// Apply user-specified date constraints to the output period.
+	if !dateFrom.IsZero() && dateFrom.After(earliest) {
+		earliest = dateFrom
+	}
+	if !dateTo.IsZero() && dateTo.Before(latest) {
+		latest = dateTo
 	}
 
 	return earliest, latest, limitedSymbols, missingSymbols
