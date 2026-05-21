@@ -95,6 +95,7 @@ func TestSimulateEquityCurve(t *testing.T) {
 		wantLastValue      float64
 		wantMinWarnings    int
 		wantLimitedSymbols int
+		wantPeriodClipped  bool
 	}{
 		{
 			name:          "normal two-symbol portfolio",
@@ -213,6 +214,34 @@ func TestSimulateEquityCurve(t *testing.T) {
 			wantLimitedSymbols: 0,
 		},
 		{
+			name:          "symbol with shorter history — period clipped warning",
+			startingValue: 10000,
+			weights: []ModelPortfolioWeight{
+				weight(t, "AAPL", "AAPL", "USD", 0.5),
+				weight(t, "META", "META", "USD", 0.5),
+			},
+			pricesBySym: map[string][]market.HistoricalPrice{
+				// AAPL: Jan 2 - Jan 20 (19 days of data)
+				"AAPL": prices(t, base, []float64{100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118}, "USD"),
+				// META: Jan 10 - Jan 20 (11 days of data, only)
+				"META": prices(t, base.AddDate(0, 0, 8), []float64{300, 305, 310, 308, 312, 315, 318, 320, 322, 325, 328}, "USD"),
+			},
+			baseCurrency:     "USD",
+			dateFrom:         base,              // Jan 2 (requested full range)
+			dateTo:           base.AddDate(0, 0, 18), // Jan 20
+			wantCurveLen:     11, // clipped to Jan 10 - Jan 20 (META range)
+			// AAPL base price = Jan 2 = 100, META base price = Jan 10 = 300
+			// Jan 10: AAPL price = 108 (index 8), META price = 300
+			// Jan 10: 5000*(108/100) + 5000*(300/300) = 5400 + 5000 = 10400
+			wantFirstValue:   10400,
+			// Jan 20: AAPL price = 118 (index 18), META price = 328 (index 10)
+			// Jan 20: 5000*(118/100) + 5000*(328/300) = 5900 + 5466.67 = 11366.67
+			wantLastValue:    11366.67,
+			wantMinWarnings:  2, // period clipped warning + META limited
+			wantLimitedSymbols: 1, // META
+			wantPeriodClipped: true,
+		},
+		{
 			name:          "date range filtering",
 			startingValue: 10000,
 			weights: []ModelPortfolioWeight{
@@ -277,6 +306,10 @@ func TestSimulateEquityCurve(t *testing.T) {
 
 			if len(output.LimitedHistorySymbols) != tt.wantLimitedSymbols {
 				t.Errorf("%s: limitedSymbols = %d (%v), want %d", tt.name, len(output.LimitedHistorySymbols), output.LimitedHistorySymbols, tt.wantLimitedSymbols)
+			}
+
+			if output.PeriodClipped != tt.wantPeriodClipped {
+				t.Errorf("%s: PeriodClipped = %v, want %v", tt.name, output.PeriodClipped, tt.wantPeriodClipped)
 			}
 		})
 	}
