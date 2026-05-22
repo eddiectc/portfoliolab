@@ -13,9 +13,9 @@ import (
 // (with TopHoldings populated for expansion).
 type PortfolioHolding struct {
 	Symbol      string
-	WeightPct   decimal.Decimal // weight as percentage (0-100)
+	Weight      decimal.Decimal // fraction of portfolio (0.0-1.0)
 	Name        string
-	QuoteType   string          // "ETF" or "EQUITY" (or other)
+	QuoteType   string // "ETF" or "EQUITY" (or other)
 	TopHoldings []symbol.TopHolding
 }
 
@@ -34,7 +34,8 @@ type CrossPortfolioOverlapInput struct {
 //   - The top-10 underlying holdings are returned
 //
 // Overlap percentage is the Jaccard similarity of underlying symbol sets:
-//   overlap = |A ∩ B| / |A ∪ B| × 100
+//
+//	overlap = |A ∩ B| / |A ∪ B| × 100
 //
 // Returns warnings when ETFs have no cached holdings data.
 func ComputeCrossPortfolioOverlap(input CrossPortfolioOverlapInput) *OverlapResult {
@@ -110,7 +111,7 @@ func expandToTopHoldingsWithWarnings(holdings []PortfolioHolding, limit int) ([]
 
 // holdingInfo holds aggregated info for an underlying symbol.
 type holdingInfo struct {
-	weight decimal.Decimal // aggregated weight as percentage (0-100)
+	weight decimal.Decimal // aggregated weight as fraction (0.0-1.0)
 	name   string
 }
 
@@ -120,7 +121,7 @@ func expandETFHoldings(holdings []PortfolioHolding) map[string]*holdingInfo {
 	agg := make(map[string]*holdingInfo)
 
 	for _, h := range holdings {
-		weightPct, _ := h.WeightPct.Float64()
+		weight, _ := h.Weight.Float64()
 
 		if h.QuoteType == "ETF" && len(h.TopHoldings) > 0 {
 			// Expand ETF to underlying holdings.
@@ -130,8 +131,8 @@ func expandETFHoldings(holdings []PortfolioHolding) map[string]*holdingInfo {
 					info = &holdingInfo{}
 					agg[uh.Symbol] = info
 				}
-				// Contribution: portfolio weight × holding percent / 100.
-				contribution := weightPct * uh.Percent / 100.0
+				// Contribution: portfolio weight (fraction) × holding percent / 100.
+				contribution := weight * uh.Percent / 100.0
 				contribDec, _ := decimal.NewFromFloat64(contribution)
 				info.weight, _ = info.weight.Add(contribDec)
 				// Use the name from the first occurrence.
@@ -146,7 +147,7 @@ func expandETFHoldings(holdings []PortfolioHolding) map[string]*holdingInfo {
 				info = &holdingInfo{}
 				agg[h.Symbol] = info
 			}
-			info.weight, _ = info.weight.Add(h.WeightPct)
+			info.weight, _ = info.weight.Add(h.Weight)
 			if info.name == "" {
 				info.name = h.Name
 			}

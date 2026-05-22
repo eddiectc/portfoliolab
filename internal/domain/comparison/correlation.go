@@ -39,7 +39,8 @@ type IntraPortfolioCorrelationResult struct {
 // than position-based inputs.
 //
 // For each symbol, daily returns are derived from close prices:
-//   return[t] = close[t] / close[t-1] - 1
+//
+//	return[t] = close[t] / close[t-1] - 1
 //
 // Pairs with fewer than the adaptive overlap threshold (80% of expected period)
 // produce a warning and a nil matrix cell.
@@ -197,7 +198,7 @@ func correlationPeriodCutoff(period string) (time.Time, string) {
 		return now.AddDate(-10, 0, 0), ""
 	default:
 		return now.AddDate(-1, 0, 0),
-			"unrecognized period "+period+" — defaulting to 1Y"
+			"unrecognized period " + period + " — defaulting to 1Y"
 	}
 }
 

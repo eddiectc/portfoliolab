@@ -14,22 +14,22 @@ func decF(f float64) decimal.Decimal {
 	return d
 }
 
-func portfolioHoldingETF(t *testing.T, sym string, weightPct float64, holdings []symbol.TopHolding) PortfolioHolding {
+func portfolioHoldingETF(t *testing.T, sym string, weight float64, holdings []symbol.TopHolding) PortfolioHolding {
 	t.Helper()
 	return PortfolioHolding{
 		Symbol:      sym,
-		WeightPct:   decF(weightPct),
+		Weight:      decF(weight),
 		Name:        sym,
 		QuoteType:   "ETF",
 		TopHoldings: holdings,
 	}
 }
 
-func portfolioHoldingStock(t *testing.T, sym string, weightPct float64, name string) PortfolioHolding {
+func portfolioHoldingStock(t *testing.T, sym string, weight float64, name string) PortfolioHolding {
 	t.Helper()
 	return PortfolioHolding{
 		Symbol:    sym,
-		WeightPct: decF(weightPct),
+		Weight:    decF(weight),
 		Name:      name,
 		QuoteType: "EQUITY",
 	}
@@ -68,33 +68,33 @@ func TestComputeCrossPortfolioOverlap_TwoETFPortfolios(t *testing.T) {
 	// Portfolio A: 50% VOO (holds AAPL 5%, MSFT 4%), 50% QQQ (holds AAPL 6%, GOOGL 4%)
 	// Portfolio B: 60% IVV (holds AAPL 4.5%, MSFT 3.5%), 40% VOO (holds AAPL 5%, MSFT 4%)
 	//
-	// Expanded A: AAPL = 50*5/100 + 50*6/100 = 2.5+3.0 = 5.5
-	//             MSFT = 50*4/100 = 2.0
-	//             GOOGL = 50*4/100 = 2.0
+	// Expanded A: AAPL = 0.5*5/100 + 0.5*6/100 = 0.025+0.030 = 0.055
+	//             MSFT = 0.5*4/100 = 0.020
+	//             GOOGL = 0.5*4/100 = 0.020
 	//
-	// Expanded B: AAPL = 60*4.5/100 + 40*5/100 = 2.7+2.0 = 4.7
-	//             MSFT = 60*3.5/100 + 40*4/100 = 2.1+1.6 = 3.7
+	// Expanded B: AAPL = 0.6*4.5/100 + 0.4*5/100 = 0.027+0.020 = 0.047
+	//             MSFT = 0.6*3.5/100 + 0.4*4/100 = 0.021+0.016 = 0.037
 
 	input := CrossPortfolioOverlapInput{
 		PortfolioA: []PortfolioHolding{
-			portfolioHoldingETF(t, "VOO", 50, topHoldings(
+			portfolioHoldingETF(t, "VOO", 0.5, topHoldings(
 				[]string{"AAPL", "MSFT"},
 				[]float64{5, 4},
 				[]string{"Apple", "Microsoft"},
 			)),
-			portfolioHoldingETF(t, "QQQ", 50, topHoldings(
+			portfolioHoldingETF(t, "QQQ", 0.5, topHoldings(
 				[]string{"AAPL", "GOOGL"},
 				[]float64{6, 4},
 				[]string{"Apple", "Alphabet"},
 			)),
 		},
 		PortfolioB: []PortfolioHolding{
-			portfolioHoldingETF(t, "IVV", 60, topHoldings(
+			portfolioHoldingETF(t, "IVV", 0.6, topHoldings(
 				[]string{"AAPL", "MSFT"},
 				[]float64{4.5, 3.5},
 				[]string{"Apple", "Microsoft"},
 			)),
-			portfolioHoldingETF(t, "VOO", 40, topHoldings(
+			portfolioHoldingETF(t, "VOO", 0.4, topHoldings(
 				[]string{"AAPL", "MSFT"},
 				[]float64{5, 4},
 				[]string{"Apple", "Microsoft"},
@@ -104,22 +104,22 @@ func TestComputeCrossPortfolioOverlap_TwoETFPortfolios(t *testing.T) {
 
 	result := ComputeCrossPortfolioOverlap(input)
 
-	// Check top holdings A: AAPL (5.5), MSFT (2.0), GOOGL (2.0)
+	// Check top holdings A: AAPL (0.055), MSFT (0.020), GOOGL (0.020)
 	if len(result.TopHoldingsA) != 3 {
 		t.Fatalf("TopHoldingsA len = %d, want 3", len(result.TopHoldingsA))
 	}
 	aaplW, _ := result.TopHoldingsA[0].Weight.Float64()
-	if !floatEq(aaplW, 5.5, 0.01) {
-		t.Errorf("TopHoldingsA[0] (AAPL) weight = %.2f, want 5.5", aaplW)
+	if !floatEq(aaplW, 0.055, 0.001) {
+		t.Errorf("TopHoldingsA[0] (AAPL) weight = %.4f, want 0.055", aaplW)
 	}
 
-	// Check top holdings B: AAPL (4.7), MSFT (3.7)
+	// Check top holdings B: AAPL (0.047), MSFT (0.037)
 	if len(result.TopHoldingsB) != 2 {
 		t.Fatalf("TopHoldingsB len = %d, want 2", len(result.TopHoldingsB))
 	}
 	bAaplW, _ := result.TopHoldingsB[0].Weight.Float64()
-	if !floatEq(bAaplW, 4.7, 0.01) {
-		t.Errorf("TopHoldingsB[0] (AAPL) weight = %.2f, want 4.7", bAaplW)
+	if !floatEq(bAaplW, 0.047, 0.001) {
+		t.Errorf("TopHoldingsB[0] (AAPL) weight = %.4f, want 0.047", bAaplW)
 	}
 
 	// Overlap: A has {AAPL, MSFT, GOOGL}, B has {AAPL, MSFT}
@@ -138,24 +138,24 @@ func TestComputeCrossPortfolioOverlap_MixedETFAndStocks(t *testing.T) {
 	// Portfolio A: 40% AAPL (stock), 60% VOO (ETF: AAPL 5%, MSFT 4%)
 	// Portfolio B: 30% MSFT (stock), 70% IVV (ETF: AAPL 4.5%, MSFT 3.5%)
 	//
-	// Expanded A: AAPL = 40 + 60*5/100 = 40+3 = 43
-	//             MSFT = 60*4/100 = 2.4
+	// Expanded A: AAPL = 0.4 + 0.6*5/100 = 0.4+0.03 = 0.43
+	//             MSFT = 0.6*4/100 = 0.024
 	//
-	// Expanded B: MSFT = 30 + 70*3.5/100 = 30+2.45 = 32.45
-	//             AAPL = 70*4.5/100 = 3.15
+	// Expanded B: MSFT = 0.3 + 0.7*3.5/100 = 0.3+0.0245 = 0.3245
+	//             AAPL = 0.7*4.5/100 = 0.0315
 
 	input := CrossPortfolioOverlapInput{
 		PortfolioA: []PortfolioHolding{
-			portfolioHoldingStock(t, "AAPL", 40, "Apple"),
-			portfolioHoldingETF(t, "VOO", 60, topHoldings(
+			portfolioHoldingStock(t, "AAPL", 0.4, "Apple"),
+			portfolioHoldingETF(t, "VOO", 0.6, topHoldings(
 				[]string{"AAPL", "MSFT"},
 				[]float64{5, 4},
 				[]string{"Apple", "Microsoft"},
 			)),
 		},
 		PortfolioB: []PortfolioHolding{
-			portfolioHoldingStock(t, "MSFT", 30, "Microsoft"),
-			portfolioHoldingETF(t, "IVV", 70, topHoldings(
+			portfolioHoldingStock(t, "MSFT", 0.3, "Microsoft"),
+			portfolioHoldingETF(t, "IVV", 0.7, topHoldings(
 				[]string{"AAPL", "MSFT"},
 				[]float64{4.5, 3.5},
 				[]string{"Apple", "Microsoft"},
@@ -178,12 +178,12 @@ func TestComputeCrossPortfolioOverlap_MixedETFAndStocks(t *testing.T) {
 func TestComputeCrossPortfolioOverlap_NoOverlap(t *testing.T) {
 	input := CrossPortfolioOverlapInput{
 		PortfolioA: []PortfolioHolding{
-			portfolioHoldingStock(t, "AAPL", 50, "Apple"),
-			portfolioHoldingStock(t, "MSFT", 50, "Microsoft"),
+			portfolioHoldingStock(t, "AAPL", 0.5, "Apple"),
+			portfolioHoldingStock(t, "MSFT", 0.5, "Microsoft"),
 		},
 		PortfolioB: []PortfolioHolding{
-			portfolioHoldingStock(t, "JNJ", 60, "J&J"),
-			portfolioHoldingStock(t, "PFE", 40, "Pfizer"),
+			portfolioHoldingStock(t, "JNJ", 0.6, "J&J"),
+			portfolioHoldingStock(t, "PFE", 0.4, "Pfizer"),
 		},
 	}
 
@@ -201,7 +201,7 @@ func TestComputeCrossPortfolioOverlap_NoOverlap(t *testing.T) {
 func TestComputeCrossPortfolioOverlap_EmptyPortfolio(t *testing.T) {
 	input := CrossPortfolioOverlapInput{
 		PortfolioA: []PortfolioHolding{
-			portfolioHoldingStock(t, "AAPL", 100, "Apple"),
+			portfolioHoldingStock(t, "AAPL", 1.0, "Apple"),
 		},
 		PortfolioB: []PortfolioHolding{},
 	}
@@ -225,15 +225,15 @@ func TestComputeCrossPortfolioOverlap_EmptyPortfolio(t *testing.T) {
 func TestComputeCrossPortfolioOverlap_ETFWithNoHoldings(t *testing.T) {
 	input := CrossPortfolioOverlapInput{
 		PortfolioA: []PortfolioHolding{
-			portfolioHoldingETF(t, "VOO", 50, topHoldings(
+			portfolioHoldingETF(t, "VOO", 0.5, topHoldings(
 				[]string{"AAPL"},
 				[]float64{5},
 				[]string{"Apple"},
 			)),
-			portfolioHoldingETF(t, "UNKNOWN_ETF", 50, []symbol.TopHolding{}),
+			portfolioHoldingETF(t, "UNKNOWN_ETF", 0.5, []symbol.TopHolding{}),
 		},
 		PortfolioB: []PortfolioHolding{
-			portfolioHoldingStock(t, "AAPL", 100, "Apple"),
+			portfolioHoldingStock(t, "AAPL", 1.0, "Apple"),
 		},
 	}
 
@@ -245,8 +245,8 @@ func TestComputeCrossPortfolioOverlap_ETFWithNoHoldings(t *testing.T) {
 	}
 
 	// UNKNOWN_ETF with no holdings is treated as atomic, so A expands to:
-	// AAPL (from VOO) = 50*5/100 = 2.5, UNKNOWN_ETF (atomic) = 50
-	// B expands to: AAPL = 100
+	// AAPL (from VOO) = 0.5*5/100 = 0.025, UNKNOWN_ETF (atomic) = 0.5
+	// B expands to: AAPL = 1.0
 	// Overlap: A has {AAPL, UNKNOWN_ETF}, B has {AAPL}
 	// Intersection = {AAPL} = 1, Union = {AAPL, UNKNOWN_ETF} = 2
 	// Overlap = 50%
@@ -271,12 +271,12 @@ func TestComputeCrossPortfolioOverlap_CappedAtTop10(t *testing.T) {
 			Name:    "Stock " + string(rune('A'+i)),
 		})
 	}
-	holdings = append(holdings, portfolioHoldingETF(t, "MEGA_ETF", 100, tfHoldings))
+	holdings = append(holdings, portfolioHoldingETF(t, "MEGA_ETF", 1.0, tfHoldings))
 
 	input := CrossPortfolioOverlapInput{
 		PortfolioA: holdings,
 		PortfolioB: []PortfolioHolding{
-			portfolioHoldingStock(t, "AAPL", 100, "Apple"),
+			portfolioHoldingStock(t, "AAPL", 1.0, "Apple"),
 		},
 	}
 
@@ -290,9 +290,9 @@ func TestComputeCrossPortfolioOverlap_CappedAtTop10(t *testing.T) {
 
 func TestComputeCrossPortfolioOverlap_IdenticalPortfolios(t *testing.T) {
 	shared := []PortfolioHolding{
-		portfolioHoldingStock(t, "AAPL", 40, "Apple"),
-		portfolioHoldingStock(t, "MSFT", 35, "Microsoft"),
-		portfolioHoldingStock(t, "GOOGL", 25, "Alphabet"),
+		portfolioHoldingStock(t, "AAPL", 0.4, "Apple"),
+		portfolioHoldingStock(t, "MSFT", 0.35, "Microsoft"),
+		portfolioHoldingStock(t, "GOOGL", 0.25, "Alphabet"),
 	}
 
 	input := CrossPortfolioOverlapInput{
@@ -315,8 +315,8 @@ func TestComputeCrossPortfolioOverlap_IdenticalPortfolios(t *testing.T) {
 
 func TestExpandETFHoldings_DirectHoldingsOnly(t *testing.T) {
 	holdings := []PortfolioHolding{
-		portfolioHoldingStock(t, "AAPL", 40, "Apple"),
-		portfolioHoldingStock(t, "MSFT", 60, "Microsoft"),
+		portfolioHoldingStock(t, "AAPL", 0.4, "Apple"),
+		portfolioHoldingStock(t, "MSFT", 0.6, "Microsoft"),
 	}
 
 	result := expandETFHoldings(holdings)
@@ -326,20 +326,20 @@ func TestExpandETFHoldings_DirectHoldingsOnly(t *testing.T) {
 	}
 
 	aaplW, _ := result["AAPL"].weight.Float64()
-	if !floatEq(aaplW, 40.0, 0.01) {
-		t.Errorf("AAPL weight = %.2f, want 40.0", aaplW)
+	if !floatEq(aaplW, 0.4, 0.001) {
+		t.Errorf("AAPL weight = %.4f, want 0.4", aaplW)
 	}
 
 	msftW, _ := result["MSFT"].weight.Float64()
-	if !floatEq(msftW, 60.0, 0.01) {
-		t.Errorf("MSFT weight = %.2f, want 60.0", msftW)
+	if !floatEq(msftW, 0.6, 0.001) {
+		t.Errorf("MSFT weight = %.4f, want 0.6", msftW)
 	}
 }
 
 func TestExpandETFHoldings_MixedETFAndStock(t *testing.T) {
 	holdings := []PortfolioHolding{
-		portfolioHoldingStock(t, "AAPL", 30, "Apple"),
-		portfolioHoldingETF(t, "VOO", 70, topHoldings(
+		portfolioHoldingStock(t, "AAPL", 0.3, "Apple"),
+		portfolioHoldingETF(t, "VOO", 0.7, topHoldings(
 			[]string{"AAPL", "MSFT"},
 			[]float64{5, 4},
 			[]string{"Apple", "Microsoft"},
@@ -352,16 +352,16 @@ func TestExpandETFHoldings_MixedETFAndStock(t *testing.T) {
 		t.Fatalf("len = %d, want 2", len(result))
 	}
 
-	// AAPL = 30 + 70*5/100 = 30 + 3.5 = 33.5
+	// AAPL = 0.3 + 0.7*5/100 = 0.3 + 0.035 = 0.335
 	aaplW, _ := result["AAPL"].weight.Float64()
-	if !floatEq(aaplW, 33.5, 0.01) {
-		t.Errorf("AAPL weight = %.2f, want 33.5", aaplW)
+	if !floatEq(aaplW, 0.335, 0.001) {
+		t.Errorf("AAPL weight = %.4f, want 0.335", aaplW)
 	}
 
-	// MSFT = 70*4/100 = 2.8
+	// MSFT = 0.7*4/100 = 0.028
 	msftW, _ := result["MSFT"].weight.Float64()
-	if !floatEq(msftW, 2.8, 0.01) {
-		t.Errorf("MSFT weight = %.2f, want 2.8", msftW)
+	if !floatEq(msftW, 0.028, 0.001) {
+		t.Errorf("MSFT weight = %.4f, want 0.028", msftW)
 	}
 }
 
