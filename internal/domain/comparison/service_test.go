@@ -103,23 +103,6 @@ func (m *mockSymbolDetailsSource) GetByInternalSymbol(_ context.Context, sym str
 	return d, nil
 }
 
-type mockFxRateSource struct {
-	rates map[string]*market.FxRate
-	err   error
-}
-
-func (m *mockFxRateSource) GetHistoricalFxRate(_ context.Context, base, quote string, _ time.Time) (*market.FxRate, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	pair := market.FormatFxPair(base, quote)
-	r, ok := m.rates[pair]
-	if !ok {
-		return nil, fmt.Errorf("FX rate not found")
-	}
-	return r, nil
-}
-
 type mockPortfolioCurrencySource struct {
 	currencies map[int64]string
 	err        error
@@ -134,6 +117,22 @@ func (m *mockPortfolioCurrencySource) GetPortfolioCurrency(_ context.Context, id
 		return "", fmt.Errorf("portfolio not found")
 	}
 	return c, nil
+}
+
+type mockPortfolioNameSource struct {
+	names map[int64]string
+	err   error
+}
+
+func (m *mockPortfolioNameSource) GetPortfolioName(_ context.Context, id int64) (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+	n, ok := m.names[id]
+	if !ok {
+		return "", fmt.Errorf("portfolio not found")
+	}
+	return n, nil
 }
 
 type mockAllocationSource struct {
@@ -287,7 +286,7 @@ func TestComputeComparison_ModelVsModel(t *testing.T) {
 				"GOOG": {Currency: "USD"},
 			},
 		},
-		nil, // fxRates not needed (all USD)
+		nil, // portfolioName not needed (all USD)
 		nil, // portfolioCurrency not needed
 		nil, // allocation not needed for model-vs-model
 	)
@@ -1548,6 +1547,91 @@ func TestComputeComparison_OverlapRealVsReal(t *testing.T) {
 	}
 	if len(result.CrossMetrics.Overlap.TopHoldingsB) == 0 {
 		t.Error("TopHoldingsB is empty")
+	}
+}
+
+func TestComputeComparison_RealPortfolioName(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	curve := buildPerformanceEquityCurve(base, []float64{100, 102, 101, 103, 105})
+
+	svc := NewService(
+		nil,
+		&mockEquityCurveSource{
+			result: &performance.PerformanceResult{
+				EquityCurve:  curve,
+				BaseCurrency: "USD",
+			},
+		},
+		nil,
+		nil,
+		nil,
+		&mockPortfolioNameSource{
+			names: map[int64]string{
+				1: "My Growth Portfolio",
+				2: "My Value Portfolio",
+			},
+		},
+		nil,
+		nil,
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   1,
+		PortfolioAType: PortTypeReal,
+		PortfolioBID:   2,
+		PortfolioBType: PortTypeReal,
+		BaseCurrency:   "USD",
+	}
+
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
+	}
+
+	if result.PortfolioA.Name != "My Growth Portfolio" {
+		t.Errorf("PortfolioA.Name = %q, want %q", result.PortfolioA.Name, "My Growth Portfolio")
+	}
+	if result.PortfolioB.Name != "My Value Portfolio" {
+		t.Errorf("PortfolioB.Name = %q, want %q", result.PortfolioB.Name, "My Value Portfolio")
+	}
+}
+
+func TestComputeComparison_RealPortfolioName_Fallback(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	curve := buildPerformanceEquityCurve(base, []float64{100, 102, 101, 103, 105})
+
+	svc := NewService(
+		nil,
+		&mockEquityCurveSource{
+			result: &performance.PerformanceResult{
+				EquityCurve:  curve,
+				BaseCurrency: "USD",
+			},
+		},
+		nil,
+		nil,
+		nil,
+		nil, // no portfolioName source — should fallback to "Portfolio <id>"
+		nil,
+		nil,
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   42,
+		PortfolioAType: PortTypeReal,
+		PortfolioBID:   42,
+		PortfolioBType: PortTypeReal,
+		BaseCurrency:   "USD",
+	}
+
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
+	}
+
+	// Should fallback to "Portfolio <id>" when name source is nil.
+	if result.PortfolioA.Name != "Portfolio 42" {
+		t.Errorf("PortfolioA.Name = %q, want %q", result.PortfolioA.Name, "Portfolio 42")
 	}
 }
 

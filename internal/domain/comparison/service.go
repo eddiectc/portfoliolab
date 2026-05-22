@@ -42,9 +42,9 @@ type SymbolDetailsSource interface {
 	GetByInternalSymbol(ctx context.Context, internalSymbol string) (*symbol.SymbolDetails, error)
 }
 
-// FxRateSource fetches historical FX rates.
-type FxRateSource interface {
-	GetHistoricalFxRate(ctx context.Context, baseCurrency, quoteCurrency string, date time.Time) (*market.FxRate, error)
+// PortfolioNameSource returns the display name of a real portfolio by ID.
+type PortfolioNameSource interface {
+	GetPortfolioName(ctx context.Context, portfolioID int64) (string, error)
 }
 
 // PortfolioCurrencySource returns the base currency of a portfolio.
@@ -67,7 +67,7 @@ type Service struct {
 	marketHistory     MarketDataHistorySource
 	marketDataSymbol  MarketDataSymbolResolver
 	symbolDetails     SymbolDetailsSource
-	fxRates           FxRateSource
+	portfolioName     PortfolioNameSource
 	portfolioCurrency PortfolioCurrencySource
 	allocation        AllocationSource
 	logger            *slog.Logger
@@ -80,7 +80,7 @@ func NewService(
 	marketHistory MarketDataHistorySource,
 	marketDataSymbol MarketDataSymbolResolver,
 	symbolDetails SymbolDetailsSource,
-	fxRates FxRateSource,
+	portfolioName PortfolioNameSource,
 	portfolioCurrency PortfolioCurrencySource,
 	allocation AllocationSource,
 ) *Service {
@@ -90,7 +90,7 @@ func NewService(
 		marketHistory:     marketHistory,
 		marketDataSymbol:  marketDataSymbol,
 		symbolDetails:     symbolDetails,
-		fxRates:           fxRates,
+		portfolioName:     portfolioName,
 		portfolioCurrency: portfolioCurrency,
 		allocation:        allocation,
 	}
@@ -325,9 +325,17 @@ func (s *Service) resolveRealPortfolio(
 	// Convert performance equity curve to comparison equity curve.
 	curve := convertPerformanceToComparisonCurve(result.EquityCurve)
 
+	name := fmt.Sprintf("Portfolio %d", portfolioID)
+	if s.portfolioName != nil {
+		resolved, err := s.portfolioName.GetPortfolioName(ctx, portfolioID)
+		if err == nil && resolved != "" {
+			name = resolved
+		}
+	}
+
 	meta := &realPortfolioMeta{
 		ID:           portfolioID,
-		Name:         fmt.Sprintf("Portfolio %d", portfolioID),
+		Name:         name,
 		BaseCurrency: result.BaseCurrency,
 		Warnings:     result.Warnings,
 	}
