@@ -1,0 +1,583 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Portfolio Comparison</h1>
+</div>
+
+{{/* Filter bar: portfolio selectors + period */}}
+<form class="filter-bar" method="GET" action="/comparison" id="comparison-form">
+    <div class="filter-row">
+        {{/* Portfolio A type */}}
+        <div class="filter-group">
+            <label for="portfolio_a_type">Portfolio A</label>
+            <select id="portfolio_a_type" name="portfolio_a_type" onchange="updatePortfolioAOptions()">
+                <option value="model" {{if eq .SelectedPortfolioAType "model"}}selected{{end}}>Model Portfolio</option>
+                <option value="real" {{if eq .SelectedPortfolioAType "real"}}selected{{end}}>Real Portfolio</option>
+            </select>
+        </div>
+
+        {{/* Portfolio A selector */}}
+        <div class="filter-group">
+            <label for="portfolio_a_id">&nbsp;</label>
+            <select id="portfolio_a_id" name="portfolio_a_id">
+                {{if eq .SelectedPortfolioAType "model"}}
+                {{range .ModelPortfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioAID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+                {{else}}
+                {{range .Portfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioAID}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
+                {{end}}
+                {{end}}
+            </select>
+        </div>
+
+        {{/* Portfolio B type */}}
+        <div class="filter-group">
+            <label for="portfolio_b_type">Portfolio B</label>
+            <select id="portfolio_b_type" name="portfolio_b_type" onchange="updatePortfolioBOptions()">
+                <option value="model" {{if eq .SelectedPortfolioBType "model"}}selected{{end}}>Model Portfolio</option>
+                <option value="real" {{if eq .SelectedPortfolioBType "real"}}selected{{end}}>Real Portfolio</option>
+            </select>
+        </div>
+
+        {{/* Portfolio B selector */}}
+        <div class="filter-group">
+            <label for="portfolio_b_id">&nbsp;</label>
+            <select id="portfolio_b_id" name="portfolio_b_id">
+                {{if eq .SelectedPortfolioBType "model"}}
+                {{range .ModelPortfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioBID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+                {{else}}
+                {{range .Portfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioBID}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
+                {{end}}
+                {{end}}
+            </select>
+        </div>
+
+        {{/* Period */}}
+        <div class="filter-group">
+            <label>Period</label>
+            <div class="period-buttons">
+                {{range $p := slice "1W" "1M" "3M" "1Y" "3Y" "5Y" "YTD" "All"}}
+                <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="filter-group filter-actions">
+            <button type="submit" class="btn">Compare</button>
+        </div>
+    </div>
+</form>
+
+{{/* Error state */}}
+{{if .Error}}
+<div class="alert alert-error">{{.Error}}</div>
+{{else if not .Result}}
+<p class="empty-state">Select two portfolios above to compare them.</p>
+{{else}}
+
+{{/* Global warnings */}}
+{{if .Result.Warnings}}
+<div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;">
+    {{range .Result.Warnings}}
+    <span>⚠ {{.}}</span><br>
+    {{end}}
+</div>
+{{end}}
+
+{{/* Empty state message */}}
+{{if .Result.Message}}
+<p class="empty-state">{{.Result.Message}}</p>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Performance Metrics                 */}}
+{{/* ============================================ */}}
+<div class="analysis-section">
+    <h2>Performance Metrics</h2>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{template "comparison-return-row" .}}
+        </tbody>
+    </table>
+</div>
+
+{{/* ============================================ */}}
+{{/* SECTION: Risk Metrics                        */}}
+{{/* ============================================ */}}
+<div class="analysis-section">
+    <h2>Risk Metrics</h2>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Sharpe Ratio</td>
+                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SharpeRatio}}{{template "decimal-val" .Result.PortfolioA.RiskMetrics.SharpeRatio}}{{else}}—{{end}}</td>
+                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SharpeRatio}}{{template "decimal-val" .Result.PortfolioB.RiskMetrics.SharpeRatio}}{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Sortino Ratio</td>
+                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SortinoRatio}}{{template "decimal-val" .Result.PortfolioA.RiskMetrics.SortinoRatio}}{{else}}—{{end}}</td>
+                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SortinoRatio}}{{template "decimal-val" .Result.PortfolioB.RiskMetrics.SortinoRatio}}{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Volatility (Ann.)</td>
+                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct}}{{template "pct-val" .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct}}%{{else}}—{{end}}</td>
+                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct}}{{template "pct-val" .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct}}%{{else}}—{{end}}</td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="section-note">Risk-free rate: 0% (default). Sharpe uses daily returns annualized (×√252).</p>
+</div>
+
+{{/* ============================================ */}}
+{{/* SECTION: Drawdown Summary                    */}}
+{{/* ============================================ */}}
+<div class="analysis-section">
+    <h2>Drawdown</h2>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Max Drawdown</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.MaxDrawdownPct}}{{getHeatClassAbsolute .Result.PortfolioA.Drawdown.MaxDrawdownPct.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.MaxDrawdownPct}}{{template "pct-val" .Result.PortfolioA.Drawdown.MaxDrawdownPct}}%{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.MaxDrawdownPct}}{{getHeatClassAbsolute .Result.PortfolioB.Drawdown.MaxDrawdownPct.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.MaxDrawdownPct}}{{template "pct-val" .Result.PortfolioB.Drawdown.MaxDrawdownPct}}%{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Current Drawdown</td>
+                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.CurrentDrawdownPct}}{{template "pct-val" .Result.PortfolioA.Drawdown.CurrentDrawdownPct}}%{{else}}—{{end}}</td>
+                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.CurrentDrawdownPct}}{{template "pct-val" .Result.PortfolioB.Drawdown.CurrentDrawdownPct}}%{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Drawdown Duration</td>
+                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.DrawdownDurationDays}}{{.Result.PortfolioA.Drawdown.DrawdownDurationDays}} days{{else}}—{{end}}</td>
+                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.DrawdownDurationDays}}{{.Result.PortfolioB.Drawdown.DrawdownDurationDays}} days{{else}}—{{end}}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+{{/* ============================================ */}}
+{{/* SECTION: Annual Returns Chart                */}}
+{{/* ============================================ */}}
+{{if or .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns}}
+<div class="analysis-section">
+    <h2>Annual Returns</h2>
+    <div id="annual-returns-chart" style="width:100%;height:400px;"></div>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Year</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .YearlyReturnsMerged}}
+            <tr>
+                <td>{{.Year}}</td>
+                <td class="num {{if .ReturnA}}{{printf "%.4f" .ReturnA | getHeatClassAbsolute}}{{end}}">{{if .ReturnA}}{{printf "%.2f" .ReturnA}}%{{else}}—{{end}}</td>
+                <td class="num {{if .ReturnB}}{{printf "%.4f" .ReturnB | getHeatClassAbsolute}}{{end}}">{{if .ReturnB}}{{printf "%.2f" .ReturnB}}%{{else}}—{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Period Extremes                     */}}
+{{/* ============================================ */}}
+{{if or .Result.PortfolioA.PeriodExtremes .Result.PortfolioB.PeriodExtremes}}
+<div class="analysis-section">
+    <h2>Period Extremes</h2>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Best Month</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.BestMonth}}{{getHeatClassAbsolute .Result.PortfolioA.PeriodExtremes.BestMonth.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.BestMonth}}{{template "pct-val" .Result.PortfolioA.PeriodExtremes.BestMonth}}% ({{.Result.PortfolioA.PeriodExtremes.BestMonthLabel}}){{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.BestMonth}}{{getHeatClassAbsolute .Result.PortfolioB.PeriodExtremes.BestMonth.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.BestMonth}}{{template "pct-val" .Result.PortfolioB.PeriodExtremes.BestMonth}}% ({{.Result.PortfolioB.PeriodExtremes.BestMonthLabel}}){{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Worst Month</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.WorstMonth}}{{getHeatClassAbsolute .Result.PortfolioA.PeriodExtremes.WorstMonth.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.WorstMonth}}{{template "pct-val" .Result.PortfolioA.PeriodExtremes.WorstMonth}}% ({{.Result.PortfolioA.PeriodExtremes.WorstMonthLabel}}){{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.WorstMonth}}{{getHeatClassAbsolute .Result.PortfolioB.PeriodExtremes.WorstMonth.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.WorstMonth}}{{template "pct-val" .Result.PortfolioB.PeriodExtremes.WorstMonth}}% ({{.Result.PortfolioB.PeriodExtremes.WorstMonthLabel}}){{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Best Year</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.BestYear}}{{getHeatClassAbsolute .Result.PortfolioA.PeriodExtremes.BestYear.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.BestYear}}{{template "pct-val" .Result.PortfolioA.PeriodExtremes.BestYear}}% ({{.Result.PortfolioA.PeriodExtremes.BestYearLabel}}){{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.BestYear}}{{getHeatClassAbsolute .Result.PortfolioB.PeriodExtremes.BestYear.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.BestYear}}{{template "pct-val" .Result.PortfolioB.PeriodExtremes.BestYear}}% ({{.Result.PortfolioB.PeriodExtremes.BestYearLabel}}){{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Worst Year</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.WorstYear}}{{getHeatClassAbsolute .Result.PortfolioA.PeriodExtremes.WorstYear.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.WorstYear}}{{template "pct-val" .Result.PortfolioA.PeriodExtremes.WorstYear}}% ({{.Result.PortfolioA.PeriodExtremes.WorstYearLabel}}){{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.WorstYear}}{{getHeatClassAbsolute .Result.PortfolioB.PeriodExtremes.WorstYear.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.WorstYear}}{{template "pct-val" .Result.PortfolioB.PeriodExtremes.WorstYear}}% ({{.Result.PortfolioB.PeriodExtremes.WorstYearLabel}}){{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Win Rate (monthly)</td>
+                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.PeriodExtremes .Result.PortfolioA.PeriodExtremes.WinRatePct}}{{template "pct-val" .Result.PortfolioA.PeriodExtremes.WinRatePct}}%{{else}}—{{end}}</td>
+                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.PeriodExtremes .Result.PortfolioB.PeriodExtremes.WinRatePct}}{{template "pct-val" .Result.PortfolioB.PeriodExtremes.WinRatePct}}%{{else}}—{{end}}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Monthly Return Distribution         */}}
+{{/* ============================================ */}}
+{{if or .Result.PortfolioA.ReturnDistribution .Result.PortfolioB.ReturnDistribution}}
+<div class="analysis-section">
+    <h2>Monthly Return Distribution</h2>
+    <div class="comparison-charts-row">
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</h3>
+            <div id="monthly-histogram-a" style="width:100%;height:300px;"></div>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</h3>
+            <div id="monthly-histogram-b" style="width:100%;height:300px;"></div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Cross-Portfolio Metrics             */}}
+{{/* ============================================ */}}
+{{if .Result.CrossMetrics}}
+<div class="analysis-section">
+    <h2>Cross-Portfolio Metrics</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{if .Result.CrossMetrics.BetaAlpha}}
+            <tr>
+                <td>Beta (A vs B)</td>
+                <td class="num">{{if .Result.CrossMetrics.BetaAlpha.Beta}}{{template "decimal-val" .Result.CrossMetrics.BetaAlpha.Beta}}{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Alpha (A vs B)</td>
+                <td class="num">{{if .Result.CrossMetrics.BetaAlpha.Alpha}}{{template "pct-val" .Result.CrossMetrics.BetaAlpha.Alpha}}%{{else}}—{{end}}</td>
+            </tr>
+            {{end}}
+            {{if .Result.CrossMetrics.Correlation}}
+            <tr>
+                <td>Correlation</td>
+                <td class="num">{{if .Result.CrossMetrics.Correlation.Correlation}}{{template "decimal-val" .Result.CrossMetrics.Correlation.Correlation}}{{else}}—{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <p class="section-note">Beta measures sensitivity of A's returns to B's returns. Alpha is A's excess return not explained by beta. Correlation is the Pearson coefficient between daily return series.</p>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Holdings Overlap                    */}}
+{{/* ============================================ */}}
+{{if and .Result.CrossMetrics .Result.CrossMetrics.Overlap}}
+<div class="analysis-section">
+    <h2>Holdings Overlap</h2>
+
+    {{if .Result.CrossMetrics.Overlap.Warnings}}
+    <div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;font-size:0.9em;">
+        {{range .Result.CrossMetrics.Overlap.Warnings}}⚠ {{.}}<br>{{end}}
+    </div>
+    {{end}}
+
+    {{if .Result.CrossMetrics.Overlap.OverlapPct}}
+    <p>Overlap: <strong>{{template "pct-val" .Result.CrossMetrics.Overlap.OverlapPct}}%</strong> (Jaccard similarity of unique underlying holdings)</p>
+    {{end}}
+
+    <div class="comparison-charts-row">
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}} — Top Holdings</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Weight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Result.CrossMetrics.Overlap.TopHoldingsA}}
+                    <tr>
+                        <td>{{.Symbol}}</td>
+                        <td>{{if .Name}}{{.Name}}{{else}}—{{end}}</td>
+                        <td class="num">{{.Weight.String}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}} — Top Holdings</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Weight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Result.CrossMetrics.Overlap.TopHoldingsB}}
+                    <tr>
+                        <td>{{.Symbol}}</td>
+                        <td>{{if .Name}}{{.Name}}{{else}}—{{end}}</td>
+                        <td class="num">{{.Weight.String}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* Per-portfolio warnings                       */}}
+{{/* ============================================ */}}
+{{if .Result.PortfolioA.Warnings}}
+<div class="analysis-section">
+    <h3>{{.Result.PortfolioA.Name}} — Warnings</h3>
+    {{range .Result.PortfolioA.Warnings}}
+    <p style="color:#856404;">⚠ {{.}}</p>
+    {{end}}
+</div>
+{{end}}
+{{if .Result.PortfolioB.Warnings}}
+<div class="analysis-section">
+    <h3>{{.Result.PortfolioB.Name}} — Warnings</h3>
+    {{range .Result.PortfolioB.Warnings}}
+    <p style="color:#856404;">⚠ {{.}}</p>
+    {{end}}
+</div>
+{{end}}
+
+{{/* ECharts scripts */}}
+{{if or .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns}}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+{{end}}
+
+{{/* Annual returns bar chart */}}
+{{if or .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.AnnualReturnsChartData}}');
+        if (!data.years || data.years.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('annual-returns-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    var tip = params[0].name + '<br/>';
+                    for (var i = 0; i < params.length; i++) {
+                        tip += params[i].marker + params[i].seriesName + ': ' + params[i].value.toFixed(2) + '%<br/>';
+                    }
+                    return tip;
+                }
+            },
+            legend: {
+                data: [data.name_a, data.name_b]
+            },
+            grid: { left: '3%', right: '10%', bottom: '3%', top: '15%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: data.years
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: { formatter: '{value}%' }
+            },
+            series: [
+                {
+                    name: data.name_a,
+                    type: 'bar',
+                    data: data.return_a,
+                    itemStyle: { color: '#4575b4' },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: function(p) { return p.value.toFixed(1) + '%'; },
+                        fontSize: 10
+                    }
+                },
+                {
+                    name: data.name_b,
+                    type: 'bar',
+                    data: data.return_b,
+                    itemStyle: { color: '#d73027' },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: function(p) { return p.value.toFixed(1) + '%'; },
+                        fontSize: 10
+                    }
+                }
+            ]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Annual returns chart failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Monthly histogram A */}}
+{{if .MonthlyHistogramAChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.MonthlyHistogramAChart}}');
+        if (!data.bins || data.bins.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('monthly-histogram-a'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' }
+            },
+            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: data.bins,
+                axisLabel: { rotate: 45, fontSize: 10 }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Count'
+            },
+            series: [{
+                type: 'bar',
+                data: data.counts,
+                itemStyle: { color: '#4575b4' }
+            }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Monthly histogram A failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Monthly histogram B */}}
+{{if .MonthlyHistogramBChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.MonthlyHistogramBChart}}');
+        if (!data.bins || data.bins.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('monthly-histogram-b'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' }
+            },
+            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: data.bins,
+                axisLabel: { rotate: 45, fontSize: 10 }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Count'
+            },
+            series: [{
+                type: 'bar',
+                data: data.counts,
+                itemStyle: { color: '#d73027' }
+            }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Monthly histogram B failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{end}}
+{{end}}
+
+{{/* Helper: return metrics comparison row */}}
+{{define "comparison-return-row"}}
+<tr>
+    <td>Total Return</td>
+    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
+    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
+</tr>
+<tr>
+    <td>Annualized Return</td>
+    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct}}%{{else}}—{{end}}</td>
+    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct}}%{{else}}—{{end}}</td>
+</tr>
+<tr>
+    <td>CAGR</td>
+    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.CAGRPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.CAGRPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.CAGRPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.CAGRPct}}%{{else}}—{{end}}</td>
+    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.CAGRPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.CAGRPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.CAGRPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.CAGRPct}}%{{else}}—{{end}}</td>
+</tr>
+{{end}}
+
+{{/* Helper: decimal value (4dp) — expects a decimal.Decimal */}}
+{{define "decimal-val"}}
+{{.String}}
+{{end}}
+
+{{/* Helper: percentage value (2dp) — expects a decimal.Decimal */}}
+{{define "pct-val"}}
+{{formatPct .}}
+{{end}}
+
+{{/* Helper: fraction to percentage — expects a decimal.Decimal fraction (0.0-1.0) */}}
+{{define "pct-fraction"}}
+{{formatPct .}}
+{{end}}
+
+{{template "base" .}}
