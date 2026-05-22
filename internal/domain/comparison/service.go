@@ -757,10 +757,9 @@ func (s *Service) buildPortfolioHoldings(ctx context.Context, meta portfolioMeta
 func (s *Service) buildModelHoldings(ctx context.Context, meta *modelPortfolioMeta) ([]PortfolioHolding, bool) {
 	holdings := make([]PortfolioHolding, 0, len(meta.Weights))
 	for _, w := range meta.Weights {
-		weightPct, _ := w.Weight.Mul(decimal.MustNew(10000, 2)) // fraction → percentage
 		holding := PortfolioHolding{
-			Symbol:    w.Symbol,
-			WeightPct: weightPct,
+			Symbol: w.Symbol,
+			Weight: w.Weight, // already a fraction (0.0-1.0)
 			QuoteType: "EQUITY", // default
 		}
 
@@ -809,8 +808,11 @@ func (s *Service) buildRealHoldings(ctx context.Context, meta *realPortfolioMeta
 	holdings := make([]PortfolioHolding, 0, len(result.Rows))
 	for _, row := range result.Rows {
 		holding := PortfolioHolding{
-			Symbol:    row.Symbol,
-			WeightPct: row.AllocationPct,
+			Symbol: row.Symbol,
+			Weight: func() decimal.Decimal {
+				frac, _ := row.AllocationPct.Quo(decimal.MustNew(100, 0)) // percentage → fraction
+				return frac
+			}(),
 			QuoteType: "EQUITY", // default
 		}
 
