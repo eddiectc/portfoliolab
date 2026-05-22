@@ -120,12 +120,12 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 **Description:** End-to-end integration test exercising the full comparison stack with real SQLite schema.
 
-- [ ] Create `tests/integration/comparison_test.go` using the shared test helper (`tests/integration/db.go`)
-- [ ] Seed test data: create model portfolios, insert historical market data for symbols
-- [ ] Test: GET `/api/comparison` with two model portfolios returns valid result with computed metrics
-- [ ] Test: GET `/api/comparison` with real portfolio (transactions) vs model portfolio
-- [ ] Test: edge case — real portfolio with no transactions returns empty metrics + message
-- [ ] Test: period filtering (1Y, 3Y, custom date range)
+- [x] Create `tests/integration/comparison_test.go` using the shared test helper (`tests/integration/db.go`)
+- [x] Seed test data: create model portfolios, insert historical market data for symbols
+- [x] Test: GET `/api/comparison` with two model portfolios returns valid result with computed metrics
+- [x] Test: GET `/api/comparison` with real portfolio (transactions) vs model portfolio
+- [x] Test: edge case — real portfolio with no transactions returns empty metrics + message
+- [x] Test: period filtering (1Y, 3Y, custom date range)
 
 **Verification:** `go test ./tests/integration/ -run Comparison` passes.
 
