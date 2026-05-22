@@ -1051,6 +1051,151 @@ DELETE /api/model-portfolios/{id}
 }
 ```
 
+### Get Portfolio Comparison
+
+```
+GET /api/comparison
+```
+
+Compare any two portfolios (model vs model, model vs real, or real vs real) on performance, risk, drawdown, distribution, overlap, and correlation metrics. Model portfolios use a buy-and-hold simulation starting from `starting_value`. Real portfolios use actual transaction history.
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `portfolio_a_id` | int64 | yes | Portfolio A ID (model or real) |
+| `portfolio_a_type` | string | yes | Portfolio A type: `model` or `real` |
+| `portfolio_b_id` | int64 | yes | Portfolio B ID (model or real) |
+| `portfolio_b_type` | string | yes | Portfolio B type: `model` or `real` |
+| `period` | string | no | Fixed period: `1W`, `1M`, `3M`, `1Y`, `3Y`, `5Y`, `YTD`, `All` |
+| `date_from` | string | no | Custom start date (YYYY-MM-DD). Overrides `period`. |
+| `date_to` | string | no | Custom end date (YYYY-MM-DD). Overrides `period`. |
+| `base_currency` | string | no | Base currency for all values (e.g. `USD`, `EUR`). |
+| `starting_value` | string | no | Initial investment for model portfolio simulation. Default: `10000`. |
+
+**Response:** `200 OK` — `ComparisonResult`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `MISSING_PORTFOLIO_A_ID` | 400 | `portfolio_a_id` is required |
+| `INVALID_PORTFOLIO_A_ID` | 400 | `portfolio_a_id` is not a valid integer |
+| `MISSING_PORTFOLIO_A_TYPE` | 400 | `portfolio_a_type` is required |
+| `INVALID_PORTFOLIO_A_TYPE` | 400 | `portfolio_a_type` must be `model` or `real` |
+| `MISSING_PORTFOLIO_B_ID` | 400 | `portfolio_b_id` is required |
+| `INVALID_PORTFOLIO_B_ID` | 400 | `portfolio_b_id` is not a valid integer |
+| `MISSING_PORTFOLIO_B_TYPE` | 400 | `portfolio_b_type` is required |
+| `INVALID_PORTFOLIO_B_TYPE` | 400 | `portfolio_b_type` must be `model` or `real` |
+| `INVALID_PERIOD` | 400 | `period` is not a valid fixed period |
+| `INVALID_DATE_FROM` | 400 | `date_from` is not a valid date (YYYY-MM-DD) |
+| `INVALID_DATE_TO` | 400 | `date_to` is not a valid date (YYYY-MM-DD) |
+| `INVALID_STARTING_VALUE` | 400 | `starting_value` is not a valid number or is ≤ 0 |
+| `INTERNAL_ERROR` | 500 | Comparison computation failed |
+
+### ComparisonResult
+
+```json
+{
+  "computed_at": "2024-01-15T12:00:00Z",
+  "portfolio_a": {
+    "id": 1,
+    "name": "Growth Portfolio",
+    "type": "model",
+    "return_metrics": {
+      "twr_pct": 15.50,
+      "annualized_twr_pct": 7.75,
+      "simple_return_pct": 15.00,
+      "annualized_simple_pct": 7.50,
+      "cagr_pct": 7.50,
+      "days_elapsed": 365,
+      "has_insufficient_data": false
+    },
+    "risk_metrics": {
+      "annualized_volatility_pct": 12.30,
+      "sharpe_ratio": 0.65,
+      "sortino_ratio": 0.92
+    },
+    "drawdown": {
+      "max_drawdown_pct": -8.50,
+      "current_drawdown_pct": -2.30,
+      "drawdown_duration_days": 45
+    },
+    "yearly_returns": [
+      {"year": 2024, "return_pct": 15.50}
+    ],
+    "period_extremes": {
+      "best_month": 8.50,
+      "best_month_label": "2024-03",
+      "worst_month": -6.20,
+      "worst_month_label": "2024-09",
+      "best_year": 15.50,
+      "best_year_label": "2024",
+      "worst_year": -3.20,
+      "worst_year_label": "2023",
+      "win_rate_pct": 66.67
+    },
+    "return_distribution": {
+      "annual": [
+        {"label": "2024: +15.50%", "count": 1}
+      ],
+      "monthly": [
+        {"label": "-5% to 0%", "count": 3},
+        {"label": "0% to 5%", "count": 5},
+        {"label": "5% to 10%", "count": 4}
+      ]
+    },
+    "warnings": []
+  },
+  "portfolio_b": {
+    "id": 2,
+    "name": "Value Portfolio",
+    "type": "real",
+    "return_metrics": {
+      "twr_pct": 12.00,
+      "simple_return_pct": 11.50,
+      "cagr_pct": 6.00,
+      "days_elapsed": 365,
+      "has_insufficient_data": false
+    },
+    "risk_metrics": {
+      "annualized_volatility_pct": 10.50,
+      "sharpe_ratio": 0.78,
+      "sortino_ratio": 1.10
+    },
+    "drawdown": {
+      "max_drawdown_pct": -6.00,
+      "current_drawdown_pct": -1.50,
+      "drawdown_duration_days": 30
+    }
+  },
+  "cross_metrics": {
+    "beta_alpha": {
+      "beta": 1.05,
+      "alpha": 2.50,
+      "overlap_days": 252
+    },
+    "correlation": {
+      "correlation": 0.87,
+      "overlap_days": 252
+    },
+    "overlap": {
+      "top_holdings_a": [
+        {"symbol": "AAPL", "weight": 0.30, "name": "Apple Inc."},
+        {"symbol": "GOOG", "weight": 0.20}
+      ],
+      "top_holdings_b": [
+        {"symbol": "AAPL", "weight": 0.25, "name": "Apple Inc."},
+        {"symbol": "MSFT", "weight": 0.20}
+      ],
+      "overlap_pct": 45.00,
+      "warnings": []
+    }
+  },
+  "warnings": ["symbol data clipped for GOOG"]
+}
+```
+
 ---
 
 ## Architecture Notes
