@@ -105,8 +105,8 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 **Description:** Build the server-rendered comparison page with ECharts visualizations. Follows the `analysis_web.go` pattern: web handler delegates to API handler's `computeResult`, serializes chart data as JSON, renders template.
 
 - [x] Create `internal/api/handlers/comparison_web.go` with `ComparisonWebHandler`, `HandleComparison` (GET `/comparison`), portfolio selector fetching
-- [x] Serialize chart data: drawdown line chart (both portfolios), annual returns bar chart, return frequency histograms, correlation matrix heatmap, overlap visualization
-- [x] Create `templates/comparison/index.html` with sections: performance metrics table, risk metrics table, drawdown chart, annual returns chart, period extremes table, overlap section, correlation section
+- [x] Serialize chart data: drawdown line chart (both portfolios), annual returns bar chart, annual return frequency histograms, monthly return frequency histograms, intra-portfolio correlation matrix heatmaps, overlap visualization
+- [x] Create `templates/comparison/index.html` with sections: performance metrics table, risk metrics table, drawdown chart, drawdown over time line chart, annual returns chart, annual return frequency distribution, monthly return distribution, intra-portfolio correlation, overlap section, correlation section, period extremes table
 - [x] Add nav link: add "Comparison" entry to `templates/partials/nav.html`
 - [x] Register web routes in `internal/api/router.go`
 - [x] Create `internal/api/handlers/comparison_web_test.go` with handler tests: page renders with both portfolios selected, page renders error state for missing data

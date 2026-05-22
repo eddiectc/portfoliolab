@@ -66,6 +66,33 @@
             </div>
         </div>
 
+        {{/* Custom date range */}}
+        <div class="filter-group">
+            <label for="date_from">From</label>
+            <input type="date" id="date_from" name="date_from" value="{{.SelectedDateFrom}}" />
+        </div>
+
+        <div class="filter-group">
+            <label for="date_to">To</label>
+            <input type="date" id="date_to" name="date_to" value="{{.SelectedDateTo}}" />
+        </div>
+
+        {{/* Base currency */}}
+        <div class="filter-group">
+            <label for="base_currency">Currency</label>
+            <select id="base_currency" name="base_currency">
+                {{range $c := slice "USD" "EUR" "GBP" "JPY" "CHF" "CAD" "AUD" "CNY"}}
+                <option value="{{$c}}" {{if eq $.SelectedBaseCurrency $c}}selected{{end}}>{{$c}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        {{/* Starting value for model portfolios */}}
+        <div class="filter-group">
+            <label for="starting_value">Start Value</label>
+            <input type="number" id="starting_value" name="starting_value" value="{{.SelectedStartingValue}}" step="1000" min="1" />
+        </div>
+
         <div class="filter-group filter-actions">
             <button type="submit" class="btn">Compare</button>
         </div>
@@ -179,6 +206,14 @@
     </table>
 </div>
 
+{{/* Drawdown line chart */}}
+{{if .DrawdownChartData}}
+<div class="analysis-section">
+    <h2>Drawdown Over Time</h2>
+    <div id="drawdown-chart" style="width:100%;height:350px;"></div>
+</div>
+{{end}}
+
 {{/* ============================================ */}}
 {{/* SECTION: Annual Returns Chart                */}}
 {{/* ============================================ */}}
@@ -267,6 +302,48 @@
             <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</h3>
             <div id="monthly-histogram-b" style="width:100%;height:300px;"></div>
         </div>
+    </div>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Annual Return Frequency Distribution */}}
+{{/* ============================================ */}}
+{{if or .Result.PortfolioA.ReturnDistribution .Result.PortfolioB.ReturnDistribution}}
+<div class="analysis-section">
+    <h2>Annual Return Frequency Distribution</h2>
+    <div class="comparison-charts-row">
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</h3>
+            <div id="annual-histogram-a" style="width:100%;height:300px;"></div>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</h3>
+            <div id="annual-histogram-b" style="width:100%;height:300px;"></div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Intra-Portfolio Correlation         */}}
+{{/* ============================================ */}}
+{{if or .CorrelationMatrixAChart .CorrelationMatrixBChart}}
+<div class="analysis-section">
+    <h2>Intra-Portfolio Correlation</h2>
+    <div class="comparison-charts-row">
+        {{if .CorrelationMatrixAChart}}
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</h3>
+            <div id="correlation-matrix-a" style="width:100%;height:400px;"></div>
+        </div>
+        {{end}}
+        {{if .CorrelationMatrixBChart}}
+        <div style="flex:1;min-width:0;">
+            <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</h3>
+            <div id="correlation-matrix-b" style="width:100%;height:400px;"></div>
+        </div>
+        {{end}}
     </div>
 </div>
 {{end}}
@@ -392,7 +469,7 @@
 {{end}}
 
 {{/* ECharts scripts */}}
-{{if or .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns}}
+{{if or .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns .DrawdownChartData .CorrelationMatrixAChart .CorrelationMatrixBChart .AnnualHistogramAChart .AnnualHistogramBChart .MonthlyHistogramAChart .MonthlyHistogramBChart}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 {{end}}
 
@@ -543,8 +620,277 @@
 </script>
 {{end}}
 
+{{/* Drawdown line chart */}}
+{{if .DrawdownChartData}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.DrawdownChartData}}');
+        if (!data.dates || data.dates.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('drawdown-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    var tip = params[0].axisValue + '<br/>';
+                    for (var i = 0; i < params.length; i++) {
+                        tip += params[i].marker + params[i].seriesName + ': -' + Math.abs(params[i].value).toFixed(2) + '%<br/>';
+                    }
+                    return tip;
+                }
+            },
+            legend: { data: [data.name_a, data.name_b] },
+            grid: { left: '3%', right: '10%', bottom: '3%', top: '15%', containLabel: true },
+            xAxis: { type: 'category', data: data.dates },
+            yAxis: {
+                type: 'value',
+                name: 'Drawdown %',
+                axisLabel: { formatter: function(v) { return v + '%'; } }
+            },
+            series: [
+                {
+                    name: data.name_a,
+                    type: 'line',
+                    data: data.portfolio_a,
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { width: 2 },
+                    itemStyle: { color: '#4575b4' },
+                    areaStyle: { color: 'rgba(69,117,180,0.15)' }
+                },
+                {
+                    name: data.name_b,
+                    type: 'line',
+                    data: data.portfolio_b,
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { width: 2 },
+                    itemStyle: { color: '#d73027' },
+                    areaStyle: { color: 'rgba(215,48,39,0.15)' }
+                }
+            ]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Drawdown chart failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Annual frequency histogram A */}}
+{{if .AnnualHistogramAChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.AnnualHistogramAChart}}');
+        if (!data.bins || data.bins.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('annual-histogram-a'));
+        chart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
+            xAxis: { type: 'category', data: data.bins, axisLabel: { rotate: 45, fontSize: 10 } },
+            yAxis: { type: 'value', name: 'Count' },
+            series: [{ type: 'bar', data: data.counts, itemStyle: { color: '#4575b4' } }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Annual histogram A failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Annual frequency histogram B */}}
+{{if .AnnualHistogramBChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.AnnualHistogramBChart}}');
+        if (!data.bins || data.bins.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('annual-histogram-b'));
+        chart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
+            xAxis: { type: 'category', data: data.bins, axisLabel: { rotate: 45, fontSize: 10 } },
+            yAxis: { type: 'value', name: 'Count' },
+            series: [{ type: 'bar', data: data.counts, itemStyle: { color: '#d73027' } }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Annual histogram B failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Correlation matrix A */}}
+{{if .CorrelationMatrixAChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.CorrelationMatrixAChart}}');
+        if (!data.symbols || data.symbols.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('correlation-matrix-a'));
+        var pairs = [];
+        for (var i = 0; i < data.symbols.length; i++) {
+            for (var j = 0; j < data.symbols.length; j++) {
+                var val = data.matrix[i][j];
+                pairs.push([i, j, val !== null ? val : 0]);
+            }
+        }
+        chart.setOption({
+            tooltip: {
+                formatter: function(p) {
+                    return data.symbols[p.value[0]] + ' vs ' + data.symbols[p.value[1]] + '<br/>Correlation: ' + p.value[2].toFixed(3);
+                }
+            },
+            grid: { left: '15%', right: '10%', bottom: '15%', top: '5%' },
+            xAxis: { type: 'category', data: data.symbols, axisLabel: { rotate: 45, fontSize: 10 } },
+            yAxis: { type: 'category', data: data.symbols },
+            visualMap: {
+                min: -1, max: 1,
+                orient: 'horizontal',
+                itemWidth: 15, itemHeight: 120,
+                color: ['#2166ac', '#d1e5f0', '#f7f7f7', '#fddbc7', '#b2182c'],
+                show: false
+            },
+            series: [{
+                type: 'heatmap',
+                data: pairs,
+                label: { show: true, formatter: function(p) { return p.value[2].toFixed(2); }, fontSize: 10 },
+                emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } }
+            }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Correlation matrix A failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Correlation matrix B */}}
+{{if .CorrelationMatrixBChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.CorrelationMatrixBChart}}');
+        if (!data.symbols || data.symbols.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('correlation-matrix-b'));
+        var pairs = [];
+        for (var i = 0; i < data.symbols.length; i++) {
+            for (var j = 0; j < data.symbols.length; j++) {
+                var val = data.matrix[i][j];
+                pairs.push([i, j, val !== null ? val : 0]);
+            }
+        }
+        chart.setOption({
+            tooltip: {
+                formatter: function(p) {
+                    return data.symbols[p.value[0]] + ' vs ' + data.symbols[p.value[1]] + '<br/>Correlation: ' + p.value[2].toFixed(3);
+                }
+            },
+            grid: { left: '15%', right: '10%', bottom: '15%', top: '5%' },
+            xAxis: { type: 'category', data: data.symbols, axisLabel: { rotate: 45, fontSize: 10 } },
+            yAxis: { type: 'category', data: data.symbols },
+            visualMap: {
+                min: -1, max: 1,
+                orient: 'horizontal',
+                itemWidth: 15, itemHeight: 120,
+                color: ['#2166ac', '#d1e5f0', '#f7f7f7', '#fddbc7', '#b2182c'],
+                show: false
+            },
+            series: [{
+                type: 'heatmap',
+                data: pairs,
+                label: { show: true, formatter: function(p) { return p.value[2].toFixed(2); }, fontSize: 10 },
+                emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } }
+            }]
+        });
+
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Correlation matrix B failed:', e);
+    }
+})();
+</script>
+{{end}}
+
 {{end}}
 {{end}}
+
+{{/* JS: Portfolio dropdown type switching */}}
+<script>
+(function() {
+    // Re-populate portfolio A selector when type changes.
+    window.updatePortfolioAOptions = function() {
+        var type = document.getElementById('portfolio_a_type').value;
+        var select = document.getElementById('portfolio_a_id');
+        var currentVal = select.value;
+        select.innerHTML = '';
+
+        if (type === 'model') {
+            {{range .ModelPortfolios}}
+            var opt = document.createElement('option');
+            opt.value = '{{.ID}}';
+            opt.textContent = '{{.Name}}';
+            select.appendChild(opt);
+            {{end}}
+        } else {
+            {{range .Portfolios}}
+            var opt = document.createElement('option');
+            opt.value = '{{.ID}}';
+            opt.textContent = '{{.Name}} ({{.Currency}})';
+            select.appendChild(opt);
+            {{end}}
+        }
+
+        // Try to restore previous selection.
+        if (select.querySelector('option[value="' + currentVal + '"]')) {
+            select.value = currentVal;
+        }
+    };
+
+    // Re-populate portfolio B selector when type changes.
+    window.updatePortfolioBOptions = function() {
+        var type = document.getElementById('portfolio_b_type').value;
+        var select = document.getElementById('portfolio_b_id');
+        var currentVal = select.value;
+        select.innerHTML = '';
+
+        if (type === 'model') {
+            {{range .ModelPortfolios}}
+            var opt = document.createElement('option');
+            opt.value = '{{.ID}}';
+            opt.textContent = '{{.Name}}';
+            select.appendChild(opt);
+            {{end}}
+        } else {
+            {{range .Portfolios}}
+            var opt = document.createElement('option');
+            opt.value = '{{.ID}}';
+            opt.textContent = '{{.Name}} ({{.Currency}})';
+            select.appendChild(opt);
+            {{end}}
+        }
+
+        // Try to restore previous selection.
+        if (select.querySelector('option[value="' + currentVal + '"]')) {
+            select.value = currentVal;
+        }
+    };
+})();
+</script>
 
 {{/* Helper: return metrics comparison row */}}
 {{define "comparison-return-row"}}

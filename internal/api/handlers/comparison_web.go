@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -39,10 +40,12 @@ type yearlyReturnRow struct {
 // comparisonPageData is the data struct for the comparison page template.
 type comparisonPageData struct {
 	web.PageData
-	Result              *comparison.ComparisonResult
+	Result *comparison.ComparisonResult
 	// Pre-serialized JSON for ECharts.
 	DrawdownChartData       string
 	AnnualReturnsChartData  string
+	AnnualHistogramAChart   string
+	AnnualHistogramBChart   string
 	MonthlyHistogramAChart  string
 	MonthlyHistogramBChart  string
 	OverlapChartData        string
@@ -151,11 +154,13 @@ func (h *ComparisonWebHandler) buildPageData(
 	// Serialize chart data.
 	drawdownChart := serializeDrawdownChartData(result)
 	annualReturnsChart := serializeAnnualReturnsChartData(result)
+	annualHistA := serializeAnnualFrequencyHistogram(result, "A")
+	annualHistB := serializeAnnualFrequencyHistogram(result, "B")
 	monthlyHistA := serializeMonthlyHistogram(result, "A")
 	monthlyHistB := serializeMonthlyHistogram(result, "B")
 	overlapChart := serializeOverlapChartData(result)
-	corrMatrixA := "" // not exposed in ComparisonResult at the service layer
-	corrMatrixB := ""
+	corrMatrixA := serializeCorrelationMatrix(result, "A")
+	corrMatrixB := serializeCorrelationMatrix(result, "B")
 	mergedYearly := mergeYearlyReturns(result)
 
 	return comparisonPageData{
@@ -163,6 +168,8 @@ func (h *ComparisonWebHandler) buildPageData(
 		Result:                  result,
 		DrawdownChartData:       drawdownChart,
 		AnnualReturnsChartData:  annualReturnsChart,
+		AnnualHistogramAChart:   annualHistA,
+		AnnualHistogramBChart:   annualHistB,
 		MonthlyHistogramAChart:  monthlyHistA,
 		MonthlyHistogramBChart:  monthlyHistB,
 		OverlapChartData:        overlapChart,
@@ -313,11 +320,11 @@ func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string) m
 
 // drawdownChartData holds JSON data for the drawdown line chart.
 type drawdownChartData struct {
-	Dates          []string   `json:"dates"`
-	PortfolioA     []float64  `json:"portfolio_a"`
-	PortfolioB     []float64  `json:"portfolio_b"`
-	NameA          string     `json:"name_a"`
-	NameB          string     `json:"name_b"`
+	Dates      []string  `json:"dates"`
+	PortfolioA []float64 `json:"portfolio_a"`
+	PortfolioB []float64 `json:"portfolio_b"`
+	NameA      string    `json:"name_a"`
+	NameB      string    `json:"name_b"`
 }
 
 // serializeDrawdownChartData converts the comparison result to drawdown chart JSON.
@@ -325,20 +332,62 @@ func serializeDrawdownChartData(result *comparison.ComparisonResult) string {
 	if result == nil || result.PortfolioA == nil || result.PortfolioB == nil {
 		return "{}"
 	}
-	// The service doesn't expose raw drawdown series in the result type.
-	// The drawdown chart requires the full drawdown-over-time series which is
-	// computed internally. For now, return empty — the page shows summary stats
-	// in the table instead.
-	return "{}"
+	seriesA := result.PortfolioA.DrawdownSeries
+	seriesB := result.PortfolioB.DrawdownSeries
+	if len(seriesA) == 0 && len(seriesB) == 0 {
+		return "{}"
+	}
+
+	// Collect all dates (union of both series).
+	dateSet := make(map[string]bool)
+	mapA := make(map[string]float64)
+	mapB := make(map[string]float64)
+	for _, p := range seriesA {
+		key := p.Date.Format("2006-01-02")
+		dateSet[key] = true
+		v, _ := p.Pct.Float64()
+		mapA[key] = v
+	}
+	for _, p := range seriesB {
+		key := p.Date.Format("2006-01-02")
+		dateSet[key] = true
+		v, _ := p.Pct.Float64()
+		mapB[key] = v
+	}
+	var dates []string
+	for d := range dateSet {
+		dates = append(dates, d)
+	}
+	sort.Strings(dates)
+
+	aVals := make([]float64, len(dates))
+	bVals := make([]float64, len(dates))
+	for i, d := range dates {
+		aVals[i] = mapA[d]
+		bVals[i] = mapB[d]
+	}
+
+	data := drawdownChartData{
+		Dates:      dates,
+		PortfolioA: aVals,
+		PortfolioB: bVals,
+		NameA:      portfolioName(result.PortfolioA),
+		NameB:      portfolioName(result.PortfolioB),
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
 // annualReturnsChartData holds JSON data for the annual returns bar chart.
 type annualReturnsChartData struct {
-	Years    []string   `json:"years"`
-	ReturnA  []float64  `json:"return_a"`
-	ReturnB  []float64  `json:"return_b"`
-	NameA    string     `json:"name_a"`
-	NameB    string     `json:"name_b"`
+	Years   []string  `json:"years"`
+	ReturnA []float64 `json:"return_a"`
+	ReturnB []float64 `json:"return_b"`
+	NameA   string    `json:"name_a"`
+	NameB   string    `json:"name_b"`
 }
 
 // serializeAnnualReturnsChartData converts yearly returns to side-by-side bar chart JSON.
@@ -374,7 +423,7 @@ func serializeAnnualReturnsChartData(result *comparison.ComparisonResult) string
 	for y := range yearSet {
 		years = append(years, y)
 	}
-	sortStrings(years)
+	sort.Strings(years)
 
 	returnA := make([]float64, len(years))
 	returnB := make([]float64, len(years))
@@ -384,7 +433,7 @@ func serializeAnnualReturnsChartData(result *comparison.ComparisonResult) string
 	}
 
 	data := annualReturnsChartData{
-		Years: years,
+		Years:   years,
 		ReturnA: returnA,
 		ReturnB: returnB,
 		NameA:   portfolioName(result.PortfolioA),
@@ -399,8 +448,8 @@ func serializeAnnualReturnsChartData(result *comparison.ComparisonResult) string
 
 // monthlyHistogramData holds JSON data for the monthly return frequency histogram.
 type monthlyHistogramData struct {
-	Bins    []string  `json:"bins"`
-	Counts  []float64 `json:"counts"`
+	Bins   []string  `json:"bins"`
+	Counts []float64 `json:"counts"`
 }
 
 // serializeMonthlyHistogram converts the monthly return distribution to histogram JSON.
@@ -446,11 +495,11 @@ func serializeMonthlyHistogram(result *comparison.ComparisonResult, portfolioSid
 
 // overlapChartData holds JSON data for the overlap visualization.
 type overlapChartData struct {
-	HoldingsA []string  `json:"holdings_a"`
-	WeightsA  []float64 `json:"weights_a"`
-	HoldingsB []string  `json:"holdings_b"`
-	WeightsB  []float64 `json:"weights_b"`
-	OverlapPct *float64 `json:"overlap_pct,omitempty"`
+	HoldingsA  []string  `json:"holdings_a"`
+	WeightsA   []float64 `json:"weights_a"`
+	HoldingsB  []string  `json:"holdings_b"`
+	WeightsB   []float64 `json:"weights_b"`
+	OverlapPct *float64  `json:"overlap_pct,omitempty"`
 }
 
 // serializeOverlapChartData converts overlap result to chart JSON.
@@ -496,6 +545,97 @@ func serializeOverlapChartData(result *comparison.ComparisonResult) string {
 	return string(b)
 }
 
+// serializeAnnualFrequencyHistogram converts the annual return frequency
+// distribution to histogram JSON. portfolioSide is "A" or "B".
+func serializeAnnualFrequencyHistogram(result *comparison.ComparisonResult, portfolioSide string) string {
+	if result == nil {
+		return "{}"
+	}
+
+	var dist *comparison.ReturnDistribution
+	switch portfolioSide {
+	case "A":
+		if result.PortfolioA != nil && result.PortfolioA.ReturnDistribution != nil {
+			dist = result.PortfolioA.ReturnDistribution
+		}
+	case "B":
+		if result.PortfolioB != nil && result.PortfolioB.ReturnDistribution != nil {
+			dist = result.PortfolioB.ReturnDistribution
+		}
+	}
+
+	if dist == nil || len(dist.AnnualBinned) == 0 {
+		return "{}"
+	}
+
+	bins := make([]string, len(dist.AnnualBinned))
+	counts := make([]float64, len(dist.AnnualBinned))
+	for i, b := range dist.AnnualBinned {
+		bins[i] = b.Label
+		counts[i] = float64(b.Count)
+	}
+
+	data := monthlyHistogramData{
+		Bins:   bins,
+		Counts: counts,
+	}
+	j, err := json.Marshal(data)
+	if err != nil {
+		return "{}"
+	}
+	return string(j)
+}
+
+// correlationMatrixData holds JSON data for the correlation matrix heatmap.
+type correlationMatrixData struct {
+	Symbols []string     `json:"symbols"`
+	Matrix  [][]*float64 `json:"matrix"`
+	Name    string       `json:"name"`
+}
+
+// serializeCorrelationMatrix converts the intra-portfolio correlation matrix
+// to heatmap JSON. portfolioSide is "A" or "B".
+func serializeCorrelationMatrix(result *comparison.ComparisonResult, portfolioSide string) string {
+	if result == nil {
+		return "{}"
+	}
+
+	var corr *comparison.IntraPortfolioCorrelationResult
+	switch portfolioSide {
+	case "A":
+		if result.PortfolioA != nil && result.PortfolioA.IntraCorrelation != nil {
+			corr = result.PortfolioA.IntraCorrelation
+		}
+	case "B":
+		if result.PortfolioB != nil && result.PortfolioB.IntraCorrelation != nil {
+			corr = result.PortfolioB.IntraCorrelation
+		}
+	}
+
+	if corr == nil || corr.Matrix == nil || len(corr.Symbols) == 0 {
+		return "{}"
+	}
+
+	name := ""
+	switch portfolioSide {
+	case "A":
+		name = portfolioName(result.PortfolioA)
+	case "B":
+		name = portfolioName(result.PortfolioB)
+	}
+
+	data := correlationMatrixData{
+		Symbols: corr.Symbols,
+		Matrix:  corr.Matrix,
+		Name:    name,
+	}
+	j, err := json.Marshal(data)
+	if err != nil {
+		return "{}"
+	}
+	return string(j)
+}
+
 // portfolioName returns the name from a PortfolioComparison or "Portfolio N".
 func portfolioName(pc *comparison.PortfolioComparison) string {
 	if pc == nil {
@@ -505,15 +645,6 @@ func portfolioName(pc *comparison.PortfolioComparison) string {
 		return pc.Name
 	}
 	return "Portfolio " + strconv.FormatInt(pc.ID, 10)
-}
-
-// sortStrings sorts a string slice in place.
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
-		}
-	}
 }
 
 // mergeYearlyReturns merges yearly returns from both portfolios into a single

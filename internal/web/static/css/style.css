@@ -1319,3 +1319,27 @@ legend {
     background: #e9ecef;
     color: #495057;
 }
+
+/* Comparison page styles */
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comparison-table th,
+.comparison-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.comparison-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+}
+
+.comparison-charts-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}

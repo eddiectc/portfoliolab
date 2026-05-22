@@ -335,8 +335,12 @@ type ReturnBucket struct {
 
 // ReturnDistribution holds annual and monthly return frequency histograms.
 type ReturnDistribution struct {
-	// Annual is the annual return histogram (one bucket per calendar year, sorted by year).
+	// Annual is the annual return list (one bucket per calendar year, sorted by year).
+	// Each bucket has Count=1 and Label like "2024: +15.50%".
 	Annual []ReturnBucket `json:"annual"`
+	// AnnualBinned is the annual return frequency histogram — yearly returns
+	// grouped into fixed-width bins (same 5% bin width as monthly).
+	AnnualBinned []ReturnBucket `json:"annual_binned"`
 	// Monthly is the monthly return histogram grouped into fixed-width bins.
 	Monthly []ReturnBucket `json:"monthly"`
 }
@@ -394,9 +398,11 @@ func ComputeReturnDistribution(points []EquityCurvePoint) ReturnDistribution {
 	})
 
 	annualBuckets := make([]ReturnBucket, 0, len(annualReturns))
+	var annualVals []float64
 	for _, yr := range annualReturns {
 		label := formatAnnualBucket(yr.year, yr.value)
 		annualBuckets = append(annualBuckets, ReturnBucket{Label: label, Count: 1})
+		annualVals = append(annualVals, yr.value)
 	}
 
 	// Compute monthly returns.
@@ -415,11 +421,55 @@ func ComputeReturnDistribution(points []EquityCurvePoint) ReturnDistribution {
 	}
 
 	monthlyBuckets := buildHistogramBins(monthlyVals)
+	annualBinned := buildHistogramBins(annualVals)
 
 	return ReturnDistribution{
-		Annual:  annualBuckets,
-		Monthly: monthlyBuckets,
+		Annual:       annualBuckets,
+		AnnualBinned: annualBinned,
+		Monthly:      monthlyBuckets,
 	}
+}
+
+// ComputeDrawdownSeries computes the drawdown-over-time series from an
+// equity curve. It walks through the points tracking a running peak and
+// computes the drawdown at each point as (peak - value) / peak × 100.
+//
+// Each point's Pct is expressed as a positive percentage (e.g. 15.50 = 15.50%
+// below peak). Zero when the portfolio is at its peak.
+//
+// Returns empty slice when fewer than 2 points or all values are non-positive.
+func ComputeDrawdownSeries(points []EquityCurvePoint) []DrawdownSeriesPoint {
+	if len(points) < 2 {
+		return nil
+	}
+
+	var peakVal decimal.Decimal
+	var series []DrawdownSeriesPoint
+
+	for _, p := range points {
+		val := p.PortfolioValue
+		if !val.IsPos() {
+			continue
+		}
+
+		// Update running peak.
+		if peakVal.IsZero() || peakVal.Less(val) {
+			peakVal = val
+		}
+
+		// Compute drawdown from current peak.
+		diff, _ := peakVal.Sub(val)
+		drawdownPct, _ := diff.Quo(peakVal)
+		drawdownPct, _ = drawdownPct.Mul(decimal.MustNew(100, 0))
+		drawdownPct = drawdownPct.Round(2)
+
+		series = append(series, DrawdownSeriesPoint{
+			Date: p.Date,
+			Pct:  drawdownPct,
+		})
+	}
+
+	return series
 }
 
 // --- helpers ---
