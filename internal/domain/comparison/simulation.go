@@ -20,12 +20,12 @@ type ModelPortfolioWeight struct {
 // SimulateEquityCurveInput holds the parameters for a buy-and-hold equity
 // curve simulation.
 type SimulateEquityCurveInput struct {
-	StartingValue decimal.Decimal       // initial investment amount
-	Weights       []ModelPortfolioWeight // symbol weights (must sum to ~1.0)
+	StartingValue decimal.Decimal                     // initial investment amount
+	Weights       []ModelPortfolioWeight              // symbol weights (must sum to ~1.0)
 	PricesBySym   map[string][]market.HistoricalPrice // marketSym -> price series (sorted ASC)
-	BaseCurrency  string                // output currency
-	DateFrom      time.Time             // output start (clipped to data availability)
-	DateTo        time.Time             // output end
+	BaseCurrency  string                              // output currency
+	DateFrom      time.Time                           // output start (clipped to data availability)
+	DateTo        time.Time                           // output end
 	FxRates       map[string][]market.HistoricalPrice // FX pair (e.g. "GBP/USD") -> price series
 }
 
@@ -51,8 +51,8 @@ type SimulateEquityCurveOutput struct {
 // (single initial deposit), NavPerUnit == PortfolioValue. For real portfolios,
 // it is computed by the performance layer via unitization.
 type EquityCurvePoint struct {
-	Date           time.Time       `json:"date"`
-	PortfolioValue decimal.Decimal `json:"portfolio_value"`
+	Date           time.Time        `json:"date"`
+	PortfolioValue decimal.Decimal  `json:"portfolio_value"`
 	NavPerUnit     *decimal.Decimal `json:"nav_per_unit"`
 }
 
@@ -104,7 +104,7 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 	if periodClipped {
 		warnings = append(warnings,
 			"period clipped: "+clipFrom.Format("2006-01-02")+" to "+clipTo.Format("2006-01-02")+
-			" (requested "+input.DateFrom.Format("2006-01-02")+" to "+input.DateTo.Format("2006-01-02")+")")
+				" (requested "+input.DateFrom.Format("2006-01-02")+" to "+input.DateTo.Format("2006-01-02")+")")
 	}
 	for _, sym := range missingSymbols {
 		warnings = append(warnings, "no price data for "+sym)
@@ -123,10 +123,10 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 	// If no overlap period, return empty.
 	if clipFrom.After(clipTo) {
 		return &SimulateEquityCurveOutput{
-			EquityCurve:             []EquityCurvePoint{},
-			Warnings:                warnings,
-			LimitedHistorySymbols:   limitedSymbols,
-			PeriodClipped:           periodClipped,
+			EquityCurve:           []EquityCurvePoint{},
+			Warnings:              warnings,
+			LimitedHistorySymbols: limitedSymbols,
+			PeriodClipped:         periodClipped,
 		}
 	}
 
@@ -134,10 +134,10 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 	dates := collectDatesInRange(input.Weights, priceLookup, clipFrom, clipTo)
 	if len(dates) == 0 {
 		return &SimulateEquityCurveOutput{
-			EquityCurve:             []EquityCurvePoint{},
-			Warnings:                warnings,
-			LimitedHistorySymbols:   limitedSymbols,
-			PeriodClipped:           periodClipped,
+			EquityCurve:           []EquityCurvePoint{},
+			Warnings:              warnings,
+			LimitedHistorySymbols: limitedSymbols,
+			PeriodClipped:         periodClipped,
 		}
 	}
 
@@ -326,8 +326,10 @@ func collectDatesInRange(weights []ModelPortfolioWeight, priceLookup map[string]
 // computeDailyValues computes the portfolio value for each date.
 //
 // For each symbol the buy-and-hold logic is:
-//   shares = (startingValue * weight) / basePrice
-//   value[date] = shares * price[date]
+//
+//	shares = (startingValue * weight) / basePrice
+//	value[date] = shares * price[date]
+//
 // where basePrice is the first available close price for that symbol.
 // This gives value[date] = allocated * (price[date] / basePrice).
 func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, priceLookup map[string]map[string]market.HistoricalPrice, fxLookup map[string]*fxLookupFF) []EquityCurvePoint {

@@ -72,10 +72,10 @@ func TestComputeCAGR(t *testing.T) {
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name        string
-		values      []float64
-		wantCAGR    *decimal.Decimal
-		wantDays    int
+		name     string
+		values   []float64
+		wantCAGR *decimal.Decimal
+		wantDays int
 	}{
 		{
 			name:     "up 10% in 365 days",
@@ -195,7 +195,7 @@ func TestComputeBetaAlpha(t *testing.T) {
 			wantOverlap: 5,
 		},
 		{
-			name:        "A returns exactly 2x B — beta=2.0",
+			name: "A returns exactly 2x B — beta=2.0",
 			// A returns: [2%, 4%, 2%, 6%, 4%], B returns: [1%, 2%, 1%, 3%, 2%]
 			// Price series constructed from cumulative returns.
 			aValues:     []float64{100, 102, 106.08, 108.2016, 114.693648, 118.981379},
@@ -283,11 +283,11 @@ func TestComputePortfolioCorrelation(t *testing.T) {
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name          string
-		aValues       []float64
-		bValues       []float64
-		wantCorr      *decimal.Decimal
-		wantOverlap   int
+		name        string
+		aValues     []float64
+		bValues     []float64
+		wantCorr    *decimal.Decimal
+		wantOverlap int
 	}{
 		{
 			name:        "identical portfolios — correlation=1.0",
@@ -360,14 +360,14 @@ func TestComputePortfolioCorrelation(t *testing.T) {
 
 func TestComputePeriodExtremes(t *testing.T) {
 	tests := []struct {
-		name         string
-		dates        []time.Time
-		values       []float64
-		wantBestM    *decimal.Decimal
-		wantWorstM   *decimal.Decimal
-		wantBestY    *decimal.Decimal
-		wantWorstY   *decimal.Decimal
-		wantWinRate  *decimal.Decimal
+		name        string
+		dates       []time.Time
+		values      []float64
+		wantBestM   *decimal.Decimal
+		wantWorstM  *decimal.Decimal
+		wantBestY   *decimal.Decimal
+		wantWorstY  *decimal.Decimal
+		wantWinRate *decimal.Decimal
 	}{
 		{
 			name: "multi-month multi-year data",
@@ -386,38 +386,38 @@ func TestComputePeriodExtremes(t *testing.T) {
 			},
 			values: []float64{
 				100, 105, 102, // Jan 2024: +2%
-				102, 98, 96,   // Feb 2024: -5.88%
-				96, 100, 104,  // Mar 2024: +8.33%
-				108, 108,      // Jan 2025: 0%
+				102, 98, 96, // Feb 2024: -5.88%
+				96, 100, 104, // Mar 2024: +8.33%
+				108, 108, // Jan 2025: 0%
 			},
-			wantBestM:  ptrDecF(t, 8.33),  // Mar 2024
-			wantWorstM: ptrDecF(t, -5.88), // Feb 2024
-			wantBestY:  ptrDecF(t, 4.0),   // 2024: 100->104
-			wantWorstY: ptrDecF(t, 0.0),   // 2025: 108->108
-			wantWinRate: ptrDecF(t, 50.0), // 2 of 4 months positive (Jan 2025 is 0%, not positive)
+			wantBestM:   ptrDecF(t, 8.33),  // Mar 2024
+			wantWorstM:  ptrDecF(t, -5.88), // Feb 2024
+			wantBestY:   ptrDecF(t, 4.0),   // 2024: 100->104
+			wantWorstY:  ptrDecF(t, 0.0),   // 2025: 108->108
+			wantWinRate: ptrDecF(t, 50.0),  // 2 of 4 months positive (Jan 2025 is 0%, not positive)
 		},
 		{
-			name:  "single month",
+			name: "single month",
 			dates: []time.Time{
 				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 			},
-			values:   []float64{100, 105},
-			wantBestM: ptrDecF(t, 5.0),
-			wantWorstM: ptrDecF(t, 5.0),
-			wantBestY:  ptrDecF(t, 5.0),
-			wantWorstY: ptrDecF(t, 5.0),
+			values:      []float64{100, 105},
+			wantBestM:   ptrDecF(t, 5.0),
+			wantWorstM:  ptrDecF(t, 5.0),
+			wantBestY:   ptrDecF(t, 5.0),
+			wantWorstY:  ptrDecF(t, 5.0),
 			wantWinRate: ptrDecF(t, 100.0),
 		},
 		{
-			name:         "single point",
-			dates:        []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-			values:       []float64{100},
-			wantBestM:    nil,
-			wantWorstM:   nil,
-			wantBestY:    nil,
-			wantWorstY:   nil,
-			wantWinRate:  nil,
+			name:        "single point",
+			dates:       []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			values:      []float64{100},
+			wantBestM:   nil,
+			wantWorstM:  nil,
+			wantBestY:   nil,
+			wantWorstY:  nil,
+			wantWinRate: nil,
 		},
 		{
 			name:        "empty",
@@ -477,26 +477,26 @@ func TestComputeReturnDistribution(t *testing.T) {
 				time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
 				time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC),
 			},
-			values:       []float64{100, 105, 110, 108, 108, 115, 120},
-			wantAnnualN:  2, // 2024, 2025
+			values:         []float64{100, 105, 110, 108, 108, 115, 120},
+			wantAnnualN:    2, // 2024, 2025
 			wantAnnualBinN: 1, // at least 1 frequency bin
-			wantMonthlyN: 1, // at least some monthly bins
+			wantMonthlyN:   1, // at least some monthly bins
 		},
 		{
-			name:  "single point",
-			dates: []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-			values: []float64{100},
-			wantAnnualN: 0,
+			name:           "single point",
+			dates:          []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			values:         []float64{100},
+			wantAnnualN:    0,
 			wantAnnualBinN: 0,
-			wantMonthlyN: 0,
+			wantMonthlyN:   0,
 		},
 		{
-			name:        "empty",
-			dates:       []time.Time{},
-			values:      []float64{},
-			wantAnnualN: 0,
+			name:           "empty",
+			dates:          []time.Time{},
+			values:         []float64{},
+			wantAnnualN:    0,
 			wantAnnualBinN: 0,
-			wantMonthlyN: 0,
+			wantMonthlyN:   0,
 		},
 	}
 
@@ -530,11 +530,11 @@ func TestComputeReturnDistribution(t *testing.T) {
 
 func TestComputeDrawdownSeries(t *testing.T) {
 	tests := []struct {
-		name      string
-		dates     []time.Time
-		values    []float64
-		wantLen   int
-		wantMax   float64 // max drawdown pct (approx)
+		name    string
+		dates   []time.Time
+		values  []float64
+		wantLen int
+		wantMax float64 // max drawdown pct (approx)
 	}{
 		{
 			name: "steady decline then recovery",
@@ -550,9 +550,9 @@ func TestComputeDrawdownSeries(t *testing.T) {
 			wantMax: 10.0, // peak=100, min=90 → 10%
 		},
 		{
-			name:  "single point",
-			dates: []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-			values: []float64{100},
+			name:    "single point",
+			dates:   []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			values:  []float64{100},
 			wantLen: 0,
 		},
 		{

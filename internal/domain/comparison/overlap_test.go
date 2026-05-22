@@ -369,10 +369,10 @@ func TestExpandETFHoldings_MixedETFAndStock(t *testing.T) {
 
 func TestComputeOverlapPercentage(t *testing.T) {
 	tests := []struct {
-		name     string
-		setA     map[string]*holdingInfo
-		setB     map[string]*holdingInfo
-		wantPct  float64
+		name    string
+		setA    map[string]*holdingInfo
+		setB    map[string]*holdingInfo
+		wantPct float64
 	}{
 		{
 			name:    "identical sets",

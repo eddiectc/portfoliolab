@@ -272,9 +272,9 @@ func TestComputeIntraPortfolioCorrelation_MultipleSymbols(t *testing.T) {
 
 	input := IntraPortfolioCorrelationInput{
 		Prices: map[string][]market.HistoricalPrice{
-			"UP":    makePriceSeries(patternUp),
-			"DOWN":  makePriceSeries(patternDown),
-			"RAND":  makePriceSeries(patternRandom),
+			"UP":   makePriceSeries(patternUp),
+			"DOWN": makePriceSeries(patternDown),
+			"RAND": makePriceSeries(patternRandom),
 		},
 		Period: "1Y",
 	}

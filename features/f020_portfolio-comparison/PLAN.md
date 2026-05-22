@@ -131,17 +131,6 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 ---
 
-### Task 8: Database Migration (if needed) [PRIORITY: LOW]
-**Corresponds to:** N/A — comparison is computed on-demand, no persistent storage needed
-
-**Description:** The comparison engine is fully computational — no new database tables are required. Model portfolios already exist in `model_portfolios` table (migration 020). Real portfolio data uses existing `transactions` and `positions` tables.
-
-- [ ] Confirm no migration needed — comparison results are ephemeral (computed on request)
-
-**Verification:** No migration file created. Feature works with existing schema.
-
----
-
 ## Technical Decisions
 
 | Decision | Options | Recommendation | Reason |
