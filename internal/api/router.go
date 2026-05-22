@@ -16,6 +16,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
@@ -109,7 +110,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	marketDataRepo := data.NewMarketDataRepository(db)
 
 	// Portfolio currency checker (for FX conversion)
-	portfolioCurrencyChecker := data.NewPortfolioCurrencyChecker(portfolioRepo)
+	portfolioCurrencyChecker := data.NewPortfolioCurrencyChecker(portfolioSvc)
 
 	// Position service (used as LotChecker + PositionRecalculator for transactions)
 	positionRepo := data.NewPositionRepository(db)
@@ -231,6 +232,15 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		// Allocation web pages
 		allocWebHandler := handlers.NewAllocationWebHandler(allocHandler, portfolioSvc, symbolMappingSvc, allocSvc, modelPortfolioSvc, renderer)
 		allocWebHandler.RegisterRoutes(r)
+
+		// Comparison service + API
+		portfolioNameResolver := data.NewPortfolioNameResolver(portfolioSvc)
+		comparisonSvc := comparison.NewService(modelPortfolioSvc, positionSvc, marketSvc,
+			marketDataSymbolResolver, symbolDetailsSvc,
+			portfolioNameResolver, portfolioCurrencyChecker, allocSvc)
+		comparisonSvc.WithLogger(logger)
+		comparisonHandler := handlers.NewComparisonHandler(comparisonSvc)
+		comparisonHandler.RegisterRoutes(r)
 
 		// Model Portfolio web pages
 		modelPortfolioWebHandler := handlers.NewModelPortfolioWebHandler(modelPortfolioSvc, symbolMappingSvc, renderer)

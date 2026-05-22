@@ -88,12 +88,12 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 **Description:** Create the HTTP handler for the comparison API endpoint. Follows the `analysis` handler pattern: separate API handler + web handler, shared `computeResult` method.
 
-- [ ] Create `internal/api/handlers/comparison.go` with `ComparisonHandler` struct, `HandleComparison` (GET `/api/comparison`), query param parsing (portfolio_a_id, portfolio_a_type, portfolio_b_id, portfolio_b_type, period, date_from, date_to, base_currency, starting_value)
-- [ ] Validate inputs: portfolio types must be "model" or "real", period validation, starting value > 0
-- [ ] Implement `computeResult` that delegates to `comparison.Service.ComputeComparison`
-- [ ] Create `internal/api/handlers/comparison_test.go` with handler-level tests using `httptest.NewRecorder`: valid request, invalid portfolio type, missing portfolio ID, invalid period
-- [ ] Register routes in `internal/api/router.go` (API handler only; web handler in Task 6)
-- [ ] Wire comparison service into router with all required dependencies (model portfolio service, position service, market service, symbol details, etc.)
+- [x] Create `internal/api/handlers/comparison.go` with `ComparisonHandler` struct, `HandleComparison` (GET `/api/comparison`), query param parsing (portfolio_a_id, portfolio_a_type, portfolio_b_id, portfolio_b_type, period, date_from, date_to, base_currency, starting_value)
+- [x] Validate inputs: portfolio types must be "model" or "real", period validation, starting value > 0
+- [x] Implement `computeResult` that delegates to `comparison.Service.ComputeComparison`
+- [x] Create `internal/api/handlers/comparison_test.go` with handler-level tests using `httptest.NewRecorder`: valid request, invalid portfolio type, missing portfolio ID, invalid period
+- [x] Register routes in `internal/api/router.go` (API handler only; web handler in Task 6)
+- [x] Wire comparison service into router with all required dependencies (model portfolio service, position service, market service, symbol details, etc.)
 
 **Verification:** `go test ./internal/api/handlers/ -run Comparison` passes. GET `/api/comparison?portfolio_a_id=1&portfolio_a_type=model&portfolio_b_id=2&portfolio_b_type=model` returns valid JSON ComparisonResult.
 
