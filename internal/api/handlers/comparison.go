@@ -169,7 +169,7 @@ func parseComparisonRequest(query url.Values) (comparison.ComparisonRequest, *AP
 		if d, err := decimal.Parse(v); err == nil {
 			req.StartingValue = d
 		} else {
-			return req, &APIError{Code: "INVALID_STARTING_VALUE", Error: "invalid starting_value: " + v}
+			return req, &APIError{Code: "INVALID_STARTING_VALUE", Error: "invalid starting_value: " + v + ", must be a positive number"}
 		}
 	} else {
 		// Default starting value: 10000
