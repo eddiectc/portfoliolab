@@ -45,17 +45,19 @@ type ComparisonResult struct {
 
 // PortfolioComparison holds the per-portfolio metrics for one side of the comparison.
 type PortfolioComparison struct {
-	ID                 int64               `json:"id"`
-	Name               string              `json:"name"`
-	Type               PortfolioType       `json:"type"`
-	ReturnMetrics      *ReturnMetrics      `json:"return_metrics,omitempty"`
-	RiskMetrics        *RiskMetrics        `json:"risk_metrics,omitempty"`
-	Drawdown           *DrawdownResult     `json:"drawdown,omitempty"`
-	YearlyReturns      []YearlyReturn      `json:"yearly_returns,omitempty"`
-	PeriodExtremes     *PeriodExtremes     `json:"period_extremes,omitempty"`
-	ReturnDistribution *ReturnDistribution `json:"return_distribution,omitempty"`
-	Warnings           []string            `json:"warnings,omitempty"`
-	Message            string              `json:"message,omitempty"` // empty-state message
+	ID                 int64                        `json:"id"`
+	Name               string                       `json:"name"`
+	Type               PortfolioType                `json:"type"`
+	ReturnMetrics      *ReturnMetrics               `json:"return_metrics,omitempty"`
+	RiskMetrics        *RiskMetrics                 `json:"risk_metrics,omitempty"`
+	Drawdown           *DrawdownResult              `json:"drawdown,omitempty"`
+	DrawdownSeries     []DrawdownSeriesPoint        `json:"drawdown_series,omitempty"`
+	YearlyReturns      []YearlyReturn               `json:"yearly_returns,omitempty"`
+	PeriodExtremes     *PeriodExtremes              `json:"period_extremes,omitempty"`
+	ReturnDistribution *ReturnDistribution          `json:"return_distribution,omitempty"`
+	IntraCorrelation   *IntraPortfolioCorrelationResult `json:"intra_correlation,omitempty"`
+	Warnings           []string                     `json:"warnings,omitempty"`
+	Message            string                       `json:"message,omitempty"` // empty-state message
 }
 
 // ReturnMetrics holds summary return calculations for a portfolio.
@@ -81,6 +83,14 @@ type DrawdownResult struct {
 	MaxDrawdownPct       *decimal.Decimal `json:"max_drawdown_pct,omitempty"`
 	CurrentDrawdownPct   *decimal.Decimal `json:"current_drawdown_pct,omitempty"`
 	DrawdownDurationDays *int             `json:"drawdown_duration_days,omitempty"`
+}
+
+// DrawdownSeriesPoint is a single point on the drawdown-over-time series.
+// Pct is the drawdown from the running peak at that date, expressed as a
+// positive percentage (e.g. 15.50 = 15.50% below peak).
+type DrawdownSeriesPoint struct {
+	Date time.Time       `json:"date"`
+	Pct  decimal.Decimal `json:"pct"`
 }
 
 // YearlyReturn holds a calendar year and its percentage return.

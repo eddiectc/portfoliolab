@@ -459,11 +459,12 @@ func TestComputePeriodExtremes(t *testing.T) {
 
 func TestComputeReturnDistribution(t *testing.T) {
 	tests := []struct {
-		name         string
-		dates        []time.Time
-		values       []float64
-		wantAnnualN  int
-		wantMonthlyN int // number of monthly bins (at least this many)
+		name           string
+		dates          []time.Time
+		values         []float64
+		wantAnnualN    int
+		wantAnnualBinN int // number of annual frequency bins (at least this many)
+		wantMonthlyN   int // number of monthly bins (at least this many)
 	}{
 		{
 			name: "multi-year data",
@@ -478,6 +479,7 @@ func TestComputeReturnDistribution(t *testing.T) {
 			},
 			values:       []float64{100, 105, 110, 108, 108, 115, 120},
 			wantAnnualN:  2, // 2024, 2025
+			wantAnnualBinN: 1, // at least 1 frequency bin
 			wantMonthlyN: 1, // at least some monthly bins
 		},
 		{
@@ -485,6 +487,7 @@ func TestComputeReturnDistribution(t *testing.T) {
 			dates: []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 			values: []float64{100},
 			wantAnnualN: 0,
+			wantAnnualBinN: 0,
 			wantMonthlyN: 0,
 		},
 		{
@@ -492,6 +495,7 @@ func TestComputeReturnDistribution(t *testing.T) {
 			dates:       []time.Time{},
 			values:      []float64{},
 			wantAnnualN: 0,
+			wantAnnualBinN: 0,
 			wantMonthlyN: 0,
 		},
 	}
@@ -504,6 +508,9 @@ func TestComputeReturnDistribution(t *testing.T) {
 			if len(got.Annual) != tt.wantAnnualN {
 				t.Errorf("Annual buckets = %d, want %d", len(got.Annual), tt.wantAnnualN)
 			}
+			if len(got.AnnualBinned) < tt.wantAnnualBinN {
+				t.Errorf("AnnualBinned buckets = %d, want >= %d", len(got.AnnualBinned), tt.wantAnnualBinN)
+			}
 			if len(got.Monthly) < tt.wantMonthlyN {
 				t.Errorf("Monthly buckets = %d, want >= %d", len(got.Monthly), tt.wantMonthlyN)
 			}
@@ -515,6 +522,76 @@ func TestComputeReturnDistribution(t *testing.T) {
 				}
 				if b.Count != 1 {
 					t.Errorf("Annual bucket count = %d, want 1", b.Count)
+				}
+			}
+		})
+	}
+}
+
+func TestComputeDrawdownSeries(t *testing.T) {
+	tests := []struct {
+		name      string
+		dates     []time.Time
+		values    []float64
+		wantLen   int
+		wantMax   float64 // max drawdown pct (approx)
+	}{
+		{
+			name: "steady decline then recovery",
+			dates: []time.Time{
+				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+				time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+				time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+				time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
+			},
+			values:  []float64{100, 95, 90, 95, 110},
+			wantLen: 5,
+			wantMax: 10.0, // peak=100, min=90 → 10%
+		},
+		{
+			name:  "single point",
+			dates: []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			values: []float64{100},
+			wantLen: 0,
+		},
+		{
+			name:    "empty",
+			dates:   []time.Time{},
+			values:  []float64{},
+			wantLen: 0,
+		},
+		{
+			name: "two points up",
+			dates: []time.Time{
+				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+			},
+			values:  []float64{100, 110},
+			wantLen: 2,
+			wantMax: 0, // always at or above peak
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			points := eqPointsFromDatesAndValues(t, tt.dates, tt.values)
+			got := ComputeDrawdownSeries(points)
+
+			if len(got) != tt.wantLen {
+				t.Errorf("len = %d, want %d", len(got), tt.wantLen)
+			}
+
+			if tt.wantLen > 0 && tt.wantMax > 0 {
+				var maxF float64
+				for _, p := range got {
+					v, _ := p.Pct.Float64()
+					if v > maxF {
+						maxF = v
+					}
+				}
+				if maxF < tt.wantMax-0.5 || maxF > tt.wantMax+0.5 {
+					t.Errorf("max pct = %.2f, want approx %.2f", maxF, tt.wantMax)
 				}
 			}
 		})

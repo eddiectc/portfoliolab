@@ -1121,6 +1121,10 @@ Compare any two portfolios (model vs model, model vs real, or real vs real) on p
       "current_drawdown_pct": -2.30,
       "drawdown_duration_days": 45
     },
+    "drawdown_series": [
+      {"date": "2024-01-02", "pct": 0.00},
+      {"date": "2024-01-03", "pct": 1.50}
+    ],
     "yearly_returns": [
       {"year": 2024, "return_pct": 15.50}
     ],
@@ -1139,10 +1143,22 @@ Compare any two portfolios (model vs model, model vs real, or real vs real) on p
       "annual": [
         {"label": "2024: +15.50%", "count": 1}
       ],
+      "annual_binned": [
+        {"label": "10% to 15%", "count": 1},
+        {"label": "15% to 20%", "count": 1}
+      ],
       "monthly": [
         {"label": "-5% to 0%", "count": 3},
         {"label": "0% to 5%", "count": 5},
         {"label": "5% to 10%", "count": 4}
+      ]
+    },
+    "intra_correlation": {
+      "symbols": ["AAPL", "GOOG", "MSFT"],
+      "matrix": [
+        [1.000, 0.850, 0.720],
+        [0.850, 1.000, 0.910],
+        [0.720, 0.910, 1.000]
       ]
     },
     "warnings": []
@@ -1167,6 +1183,18 @@ Compare any two portfolios (model vs model, model vs real, or real vs real) on p
       "max_drawdown_pct": -6.00,
       "current_drawdown_pct": -1.50,
       "drawdown_duration_days": 30
+    },
+    "drawdown_series": [
+      {"date": "2024-01-02", "pct": 0.00},
+      {"date": "2024-01-03", "pct": 0.80}
+    ],
+    "intra_correlation": {
+      "symbols": ["JNJ", "PG", "KO"],
+      "matrix": [
+        [1.000, 0.620, 0.550],
+        [0.620, 1.000, 0.780],
+        [0.550, 0.780, 1.000]
+      ]
     }
   },
   "cross_metrics": {

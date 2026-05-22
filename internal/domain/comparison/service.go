@@ -295,10 +295,11 @@ func (s *Service) resolveModelPortfolio(
 	curve := convertToComparisonCurve(simOutput.EquityCurve)
 
 	meta := &modelPortfolioMeta{
-		ID:       portfolioID,
-		Name:     mp.Name,
-		Weights:  weights,
-		Currency: baseCurrency,
+		ID:          portfolioID,
+		Name:        mp.Name,
+		Weights:     weights,
+		Currency:    baseCurrency,
+		PricesBySym: pricesBySym,
 	}
 
 	return curve, meta, warnings, nil
@@ -333,14 +334,50 @@ func (s *Service) resolveRealPortfolio(
 		}
 	}
 
+	// Fetch historical prices for symbols in the portfolio (for intra-portfolio correlation).
+	pricesBySym := s.fetchPricesForRealPortfolio(ctx, portfolioID, dateFrom, dateTo)
+
 	meta := &realPortfolioMeta{
 		ID:           portfolioID,
 		Name:         name,
 		BaseCurrency: result.BaseCurrency,
 		Warnings:     result.Warnings,
+		PricesBySym:  pricesBySym,
 	}
 
 	return curve, meta, result.Warnings, nil
+}
+
+// fetchPricesForRealPortfolio fetches historical prices for the symbols held
+// in a real portfolio, using the allocation service to resolve current positions.
+// Returns prices keyed by market symbol. Returns nil if any dependency is missing.
+func (s *Service) fetchPricesForRealPortfolio(ctx context.Context, portfolioID int64, dateFrom, dateTo time.Time) map[string][]market.HistoricalPrice {
+	if s.allocation == nil || s.marketHistory == nil {
+		return nil
+	}
+	result, err := s.allocation.ComputeAllocation(ctx, allocation.AllocationFilter{
+		PortfolioIDs: []int64{portfolioID},
+	})
+	if err != nil || !result.MarketDataAvailable || len(result.Rows) == 0 {
+		return nil
+	}
+
+	pricesBySym := make(map[string][]market.HistoricalPrice)
+	for _, row := range result.Rows {
+		marketSym := row.Symbol
+		if s.marketDataSymbol != nil {
+			resolved, err := s.marketDataSymbol.GetMarketDataSymbol(ctx, row.Symbol)
+			if err == nil {
+				marketSym = resolved
+			}
+		}
+		prices, err := s.marketHistory.GetHistoricalPrices(ctx, marketSym, dateFrom, dateTo)
+		if err != nil || len(prices) == 0 {
+			continue
+		}
+		pricesBySym[marketSym] = prices
+	}
+	return pricesBySym
 }
 
 // resolveModelWeights resolves market data symbols for model portfolio entries
@@ -472,10 +509,11 @@ type portfolioMeta interface {
 
 // modelPortfolioMeta implements portfolioMeta for model portfolios.
 type modelPortfolioMeta struct {
-	ID       int64
-	Name     string
-	Weights  []ModelPortfolioWeight
-	Currency string
+	ID          int64
+	Name        string
+	Weights     []ModelPortfolioWeight
+	Currency    string
+	PricesBySym map[string][]market.HistoricalPrice // marketSym -> price series
 }
 
 func (m *modelPortfolioMeta) getID() int64           { return m.ID }
@@ -488,6 +526,7 @@ type realPortfolioMeta struct {
 	Name         string
 	BaseCurrency string
 	Warnings     []string
+	PricesBySym  map[string][]market.HistoricalPrice // marketSym -> price series
 }
 
 func (r *realPortfolioMeta) getID() int64           { return r.ID }
@@ -529,6 +568,7 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 
 	// --- Drawdown ---
 	pc.Drawdown = s.computeDrawdown(curve)
+	pc.DrawdownSeries = s.computeDrawdownSeries(curve)
 
 	// --- Yearly returns ---
 	pc.YearlyReturns = s.computeYearlyReturns(curve)
@@ -542,6 +582,9 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 	// --- Return distribution ---
 	dist := ComputeReturnDistribution(extremesCurve)
 	pc.ReturnDistribution = &dist
+
+	// --- Intra-portfolio correlation ---
+	pc.IntraCorrelation = s.computeIntraPortfolioCorrelation(meta)
 
 	return pc
 }
@@ -636,6 +679,32 @@ func (s *Service) computeDrawdown(curve []EquityCurvePoint) *DrawdownResult {
 		CurrentDrawdownPct:   drawdown.CurrentDrawdownPct,
 		DrawdownDurationDays: drawdown.DrawdownDurationDays,
 	}
+}
+
+// computeDrawdownSeries computes the drawdown-over-time series from the equity curve.
+func (s *Service) computeDrawdownSeries(curve []EquityCurvePoint) []DrawdownSeriesPoint {
+	return ComputeDrawdownSeries(curve)
+}
+
+// computeIntraPortfolioCorrelation computes the pairwise correlation matrix
+// for symbols within a single portfolio.
+func (s *Service) computeIntraPortfolioCorrelation(meta portfolioMeta) *IntraPortfolioCorrelationResult {
+	var pricesBySym map[string][]market.HistoricalPrice
+	switch m := meta.(type) {
+	case *modelPortfolioMeta:
+		pricesBySym = m.PricesBySym
+	case *realPortfolioMeta:
+		pricesBySym = m.PricesBySym
+	default:
+		return nil
+	}
+	if len(pricesBySym) < 2 {
+		return nil
+	}
+	return ComputeIntraPortfolioCorrelation(IntraPortfolioCorrelationInput{
+		Prices: pricesBySym,
+		Period: "1Y", // default period for comparison context
+	})
 }
 
 // computeYearlyReturns computes calendar-year returns from the equity curve.
