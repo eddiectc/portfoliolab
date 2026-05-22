@@ -31,6 +31,7 @@
 - 2026-05-22: Updated web handler (`comparison_web.go`) to serialize drawdown chart, annual frequency histograms, and correlation matrix heatmaps. Added `serializeAnnualFrequencyHistogram` and `serializeCorrelationMatrix` functions. Fixed gofmt struct alignment. Removed dead `sortStrings` function.
 - 2026-05-22: Updated template (`comparison/index.html`) with custom date range inputs, base currency selector, starting value input, drawdown line chart, annual frequency histograms, correlation matrix heatmaps, and JS functions for portfolio dropdown type switching.
 - 2026-05-22: Added missing CSS classes (`comparison-table`, `comparison-charts-row`) to `style.css`.
+- 2026-05-22: Integration test (`comparison_test.go`) covers: model-vs-model (full metrics verification including cross-metrics, overlap, intra-correlation, drawdown series), model-vs-real, real-vs-real, real portfolio with no transactions (empty-state message), period filtering (1Y, 3M, 1M, custom date range), same-portfolio-vs-self (beta≈1.0, correlation≈1.0, alpha≈0, overlap≈100%), invalid inputs (bad portfolio type, missing ID, invalid period), web page rendering (200 + HTML content type), and starting value parameter. Uses a helper `insertComparisonMarketData` that generates ~N trading days of upward-trending prices, and `setupComparison` that pre-seeds symbol mappings.
 
 ## Future Improvements
 - Consider interpolating missing daily prices (e.g., forward-fill from last known) so the curve doesn't have gaps when symbols have non-overlapping trading days.
