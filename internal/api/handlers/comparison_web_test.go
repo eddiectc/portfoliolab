@@ -45,8 +45,8 @@ func TestComparisonWebHandler_RenderPageWithResult(t *testing.T) {
 				SharpeRatio:             &sharpe,
 			},
 			Drawdown: &comparison.DrawdownResult{
-				MaxDrawdownPct:       &maxDD,
-				CurrentDrawdownPct:   &curDD,
+				MaxDrawdownPct:     &maxDD,
+				CurrentDrawdownPct: &curDD,
 			},
 			YearlyReturns: []comparison.YearlyReturn{
 				{Year: 2024, ReturnPct: &simpleRet},

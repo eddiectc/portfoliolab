@@ -174,14 +174,14 @@ func TestComputeMWRForPeriod(t *testing.T) {
 
 func TestComputeMonthlyReturns(t *testing.T) {
 	tests := []struct {
-		name  string
+		name   string
 		prices []market.HistoricalPrice
-		want  map[string]*decimal.Decimal
+		want   map[string]*decimal.Decimal
 	}{
 		{
 			name: "multiple months with varying returns",
 			prices: []market.HistoricalPrice{
-				{Date: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(10000, 2), Currency: "USD"}, // 100.00
+				{Date: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(10000, 2), Currency: "USD"},  // 100.00
 				{Date: time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(10500, 2), Currency: "USD"}, // 105.00
 				{Date: time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(10200, 2), Currency: "USD"}, // 102.00
 				{Date: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(10200, 2), Currency: "USD"},  // 102.00

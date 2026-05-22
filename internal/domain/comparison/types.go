@@ -45,19 +45,19 @@ type ComparisonResult struct {
 
 // PortfolioComparison holds the per-portfolio metrics for one side of the comparison.
 type PortfolioComparison struct {
-	ID                 int64                        `json:"id"`
-	Name               string                       `json:"name"`
-	Type               PortfolioType                `json:"type"`
-	ReturnMetrics      *ReturnMetrics               `json:"return_metrics,omitempty"`
-	RiskMetrics        *RiskMetrics                 `json:"risk_metrics,omitempty"`
-	Drawdown           *DrawdownResult              `json:"drawdown,omitempty"`
-	DrawdownSeries     []DrawdownSeriesPoint        `json:"drawdown_series,omitempty"`
-	YearlyReturns      []YearlyReturn               `json:"yearly_returns,omitempty"`
-	PeriodExtremes     *PeriodExtremes              `json:"period_extremes,omitempty"`
-	ReturnDistribution *ReturnDistribution          `json:"return_distribution,omitempty"`
+	ID                 int64                            `json:"id"`
+	Name               string                           `json:"name"`
+	Type               PortfolioType                    `json:"type"`
+	ReturnMetrics      *ReturnMetrics                   `json:"return_metrics,omitempty"`
+	RiskMetrics        *RiskMetrics                     `json:"risk_metrics,omitempty"`
+	Drawdown           *DrawdownResult                  `json:"drawdown,omitempty"`
+	DrawdownSeries     []DrawdownSeriesPoint            `json:"drawdown_series,omitempty"`
+	YearlyReturns      []YearlyReturn                   `json:"yearly_returns,omitempty"`
+	PeriodExtremes     *PeriodExtremes                  `json:"period_extremes,omitempty"`
+	ReturnDistribution *ReturnDistribution              `json:"return_distribution,omitempty"`
 	IntraCorrelation   *IntraPortfolioCorrelationResult `json:"intra_correlation,omitempty"`
-	Warnings           []string                     `json:"warnings,omitempty"`
-	Message            string                       `json:"message,omitempty"` // empty-state message
+	Warnings           []string                         `json:"warnings,omitempty"`
+	Message            string                           `json:"message,omitempty"` // empty-state message
 }
 
 // ReturnMetrics holds summary return calculations for a portfolio.

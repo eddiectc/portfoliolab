@@ -827,8 +827,8 @@ func (s *Service) buildModelHoldings(ctx context.Context, meta *modelPortfolioMe
 	holdings := make([]PortfolioHolding, 0, len(meta.Weights))
 	for _, w := range meta.Weights {
 		holding := PortfolioHolding{
-			Symbol: w.Symbol,
-			Weight: w.Weight, // already a fraction (0.0-1.0)
+			Symbol:    w.Symbol,
+			Weight:    w.Weight, // already a fraction (0.0-1.0)
 			QuoteType: "EQUITY", // default
 		}
 

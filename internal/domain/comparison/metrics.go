@@ -52,7 +52,7 @@ func ComputeCAGR(points []EquityCurvePoint) CAGRResult {
 	cagrPct = cagrPct.Round(2)
 
 	return CAGRResult{
-		CAGRPct:   &cagrPct,
+		CAGRPct:     &cagrPct,
 		DaysElapsed: days,
 	}
 }
@@ -477,7 +477,7 @@ func ComputeDrawdownSeries(points []EquityCurvePoint) []DrawdownSeriesPoint {
 // equityCurveDailyReturn pairs a date with a daily return derived from
 // consecutive equity curve points.
 type equityCurveDailyReturn struct {
-	date  time.Time
+	date    time.Time
 	return_ float64
 }
 
@@ -504,7 +504,7 @@ func equityCurveToDailyReturns(points []EquityCurvePoint) []equityCurveDailyRetu
 		}
 		rets = append(rets, equityCurveDailyReturn{
 			date:    sorted[i].Date,
-			return_: currF / prevF - 1.0,
+			return_: currF/prevF - 1.0,
 		})
 	}
 	return rets
@@ -642,5 +642,3 @@ func formatBinValue(v float64) string {
 	// One decimal place for non-integer values.
 	return strconv.FormatFloat(v, 'f', 1, 64) + "%"
 }
-
-
