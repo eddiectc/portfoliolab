@@ -120,18 +120,13 @@
 <p class="empty-state">{{.Result.Message}}</p>
 {{end}}
 
-{{/* Effective period info */}}
+{{/* Effective period info — both portfolios are aligned to the same range */}}
 {{if or .Result.PortfolioA.EffectiveDateFrom .Result.PortfolioB.EffectiveDateFrom}}
 <div class="analysis-section" style="padding:0.5rem 1rem;background:#f0f4f8;border-radius:4px;font-size:0.9em;">
-    <strong>Effective period:</strong>
-    {{if .Result.PortfolioA.EffectiveDateFrom}}{{.Result.PortfolioA.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioA.EffectiveDateTo.Format "2006-01-02"}}{{end}}
-    {{if and .Result.PortfolioA.EffectiveDateFrom .Result.PortfolioB.EffectiveDateFrom}} | {{end}}
-    {{if .Result.PortfolioB.EffectiveDateFrom}}{{.Result.PortfolioB.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioB.EffectiveDateTo.Format "2006-01-02"}}{{end}}
-    {{if .Result.PortfolioA.Warnings}}
-    <br><span style="color:#856404;">⚠ {{range .Result.PortfolioA.Warnings}}{{.}}{{end}}</span>
-    {{end}}
-    {{if .Result.PortfolioB.Warnings}}
-    <br><span style="color:#856404;">⚠ {{range .Result.PortfolioB.Warnings}}{{.}}{{end}}</span>
+    <strong>Period:</strong>
+    {{if .Result.PortfolioA.EffectiveDateFrom}}{{.Result.PortfolioA.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioA.EffectiveDateTo.Format "2006-01-02"}}{{else if .Result.PortfolioB.EffectiveDateFrom}}{{.Result.PortfolioB.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioB.EffectiveDateTo.Format "2006-01-02"}}{{end}}
+    {{if or .Result.PortfolioA.Warnings .Result.PortfolioB.Warnings}}
+    <br><span style="color:#856404;">⚠ {{range .Result.PortfolioA.Warnings}}{{.}}{{end}}{{range .Result.PortfolioB.Warnings}}{{.}}{{end}}</span>
     {{end}}
 </div>
 {{end}}
