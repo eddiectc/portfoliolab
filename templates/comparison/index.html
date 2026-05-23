@@ -55,11 +55,14 @@
                 {{end}}
             </select>
         </div>
+    </div>
 
+    {{/* Row 2: Period, dates, currency, start value, compare */}}
+    <div class="filter-row filter-row-secondary">
         {{/* Period */}}
         <div class="filter-group">
             <label>Period</label>
-            <div class="period-buttons">
+            <div class="period-buttons-sm">
                 {{range $p := slice "1W" "1M" "3M" "1Y" "3Y" "5Y" "YTD" "All"}}
                 <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
                 {{end}}
@@ -150,6 +153,14 @@
     </table>
     <p class="section-note">TWR (Time-Weighted Return) isolates investment performance from deposit/withdrawal timing. CAGR is the annualized TWR.</p>
 </div>
+
+{{/* Value Growth Chart */}}
+{{if .ValueGrowthChartData}}
+<div class="analysis-section">
+    <h2>Value Growth</h2>
+    <div id="value-growth-chart" style="width:100%;height:350px;"></div>
+</div>
+{{end}}
 
 {{/* ============================================ */}}
 {{/* SECTION: Risk Metrics                        */}}
@@ -481,8 +492,82 @@
 {{end}}
 
 {{/* ECharts scripts */}}
-{{if or .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns .DrawdownChartData .CorrelationMatrixAChart .CorrelationMatrixBChart .AnnualHistogramAChart .AnnualHistogramBChart .MonthlyHistogramAChart .MonthlyHistogramBChart}}
+{{if or .ValueGrowthChartData .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns .DrawdownChartData .CorrelationMatrixAChart .CorrelationMatrixBChart .AnnualHistogramAChart .AnnualHistogramBChart .MonthlyHistogramAChart .MonthlyHistogramBChart}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+{{end}}
+
+{{/* Value growth line chart */}}
+{{if .ValueGrowthChartData}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.ValueGrowthChartData}}');
+        if (!data.dates || data.dates.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('value-growth-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    var tip = params[0].name + '<br/>';
+                    for (var i = 0; i < params.length; i++) {
+                        tip += params[i].marker + params[i].seriesName + ': ';
+                        if (params[i].value >= 1000) {
+                            tip += params[i].value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        } else {
+                            tip += params[i].value.toFixed(2);
+                        }
+                        tip += '<br/>';
+                    }
+                    return tip;
+                }
+            },
+            legend: {
+                data: [data.name_a, data.name_b]
+            },
+            grid: { left: '3%', right: '10%', bottom: '3%', top: '12%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: data.dates,
+                axisLabel: {
+                    rotate: 30,
+                    fontSize: 10
+                }
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: function(v) {
+                        if (v >= 1000) return (v/1000).toFixed(0) + 'k';
+                        return v;
+                    }
+                }
+            },
+            series: [
+                {
+                    name: data.name_a,
+                    type: 'line',
+                    data: data.portfolio_a,
+                    smooth: false,
+                    symbol: 'none',
+                    lineStyle: { width: 2 },
+                    itemStyle: { color: '#4575b4' }
+                },
+                {
+                    name: data.name_b,
+                    type: 'line',
+                    data: data.portfolio_b,
+                    smooth: false,
+                    symbol: 'none',
+                    lineStyle: { width: 2 },
+                    itemStyle: { color: '#d73027' }
+                }
+            ]
+        });
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) { console.error('Value growth chart error:', e); }
+})();
+</script>
 {{end}}
 
 {{/* Annual returns bar chart */}}

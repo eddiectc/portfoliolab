@@ -593,6 +593,9 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 	pc.EffectiveDateFrom = &curve[0].Date
 	pc.EffectiveDateTo = &curve[len(curve)-1].Date
 
+	// Store the equity curve for the value growth chart.
+	pc.ValueGrowthSeries = curve
+
 	// For real portfolios, build a NAV-based curve for TWR-aware metrics.
 	// NavPerUnit is cash-flow-independent (unitized), so metrics derived from
 	// it isolate investment performance from deposit/withdrawal timing.

@@ -42,6 +42,7 @@ type comparisonPageData struct {
 	web.PageData
 	Result *comparison.ComparisonResult
 	// Pre-serialized JSON for ECharts.
+	ValueGrowthChartData    string
 	DrawdownChartData       string
 	AnnualReturnsChartData  string
 	AnnualHistogramAChart   string
@@ -152,6 +153,7 @@ func (h *ComparisonWebHandler) buildPageData(
 	period string,
 ) comparisonPageData {
 	// Serialize chart data.
+	valueGrowthChart := serializeValueGrowthChartData(result)
 	drawdownChart := serializeDrawdownChartData(result)
 	annualReturnsChart := serializeAnnualReturnsChartData(result)
 	annualHistA := serializeAnnualFrequencyHistogram(result, "A")
@@ -166,6 +168,7 @@ func (h *ComparisonWebHandler) buildPageData(
 	return comparisonPageData{
 		PageData:                web.PageData{Title: "Portfolio Comparison", Flash: getFlash(w, r)},
 		Result:                  result,
+		ValueGrowthChartData:    valueGrowthChart,
 		DrawdownChartData:       drawdownChart,
 		AnnualReturnsChartData:  annualReturnsChart,
 		AnnualHistogramAChart:   annualHistA,
@@ -321,6 +324,74 @@ func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string) m
 }
 
 // --- Chart Serialization ---
+
+// valueGrowthChartData holds JSON data for the value growth line chart.
+type valueGrowthChartData struct {
+	Dates      []string  `json:"dates"`
+	PortfolioA []float64 `json:"portfolio_a"`
+	PortfolioB []float64 `json:"portfolio_b"`
+	NameA      string    `json:"name_a"`
+	NameB      string    `json:"name_b"`
+	StartValue float64   `json:"start_value"`
+}
+
+// serializeValueGrowthChartData converts equity curves to value growth chart JSON.
+func serializeValueGrowthChartData(result *comparison.ComparisonResult) string {
+	if result == nil || result.PortfolioA == nil || result.PortfolioB == nil {
+		return "{}"
+	}
+	curveA := result.PortfolioA.ValueGrowthSeries
+	curveB := result.PortfolioB.ValueGrowthSeries
+	if len(curveA) == 0 && len(curveB) == 0 {
+		return "{}"
+	}
+
+	var startVal float64
+	if len(curveA) > 0 {
+		startVal, _ = curveA[0].PortfolioValue.Float64()
+	}
+	if startVal == 0 && len(curveB) > 0 {
+		startVal, _ = curveB[0].PortfolioValue.Float64()
+	}
+
+	data := valueGrowthChartData{
+		NameA:      result.PortfolioA.Name,
+		NameB:      result.PortfolioB.Name,
+		StartValue: startVal,
+	}
+
+	for _, pt := range curveA {
+		data.Dates = append(data.Dates, pt.Date.Format("2006-01-02"))
+		val, _ := pt.PortfolioValue.Float64()
+		data.PortfolioA = append(data.PortfolioA, val)
+	}
+	for _, pt := range curveB {
+		data.Dates = append(data.Dates, pt.Date.Format("2006-01-02"))
+		val, _ := pt.PortfolioValue.Float64()
+		data.PortfolioB = append(data.PortfolioB, val)
+	}
+
+	// If both curves have data, use common dates.
+	if len(curveA) > 0 && len(curveB) > 0 {
+		data = valueGrowthChartData{
+			NameA:      result.PortfolioA.Name,
+			NameB:      result.PortfolioB.Name,
+			StartValue: startVal,
+		}
+		for _, pt := range curveA {
+			data.Dates = append(data.Dates, pt.Date.Format("2006-01-02"))
+			val, _ := pt.PortfolioValue.Float64()
+			data.PortfolioA = append(data.PortfolioA, val)
+		}
+		for _, pt := range curveB {
+			val, _ := pt.PortfolioValue.Float64()
+			data.PortfolioB = append(data.PortfolioB, val)
+		}
+	}
+
+	b, _ := json.Marshal(data)
+	return string(b)
+}
 
 // drawdownChartData holds JSON data for the drawdown line chart.
 type drawdownChartData struct {
