@@ -501,6 +501,7 @@ function toggleCustomDates(e) {
             },
             yAxis: {
                 type: 'value',
+                scale: true,
                 axisLabel: {
                     formatter: function(v) {
                         if (v >= 1000) return (v/1000).toFixed(0) + 'k';
