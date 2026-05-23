@@ -338,9 +338,10 @@ func TestSerializeDrawdownChartData_NegatedValues(t *testing.T) {
 	}
 }
 
-func TestSerializeMonthlyHistogram(t *testing.T) {
+func TestSerializeMonthlyHistogramCombined(t *testing.T) {
 	result := &comparison.ComparisonResult{
 		PortfolioA: &comparison.PortfolioComparison{
+			Name: "Portfolio A",
 			ReturnDistribution: &comparison.ReturnDistribution{
 				Monthly: []comparison.ReturnBucket{
 					{Label: "-5% to 0%", Count: 10},
@@ -348,20 +349,50 @@ func TestSerializeMonthlyHistogram(t *testing.T) {
 				},
 			},
 		},
+		PortfolioB: &comparison.PortfolioComparison{
+			Name: "Portfolio B",
+			ReturnDistribution: &comparison.ReturnDistribution{
+				Monthly: []comparison.ReturnBucket{
+					{Label: "0% to 5%", Count: 8},
+					{Label: "5% to 10%", Count: 5},
+				},
+			},
+		},
 	}
 
-	jsonStr := serializeMonthlyHistogram(result, "A")
-	var data monthlyHistogramData
+	jsonStr := serializeMonthlyHistogramCombined(result)
+	var data combinedHistogramData
 	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
-	if len(data.Bins) != 2 {
-		t.Errorf("expected 2 bins, got %d", len(data.Bins))
+	// Union of bins: -5% to 0%, 0% to 5%, 5% to 10%
+	if len(data.Bins) != 3 {
+		t.Errorf("expected 3 bins, got %d", len(data.Bins))
+	}
+	// countsA: 10, 15, 0
+	if data.CountsA[0] != 10 {
+		t.Errorf("CountsA[0] = %.0f, want 10", data.CountsA[0])
+	}
+	if data.CountsA[1] != 15 {
+		t.Errorf("CountsA[1] = %.0f, want 15", data.CountsA[1])
+	}
+	if data.CountsA[2] != 0 {
+		t.Errorf("CountsA[2] = %.0f, want 0", data.CountsA[2])
+	}
+	// countsB: 0, 8, 5
+	if data.CountsB[0] != 0 {
+		t.Errorf("CountsB[0] = %.0f, want 0", data.CountsB[0])
+	}
+	if data.CountsB[1] != 8 {
+		t.Errorf("CountsB[1] = %.0f, want 8", data.CountsB[1])
+	}
+	if data.CountsB[2] != 5 {
+		t.Errorf("CountsB[2] = %.0f, want 5", data.CountsB[2])
 	}
 }
 
-func TestSerializeMonthlyHistogram_Nil(t *testing.T) {
-	jsonStr := serializeMonthlyHistogram(nil, "A")
+func TestSerializeMonthlyHistogramCombined_Nil(t *testing.T) {
+	jsonStr := serializeMonthlyHistogramCombined(nil)
 	if jsonStr != "{}" {
 		t.Errorf("expected '{}', got %q", jsonStr)
 	}
