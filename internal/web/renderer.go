@@ -177,6 +177,27 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return "heat-neutral"
 		},
+		"getHeatClassLowerBetter": func(s string) string {
+			// Returns a CSS class for metrics where lower is better (drawdown, volatility).
+			// Negates the value so higher → red, lower → green.
+			if s == "" {
+				return "heat-empty"
+			}
+			var val float64
+			fmt.Sscanf(s, "%f", &val)
+			// Negate so the same thresholds apply but inverted.
+			val = -val
+			if val >= 1.0 {
+				return "heat-positive-strong"
+			} else if val > 0 {
+				return "heat-positive"
+			} else if val <= -1.0 {
+				return "heat-negative-strong"
+			} else if val < 0 {
+				return "heat-negative"
+			}
+			return "heat-neutral"
+		},
 		"getHeatClassDiff": func(s string) string {
 			// Returns a CSS class for diff (relative) coloring.
 			// Positive (outperformed) ≥ 1% → heat-outperform-strong, 0 < x < 1% → heat-outperform

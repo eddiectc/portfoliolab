@@ -167,18 +167,18 @@
         <tbody>
             <tr>
                 <td>Sharpe Ratio</td>
-                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SharpeRatio}}{{template "decimal-val" .Result.PortfolioA.RiskMetrics.SharpeRatio}}{{else}}—{{end}}</td>
-                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SharpeRatio}}{{template "decimal-val" .Result.PortfolioB.RiskMetrics.SharpeRatio}}{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SharpeRatio}}{{getHeatClassAbsolute .Result.PortfolioA.RiskMetrics.SharpeRatio.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SharpeRatio}}{{template "decimal-val" .Result.PortfolioA.RiskMetrics.SharpeRatio}}{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SharpeRatio}}{{getHeatClassAbsolute .Result.PortfolioB.RiskMetrics.SharpeRatio.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SharpeRatio}}{{template "decimal-val" .Result.PortfolioB.RiskMetrics.SharpeRatio}}{{else}}—{{end}}</td>
             </tr>
             <tr>
                 <td>Sortino Ratio</td>
-                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SortinoRatio}}{{template "decimal-val" .Result.PortfolioA.RiskMetrics.SortinoRatio}}{{else}}—{{end}}</td>
-                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SortinoRatio}}{{template "decimal-val" .Result.PortfolioB.RiskMetrics.SortinoRatio}}{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SortinoRatio}}{{getHeatClassAbsolute .Result.PortfolioA.RiskMetrics.SortinoRatio.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.SortinoRatio}}{{template "decimal-val" .Result.PortfolioA.RiskMetrics.SortinoRatio}}{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SortinoRatio}}{{getHeatClassAbsolute .Result.PortfolioB.RiskMetrics.SortinoRatio.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.SortinoRatio}}{{template "decimal-val" .Result.PortfolioB.RiskMetrics.SortinoRatio}}{{else}}—{{end}}</td>
             </tr>
             <tr>
                 <td>Volatility (Ann.)</td>
-                <td class="num">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct}}{{template "pct-val" .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct}}%{{else}}—{{end}}</td>
-                <td class="num">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct}}{{template "pct-val" .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct}}%{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct}}{{getHeatClassLowerBetter .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.RiskMetrics .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct}}{{template "pct-val" .Result.PortfolioA.RiskMetrics.AnnualizedVolatilityPct}}%{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct}}{{getHeatClassLowerBetter .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.RiskMetrics .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct}}{{template "pct-val" .Result.PortfolioB.RiskMetrics.AnnualizedVolatilityPct}}%{{else}}—{{end}}</td>
             </tr>
         </tbody>
     </table>
@@ -201,8 +201,8 @@
         <tbody>
             <tr>
                 <td>Max Drawdown</td>
-                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.MaxDrawdownPct}}{{getHeatClassAbsolute .Result.PortfolioA.Drawdown.MaxDrawdownPct.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.MaxDrawdownPct}}{{template "pct-val" .Result.PortfolioA.Drawdown.MaxDrawdownPct}}%{{else}}—{{end}}</td>
-                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.MaxDrawdownPct}}{{getHeatClassAbsolute .Result.PortfolioB.Drawdown.MaxDrawdownPct.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.MaxDrawdownPct}}{{template "pct-val" .Result.PortfolioB.Drawdown.MaxDrawdownPct}}%{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.MaxDrawdownPct}}{{getHeatClassLowerBetter .Result.PortfolioA.Drawdown.MaxDrawdownPct.String}}{{end}}">{{if and .Result.PortfolioA .Result.PortfolioA.Drawdown .Result.PortfolioA.Drawdown.MaxDrawdownPct}}{{template "pct-val" .Result.PortfolioA.Drawdown.MaxDrawdownPct}}%{{else}}—{{end}}</td>
+                <td class="num {{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.MaxDrawdownPct}}{{getHeatClassLowerBetter .Result.PortfolioB.Drawdown.MaxDrawdownPct.String}}{{end}}">{{if and .Result.PortfolioB .Result.PortfolioB.Drawdown .Result.PortfolioB.Drawdown.MaxDrawdownPct}}{{template "pct-val" .Result.PortfolioB.Drawdown.MaxDrawdownPct}}%{{else}}—{{end}}</td>
             </tr>
             <tr>
                 <td>Current Drawdown</td>
