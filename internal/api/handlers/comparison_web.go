@@ -185,6 +185,12 @@ func (h *ComparisonWebHandler) buildPageData(
 	corrMatrixB := serializeCorrelationMatrix(result, "B")
 	mergedYearly := mergeYearlyReturns(result)
 
+	// Default starting value for display.
+	startingValue := filter.StartingValue
+	if startingValue == "" {
+		startingValue = "10000"
+	}
+
 	pd := comparisonPageData{
 		PageData:                web.PageData{Title: "Portfolio Comparison", Flash: getFlash(w, r)},
 		Result:                  result,
@@ -207,7 +213,7 @@ func (h *ComparisonWebHandler) buildPageData(
 		SelectedDateFrom:        filter.DateFrom,
 		SelectedDateTo:          filter.DateTo,
 		SelectedBaseCurrency:    filter.BaseCurrency,
-		SelectedStartingValue:   filter.StartingValue,
+		SelectedStartingValue:   startingValue,
 		PeriodURLs:              buildComparisonPeriodURLs(filter, period),
 	}
 	// Compute effective period as intersection of both portfolios' data ranges.
