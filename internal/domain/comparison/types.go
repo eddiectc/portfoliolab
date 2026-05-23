@@ -1,6 +1,7 @@
 package comparison
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/govalues/decimal"
@@ -125,6 +126,12 @@ type HoldingWeight struct {
 	Symbol string          `json:"symbol"`
 	Weight decimal.Decimal `json:"weight"` // as fraction (0.0-1.0)
 	Name   string          `json:"name,omitempty"`
+}
+
+// WeightPct returns the weight formatted as a percentage string with 1dp.
+func (h HoldingWeight) WeightPct() string {
+	f, _ := h.Weight.Float64()
+	return fmt.Sprintf("%.1f%%", f*100)
 }
 
 // modelPortfolioData holds the resolved model portfolio with metadata needed
