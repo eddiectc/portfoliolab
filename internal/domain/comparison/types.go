@@ -48,6 +48,11 @@ type PortfolioComparison struct {
 	ID                 int64                            `json:"id"`
 	Name               string                           `json:"name"`
 	Type               PortfolioType                    `json:"type"`
+	// EffectiveDateFrom and EffectiveDateTo are the actual date range used for
+	// computation, which may be narrower than the requested period due to data
+	// availability (e.g. a symbol with shorter history clips the period).
+	EffectiveDateFrom  *time.Time                       `json:"effective_date_from,omitempty"`
+	EffectiveDateTo    *time.Time                       `json:"effective_date_to,omitempty"`
 	ReturnMetrics      *ReturnMetrics                   `json:"return_metrics,omitempty"`
 	RiskMetrics        *RiskMetrics                     `json:"risk_metrics,omitempty"`
 	Drawdown           *DrawdownResult                  `json:"drawdown,omitempty"`
