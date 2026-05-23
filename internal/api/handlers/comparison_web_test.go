@@ -109,7 +109,7 @@ func TestComparisonWebHandler_RenderPageWithResult(t *testing.T) {
 	router := chi.NewRouter()
 	webHandler.RegisterRoutes(router)
 
-	req := httptest.NewRequest("GET", "/comparison?portfolio_a_id=1&portfolio_a_type=model&portfolio_b_id=2&portfolio_b_type=model&period=1Y", nil)
+	req := httptest.NewRequest("GET", "/comparison?portfolio_a_id=m1&portfolio_b_id=m2&period=1Y", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -144,7 +144,7 @@ func TestComparisonWebHandler_RenderPageWithError(t *testing.T) {
 	router := chi.NewRouter()
 	webHandler.RegisterRoutes(router)
 
-	req := httptest.NewRequest("GET", "/comparison?portfolio_a_id=1&portfolio_a_type=model&portfolio_b_id=2&portfolio_b_type=model", nil)
+	req := httptest.NewRequest("GET", "/comparison?portfolio_a_id=m1&portfolio_b_id=m2", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -217,19 +217,19 @@ func TestParseComparisonFilter(t *testing.T) {
 		expect comparisonFilter
 	}{
 		{
-			name:   "all params",
-			query:  map[string][]string{"portfolio_a_id": {"1"}, "portfolio_a_type": {"model"}, "portfolio_b_id": {"2"}, "portfolio_b_type": {"real"}, "period": {"3Y"}, "date_from": {"2023-01-01"}, "date_to": {"2023-12-31"}, "base_currency": {"EUR"}, "starting_value": {"50000"}},
+			name:   "all params combined format",
+			query:  map[string][]string{"portfolio_a_id": {"m1"}, "portfolio_b_id": {"r2"}, "period": {"3Y"}, "date_from": {"2023-01-01"}, "date_to": {"2023-12-31"}, "base_currency": {"EUR"}, "starting_value": {"50000"}},
 			expect: comparisonFilter{PortfolioAID: 1, PortfolioAType: "model", PortfolioBID: 2, PortfolioBType: "real", Period: "3Y", DateFrom: "2023-01-01", DateTo: "2023-12-31", BaseCurrency: "EUR", StartingValue: "50000"},
 		},
 		{
 			name:   "minimal",
 			query:  map[string][]string{},
-			expect: comparisonFilter{PortfolioAType: "model", PortfolioBType: "real"},
+			expect: comparisonFilter{PortfolioAType: "model", PortfolioBType: "model"},
 		},
 		{
 			name:   "invalid id ignored",
 			query:  map[string][]string{"portfolio_a_id": {"abc"}},
-			expect: comparisonFilter{PortfolioAID: 0, PortfolioAType: "model", PortfolioBType: "real"},
+			expect: comparisonFilter{PortfolioAID: 0, PortfolioAType: "model", PortfolioBType: "model"},
 		},
 	}
 
@@ -444,15 +444,18 @@ func TestBuildComparisonPeriodURLs(t *testing.T) {
 		PortfolioAID:   1,
 		PortfolioAType: "model",
 		PortfolioBID:   2,
-		PortfolioBType: "model",
+		PortfolioBType: "real",
 		BaseCurrency:   "EUR",
 	}
 	urls := buildComparisonPeriodURLs(filter, "1Y")
 	if len(urls) != 8 {
 		t.Errorf("expected 8 period URLs, got %d", len(urls))
 	}
-	if !strings.Contains(urls["1Y"], "portfolio_a_id=1") {
-		t.Error("expected portfolio_a_id in URL")
+	if !strings.Contains(urls["1Y"], "portfolio_a_id=m1") {
+		t.Errorf("expected portfolio_a_id=m1 in URL, got: %s", urls["1Y"])
+	}
+	if !strings.Contains(urls["1Y"], "portfolio_b_id=r2") {
+		t.Errorf("expected portfolio_b_id=r2 in URL, got: %s", urls["1Y"])
 	}
 	if !strings.Contains(urls["3Y"], "period=3Y") {
 		t.Error("expected period=3Y in 3Y URL")

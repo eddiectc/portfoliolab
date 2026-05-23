@@ -1416,3 +1416,58 @@ legend {
     gap: 16px;
     flex-wrap: wrap;
 }
+
+/* Compact inline fields (currency + start value) */
+.compact-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.compact-inline label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: #666;
+}
+
+.compact-inline select,
+.compact-inline .compact-input {
+    width: auto;
+    min-width: 70px;
+    padding: 0.2rem 0.3rem;
+    font-size: 0.75rem;
+}
+
+.compact-inline .compact-input {
+    width: 80px;
+}
+
+/* Date range group (inline from/to) */
+.date-range-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.date-range-group label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: #666;
+}
+
+.date-range-group input[type="date"] {
+    width: auto;
+    padding: 0.2rem 0.3rem;
+    font-size: 0.75rem;
+}
+
+/* Comparison table cell borders (visible between heat cells) */
+.comparison-table td {
+    border-width: 1px;
+    border-style: solid;
+    border-color: #fff;
+}
