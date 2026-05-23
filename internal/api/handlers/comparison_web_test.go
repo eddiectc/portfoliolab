@@ -276,14 +276,15 @@ func TestSerializeAnnualReturnsChartData(t *testing.T) {
 		t.Fatalf("failed to unmarshal chart data: %v", err)
 	}
 
-	if len(data.Years) != 2 {
-		t.Errorf("expected 2 years, got %d", len(data.Years))
+	// Intersection: only 2024 is in both portfolios.
+	if len(data.Years) != 1 {
+		t.Errorf("expected 1 year (intersection), got %d", len(data.Years))
 	}
 	if data.NameA != "A" {
 		t.Errorf("expected name_a=A, got %q", data.NameA)
 	}
-	if len(data.ReturnA) != 2 || len(data.ReturnB) != 2 {
-		t.Errorf("expected 2 return values each, got A=%d B=%d", len(data.ReturnA), len(data.ReturnB))
+	if len(data.ReturnA) != 1 || len(data.ReturnB) != 1 {
+		t.Errorf("expected 1 return value each (intersection), got A=%d B=%d", len(data.ReturnA), len(data.ReturnB))
 	}
 }
 
@@ -418,16 +419,14 @@ func TestMergeYearlyReturns(t *testing.T) {
 	}
 
 	rows := mergeYearlyReturns(result)
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows, got %d", len(rows))
+	// Intersection: only 2024 is in both portfolios.
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row (intersection), got %d", len(rows))
 	}
-	if rows[0].Year != 2023 {
-		t.Errorf("first row year: got %d, want 2023", rows[0].Year)
+	if rows[0].Year != 2024 {
+		t.Errorf("row year: got %d, want 2024", rows[0].Year)
 	}
-	if rows[1].Year != 2024 {
-		t.Errorf("second row year: got %d, want 2024", rows[1].Year)
-	}
-	if rows[1].ReturnA == nil || rows[1].ReturnB == nil {
+	if rows[0].ReturnA == nil || rows[0].ReturnB == nil {
 		t.Error("2024 should have both A and B returns")
 	}
 }
