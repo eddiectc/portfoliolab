@@ -1323,8 +1323,9 @@ legend {
 /* Comparison page styles */
 .comparison-table {
     width: 100%;
-    border-collapse: collapse;
-    border: 1px solid #dee2e6;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 2px solid #dee2e6;
 }
 
 .comparison-table th,
@@ -1465,9 +1466,4 @@ legend {
     font-size: 0.75rem;
 }
 
-/* Comparison table cell borders (visible between heat cells) */
-.comparison-table td {
-    border-width: 1px;
-    border-style: solid;
-    border-color: #fff;
-}
+
