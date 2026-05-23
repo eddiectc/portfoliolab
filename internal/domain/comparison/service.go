@@ -565,6 +565,10 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 		return pc
 	}
 
+	// Set effective date range from the actual data.
+	pc.EffectiveDateFrom = &curve[0].Date
+	pc.EffectiveDateTo = &curve[len(curve)-1].Date
+
 	// For real portfolios, build a NAV-based curve for TWR-aware metrics.
 	// NavPerUnit is cash-flow-independent (unitized), so metrics derived from
 	// it isolate investment performance from deposit/withdrawal timing.

@@ -141,6 +141,20 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return 1
 		},
+		"formatFloatPct": func(v *float64) string {
+			// Format a *float64 as a percentage string (2dp), or "—" if nil.
+			if v == nil {
+				return "—"
+			}
+			return fmt.Sprintf("%.2f%%", *v)
+		},
+		"formatFloatPctRaw": func(v *float64) string {
+			// Format a *float64 as a raw number string (4dp) for heat class lookup, or "" if nil.
+			if v == nil {
+				return ""
+			}
+			return fmt.Sprintf("%.4f", *v)
+		},
 		"getHeatClassAbsolute": func(s string) string {
 			// Returns a CSS class for absolute return coloring.
 			// Positive ≥ 1% → heat-positive-strong, 0 < x < 1% → heat-positive

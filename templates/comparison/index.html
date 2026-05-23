@@ -90,7 +90,7 @@
         {{/* Starting value for model portfolios */}}
         <div class="filter-group">
             <label for="starting_value">Start Value</label>
-            <input type="number" id="starting_value" name="starting_value" value="{{.SelectedStartingValue}}" step="1000" min="1" />
+            <input type="number" id="starting_value" name="starting_value" value="{{.SelectedStartingValue}}" min="1" />
         </div>
 
         <div class="filter-group filter-actions">
@@ -118,6 +118,22 @@
 {{/* Empty state message */}}
 {{if .Result.Message}}
 <p class="empty-state">{{.Result.Message}}</p>
+{{end}}
+
+{{/* Effective period info */}}
+{{if or .Result.PortfolioA.EffectiveDateFrom .Result.PortfolioB.EffectiveDateFrom}}
+<div class="analysis-section" style="padding:0.5rem 1rem;background:#f0f4f8;border-radius:4px;font-size:0.9em;">
+    <strong>Effective period:</strong>
+    {{if .Result.PortfolioA.EffectiveDateFrom}}{{.Result.PortfolioA.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioA.EffectiveDateTo.Format "2006-01-02"}}{{end}}
+    {{if and .Result.PortfolioA.EffectiveDateFrom .Result.PortfolioB.EffectiveDateFrom}} | {{end}}
+    {{if .Result.PortfolioB.EffectiveDateFrom}}{{.Result.PortfolioB.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioB.EffectiveDateTo.Format "2006-01-02"}}{{end}}
+    {{if .Result.PortfolioA.Warnings}}
+    <br><span style="color:#856404;">⚠ {{range .Result.PortfolioA.Warnings}}{{.}}{{end}}</span>
+    {{end}}
+    {{if .Result.PortfolioB.Warnings}}
+    <br><span style="color:#856404;">⚠ {{range .Result.PortfolioB.Warnings}}{{.}}{{end}}</span>
+    {{end}}
+</div>
 {{end}}
 
 {{/* ============================================ */}}
@@ -234,8 +250,8 @@
             {{range .YearlyReturnsMerged}}
             <tr>
                 <td>{{.Year}}</td>
-                <td class="num {{if .ReturnA}}{{printf "%.4f" .ReturnA | getHeatClassAbsolute}}{{end}}">{{if .ReturnA}}{{printf "%.2f" .ReturnA}}%{{else}}—{{end}}</td>
-                <td class="num {{if .ReturnB}}{{printf "%.4f" .ReturnB | getHeatClassAbsolute}}{{end}}">{{if .ReturnB}}{{printf "%.2f" .ReturnB}}%{{else}}—{{end}}</td>
+                <td class="num {{if .ReturnA}}{{formatFloatPctRaw .ReturnA | getHeatClassAbsolute}}{{end}}">{{formatFloatPct .ReturnA}}</td>
+                <td class="num {{if .ReturnB}}{{formatFloatPctRaw .ReturnB | getHeatClassAbsolute}}{{end}}">{{formatFloatPct .ReturnB}}</td>
             </tr>
             {{end}}
         </tbody>
@@ -909,11 +925,6 @@
     <td>CAGR</td>
     <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.CAGRPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.CAGRPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.CAGRPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.CAGRPct}}%{{else}}—{{end}}</td>
     <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.CAGRPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.CAGRPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.CAGRPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.CAGRPct}}%{{else}}—{{end}}</td>
-</tr>
-<tr>
-    <td>Money-Weighted Return</td>
-    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
-    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
 </tr>
 {{end}}
 
