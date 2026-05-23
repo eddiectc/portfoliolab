@@ -1421,8 +1421,10 @@ legend {
 /* Compact inline fields (currency + start value) */
 .compact-inline {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-end;
 }
 
 .compact-inline label {
