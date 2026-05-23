@@ -66,10 +66,8 @@ type comparisonPageData struct {
 	ValueGrowthChartData    string
 	DrawdownChartData       string
 	AnnualReturnsChartData  string
-	AnnualHistogramAChart   string
-	AnnualHistogramBChart   string
-	MonthlyHistogramAChart  string
-	MonthlyHistogramBChart  string
+	AnnualHistogramChart    string
+	MonthlyHistogramChart   string
 	OverlapChartData        string
 	CorrelationMatrixAChart string
 	CorrelationMatrixBChart string
@@ -180,10 +178,8 @@ func (h *ComparisonWebHandler) buildPageData(
 	valueGrowthChart := serializeValueGrowthChartData(result, filter.StartingValue)
 	drawdownChart := serializeDrawdownChartData(result)
 	annualReturnsChart := serializeAnnualReturnsChartData(result)
-	annualHistA := serializeAnnualFrequencyHistogram(result, "A")
-	annualHistB := serializeAnnualFrequencyHistogram(result, "B")
-	monthlyHistA := serializeMonthlyHistogram(result, "A")
-	monthlyHistB := serializeMonthlyHistogram(result, "B")
+	annualHist := serializeAnnualFrequencyHistogramCombined(result)
+	monthlyHist := serializeMonthlyHistogramCombined(result)
 	overlapChart := serializeOverlapChartData(result)
 	corrMatrixA := serializeCorrelationMatrix(result, "A")
 	corrMatrixB := serializeCorrelationMatrix(result, "B")
@@ -195,10 +191,8 @@ func (h *ComparisonWebHandler) buildPageData(
 		ValueGrowthChartData:    valueGrowthChart,
 		DrawdownChartData:       drawdownChart,
 		AnnualReturnsChartData:  annualReturnsChart,
-		AnnualHistogramAChart:   annualHistA,
-		AnnualHistogramBChart:   annualHistB,
-		MonthlyHistogramAChart:  monthlyHistA,
-		MonthlyHistogramBChart:  monthlyHistB,
+		AnnualHistogramChart:    annualHist,
+		MonthlyHistogramChart:   monthlyHist,
 		OverlapChartData:        overlapChart,
 		CorrelationMatrixAChart: corrMatrixA,
 		CorrelationMatrixBChart: corrMatrixB,
@@ -652,51 +646,161 @@ func serializeAnnualReturnsChartData(result *comparison.ComparisonResult) string
 	return string(b)
 }
 
-// monthlyHistogramData holds JSON data for the monthly return frequency histogram.
-type monthlyHistogramData struct {
-	Bins   []string  `json:"bins"`
-	Counts []float64 `json:"counts"`
+// combinedHistogramData holds JSON for a combined histogram showing both portfolios.
+type combinedHistogramData struct {
+	Bins    []string  `json:"bins"`
+	CountsA []float64 `json:"counts_a"`
+	CountsB []float64 `json:"counts_b"`
+	NameA   string    `json:"name_a"`
+	NameB   string    `json:"name_b"`
 }
 
-// serializeMonthlyHistogram converts the monthly return distribution to histogram JSON.
-// portfolioSide is "A" or "B".
-func serializeMonthlyHistogram(result *comparison.ComparisonResult, portfolioSide string) string {
+// serializeMonthlyHistogramCombined produces a combined monthly return frequency
+// histogram with both portfolios side-by-side.
+func serializeMonthlyHistogramCombined(result *comparison.ComparisonResult) string {
 	if result == nil {
 		return "{}"
 	}
+	distA := getDistribution(result, "A")
+	distB := getDistribution(result, "B")
 
-	var dist *comparison.ReturnDistribution
-	switch portfolioSide {
-	case "A":
-		if result.PortfolioA != nil && result.PortfolioA.ReturnDistribution != nil {
-			dist = result.PortfolioA.ReturnDistribution
-		}
-	case "B":
-		if result.PortfolioB != nil && result.PortfolioB.ReturnDistribution != nil {
-			dist = result.PortfolioB.ReturnDistribution
-		}
-	}
-
-	if dist == nil || len(dist.Monthly) == 0 {
+	if distA == nil && distB == nil {
 		return "{}"
 	}
 
-	bins := make([]string, len(dist.Monthly))
-	counts := make([]float64, len(dist.Monthly))
-	for i, b := range dist.Monthly {
-		bins[i] = b.Label
-		counts[i] = float64(b.Count)
-	}
+	bins, countsA, countsB := mergeHistogramBins(distA, distB, func(d *comparison.ReturnDistribution) []comparison.ReturnBucket {
+		if d == nil {
+			return nil
+		}
+		return d.Monthly
+	})
 
-	data := monthlyHistogramData{
-		Bins:   bins,
-		Counts: counts,
+	data := combinedHistogramData{
+		Bins:    bins,
+		CountsA: countsA,
+		CountsB: countsB,
+		NameA:   portfolioName(result.PortfolioA),
+		NameB:   portfolioName(result.PortfolioB),
 	}
 	j, err := json.Marshal(data)
 	if err != nil {
 		return "{}"
 	}
 	return string(j)
+}
+
+// serializeAnnualFrequencyHistogramCombined produces a combined annual return
+// frequency histogram with both portfolios side-by-side.
+func serializeAnnualFrequencyHistogramCombined(result *comparison.ComparisonResult) string {
+	if result == nil {
+		return "{}"
+	}
+	distA := getDistribution(result, "A")
+	distB := getDistribution(result, "B")
+
+	if distA == nil && distB == nil {
+		return "{}"
+	}
+
+	bins, countsA, countsB := mergeHistogramBins(distA, distB, func(d *comparison.ReturnDistribution) []comparison.ReturnBucket {
+		if d == nil {
+			return nil
+		}
+		return d.AnnualBinned
+	})
+
+	data := combinedHistogramData{
+		Bins:    bins,
+		CountsA: countsA,
+		CountsB: countsB,
+		NameA:   portfolioName(result.PortfolioA),
+		NameB:   portfolioName(result.PortfolioB),
+	}
+	j, err := json.Marshal(data)
+	if err != nil {
+		return "{}"
+	}
+	return string(j)
+}
+
+// getDistribution returns the ReturnDistribution for the given portfolio side.
+func getDistribution(result *comparison.ComparisonResult, side string) *comparison.ReturnDistribution {
+	switch side {
+	case "A":
+		if result.PortfolioA != nil && result.PortfolioA.ReturnDistribution != nil {
+			return result.PortfolioA.ReturnDistribution
+		}
+	case "B":
+		if result.PortfolioB != nil && result.PortfolioB.ReturnDistribution != nil {
+			return result.PortfolioB.ReturnDistribution
+		}
+	}
+	return nil
+}
+
+// mergeHistogramBins merges two sets of histogram buckets into a shared bin list
+// (union of labels) with parallel count slices for each portfolio.
+func mergeHistogramBins(distA, distB *comparison.ReturnDistribution, extractor func(*comparison.ReturnDistribution) []comparison.ReturnBucket) ([]string, []float64, []float64) {
+	bucketsA := extractor(distA)
+	bucketsB := extractor(distB)
+
+	// Build label -> count maps.
+	mapA := make(map[string]float64)
+	for _, b := range bucketsA {
+		mapA[b.Label] = float64(b.Count)
+	}
+	mapB := make(map[string]float64)
+	for _, b := range bucketsB {
+		mapB[b.Label] = float64(b.Count)
+	}
+
+	// Union of labels, sorted.
+	labelSet := make(map[string]bool)
+	for l := range mapA {
+		labelSet[l] = true
+	}
+	for l := range mapB {
+		labelSet[l] = true
+	}
+	var bins []string
+	for l := range labelSet {
+		bins = append(bins, l)
+	}
+	sort.Slice(bins, func(i, j int) bool {
+		return extractBinCenter(bins[i]) < extractBinCenter(bins[j])
+	})
+
+	countsA := make([]float64, len(bins))
+	countsB := make([]float64, len(bins))
+	for i, b := range bins {
+		countsA[i] = mapA[b]
+		countsB[i] = mapB[b]
+	}
+
+	return bins, countsA, countsB
+}
+
+// extractBinCenter parses the center value from a bin label like "-5% to 0%" for sorting.
+func extractBinCenter(label string) float64 {
+	// Parse first number from label.
+	var result string
+	inNum := false
+	for _, r := range label {
+		if r == '-' || (r >= '0' && r <= '9') {
+			result += string(r)
+			inNum = true
+		} else if inNum {
+			break
+		}
+	}
+	if result == "" {
+		return 0
+	}
+	v, err := strconv.ParseFloat(result, 64)
+	if err != nil {
+		return 0
+	}
+	return v
 }
 
 // overlapChartData holds JSON data for the overlap visualization.
@@ -749,47 +853,6 @@ func serializeOverlapChartData(result *comparison.ComparisonResult) string {
 		return "{}"
 	}
 	return string(b)
-}
-
-// serializeAnnualFrequencyHistogram converts the annual return frequency
-// distribution to histogram JSON. portfolioSide is "A" or "B".
-func serializeAnnualFrequencyHistogram(result *comparison.ComparisonResult, portfolioSide string) string {
-	if result == nil {
-		return "{}"
-	}
-
-	var dist *comparison.ReturnDistribution
-	switch portfolioSide {
-	case "A":
-		if result.PortfolioA != nil && result.PortfolioA.ReturnDistribution != nil {
-			dist = result.PortfolioA.ReturnDistribution
-		}
-	case "B":
-		if result.PortfolioB != nil && result.PortfolioB.ReturnDistribution != nil {
-			dist = result.PortfolioB.ReturnDistribution
-		}
-	}
-
-	if dist == nil || len(dist.AnnualBinned) == 0 {
-		return "{}"
-	}
-
-	bins := make([]string, len(dist.AnnualBinned))
-	counts := make([]float64, len(dist.AnnualBinned))
-	for i, b := range dist.AnnualBinned {
-		bins[i] = b.Label
-		counts[i] = float64(b.Count)
-	}
-
-	data := monthlyHistogramData{
-		Bins:   bins,
-		Counts: counts,
-	}
-	j, err := json.Marshal(data)
-	if err != nil {
-		return "{}"
-	}
-	return string(j)
 }
 
 // correlationMatrixData holds JSON data for the correlation matrix heatmap.

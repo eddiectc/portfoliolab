@@ -299,16 +299,7 @@ function toggleCustomDates(e) {
 {{if or .Result.PortfolioA.ReturnDistribution .Result.PortfolioB.ReturnDistribution}}
 <div class="analysis-section">
     <h2>Monthly Return Distribution</h2>
-    <div class="comparison-charts-row">
-        <div style="flex:1;min-width:0;">
-            <h3>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</h3>
-            <div id="monthly-histogram-a" style="width:100%;height:300px;"></div>
-        </div>
-        <div style="flex:1;min-width:0;">
-            <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</h3>
-            <div id="monthly-histogram-b" style="width:100%;height:300px;"></div>
-        </div>
-    </div>
+    <div id="monthly-histogram-chart" style="width:100%;height:350px;"></div>
 </div>
 {{end}}
 
@@ -318,16 +309,7 @@ function toggleCustomDates(e) {
 {{if or .Result.PortfolioA.ReturnDistribution .Result.PortfolioB.ReturnDistribution}}
 <div class="analysis-section">
     <h2>Annual Return Frequency Distribution</h2>
-    <div class="comparison-charts-row">
-        <div style="flex:1;min-width:0;">
-            <h3>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</h3>
-            <div id="annual-histogram-a" style="width:100%;height:300px;"></div>
-        </div>
-        <div style="flex:1;min-width:0;">
-            <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</h3>
-            <div id="annual-histogram-b" style="width:100%;height:300px;"></div>
-        </div>
-    </div>
+    <div id="annual-histogram-chart" style="width:100%;height:350px;"></div>
 </div>
 {{end}}
 
@@ -475,7 +457,7 @@ function toggleCustomDates(e) {
 {{end}}
 
 {{/* ECharts scripts */}}
-{{if or .ValueGrowthChartData .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns .DrawdownChartData .CorrelationMatrixAChart .CorrelationMatrixBChart .AnnualHistogramAChart .AnnualHistogramBChart .MonthlyHistogramAChart .MonthlyHistogramBChart}}
+{{if or .ValueGrowthChartData .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns .DrawdownChartData .CorrelationMatrixAChart .CorrelationMatrixBChart .AnnualHistogramChart .MonthlyHistogramChart}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 {{end}}
 
@@ -622,21 +604,22 @@ function toggleCustomDates(e) {
 </script>
 {{end}}
 
-{{/* Monthly histogram A */}}
-{{if .MonthlyHistogramAChart}}
+{{/* Monthly histogram (combined) */}}
+{{if .MonthlyHistogramChart}}
 <script>
 (function() {
     try {
-        var data = JSON.parse('{{.MonthlyHistogramAChart}}');
+        var data = JSON.parse('{{.MonthlyHistogramChart}}');
         if (!data.bins || data.bins.length === 0) return;
 
-        var chart = echarts.init(document.getElementById('monthly-histogram-a'));
+        var chart = echarts.init(document.getElementById('monthly-histogram-chart'));
         chart.setOption({
             tooltip: {
                 trigger: 'axis',
                 axisPointer: { type: 'shadow' }
             },
-            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
+            legend: { data: [data.name_a, data.name_b] },
+            grid: { left: '3%', right: '5%', bottom: '10%', top: '12%', containLabel: true },
             xAxis: {
                 type: 'category',
                 data: data.bins,
@@ -646,55 +629,25 @@ function toggleCustomDates(e) {
                 type: 'value',
                 name: 'Count'
             },
-            series: [{
-                type: 'bar',
-                data: data.counts,
-                itemStyle: { color: '#4575b4' }
-            }]
+            series: [
+                {
+                    name: data.name_a,
+                    type: 'bar',
+                    data: data.counts_a,
+                    itemStyle: { color: '#4575b4' }
+                },
+                {
+                    name: data.name_b,
+                    type: 'bar',
+                    data: data.counts_b,
+                    itemStyle: { color: '#d73027' }
+                }
+            ]
         });
 
         window.addEventListener('resize', function() { chart.resize(); });
     } catch(e) {
-        console.error('Monthly histogram A failed:', e);
-    }
-})();
-</script>
-{{end}}
-
-{{/* Monthly histogram B */}}
-{{if .MonthlyHistogramBChart}}
-<script>
-(function() {
-    try {
-        var data = JSON.parse('{{.MonthlyHistogramBChart}}');
-        if (!data.bins || data.bins.length === 0) return;
-
-        var chart = echarts.init(document.getElementById('monthly-histogram-b'));
-        chart.setOption({
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' }
-            },
-            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
-            xAxis: {
-                type: 'category',
-                data: data.bins,
-                axisLabel: { rotate: 45, fontSize: 10 }
-            },
-            yAxis: {
-                type: 'value',
-                name: 'Count'
-            },
-            series: [{
-                type: 'bar',
-                data: data.counts,
-                itemStyle: { color: '#d73027' }
-            }]
-        });
-
-        window.addEventListener('resize', function() { chart.resize(); });
-    } catch(e) {
-        console.error('Monthly histogram B failed:', e);
+        console.error('Monthly histogram failed:', e);
     }
 })();
 </script>
@@ -760,51 +713,30 @@ function toggleCustomDates(e) {
 </script>
 {{end}}
 
-{{/* Annual frequency histogram A */}}
-{{if .AnnualHistogramAChart}}
+{{/* Annual frequency histogram (combined) */}}
+{{if .AnnualHistogramChart}}
 <script>
 (function() {
     try {
-        var data = JSON.parse('{{.AnnualHistogramAChart}}');
+        var data = JSON.parse('{{.AnnualHistogramChart}}');
         if (!data.bins || data.bins.length === 0) return;
 
-        var chart = echarts.init(document.getElementById('annual-histogram-a'));
+        var chart = echarts.init(document.getElementById('annual-histogram-chart'));
         chart.setOption({
             tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
+            legend: { data: [data.name_a, data.name_b] },
+            grid: { left: '3%', right: '5%', bottom: '10%', top: '12%', containLabel: true },
             xAxis: { type: 'category', data: data.bins, axisLabel: { rotate: 45, fontSize: 10 } },
             yAxis: { type: 'value', name: 'Count' },
-            series: [{ type: 'bar', data: data.counts, itemStyle: { color: '#4575b4' } }]
+            series: [
+                { name: data.name_a, type: 'bar', data: data.counts_a, itemStyle: { color: '#4575b4' } },
+                { name: data.name_b, type: 'bar', data: data.counts_b, itemStyle: { color: '#d73027' } }
+            ]
         });
 
         window.addEventListener('resize', function() { chart.resize(); });
     } catch(e) {
-        console.error('Annual histogram A failed:', e);
-    }
-})();
-</script>
-{{end}}
-
-{{/* Annual frequency histogram B */}}
-{{if .AnnualHistogramBChart}}
-<script>
-(function() {
-    try {
-        var data = JSON.parse('{{.AnnualHistogramBChart}}');
-        if (!data.bins || data.bins.length === 0) return;
-
-        var chart = echarts.init(document.getElementById('annual-histogram-b'));
-        chart.setOption({
-            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-            grid: { left: '3%', right: '5%', bottom: '10%', top: '5%', containLabel: true },
-            xAxis: { type: 'category', data: data.bins, axisLabel: { rotate: 45, fontSize: 10 } },
-            yAxis: { type: 'value', name: 'Count' },
-            series: [{ type: 'bar', data: data.counts, itemStyle: { color: '#d73027' } }]
-        });
-
-        window.addEventListener('resize', function() { chart.resize(); });
-    } catch(e) {
-        console.error('Annual histogram B failed:', e);
+        console.error('Annual histogram failed:', e);
     }
 })();
 </script>
