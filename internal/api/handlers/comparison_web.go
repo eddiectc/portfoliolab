@@ -21,17 +21,21 @@ import (
 // =============================================================================
 // COMPARISON PAGE RULES — enforce for ALL new charts/tables:
 //
-// 1. DATE ALIGNMENT: Use intersectDates(mapA, mapB) for any side-by-side
+// 1. TWR ONLY: All comparison data is cash-flow-independent (TWR-equivalent).
+//    ValueGrowthSeries already uses NavPerUnit. Never use PortfolioValue —
+//    it includes deposits/withdrawals and would be inconsistent with TWR.
+//
+// 2. DATE ALIGNMENT: Use intersectDates(mapA, mapB) for any side-by-side
 //    time series. Never use union dates — only dates where BOTH portfolios
 //    have data. This ensures both lines share the same x-axis.
 //
-// 2. STARTING VALUE: Use parseStartingValue(filter.StartingValue) for any
+// 3. STARTING VALUE: Use parseStartingValue(filter.StartingValue) for any
 //    value normalization. The user-specified starting value (default 10000)
 //    is the canonical reference — never use actual portfolio values.
 //
-// 3. CHARTS THAT DON'T NEED DATE ALIGNMENT: Histograms, correlation matrices,
+// 4. CHARTS THAT DON'T NEED DATE ALIGNMENT: Histograms, correlation matrices,
 //    overlap tables, and yearly aggregations work on pre-aggregated data and
-//    are exempt from rule 1.
+//    are exempt from rule 2.
 // =============================================================================
 
 // comparisonFilter holds parsed filter parameters for the comparison page.
@@ -459,6 +463,7 @@ type valueGrowthChartData struct {
 // Both curves are normalized to start from the user-specified starting value
 // so they are directly comparable regardless of actual capital deployed.
 // Dates are aligned to the intersection of both curves.
+// ValueGrowthSeries is already TWR-equivalent (NavPerUnit in PortfolioValue).
 func serializeValueGrowthChartData(result *comparison.ComparisonResult, startingValueStr string) string {
 	if result == nil || result.PortfolioA == nil || result.PortfolioB == nil {
 		return "{}"
@@ -476,6 +481,7 @@ func serializeValueGrowthChartData(result *comparison.ComparisonResult, starting
 	}
 
 	// Build date-indexed maps for both curves (normalized to startVal).
+	// ValueGrowthSeries PortfolioValue is already NavPerUnit (TWR-equivalent).
 	var baseA, baseB float64
 	if len(curveA) > 0 {
 		baseA, _ = curveA[0].PortfolioValue.Float64()

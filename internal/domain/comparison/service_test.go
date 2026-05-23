@@ -337,10 +337,10 @@ func TestComputeComparison_ModelVsModel(t *testing.T) {
 	}
 
 	// AAPL went from 100 to 110 = 10% return.
-	// Model B is 100% AAPL, so simple return should be ~10%.
+	// Model B is 100% AAPL, so TWR should be ~10%.
 	tol := decimal.MustNew(1, 2)       // 0.01 tolerance
 	want10 := decimal.MustNew(1000, 2) // 10.00
-	almostEqual(t, result.PortfolioB.ReturnMetrics.SimpleReturnPct, &want10, tol)
+	almostEqual(t, result.PortfolioB.ReturnMetrics.TWRPct, &want10, tol)
 
 	// Verify cross metrics exist.
 	if result.CrossMetrics == nil {
@@ -491,11 +491,11 @@ func TestComputeComparison_RealVsReal(t *testing.T) {
 	}
 
 	// Both portfolios get the same curve from the mock.
-	// Grew from 10000 to 11200 = 12% return.
+	// Grew from 10000 to 11200 = 12% TWR.
 	tol := decimal.MustNew(1, 2)
 	want12 := decimal.MustNew(1200, 2) // 12.00
-	almostEqual(t, result.PortfolioA.ReturnMetrics.SimpleReturnPct, &want12, tol)
-	almostEqual(t, result.PortfolioB.ReturnMetrics.SimpleReturnPct, &want12, tol)
+	almostEqual(t, result.PortfolioA.ReturnMetrics.TWRPct, &want12, tol)
+	almostEqual(t, result.PortfolioB.ReturnMetrics.TWRPct, &want12, tol)
 
 	// Cross metrics should exist (identical series: beta=1, corr=1).
 	if result.CrossMetrics == nil {
@@ -1139,13 +1139,13 @@ func TestComputeComparison_ShortData(t *testing.T) {
 		t.Fatal("ReturnMetrics is nil")
 	}
 
-	// Simple return should be 5%.
-	if result.PortfolioA.ReturnMetrics.SimpleReturnPct == nil {
-		t.Error("SimpleReturnPct is nil")
+	// TWR should be 5%.
+	if result.PortfolioA.ReturnMetrics.TWRPct == nil {
+		t.Error("TWRPct is nil")
 	} else {
-		ret, _ := result.PortfolioA.ReturnMetrics.SimpleReturnPct.Float64()
+		ret, _ := result.PortfolioA.ReturnMetrics.TWRPct.Float64()
 		if ret < 4.9 || ret > 5.1 {
-			t.Errorf("SimpleReturnPct = %.2f, want 5.0", ret)
+			t.Errorf("TWRPct = %.2f, want 5.0", ret)
 		}
 	}
 }
@@ -1208,10 +1208,10 @@ func TestComputeComparison_FXConversion(t *testing.T) {
 	}
 
 	// GBP stock grew 12%, with flat FX, USD return should also be ~12%.
-	if result.PortfolioA.ReturnMetrics.SimpleReturnPct != nil {
-		ret, _ := result.PortfolioA.ReturnMetrics.SimpleReturnPct.Float64()
+	if result.PortfolioA.ReturnMetrics.TWRPct != nil {
+		ret, _ := result.PortfolioA.ReturnMetrics.TWRPct.Float64()
 		if ret < 11 || ret > 13 {
-			t.Errorf("SimpleReturnPct = %.2f, want ~12.0 (with flat FX)", ret)
+			t.Errorf("TWRPct = %.2f, want ~12.0 (with flat FX)", ret)
 		}
 	}
 }
@@ -1662,16 +1662,7 @@ func TestComputeReturnMetrics_TWRFromNavCurve(t *testing.T) {
 
 	// Create a minimal service and call computeReturnMetrics.
 	svc := &Service{}
-	metrics := svc.computeReturnMetrics(rawCurve, navCurve)
-
-	// Simple return from raw curve: (20900 - 10000) / 10000 = 109%
-	if metrics.SimpleReturnPct == nil {
-		t.Fatal("SimpleReturnPct is nil")
-	}
-	simpleF, _ := metrics.SimpleReturnPct.Float64()
-	if simpleF < 108.0 || simpleF > 110.0 {
-		t.Errorf("SimpleReturnPct = %.2f, want ~109.00", simpleF)
-	}
+	metrics := svc.computeReturnMetrics(navCurve)
 
 	// TWR from NAV curve: (10390 - 10000) / 10000 = 3.9%
 	if metrics.TWRPct == nil {
@@ -1681,17 +1672,12 @@ func TestComputeReturnMetrics_TWRFromNavCurve(t *testing.T) {
 	if twrF < 3.0 || twrF > 5.0 {
 		t.Errorf("TWRPct = %.2f, want ~3.90", twrF)
 	}
-
-	// TWR should be much lower than SimpleReturn (deposit effect).
-	if twrF >= simpleF {
-		t.Errorf("TWRPct (%.2f) should be less than SimpleReturnPct (%.2f)", twrF, simpleF)
-	}
 }
 
-// TestComputeReturnMetrics_ModelPortfolio_TWREqualsSimple checks that for
-// model portfolios (no cash flows), TWR equals SimpleReturn because
-// navCurve == rawCurve.
-func TestComputeReturnMetrics_ModelPortfolio_TWREqualsSimple(t *testing.T) {
+// TestComputeReturnMetrics_ModelPortfolio_TWR checks that for
+// model portfolios (no cash flows), TWR is computed correctly from
+// the curve.
+func TestComputeReturnMetrics_ModelPortfolio_TWR(t *testing.T) {
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Model portfolio curve: NavPerUnit == PortfolioValue (no cash flows).
@@ -1701,18 +1687,15 @@ func TestComputeReturnMetrics_ModelPortfolio_TWREqualsSimple(t *testing.T) {
 		{Date: base.AddDate(0, 0, 2), PortfolioValue: decimal.MustNew(10400, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10400, 2))},
 	}
 
-	// For model portfolios, prepareCurveForMetrics returns the raw curve.
-	navCurve := curve // same as raw
-
 	svc := &Service{}
-	metrics := svc.computeReturnMetrics(curve, navCurve)
+	metrics := svc.computeReturnMetrics(curve)
 
-	if metrics.SimpleReturnPct == nil || metrics.TWRPct == nil {
-		t.Fatal("SimpleReturnPct or TWRPct is nil")
+	if metrics.TWRPct == nil {
+		t.Fatal("TWRPct is nil")
 	}
-
-	if !metrics.SimpleReturnPct.Equal(*metrics.TWRPct) {
-		t.Errorf("TWRPct (%s) should equal SimpleReturnPct (%s) for model portfolio",
-			metrics.TWRPct.String(), metrics.SimpleReturnPct.String())
+	twrF, _ := metrics.TWRPct.Float64()
+	// (10400 - 10000) / 10000 = 4.0%
+	if twrF < 3.9 || twrF > 4.1 {
+		t.Errorf("TWRPct = %.2f, want ~4.00", twrF)
 	}
 }

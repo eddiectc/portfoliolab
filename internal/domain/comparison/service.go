@@ -604,17 +604,18 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 	pc.EffectiveDateFrom = &curve[0].Date
 	pc.EffectiveDateTo = &curve[len(curve)-1].Date
 
-	// Store the equity curve for the value growth chart.
-	pc.ValueGrowthSeries = curve
-
 	// For real portfolios, build a NAV-based curve for TWR-aware metrics.
 	// NavPerUnit is cash-flow-independent (unitized), so metrics derived from
 	// it isolate investment performance from deposit/withdrawal timing.
-	// For model portfolios, the raw curve is used (no cash flows).
+	// For model portfolios, navCurve == curve (no cash flows).
 	navCurve := s.prepareCurveForMetrics(curve, meta)
 
-	// --- Return metrics ---
-	pc.ReturnMetrics = s.computeReturnMetrics(curve, navCurve)
+	// Store the TWR-equivalent curve. All comparison charts/metrics use
+	// navCurve so they are cash-flow-independent and consistent with TWR.
+	pc.ValueGrowthSeries = navCurve
+
+	// --- Return metrics — TWR only (cash-flow-independent) ---
+	pc.ReturnMetrics = s.computeReturnMetrics(navCurve)
 
 	// --- Risk metrics ---
 	pc.RiskMetrics = s.computeRiskMetrics(navCurve)
@@ -640,71 +641,37 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 	return pc
 }
 
-// computeReturnMetrics computes summary return metrics from the equity curve.
-// rawCurve is the raw PortfolioValue curve (used for money-weighted return —
-// actual capital growth). navCurve is the NavPerUnit-based curve (used for
-// TWR — cash-flow-independent). For model portfolios, both curves are identical.
-// TWR is the primary metric for comparing investment performance because it
-// isolates returns from deposit/withdrawal timing.
-func (s *Service) computeReturnMetrics(rawCurve, navCurve []EquityCurvePoint) *ReturnMetrics {
+// computeReturnMetrics computes summary return metrics from the TWR-equivalent
+// (cash-flow-independent) curve. All comparison metrics use this single curve
+// so they are consistent with TWR.
+func (s *Service) computeReturnMetrics(curve []EquityCurvePoint) *ReturnMetrics {
 	metrics := &ReturnMetrics{}
 
-	// --- NAV curve metrics (primary: cash-flow-independent) ---
-
-	// CAGR from NAV curve — annualized TWR-equivalent.
-	// For real portfolios, this reflects investment performance, not money growth.
-	cagr := ComputeCAGR(navCurve)
+	// CAGR — annualized TWR-equivalent.
+	cagr := ComputeCAGR(curve)
 	metrics.CAGRPct = cagr.CAGRPct
 	metrics.DaysElapsed = cagr.DaysElapsed
 
 	// TWR from NAV curve (cash-flow-independent).
-	// For model portfolios, navCurve == rawCurve so TWR == simple return.
-	// For real portfolios, navCurve uses NavPerUnit which isolates investment
+	// For model portfolios, curve == raw curve so TWR == simple return.
+	// For real portfolios, curve uses NavPerUnit which isolates investment
 	// performance from deposit/withdrawal timing.
-	if len(navCurve) >= 2 {
-		firstF, _ := navCurve[0].PortfolioValue.Float64()
-		lastF, _ := navCurve[len(navCurve)-1].PortfolioValue.Float64()
+	if len(curve) >= 2 {
+		firstF, _ := curve[0].PortfolioValue.Float64()
+		lastF, _ := curve[len(curve)-1].PortfolioValue.Float64()
 		if firstF > 0 {
 			ret, _ := decimal.NewFromFloat64((lastF/firstF - 1.0) * 100.0)
 			ret = ret.Round(2)
 			metrics.TWRPct = &ret
 
 			// Annualized TWR.
-			days := navCurve[len(navCurve)-1].Date.Sub(navCurve[0].Date).Hours() / 24.0
+			days := curve[len(curve)-1].Date.Sub(curve[0].Date).Hours() / 24.0
 			if days > 0 {
 				retF, _ := ret.Float64()
 				annualizedF := math.Pow(1.0+retF/100.0, 365.0/days) - 1.0
 				annualized, _ := decimal.NewFromFloat64(annualizedF * 100.0)
 				annualized = annualized.Round(2)
 				metrics.AnnualizedTWRPct = &annualized
-			}
-		}
-	}
-
-	// --- Raw curve metrics (secondary: money-weighted) ---
-
-	// Simple return (first-to-last) from raw curve — actual money in/out.
-	// Float64() errors are ignored here: the equity curve values are produced
-	// by this same domain layer (simulation or performance), so they are always
-	// valid decimals. The float64 round-trip is used only for the ratio
-	// calculation, consistent with the plan's "float64 for intermediate
-	// computation" technical decision.
-	if len(rawCurve) >= 2 {
-		firstF, _ := rawCurve[0].PortfolioValue.Float64()
-		lastF, _ := rawCurve[len(rawCurve)-1].PortfolioValue.Float64()
-		if firstF > 0 {
-			ret, _ := decimal.NewFromFloat64((lastF/firstF - 1.0) * 100.0)
-			ret = ret.Round(2)
-			metrics.SimpleReturnPct = &ret
-
-			// Annualized simple return.
-			days := rawCurve[len(rawCurve)-1].Date.Sub(rawCurve[0].Date).Hours() / 24.0
-			if days > 0 {
-				retF, _ := ret.Float64()
-				annualizedF := math.Pow(1.0+retF/100.0, 365.0/days) - 1.0
-				annualized, _ := decimal.NewFromFloat64(annualizedF * 100.0)
-				annualized = annualized.Round(2)
-				metrics.AnnualizedSimplePct = &annualized
 			}
 		}
 	}

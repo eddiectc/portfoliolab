@@ -35,7 +35,6 @@ func (m *mockComparisonService) ComputeComparison(_ context.Context, req compari
 
 func makeTestComparisonResult() *comparison.ComparisonResult {
 	twrPct := decimal.MustParse("15.50")
-	simplePct := decimal.MustParse("15.00")
 	cagrPct := decimal.MustParse("7.50")
 	volPct := decimal.MustParse("12.30")
 	sharpe := decimal.MustParse("0.65")
@@ -54,10 +53,9 @@ func makeTestComparisonResult() *comparison.ComparisonResult {
 			Name: "Growth Portfolio",
 			Type: comparison.PortTypeModel,
 			ReturnMetrics: &comparison.ReturnMetrics{
-				TWRPct:          &twrPct,
-				SimpleReturnPct: &simplePct,
-				CAGRPct:         &cagrPct,
-				DaysElapsed:     365,
+				TWRPct:      &twrPct,
+				CAGRPct:     &cagrPct,
+				DaysElapsed: 365,
 			},
 			RiskMetrics: &comparison.RiskMetrics{
 				AnnualizedVolatilityPct: &volPct,
@@ -78,10 +76,9 @@ func makeTestComparisonResult() *comparison.ComparisonResult {
 			Name: "Value Portfolio",
 			Type: comparison.PortTypeModel,
 			ReturnMetrics: &comparison.ReturnMetrics{
-				TWRPct:          &twrPct,
-				SimpleReturnPct: &simplePct,
-				CAGRPct:         &cagrPct,
-				DaysElapsed:     365,
+				TWRPct:      &twrPct,
+				CAGRPct:     &cagrPct,
+				DaysElapsed: 365,
 			},
 			RiskMetrics: &comparison.RiskMetrics{
 				AnnualizedVolatilityPct: &volPct,
