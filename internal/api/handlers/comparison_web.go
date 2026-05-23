@@ -17,6 +17,22 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
+// =============================================================================
+// COMPARISON PAGE RULES — enforce for ALL new charts/tables:
+//
+// 1. DATE ALIGNMENT: Use intersectDates(mapA, mapB) for any side-by-side
+//    time series. Never use union dates — only dates where BOTH portfolios
+//    have data. This ensures both lines share the same x-axis.
+//
+// 2. STARTING VALUE: Use parseStartingValue(filter.StartingValue) for any
+//    value normalization. The user-specified starting value (default 10000)
+//    is the canonical reference — never use actual portfolio values.
+//
+// 3. CHARTS THAT DON'T NEED DATE ALIGNMENT: Histograms, correlation matrices,
+//    overlap tables, and yearly aggregations work on pre-aggregated data and
+//    are exempt from rule 1.
+// =============================================================================
+
 // comparisonFilter holds parsed filter parameters for the comparison page.
 type comparisonFilter struct {
 	PortfolioAID   int64
@@ -359,6 +375,24 @@ func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string) m
 
 // --- Chart Serialization ---
 
+// intersectDates returns sorted dates present in both maps (intersection).
+// This is the canonical way to align two portfolio time series on the comparison page.
+// All side-by-side charts must use this to ensure both portfolios share the same date range.
+func intersectDates(a, b map[string]float64) []string {
+	dateSet := make(map[string]bool)
+	for d := range a {
+		if _, ok := b[d]; ok {
+			dateSet[d] = true
+		}
+	}
+	dates := make([]string, 0, len(dateSet))
+	for d := range dateSet {
+		dates = append(dates, d)
+	}
+	sort.Strings(dates)
+	return dates
+}
+
 // valueGrowthChartData holds JSON data for the value growth line chart.
 type valueGrowthChartData struct {
 	Dates      []string  `json:"dates"`
@@ -415,28 +449,12 @@ func serializeValueGrowthChartData(result *comparison.ComparisonResult, starting
 		mapB[pt.Date.Format("2006-01-02")] = val
 	}
 
-	// Find intersection of dates.
-	dateSet := make(map[string]bool)
-	for d := range mapA {
-		if _, ok := mapB[d]; ok {
-			dateSet[d] = true
-		}
-	}
-	// If no intersection, use all dates from A.
-	if len(dateSet) == 0 {
-		for d := range mapA {
-			dateSet[d] = true
-		}
+	// Only dates where both portfolios have data (intersection).
+	dates := intersectDates(mapA, mapB)
+	if len(dates) == 0 {
+		return "{}"
 	}
 
-	// Sort dates.
-	dates := make([]string, 0, len(dateSet))
-	for d := range dateSet {
-		dates = append(dates, d)
-	}
-	sort.Strings(dates)
-
-	// Build aligned arrays.
 	data := valueGrowthChartData{
 		Dates:      dates,
 		NameA:      result.PortfolioA.Name,
@@ -472,34 +490,28 @@ func serializeDrawdownChartData(result *comparison.ComparisonResult) string {
 		return "{}"
 	}
 
-	// Collect all dates (union of both series).
-	dateSet := make(map[string]bool)
+	// Build date-indexed maps.
 	mapA := make(map[string]float64)
-	mapB := make(map[string]float64)
 	for _, p := range seriesA {
-		key := p.Date.Format("2006-01-02")
-		dateSet[key] = true
 		v, _ := p.Pct.Float64()
-		mapA[key] = v
+		mapA[p.Date.Format("2006-01-02")] = v
 	}
+	mapB := make(map[string]float64)
 	for _, p := range seriesB {
-		key := p.Date.Format("2006-01-02")
-		dateSet[key] = true
 		v, _ := p.Pct.Float64()
-		mapB[key] = v
+		mapB[p.Date.Format("2006-01-02")] = v
 	}
-	var dates []string
-	for d := range dateSet {
-		dates = append(dates, d)
+
+	// Only dates where both portfolios have data (intersection).
+	dates := intersectDates(mapA, mapB)
+	if len(dates) == 0 {
+		return "{}"
 	}
-	sort.Strings(dates)
 
 	aVals := make([]float64, len(dates))
 	bVals := make([]float64, len(dates))
 	for i, d := range dates {
 		// Negate so drawdown goes downward from 0% (inverted chart).
-		// Drawdown data is stored as positive percentages (e.g. 15.50 = 15.50% below peak).
-		// Chart displays negative values so the line drops below the 0% axis.
 		aVals[i] = -mapA[d]
 		bVals[i] = -mapB[d]
 	}
