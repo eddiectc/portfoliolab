@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
@@ -241,14 +242,19 @@ func (r *SymbolMappingRepository) ListBenchmarks(ctx context.Context) ([]symbolm
 
 // AllMarketDataSymbols returns all symbol mappings for market data fetching.
 // Returns the market_data_symbol (Yahoo Finance ticker) for each.
+// Cash symbols ($CASH-*) are excluded since they have no market data.
 func (r *SymbolMappingRepository) AllMarketDataSymbols(ctx context.Context) ([]string, error) {
 	rows, err := r.q.ListAllMarketDataSymbols(ctx, r.db)
 	if err != nil {
 		return nil, fmt.Errorf("list market data symbols: %w", err)
 	}
-	symbols := make([]string, len(rows))
-	for i, row := range rows {
-		symbols[i] = row.MarketDataSymbol
+	var symbols []string
+	for _, row := range rows {
+		// Skip cash symbols — they have no market data to fetch.
+		if strings.HasPrefix(row.InternalSymbol, "$CASH") {
+			continue
+		}
+		symbols = append(symbols, row.MarketDataSymbol)
 	}
 	return symbols, nil
 }

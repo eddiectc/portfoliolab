@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
@@ -427,6 +428,10 @@ func (s *Service) fetchHistoricalPricesForWeights(ctx context.Context, weights [
 	var warnings []string
 
 	for _, w := range weights {
+		// Skip cash symbols — they have no market data to fetch.
+		if strings.HasPrefix(w.Symbol, "$CASH") {
+			continue
+		}
 		prices, err := s.marketHistory.GetHistoricalPrices(ctx, w.MarketSym, dateFrom, dateTo)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("failed to fetch prices for %s: %v", w.Symbol, err))
