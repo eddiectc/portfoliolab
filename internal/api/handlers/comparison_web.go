@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
@@ -83,6 +84,9 @@ type comparisonPageData struct {
 	SelectedDateTo         string
 	SelectedBaseCurrency   string
 	SelectedStartingValue  string
+	// Effective period (intersection of both portfolios' data ranges).
+	EffectiveDateFrom *time.Time
+	EffectiveDateTo   *time.Time
 	// Period button URLs.
 	PeriodURLs map[string]string
 }
@@ -181,7 +185,7 @@ func (h *ComparisonWebHandler) buildPageData(
 	corrMatrixB := serializeCorrelationMatrix(result, "B")
 	mergedYearly := mergeYearlyReturns(result)
 
-	return comparisonPageData{
+	pd := comparisonPageData{
 		PageData:                web.PageData{Title: "Portfolio Comparison", Flash: getFlash(w, r)},
 		Result:                  result,
 		ValueGrowthChartData:    valueGrowthChart,
@@ -208,6 +212,54 @@ func (h *ComparisonWebHandler) buildPageData(
 		SelectedStartingValue:   filter.StartingValue,
 		PeriodURLs:              buildComparisonPeriodURLs(filter, period),
 	}
+	// Compute effective period as intersection of both portfolios' data ranges.
+	if result != nil {
+		pd.EffectiveDateFrom, pd.EffectiveDateTo = intersectEffectiveDates(
+			result.PortfolioA,
+			result.PortfolioB,
+		)
+	}
+	return pd
+}
+
+// intersectEffectiveDates returns the overlapping date range of both portfolios.
+// dateFrom = max(A.from, B.from), dateTo = min(A.to, B.to).
+func intersectEffectiveDates(a, b *comparison.PortfolioComparison) (*time.Time, *time.Time) {
+	var fromA, toA, fromB, toB time.Time
+	var hasA, hasB bool
+	if a != nil && a.EffectiveDateFrom != nil && a.EffectiveDateTo != nil {
+		fromA = *a.EffectiveDateFrom
+		toA = *a.EffectiveDateTo
+		hasA = true
+	}
+	if b != nil && b.EffectiveDateFrom != nil && b.EffectiveDateTo != nil {
+		fromB = *b.EffectiveDateFrom
+		toB = *b.EffectiveDateTo
+		hasB = true
+	}
+	if !hasA || !hasB {
+		if hasA {
+			return &fromA, &toA
+		}
+		if hasB {
+			return &fromB, &toB
+		}
+		return nil, nil
+	}
+	// Intersection: later start, earlier end.
+	dateFrom := fromA
+	if fromB.After(fromA) {
+		dateFrom = fromB
+	}
+	dateTo := toA
+	if toB.Before(toA) {
+		dateTo = toB
+	}
+	if dateFrom.After(dateTo) {
+		// No overlap — fall back to A's range.
+		return &fromA, &toA
+	}
+	return &dateFrom, &dateTo
 }
 
 // portfolioPrefix returns "m" for model portfolios and "r" for real portfolios.
@@ -560,13 +612,12 @@ func serializeAnnualReturnsChartData(result *comparison.ComparisonResult) string
 		}
 	}
 
-	// Collect all years sorted.
+	// Only years where both portfolios have data (intersection).
 	yearSet := make(map[string]bool)
 	for y := range yearsA {
-		yearSet[y] = true
-	}
-	for y := range yearsB {
-		yearSet[y] = true
+		if _, ok := yearsB[y]; ok {
+			yearSet[y] = true
+		}
 	}
 	var years []string
 	for y := range yearSet {
@@ -823,13 +874,12 @@ func mergeYearlyReturns(result *comparison.ComparisonResult) []yearlyReturnRow {
 		}
 	}
 
-	// Collect all years.
+	// Only years where both portfolios have data (intersection).
 	yearSet := make(map[int]bool)
 	for y := range returnsA {
-		yearSet[y] = true
-	}
-	for y := range returnsB {
-		yearSet[y] = true
+		if _, ok := returnsB[y]; ok {
+			yearSet[y] = true
+		}
 	}
 
 	rows := make([]yearlyReturnRow, 0, len(yearSet))

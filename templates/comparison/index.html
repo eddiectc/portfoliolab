@@ -106,11 +106,11 @@ function toggleCustomDates(e) {
 <p class="empty-state">{{.Result.Message}}</p>
 {{end}}
 
-{{/* Effective period info — both portfolios are aligned to the same range */}}
-{{if or .Result.PortfolioA.EffectiveDateFrom .Result.PortfolioB.EffectiveDateFrom}}
+{{/* Effective period info — intersection of both portfolios' data ranges */}}
+{{if .EffectiveDateFrom}}
 <div class="analysis-section" style="padding:0.5rem 1rem;background:#f0f4f8;border-radius:4px;font-size:0.9em;">
     <strong>Period:</strong>
-    {{if .Result.PortfolioA.EffectiveDateFrom}}{{.Result.PortfolioA.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioA.EffectiveDateTo.Format "2006-01-02"}}{{else if .Result.PortfolioB.EffectiveDateFrom}}{{.Result.PortfolioB.EffectiveDateFrom.Format "2006-01-02"}} → {{.Result.PortfolioB.EffectiveDateTo.Format "2006-01-02"}}{{end}}
+    {{.EffectiveDateFrom.Format "2006-01-02"}} → {{.EffectiveDateTo.Format "2006-01-02"}}
     {{if or .Result.PortfolioA.Warnings .Result.PortfolioB.Warnings}}
     <br><span style="color:#856404;">⚠ {{range .Result.PortfolioA.Warnings}}{{.}}{{end}}{{range .Result.PortfolioB.Warnings}}{{.}}{{end}}</span>
     {{end}}
