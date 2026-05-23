@@ -612,11 +612,31 @@ function toggleCustomDates(e) {
         var data = JSON.parse('{{.MonthlyHistogramChart}}');
         if (!data.bins || data.bins.length === 0) return;
 
+        // Negate counts for bins in the negative-return range so bars go below axis.
+        function isNegativeBin(label) {
+            var m = label.match(/^(-?\d+)/);
+            return m && parseInt(m[1]) < 0;
+        }
+        function invertNegative(counts) {
+            return counts.map(function(c, i) {
+                return isNegativeBin(data.bins[i]) ? -c : c;
+            });
+        }
+        var countsA = invertNegative(data.counts_a);
+        var countsB = invertNegative(data.counts_b);
+
         var chart = echarts.init(document.getElementById('monthly-histogram-chart'));
         chart.setOption({
             tooltip: {
                 trigger: 'axis',
-                axisPointer: { type: 'shadow' }
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    var tip = params[0].name + '<br/>';
+                    for (var i = 0; i < params.length; i++) {
+                        tip += params[i].marker + params[i].seriesName + ': ' + Math.abs(params[i].value) + '<br/>';
+                    }
+                    return tip;
+                }
             },
             legend: { data: [data.name_a, data.name_b] },
             grid: { left: '3%', right: '5%', bottom: '10%', top: '12%', containLabel: true },
@@ -633,14 +653,26 @@ function toggleCustomDates(e) {
                 {
                     name: data.name_a,
                     type: 'bar',
-                    data: data.counts_a,
-                    itemStyle: { color: '#4575b4' }
+                    data: countsA,
+                    itemStyle: { color: '#4575b4' },
+                    label: {
+                        show: true,
+                        position: function(p) { return p.value >= 0 ? 'top' : 'bottom'; },
+                        formatter: function(p) { return Math.abs(p.value) || ''; },
+                        fontSize: 10
+                    }
                 },
                 {
                     name: data.name_b,
                     type: 'bar',
-                    data: data.counts_b,
-                    itemStyle: { color: '#d73027' }
+                    data: countsB,
+                    itemStyle: { color: '#d73027' },
+                    label: {
+                        show: true,
+                        position: function(p) { return p.value >= 0 ? 'top' : 'bottom'; },
+                        formatter: function(p) { return Math.abs(p.value) || ''; },
+                        fontSize: 10
+                    }
                 }
             ]
         });
@@ -721,16 +753,61 @@ function toggleCustomDates(e) {
         var data = JSON.parse('{{.AnnualHistogramChart}}');
         if (!data.bins || data.bins.length === 0) return;
 
+        // Negate counts for bins in the negative-return range so bars go below axis.
+        function isNegativeBin(label) {
+            var m = label.match(/^(-?\d+)/);
+            return m && parseInt(m[1]) < 0;
+        }
+        function invertNegative(counts) {
+            return counts.map(function(c, i) {
+                return isNegativeBin(data.bins[i]) ? -c : c;
+            });
+        }
+        var countsA = invertNegative(data.counts_a);
+        var countsB = invertNegative(data.counts_b);
+
         var chart = echarts.init(document.getElementById('annual-histogram-chart'));
         chart.setOption({
-            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    var tip = params[0].name + '<br/>';
+                    for (var i = 0; i < params.length; i++) {
+                        tip += params[i].marker + params[i].seriesName + ': ' + Math.abs(params[i].value) + '<br/>';
+                    }
+                    return tip;
+                }
+            },
             legend: { data: [data.name_a, data.name_b] },
             grid: { left: '3%', right: '5%', bottom: '10%', top: '12%', containLabel: true },
             xAxis: { type: 'category', data: data.bins, axisLabel: { rotate: 45, fontSize: 10 } },
             yAxis: { type: 'value', name: 'Count' },
             series: [
-                { name: data.name_a, type: 'bar', data: data.counts_a, itemStyle: { color: '#4575b4' } },
-                { name: data.name_b, type: 'bar', data: data.counts_b, itemStyle: { color: '#d73027' } }
+                {
+                    name: data.name_a,
+                    type: 'bar',
+                    data: countsA,
+                    itemStyle: { color: '#4575b4' },
+                    label: {
+                        show: true,
+                        position: function(p) { return p.value >= 0 ? 'top' : 'bottom'; },
+                        formatter: function(p) { return Math.abs(p.value) || ''; },
+                        fontSize: 10
+                    }
+                },
+                {
+                    name: data.name_b,
+                    type: 'bar',
+                    data: countsB,
+                    itemStyle: { color: '#d73027' },
+                    label: {
+                        show: true,
+                        position: function(p) { return p.value >= 0 ? 'top' : 'bottom'; },
+                        formatter: function(p) { return Math.abs(p.value) || ''; },
+                        fontSize: 10
+                    }
+                }
             ]
         });
 
