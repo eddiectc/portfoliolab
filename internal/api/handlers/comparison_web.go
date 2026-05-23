@@ -153,7 +153,7 @@ func (h *ComparisonWebHandler) buildPageData(
 	period string,
 ) comparisonPageData {
 	// Serialize chart data.
-	valueGrowthChart := serializeValueGrowthChartData(result)
+	valueGrowthChart := serializeValueGrowthChartData(result, filter.StartingValue)
 	drawdownChart := serializeDrawdownChartData(result)
 	annualReturnsChart := serializeAnnualReturnsChartData(result)
 	annualHistA := serializeAnnualFrequencyHistogram(result, "A")
@@ -370,9 +370,10 @@ type valueGrowthChartData struct {
 }
 
 // serializeValueGrowthChartData converts equity curves to value growth chart JSON.
-// Both curves are normalized to start from the same starting value so they
-// are directly comparable regardless of actual capital deployed.
-func serializeValueGrowthChartData(result *comparison.ComparisonResult) string {
+// Both curves are normalized to start from the user-specified starting value
+// so they are directly comparable regardless of actual capital deployed.
+// Dates are aligned to the intersection of both curves.
+func serializeValueGrowthChartData(result *comparison.ComparisonResult, startingValueStr string) string {
 	if result == nil || result.PortfolioA == nil || result.PortfolioB == nil {
 		return "{}"
 	}
@@ -382,19 +383,13 @@ func serializeValueGrowthChartData(result *comparison.ComparisonResult) string {
 		return "{}"
 	}
 
-	// Determine starting value (use the first point of whichever curve is available).
-	var startVal float64
-	if len(curveA) > 0 {
-		startVal, _ = curveA[0].PortfolioValue.Float64()
-	}
-	if startVal == 0 && len(curveB) > 0 {
-		startVal, _ = curveB[0].PortfolioValue.Float64()
-	}
-	if startVal == 0 {
-		startVal = 10000 // default
+	// User-specified starting value, default 10000.
+	startVal := 10000.0
+	if sv := parseStartingValue(startingValueStr); sv.IsPos() {
+		startVal, _ = sv.Float64()
 	}
 
-	// Base values for normalization.
+	// Build date-indexed maps for both curves (normalized to startVal).
 	var baseA, baseB float64
 	if len(curveA) > 0 {
 		baseA, _ = curveA[0].PortfolioValue.Float64()
@@ -403,28 +398,54 @@ func serializeValueGrowthChartData(result *comparison.ComparisonResult) string {
 		baseB, _ = curveB[0].PortfolioValue.Float64()
 	}
 
-	data := valueGrowthChartData{
-		NameA:      result.PortfolioA.Name,
-		NameB:      result.PortfolioB.Name,
-		StartValue: startVal,
-	}
-
-	// Normalize curve A: scale so first point = startVal.
+	mapA := make(map[string]float64)
 	for _, pt := range curveA {
-		data.Dates = append(data.Dates, pt.Date.Format("2006-01-02"))
 		val, _ := pt.PortfolioValue.Float64()
 		if baseA > 0 {
 			val = val * startVal / baseA
 		}
-		data.PortfolioA = append(data.PortfolioA, val)
+		mapA[pt.Date.Format("2006-01-02")] = val
 	}
-	// Normalize curve B: scale so first point = startVal.
+	mapB := make(map[string]float64)
 	for _, pt := range curveB {
 		val, _ := pt.PortfolioValue.Float64()
 		if baseB > 0 {
 			val = val * startVal / baseB
 		}
-		data.PortfolioB = append(data.PortfolioB, val)
+		mapB[pt.Date.Format("2006-01-02")] = val
+	}
+
+	// Find intersection of dates.
+	dateSet := make(map[string]bool)
+	for d := range mapA {
+		if _, ok := mapB[d]; ok {
+			dateSet[d] = true
+		}
+	}
+	// If no intersection, use all dates from A.
+	if len(dateSet) == 0 {
+		for d := range mapA {
+			dateSet[d] = true
+		}
+	}
+
+	// Sort dates.
+	dates := make([]string, 0, len(dateSet))
+	for d := range dateSet {
+		dates = append(dates, d)
+	}
+	sort.Strings(dates)
+
+	// Build aligned arrays.
+	data := valueGrowthChartData{
+		Dates:      dates,
+		NameA:      result.PortfolioA.Name,
+		NameB:      result.PortfolioB.Name,
+		StartValue: startVal,
+	}
+	for _, d := range dates {
+		data.PortfolioA = append(data.PortfolioA, mapA[d])
+		data.PortfolioB = append(data.PortfolioB, mapB[d])
 	}
 
 	b, _ := json.Marshal(data)
