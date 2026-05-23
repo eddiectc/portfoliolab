@@ -221,52 +221,15 @@ func ComputePeriodExtremes(points []EquityCurvePoint) PeriodExtremes {
 		return PeriodExtremes{}
 	}
 
-	// Group by year-month: key "YYYY-MM" -> []values.
-	monthGroups := make(map[string][]decimal.Decimal)
-	for _, p := range points {
-		key := p.Date.Format("2006-01")
-		monthGroups[key] = append(monthGroups[key], p.PortfolioValue)
-	}
-
-	// Group by year: key "YYYY" -> []values.
-	yearGroups := make(map[string][]decimal.Decimal)
-	for _, p := range points {
-		key := p.Date.Format("2006")
-		yearGroups[key] = append(yearGroups[key], p.PortfolioValue)
-	}
-
+	pr := computePeriodReturns(points)
 	var result PeriodExtremes
 
-	// Compute monthly returns.
-	type labeledReturn struct {
-		label string
-		value decimal.Decimal
-	}
-	var monthlyReturns []labeledReturn
-	for key, values := range monthGroups {
-		if len(values) < 2 {
-			continue
-		}
-		firstF, _ := values[0].Float64()
-		lastF, _ := values[len(values)-1].Float64()
-		if firstF <= 0 {
-			continue
-		}
-		ret, _ := decimal.NewFromFloat64((lastF/firstF - 1.0) * 100.0)
-		ret = ret.Round(2)
-		monthlyReturns = append(monthlyReturns, labeledReturn{label: key, value: ret})
-	}
-
-	// Sort by label for deterministic results.
-	sort.Slice(monthlyReturns, func(i, j int) bool {
-		return monthlyReturns[i].label < monthlyReturns[j].label
-	})
-
-	if len(monthlyReturns) > 0 {
-		best := monthlyReturns[0]
-		worst := monthlyReturns[0]
+	// Monthly extremes and win rate.
+	if len(pr.monthly) > 0 {
+		best := pr.monthly[0]
+		worst := pr.monthly[0]
 		positiveCount := 0
-		for _, m := range monthlyReturns {
+		for _, m := range pr.monthly {
 			if m.value.Cmp(best.value) > 0 {
 				best = m
 			}
@@ -282,35 +245,16 @@ func ComputePeriodExtremes(points []EquityCurvePoint) PeriodExtremes {
 		result.WorstMonth = &worst.value
 		result.WorstMonthLabel = worst.label
 
-		winRate, _ := decimal.NewFromFloat64(float64(positiveCount) / float64(len(monthlyReturns)) * 100.0)
+		winRate, _ := decimal.NewFromFloat64(float64(positiveCount) / float64(len(pr.monthly)) * 100.0)
 		winRate = winRate.Round(2)
 		result.WinRatePct = &winRate
 	}
 
-	// Compute yearly returns.
-	var yearlyReturns []labeledReturn
-	for key, values := range yearGroups {
-		if len(values) < 2 {
-			continue
-		}
-		firstF, _ := values[0].Float64()
-		lastF, _ := values[len(values)-1].Float64()
-		if firstF <= 0 {
-			continue
-		}
-		ret, _ := decimal.NewFromFloat64((lastF/firstF - 1.0) * 100.0)
-		ret = ret.Round(2)
-		yearlyReturns = append(yearlyReturns, labeledReturn{label: key, value: ret})
-	}
-
-	sort.Slice(yearlyReturns, func(i, j int) bool {
-		return yearlyReturns[i].label < yearlyReturns[j].label
-	})
-
-	if len(yearlyReturns) > 0 {
-		best := yearlyReturns[0]
-		worst := yearlyReturns[0]
-		for _, yr := range yearlyReturns {
+	// Yearly extremes.
+	if len(pr.yearly) > 0 {
+		best := pr.yearly[0]
+		worst := pr.yearly[0]
+		for _, yr := range pr.yearly {
 			if yr.value.Cmp(best.value) > 0 {
 				best = yr
 			}
@@ -331,6 +275,59 @@ func ComputePeriodExtremes(points []EquityCurvePoint) PeriodExtremes {
 type ReturnBucket struct {
 	Label string `json:"label"` // e.g. "-10% to -5%", "5% to 10%"
 	Count int    `json:"count"`
+}
+
+// labeledReturn is a return percentage with a period label ("YYYY-MM" or "YYYY").
+type labeledReturn struct {
+	label string
+	value decimal.Decimal
+}
+
+// periodReturns holds computed monthly and yearly returns from an equity curve.
+type periodReturns struct {
+	monthly []labeledReturn // sorted by label
+	yearly  []labeledReturn // sorted by label
+}
+
+// computePeriodReturns groups equity curve points by month and year,
+// then computes the return for each period as (last/first - 1) * 100.
+// Returns sorted slices. Skips periods with fewer than 2 data points
+// or non-positive first value.
+func computePeriodReturns(points []EquityCurvePoint) periodReturns {
+	// Single pass to group by month and year.
+	monthGroups := make(map[string][]decimal.Decimal)
+	yearGroups := make(map[string][]decimal.Decimal)
+	for _, p := range points {
+		monthGroups[p.Date.Format("2006-01")] = append(monthGroups[p.Date.Format("2006-01")], p.PortfolioValue)
+		yearGroups[p.Date.Format("2006")] = append(yearGroups[p.Date.Format("2006")], p.PortfolioValue)
+	}
+
+	return periodReturns{
+		monthly: extractReturns(monthGroups),
+		yearly:  extractReturns(yearGroups),
+	}
+}
+
+// extractReturns computes period returns from grouped values.
+func extractReturns(groups map[string][]decimal.Decimal) []labeledReturn {
+	var out []labeledReturn
+	for key, values := range groups {
+		if len(values) < 2 {
+			continue
+		}
+		firstF, _ := values[0].Float64()
+		lastF, _ := values[len(values)-1].Float64()
+		if firstF <= 0 {
+			continue
+		}
+		ret, _ := decimal.NewFromFloat64((lastF/firstF - 1.0) * 100.0)
+		ret = ret.Round(2)
+		out = append(out, labeledReturn{label: key, value: ret})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].label < out[j].label
+	})
+	return out
 }
 
 // ReturnDistribution holds annual and monthly return frequency histograms.
@@ -360,64 +357,23 @@ func ComputeReturnDistribution(points []EquityCurvePoint) ReturnDistribution {
 		return ReturnDistribution{}
 	}
 
-	// Group by year-month.
-	monthGroups := make(map[string][]decimal.Decimal)
-	for _, p := range points {
-		key := p.Date.Format("2006-01")
-		monthGroups[key] = append(monthGroups[key], p.PortfolioValue)
-	}
+	pr := computePeriodReturns(points)
 
-	// Group by year.
-	yearGroups := make(map[string][]decimal.Decimal)
-	for _, p := range points {
-		key := p.Date.Format("2006")
-		yearGroups[key] = append(yearGroups[key], p.PortfolioValue)
-	}
-
-	// Compute annual returns.
-	type yearReturn struct {
-		year  string
-		value float64
-	}
-	var annualReturns []yearReturn
-	for key, values := range yearGroups {
-		if len(values) < 2 {
-			continue
-		}
-		firstF, _ := values[0].Float64()
-		lastF, _ := values[len(values)-1].Float64()
-		if firstF <= 0 {
-			continue
-		}
-		ret := (lastF/firstF - 1.0) * 100.0
-		annualReturns = append(annualReturns, yearReturn{year: key, value: ret})
-	}
-
-	sort.Slice(annualReturns, func(i, j int) bool {
-		return annualReturns[i].year < annualReturns[j].year
-	})
-
-	annualBuckets := make([]ReturnBucket, 0, len(annualReturns))
+	// Annual buckets — one per year with labeled return.
+	annualBuckets := make([]ReturnBucket, 0, len(pr.yearly))
 	var annualVals []float64
-	for _, yr := range annualReturns {
-		label := formatAnnualBucket(yr.year, yr.value)
+	for _, yr := range pr.yearly {
+		v, _ := yr.value.Float64()
+		label := formatAnnualBucket(yr.label, v)
 		annualBuckets = append(annualBuckets, ReturnBucket{Label: label, Count: 1})
-		annualVals = append(annualVals, yr.value)
+		annualVals = append(annualVals, v)
 	}
 
-	// Compute monthly returns.
+	// Monthly histogram from shared monthly returns.
 	var monthlyVals []float64
-	for _, values := range monthGroups {
-		if len(values) < 2 {
-			continue
-		}
-		firstF, _ := values[0].Float64()
-		lastF, _ := values[len(values)-1].Float64()
-		if firstF <= 0 {
-			continue
-		}
-		ret := (lastF/firstF - 1.0) * 100.0
-		monthlyVals = append(monthlyVals, ret)
+	for _, m := range pr.monthly {
+		v, _ := m.value.Float64()
+		monthlyVals = append(monthlyVals, v)
 	}
 
 	monthlyBuckets := buildHistogramBins(monthlyVals)
@@ -598,8 +554,10 @@ func buildHistogramBins(values []float64) []ReturnBucket {
 	binStart := math.Floor(minV/binWidth) * binWidth
 	binEnd := math.Ceil(maxV/binWidth) * binWidth
 
-	// Initialize bins.
-	bins := make(map[int]int) // bin index -> count
+	// Populate bins using index = Floor((value - binStart) / binWidth).
+	bins := make(map[int]int)
+	var minIdx, maxIdx int
+	first := true
 	for _, v := range values {
 		idx := int(math.Floor((v - binStart) / binWidth))
 		// Handle exact upper boundary.
@@ -607,15 +565,20 @@ func buildHistogramBins(values []float64) []ReturnBucket {
 			idx--
 		}
 		bins[idx]++
+		if first || idx < minIdx {
+			minIdx = idx
+		}
+		if first || idx > maxIdx {
+			maxIdx = idx
+		}
+		first = false
 	}
 
-	// Build sorted bucket list.
-	start := int(math.Floor(binStart / binWidth))
-	end := int(math.Floor((binEnd - binWidth) / binWidth))
-
-	buckets := make([]ReturnBucket, 0, end-start+1)
-	for i := start; i <= end; i++ {
-		lo := float64(i) * binWidth
+	// Build sorted bucket list by iterating the same index range.
+	// Each index i covers [binStart + i*binWidth, binStart + (i+1)*binWidth).
+	buckets := make([]ReturnBucket, 0, maxIdx-minIdx+1)
+	for i := minIdx; i <= maxIdx; i++ {
+		lo := binStart + float64(i)*binWidth
 		hi := lo + binWidth
 		label := formatBinLabel(lo, hi)
 		buckets = append(buckets, ReturnBucket{
