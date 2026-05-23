@@ -435,7 +435,7 @@ func TestBuildFxLookup(t *testing.T) {
 		t.Errorf("dates length = %d, want 4", len(gbpusd.dates))
 	}
 
-	rate, ok := gbpusd.rates["2024-01-02"]
+	rate, ok := gbpusd.values["2024-01-02"]
 	if !ok {
 		t.Error("missing rate for 2024-01-02")
 	}

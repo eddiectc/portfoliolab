@@ -167,15 +167,54 @@ func buildPriceLookup(pricesBySym map[string][]market.HistoricalPrice) map[strin
 	return lookup
 }
 
-// fxLookupFF holds a forward-fill lookup for FX rates.
-type fxLookupFF struct {
-	dates []string // sorted date keys
-	rates map[string]decimal.Decimal
+// ffLookup is a generic forward-fill lookup: sorted dates + value map.
+// Given a dateKey, returns the value for that date or the nearest previous
+// date (forward-fill). Returns (zero, false) if no value exists on or before
+// the given date.
+type ffLookup[T any] struct {
+	dates  []string // sorted ascending
+	values map[string]T
+}
+
+func newFfLookup[T any](dates []string, values map[string]T) *ffLookup[T] {
+	sort.Strings(dates)
+	return &ffLookup[T]{dates: dates, values: values}
+}
+
+func (f *ffLookup[T]) lookup(dateKey string) (T, bool) {
+	idx := sort.SearchStrings(f.dates, dateKey)
+	// Exact match.
+	if idx < len(f.dates) && f.dates[idx] == dateKey {
+		return f.values[dateKey], true
+	}
+	// Forward-fill from previous date.
+	if idx > 0 {
+		return f.values[f.dates[idx-1]], true
+	}
+	// Backward-fill from first known date.
+	if len(f.dates) > 0 {
+		return f.values[f.dates[0]], true
+	}
+	var zero T
+	return zero, false
+}
+
+// buildFfPriceLookup builds forward-fill lookups from the price date-map.
+func buildFfPriceLookup(lookup map[string]map[string]market.HistoricalPrice) map[string]*ffLookup[market.HistoricalPrice] {
+	ff := make(map[string]*ffLookup[market.HistoricalPrice])
+	for symbol, dateMap := range lookup {
+		dates := make([]string, 0, len(dateMap))
+		for d := range dateMap {
+			dates = append(dates, d)
+		}
+		ff[symbol] = newFfLookup(dates, dateMap)
+	}
+	return ff
 }
 
 // buildFxLookup builds forward-fill FX lookups from FX price series.
-func buildFxLookup(fxRates map[string][]market.HistoricalPrice) map[string]*fxLookupFF {
-	lookup := make(map[string]*fxLookupFF)
+func buildFxLookup(fxRates map[string][]market.HistoricalPrice) map[string]*ffLookup[decimal.Decimal] {
+	lookup := make(map[string]*ffLookup[decimal.Decimal])
 	for pair, prices := range fxRates {
 		if len(prices) == 0 {
 			continue
@@ -187,8 +226,7 @@ func buildFxLookup(fxRates map[string][]market.HistoricalPrice) map[string]*fxLo
 			dates[i] = key
 			rates[key] = p.Close
 		}
-		sort.Strings(dates)
-		lookup[pair] = &fxLookupFF{dates: dates, rates: rates}
+		lookup[pair] = newFfLookup(dates, rates)
 	}
 	return lookup
 }
@@ -332,8 +370,15 @@ func collectDatesInRange(weights []ModelPortfolioWeight, priceLookup map[string]
 //
 // where basePrice is the first available close price for that symbol.
 // This gives value[date] = allocated * (price[date] / basePrice).
-func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, priceLookup map[string]map[string]market.HistoricalPrice, fxLookup map[string]*fxLookupFF) []EquityCurvePoint {
+//
+// Missing prices are forward-filled from the last known close, so gaps
+// in market data (weekends, holidays, sparse sources) do not cause
+// artificial portfolio value drops.
+func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, priceLookup map[string]map[string]market.HistoricalPrice, fxLookup map[string]*ffLookup[decimal.Decimal]) []EquityCurvePoint {
 	curve := make([]EquityCurvePoint, 0, len(dates))
+
+	// Build forward-fill price lookup for gap handling.
+	ff := buildFfPriceLookup(priceLookup)
 
 	// Pre-compute base prices (first available price for each symbol).
 	basePrices := make(map[string]market.HistoricalPrice)
@@ -361,11 +406,11 @@ func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioW
 		var totalValue decimal.Decimal
 
 		for _, w := range weights {
-			prices, ok := priceLookup[w.MarketSym]
-			if !ok {
+			if _, ok := priceLookup[w.MarketSym]; !ok {
 				continue
 			}
-			price, ok := prices[dateKey]
+			// Forward-fill: use exact price or last known close.
+			price, ok := ff[w.MarketSym].lookup(dateKey)
 			if !ok {
 				continue
 			}
@@ -409,30 +454,16 @@ func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioW
 
 // convertWithFxLookup converts a value using the FX rate lookup with forward-fill.
 // Returns (0, false) if no FX data exists.
-func convertWithFxLookup(lookup map[string]*fxLookupFF, pair string, value decimal.Decimal, date time.Time) (decimal.Decimal, bool) {
+func convertWithFxLookup(lookup map[string]*ffLookup[decimal.Decimal], pair string, value decimal.Decimal, date time.Time) (decimal.Decimal, bool) {
 	ff, ok := lookup[pair]
 	if !ok || len(ff.dates) == 0 {
 		return decimal.Zero, false
 	}
 	dateKey := date.Format("2006-01-02")
-	idx := sort.SearchStrings(ff.dates, dateKey)
-
-	// Exact match.
-	if idx < len(ff.dates) && ff.dates[idx] == dateKey {
-		rate := ff.rates[dateKey]
-		converted, _ := value.Mul(rate)
-		return converted, true
+	rate, ok := ff.lookup(dateKey)
+	if !ok {
+		return decimal.Zero, false
 	}
-
-	// Forward-fill from previous date.
-	if idx > 0 {
-		rate := ff.rates[ff.dates[idx-1]]
-		converted, _ := value.Mul(rate)
-		return converted, true
-	}
-
-	// Backward-fill from first known date.
-	rate := ff.rates[ff.dates[0]]
 	converted, _ := value.Mul(rate)
 	return converted, true
 }
