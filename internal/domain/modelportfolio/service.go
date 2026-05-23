@@ -3,6 +3,7 @@ package modelportfolio
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // Repository provides data access for model portfolios.
@@ -192,6 +193,10 @@ func (s *Service) ensureSymbols(ctx context.Context, entries []ModelPortfolioEnt
 		return nil
 	}
 	for _, e := range entries {
+		// Skip cash symbols — they have no market data to fetch.
+		if isCashSymbol(e.Symbol) {
+			continue
+		}
 		if !s.symbolCheck.SymbolExists(ctx, e.Symbol) {
 			if err := s.symbolCreate.CreateSymbol(ctx, e.Symbol, e.Symbol); err != nil {
 				return fmt.Errorf("create symbol %q: %w", e.Symbol, err)
@@ -199,4 +204,11 @@ func (s *Service) ensureSymbols(ctx context.Context, entries []ModelPortfolioEnt
 		}
 	}
 	return nil
+}
+
+// isCashSymbol returns true if the symbol is a cash position placeholder.
+// Cash symbols ($CASH-*) have no market data and should not be sent to
+// market data fetchers.
+func isCashSymbol(symbol string) bool {
+	return strings.HasPrefix(symbol, "$CASH")
 }

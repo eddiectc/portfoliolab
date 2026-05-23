@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -64,14 +65,22 @@ func (s *Service) GetByInternalSymbol(ctx context.Context, internalSymbol string
 
 // GetStaleSymbols returns symbols whose cached details are older than the
 // stale threshold (7 days). Returns internal_symbol + market_data_symbol pairs
-// suitable for refresh.
+// suitable for refresh. Cash symbols ($CASH*) are excluded since they have
+// no market data to fetch.
 func (s *Service) GetStaleSymbols(ctx context.Context) ([]symbol.StaleSymbol, error) {
 	olderThan := time.Now().Add(-StaleThreshold)
 	stale, err := s.repo.ListStale(ctx, olderThan)
 	if err != nil {
 		return nil, fmt.Errorf("list stale symbol details: %w", err)
 	}
-	return stale, nil
+	var filtered []symbol.StaleSymbol
+	for _, s := range stale {
+		if strings.HasPrefix(s.InternalSymbol, "$CASH") {
+			continue
+		}
+		filtered = append(filtered, s)
+	}
+	return filtered, nil
 }
 
 // RefreshSymbol re-fetches and updates the cached details for a single symbol.
