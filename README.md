@@ -37,6 +37,7 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 - [x] **Portfolio Performance** — Equity curve (portfolio value vs net deposits), time-weighted return (TWR), annualized TWR, money-weighted return (MWR/IRR), simple return (profit/net deposit), annualized simple return, annualized volatility, drawdown analysis (max/current/duration), yearly performance, period selector, multi-currency FX conversion (using yfinance for prices)
 - [x] **Historical P&L** — Time-series of portfolio value, daily returns, cumulative returns
 - [x] **Detailed P&L Analysis** — Drawdown analysis, benchmark comparison (S&P 500, NASDAQ, custom), sector/currency breakdown, win rate, avg hold period
+- [x] **Portfolio Comparison** — Side-by-side comparison of any two portfolios (model vs model, model vs real, real vs real) with performance (TWR, CAGR, money-weighted return), risk (Sharpe, Sortino, volatility), drawdown, return distribution, holdings overlap, and cross-portfolio correlation/beta/alpha
 
 ### Nice to Have (v2)
 

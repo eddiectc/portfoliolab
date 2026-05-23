@@ -178,6 +178,11 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSy
 		details.LongName = result.Price.LongName
 		details.Exchange = result.Price.Exchange
 		details.Currency = result.Price.Currency
+		// Yahoo returns some UK stock prices in GBp (pence) instead of GBP.
+		// Normalize to GBP so FX pair construction and display are consistent.
+		if details.Currency == "GBp" {
+			details.Currency = "GBP"
+		}
 		details.QuoteType = result.Price.QuoteType
 	}
 
