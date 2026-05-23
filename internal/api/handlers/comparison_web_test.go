@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
@@ -223,12 +224,12 @@ func TestParseComparisonFilter(t *testing.T) {
 		{
 			name:   "minimal",
 			query:  map[string][]string{},
-			expect: comparisonFilter{},
+			expect: comparisonFilter{PortfolioAType: "model", PortfolioBType: "real"},
 		},
 		{
 			name:   "invalid id ignored",
 			query:  map[string][]string{"portfolio_a_id": {"abc"}},
-			expect: comparisonFilter{PortfolioAID: 0},
+			expect: comparisonFilter{PortfolioAID: 0, PortfolioAType: "model", PortfolioBType: "real"},
 		},
 	}
 
@@ -290,6 +291,52 @@ func TestSerializeAnnualReturnsChartData_NilResult(t *testing.T) {
 	jsonStr := serializeAnnualReturnsChartData(nil)
 	if jsonStr != "{}" {
 		t.Errorf("expected '{}', got %q", jsonStr)
+	}
+}
+
+func TestSerializeDrawdownChartData_NegatedValues(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	dd5 := decimal.MustParse("5.00")
+	dd10 := decimal.MustParse("10.00")
+	dd0 := decimal.MustParse("0.00")
+
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{
+			Name: "Portfolio A",
+			DrawdownSeries: []comparison.DrawdownSeriesPoint{
+				{Date: base, Pct: dd0},
+				{Date: base.AddDate(0, 0, 1), Pct: dd5},
+				{Date: base.AddDate(0, 0, 2), Pct: dd10},
+			},
+		},
+		PortfolioB: &comparison.PortfolioComparison{
+			Name: "Portfolio B",
+			DrawdownSeries: []comparison.DrawdownSeriesPoint{
+				{Date: base, Pct: dd0},
+				{Date: base.AddDate(0, 0, 1), Pct: dd5},
+				{Date: base.AddDate(0, 0, 2), Pct: dd0},
+			},
+		},
+	}
+
+	jsonStr := serializeDrawdownChartData(result)
+	var data drawdownChartData
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		t.Fatalf("failed to unmarshal chart data: %v", err)
+	}
+
+	// Values should be negated so drawdown goes downward from 0%.
+	if len(data.PortfolioA) != 3 {
+		t.Fatalf("expected 3 data points for A, got %d", len(data.PortfolioA))
+	}
+	if data.PortfolioA[0] != 0.0 {
+		t.Errorf("PortfolioA[0] = %.2f, want 0.0", data.PortfolioA[0])
+	}
+	if data.PortfolioA[1] != -5.0 {
+		t.Errorf("PortfolioA[1] = %.2f, want -5.0 (negated)", data.PortfolioA[1])
+	}
+	if data.PortfolioA[2] != -10.0 {
+		t.Errorf("PortfolioA[2] = %.2f, want -10.0 (negated)", data.PortfolioA[2])
 	}
 }
 
@@ -410,8 +457,8 @@ func TestBuildComparisonPeriodURLs(t *testing.T) {
 	if !strings.Contains(urls["3Y"], "period=3Y") {
 		t.Error("expected period=3Y in 3Y URL")
 	}
-	if strings.Contains(urls["1Y"], "period=") {
-		t.Error("default period URL should not contain period= param")
+	if !strings.Contains(urls["1Y"], "period=1Y") {
+		t.Error("expected period=1Y in 1Y URL (all period URLs include the param)")
 	}
 }
 

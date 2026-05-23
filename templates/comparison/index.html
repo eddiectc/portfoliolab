@@ -137,6 +137,7 @@
             {{template "comparison-return-row" .}}
         </tbody>
     </table>
+    <p class="section-note">TWR (Time-Weighted Return) isolates investment performance from deposit/withdrawal timing. Money-Weighted Return reflects actual capital growth (affected by cash flows). CAGR is the annualized TWR.</p>
 </div>
 
 {{/* ============================================ */}}
@@ -895,19 +896,24 @@
 {{/* Helper: return metrics comparison row */}}
 {{define "comparison-return-row"}}
 <tr>
-    <td>Total Return</td>
-    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
-    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
+    <td>Total Return (TWR)</td>
+    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.TWRPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.TWRPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.TWRPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.TWRPct}}%{{else}}—{{end}}</td>
+    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.TWRPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.TWRPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.TWRPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.TWRPct}}%{{else}}—{{end}}</td>
 </tr>
 <tr>
-    <td>Annualized Return</td>
-    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.AnnualizedSimplePct}}%{{else}}—{{end}}</td>
-    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.AnnualizedSimplePct}}%{{else}}—{{end}}</td>
+    <td>Annualized Return (TWR)</td>
+    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.AnnualizedTWRPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.AnnualizedTWRPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.AnnualizedTWRPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.AnnualizedTWRPct}}%{{else}}—{{end}}</td>
+    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.AnnualizedTWRPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.AnnualizedTWRPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.AnnualizedTWRPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.AnnualizedTWRPct}}%{{else}}—{{end}}</td>
 </tr>
 <tr>
     <td>CAGR</td>
     <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.CAGRPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.CAGRPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.CAGRPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.CAGRPct}}%{{else}}—{{end}}</td>
     <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.CAGRPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.CAGRPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.CAGRPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.CAGRPct}}%{{else}}—{{end}}</td>
+</tr>
+<tr>
+    <td>Money-Weighted Return</td>
+    <td class="num {{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioA $.Result.PortfolioA.ReturnMetrics $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioA.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
+    <td class="num {{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{getHeatClassAbsolute $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct.String}}{{end}}">{{if and $.Result.PortfolioB $.Result.PortfolioB.ReturnMetrics $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}{{template "pct-val" $.Result.PortfolioB.ReturnMetrics.SimpleReturnPct}}%{{else}}—{{end}}</td>
 </tr>
 {{end}}
 

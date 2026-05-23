@@ -1638,3 +1638,81 @@ func TestComputeComparison_RealPortfolioName_Fallback(t *testing.T) {
 func ptrDecimal(d decimal.Decimal) *decimal.Decimal {
 	return &d
 }
+
+// TestComputeReturnMetrics_TWRFromNavCurve checks that TWR is computed
+// from the NAV curve (cash-flow-independent) while SimpleReturn uses
+// the raw curve. For real portfolios with deposits, TWR should differ
+// from SimpleReturn.
+func TestComputeReturnMetrics_TWRFromNavCurve(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// Raw curve: PortfolioValue jumps due to deposit at index 2.
+	// Day 0: 10000, Day 1: 10200 (+2%), Day 2: 20300 (deposit 10000 + 100 gain),
+	// Day 3: 20600 (+1.5%), Day 4: 20900 (+1.5%)
+	rawCurve := []EquityCurvePoint{
+		{Date: base, PortfolioValue: decimal.MustNew(10000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10000, 2))},
+		{Date: base.AddDate(0, 0, 1), PortfolioValue: decimal.MustNew(10200, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10200, 2))},
+		{Date: base.AddDate(0, 0, 2), PortfolioValue: decimal.MustNew(20300, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10200, 2))}, // deposit
+		{Date: base.AddDate(0, 0, 3), PortfolioValue: decimal.MustNew(20600, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10300, 2))},
+		{Date: base.AddDate(0, 0, 4), PortfolioValue: decimal.MustNew(20900, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10390, 2))},
+	}
+
+	// Build NAV curve (what prepareCurveForMetrics does for real portfolios).
+	navCurve := buildNavCurve(rawCurve)
+
+	// Create a minimal service and call computeReturnMetrics.
+	svc := &Service{}
+	metrics := svc.computeReturnMetrics(rawCurve, navCurve)
+
+	// Simple return from raw curve: (20900 - 10000) / 10000 = 109%
+	if metrics.SimpleReturnPct == nil {
+		t.Fatal("SimpleReturnPct is nil")
+	}
+	simpleF, _ := metrics.SimpleReturnPct.Float64()
+	if simpleF < 108.0 || simpleF > 110.0 {
+		t.Errorf("SimpleReturnPct = %.2f, want ~109.00", simpleF)
+	}
+
+	// TWR from NAV curve: (10390 - 10000) / 10000 = 3.9%
+	if metrics.TWRPct == nil {
+		t.Fatal("TWRPct is nil")
+	}
+	twrF, _ := metrics.TWRPct.Float64()
+	if twrF < 3.0 || twrF > 5.0 {
+		t.Errorf("TWRPct = %.2f, want ~3.90", twrF)
+	}
+
+	// TWR should be much lower than SimpleReturn (deposit effect).
+	if twrF >= simpleF {
+		t.Errorf("TWRPct (%.2f) should be less than SimpleReturnPct (%.2f)", twrF, simpleF)
+	}
+}
+
+// TestComputeReturnMetrics_ModelPortfolio_TWREqualsSimple checks that for
+// model portfolios (no cash flows), TWR equals SimpleReturn because
+// navCurve == rawCurve.
+func TestComputeReturnMetrics_ModelPortfolio_TWREqualsSimple(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// Model portfolio curve: NavPerUnit == PortfolioValue (no cash flows).
+	curve := []EquityCurvePoint{
+		{Date: base, PortfolioValue: decimal.MustNew(10000, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10000, 2))},
+		{Date: base.AddDate(0, 0, 1), PortfolioValue: decimal.MustNew(10200, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10200, 2))},
+		{Date: base.AddDate(0, 0, 2), PortfolioValue: decimal.MustNew(10400, 2), NavPerUnit: ptrDecimal(decimal.MustNew(10400, 2))},
+	}
+
+	// For model portfolios, prepareCurveForMetrics returns the raw curve.
+	navCurve := curve // same as raw
+
+	svc := &Service{}
+	metrics := svc.computeReturnMetrics(curve, navCurve)
+
+	if metrics.SimpleReturnPct == nil || metrics.TWRPct == nil {
+		t.Fatal("SimpleReturnPct or TWRPct is nil")
+	}
+
+	if !metrics.SimpleReturnPct.Equal(*metrics.TWRPct) {
+		t.Errorf("TWRPct (%s) should equal SimpleReturnPct (%s) for model portfolio",
+			metrics.TWRPct.String(), metrics.SimpleReturnPct.String())
+	}
+}

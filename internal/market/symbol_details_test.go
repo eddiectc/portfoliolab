@@ -776,6 +776,52 @@ func TestStaleThreshold(t *testing.T) {
 	}
 }
 
+// TestFetchSymbolDetails_GBpNormalized checks that Yahoo GBp currency is
+// normalized to GBP so FX pair construction and display are consistent.
+func TestFetchSymbolDetails_GBpNormalized(t *testing.T) {
+	gbpJSON := `{
+  "quoteSummary": {
+    "result": [{
+      "price": {
+        "symbol": "WMGG.L",
+        "shortName": "Wm Morrison",
+        "longName": "The WM Morrison Supermarkets PLC",
+        "exchange": "LSE",
+        "currency": "GBp",
+        "quoteType": "EQUITY",
+        "maxAge": 1
+      },
+      "assetProfile": {
+        "address1": "Peel Road",
+        "city": "Wetherby",
+        "state": "West Yorkshire",
+        "zip": "LS22 7BB",
+        "country": "United Kingdom",
+        "phone": "01937 765555",
+        "website": "https://www.morrisonssupermarkets.com",
+        "industry": "Grocery Stores",
+        "sector": "Consumer Defensive",
+        "longBusinessSummary": "Test summary",
+        "maxAge": 86400
+      }
+    }]
+  }
+}`
+
+	auth, cleanup := setupMockServer(t, gbpJSON)
+	defer cleanup()
+
+	fetcher := NewYahooFinanceFetcher(discardLogger())
+	fetcher.WithAuth(auth)
+	details, err := fetcher.FetchSymbolDetails(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("FetchSymbolDetails: %v", err)
+	}
+	if details.Currency != "GBP" {
+		t.Errorf("expected Currency=GBP (normalized from GBp), got %q", details.Currency)
+	}
+}
+
 // --- Helpers ---
 
 func discardLogger() *slog.Logger {

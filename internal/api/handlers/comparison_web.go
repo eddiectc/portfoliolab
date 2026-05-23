@@ -203,6 +203,9 @@ func parseComparisonFilter(query map[string][]string) comparisonFilter {
 	if vals, ok := query["portfolio_a_type"]; ok && len(vals) > 0 && vals[0] != "" {
 		filter.PortfolioAType = comparison.PortfolioType(vals[0])
 	}
+	if filter.PortfolioAType == "" {
+		filter.PortfolioAType = comparison.PortTypeModel
+	}
 	if vals, ok := query["portfolio_b_id"]; ok && len(vals) > 0 && vals[0] != "" {
 		if n, err := strconv.ParseInt(vals[0], 10, 64); err == nil {
 			filter.PortfolioBID = n
@@ -210,6 +213,9 @@ func parseComparisonFilter(query map[string][]string) comparisonFilter {
 	}
 	if vals, ok := query["portfolio_b_type"]; ok && len(vals) > 0 && vals[0] != "" {
 		filter.PortfolioBType = comparison.PortfolioType(vals[0])
+	}
+	if filter.PortfolioBType == "" {
+		filter.PortfolioBType = comparison.PortTypeModel
 	}
 	if vals, ok := query["period"]; ok && len(vals) > 0 && vals[0] != "" {
 		filter.Period = vals[0]
@@ -296,9 +302,7 @@ func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string) m
 		url += "&portfolio_a_type=" + string(filter.PortfolioAType)
 		url += "&portfolio_b_id=" + strconv.FormatInt(filter.PortfolioBID, 10)
 		url += "&portfolio_b_type=" + string(filter.PortfolioBType)
-		if p != selectedPeriod {
-			url += "&period=" + p
-		}
+		url += "&period=" + p
 		if filter.DateFrom != "" {
 			url += "&date_from=" + filter.DateFrom
 		}
@@ -363,8 +367,11 @@ func serializeDrawdownChartData(result *comparison.ComparisonResult) string {
 	aVals := make([]float64, len(dates))
 	bVals := make([]float64, len(dates))
 	for i, d := range dates {
-		aVals[i] = mapA[d]
-		bVals[i] = mapB[d]
+		// Negate so drawdown goes downward from 0% (inverted chart).
+		// Drawdown data is stored as positive percentages (e.g. 15.50 = 15.50% below peak).
+		// Chart displays negative values so the line drops below the 0% axis.
+		aVals[i] = -mapA[d]
+		bVals[i] = -mapB[d]
 	}
 
 	data := drawdownChartData{

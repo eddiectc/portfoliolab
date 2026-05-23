@@ -565,27 +565,31 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 		return pc
 	}
 
+	// For real portfolios, build a NAV-based curve for TWR-aware metrics.
+	// NavPerUnit is cash-flow-independent (unitized), so metrics derived from
+	// it isolate investment performance from deposit/withdrawal timing.
+	// For model portfolios, the raw curve is used (no cash flows).
+	navCurve := s.prepareCurveForMetrics(curve, meta)
+
 	// --- Return metrics ---
-	pc.ReturnMetrics = s.computeReturnMetrics(curve)
+	pc.ReturnMetrics = s.computeReturnMetrics(curve, navCurve)
 
 	// --- Risk metrics ---
-	pc.RiskMetrics = s.computeRiskMetrics(curve)
+	pc.RiskMetrics = s.computeRiskMetrics(navCurve)
 
 	// --- Drawdown ---
-	pc.Drawdown = s.computeDrawdown(curve)
-	pc.DrawdownSeries = s.computeDrawdownSeries(curve)
+	pc.Drawdown = s.computeDrawdown(navCurve)
+	pc.DrawdownSeries = s.computeDrawdownSeries(navCurve)
 
-	// --- Yearly returns ---
-	pc.YearlyReturns = s.computeYearlyReturns(curve)
+	// --- Yearly returns — from NAV curve (cash-flow-independent) ---
+	pc.YearlyReturns = s.computeYearlyReturns(navCurve)
 
 	// --- Period extremes ---
-	// For real portfolios, TWR-normalize the curve first.
-	extremesCurve := s.prepareCurveForExtremes(curve, meta)
-	extremes := ComputePeriodExtremes(extremesCurve)
+	extremes := ComputePeriodExtremes(navCurve)
 	pc.PeriodExtremes = &extremes
 
 	// --- Return distribution ---
-	dist := ComputeReturnDistribution(extremesCurve)
+	dist := ComputeReturnDistribution(navCurve)
 	pc.ReturnDistribution = &dist
 
 	// --- Intra-portfolio correlation ---
@@ -595,30 +599,64 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 }
 
 // computeReturnMetrics computes summary return metrics from the equity curve.
-func (s *Service) computeReturnMetrics(curve []EquityCurvePoint) *ReturnMetrics {
+// rawCurve is the raw PortfolioValue curve (used for money-weighted return —
+// actual capital growth). navCurve is the NavPerUnit-based curve (used for
+// TWR — cash-flow-independent). For model portfolios, both curves are identical.
+// TWR is the primary metric for comparing investment performance because it
+// isolates returns from deposit/withdrawal timing.
+func (s *Service) computeReturnMetrics(rawCurve, navCurve []EquityCurvePoint) *ReturnMetrics {
 	metrics := &ReturnMetrics{}
 
-	// CAGR.
-	cagr := ComputeCAGR(curve)
+	// --- NAV curve metrics (primary: cash-flow-independent) ---
+
+	// CAGR from NAV curve — annualized TWR-equivalent.
+	// For real portfolios, this reflects investment performance, not money growth.
+	cagr := ComputeCAGR(navCurve)
 	metrics.CAGRPct = cagr.CAGRPct
 	metrics.DaysElapsed = cagr.DaysElapsed
 
-	// Simple return (first-to-last).
+	// TWR from NAV curve (cash-flow-independent).
+	// For model portfolios, navCurve == rawCurve so TWR == simple return.
+	// For real portfolios, navCurve uses NavPerUnit which isolates investment
+	// performance from deposit/withdrawal timing.
+	if len(navCurve) >= 2 {
+		firstF, _ := navCurve[0].PortfolioValue.Float64()
+		lastF, _ := navCurve[len(navCurve)-1].PortfolioValue.Float64()
+		if firstF > 0 {
+			ret, _ := decimal.NewFromFloat64((lastF/firstF - 1.0) * 100.0)
+			ret = ret.Round(2)
+			metrics.TWRPct = &ret
+
+			// Annualized TWR.
+			days := navCurve[len(navCurve)-1].Date.Sub(navCurve[0].Date).Hours() / 24.0
+			if days > 0 {
+				retF, _ := ret.Float64()
+				annualizedF := math.Pow(1.0+retF/100.0, 365.0/days) - 1.0
+				annualized, _ := decimal.NewFromFloat64(annualizedF * 100.0)
+				annualized = annualized.Round(2)
+				metrics.AnnualizedTWRPct = &annualized
+			}
+		}
+	}
+
+	// --- Raw curve metrics (secondary: money-weighted) ---
+
+	// Simple return (first-to-last) from raw curve — actual money in/out.
 	// Float64() errors are ignored here: the equity curve values are produced
 	// by this same domain layer (simulation or performance), so they are always
 	// valid decimals. The float64 round-trip is used only for the ratio
 	// calculation, consistent with the plan's "float64 for intermediate
 	// computation" technical decision.
-	if len(curve) >= 2 {
-		firstF, _ := curve[0].PortfolioValue.Float64()
-		lastF, _ := curve[len(curve)-1].PortfolioValue.Float64()
+	if len(rawCurve) >= 2 {
+		firstF, _ := rawCurve[0].PortfolioValue.Float64()
+		lastF, _ := rawCurve[len(rawCurve)-1].PortfolioValue.Float64()
 		if firstF > 0 {
 			ret, _ := decimal.NewFromFloat64((lastF/firstF - 1.0) * 100.0)
 			ret = ret.Round(2)
 			metrics.SimpleReturnPct = &ret
 
 			// Annualized simple return.
-			days := curve[len(curve)-1].Date.Sub(curve[0].Date).Hours() / 24.0
+			days := rawCurve[len(rawCurve)-1].Date.Sub(rawCurve[0].Date).Hours() / 24.0
 			if days > 0 {
 				retF, _ := ret.Float64()
 				annualizedF := math.Pow(1.0+retF/100.0, 365.0/days) - 1.0
@@ -627,17 +665,6 @@ func (s *Service) computeReturnMetrics(curve []EquityCurvePoint) *ReturnMetrics 
 				metrics.AnnualizedSimplePct = &annualized
 			}
 		}
-	}
-
-	// For model portfolios (no cash flows), TWR == simple return.
-	// For real portfolios, TWR is approximated by the simple return of the
-	// NavPerUnit-based curve (see prepareCurveForExtremes). The TWRPct field
-	// is set to SimpleReturnPct as a close approximation; an exact TWR would
-	// require cash-flow breakpoint data not available at this layer.
-
-	if metrics.SimpleReturnPct != nil {
-		metrics.TWRPct = metrics.SimpleReturnPct
-		metrics.AnnualizedTWRPct = metrics.AnnualizedSimplePct
 	}
 
 	return metrics
@@ -736,11 +763,11 @@ func (s *Service) computeYearlyReturns(curve []EquityCurvePoint) []YearlyReturn 
 	return result
 }
 
-// prepareCurveForExtremes returns the appropriate curve for computing
-// period extremes. For real portfolios with NavPerUnit (cash-flow-aware NAV),
+// prepareCurveForMetrics returns the appropriate curve for computing
+// portfolio metrics. For real portfolios with NavPerUnit (cash-flow-aware NAV),
 // it builds a curve from NAV values which are already cash-flow-independent.
 // For model portfolios or portfolios without NavPerUnit, the raw curve is used.
-func (s *Service) prepareCurveForExtremes(curve []EquityCurvePoint, meta portfolioMeta) []EquityCurvePoint {
+func (s *Service) prepareCurveForMetrics(curve []EquityCurvePoint, meta portfolioMeta) []EquityCurvePoint {
 	if _, isReal := meta.(*realPortfolioMeta); isReal {
 		return buildNavCurve(curve)
 	}
