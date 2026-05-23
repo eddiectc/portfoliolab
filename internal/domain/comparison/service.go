@@ -471,6 +471,15 @@ func (s *Service) fetchHistoricalPricesForWeights(ctx context.Context, weights [
 	return pricesBySym, warnings
 }
 
+// normalizeCurrency converts Yahoo "GBp" (pence) to "GBP".
+// Yahoo returns some UK stock prices in GBp instead of GBP.
+func normalizeCurrency(cur string) string {
+	if cur == "GBp" {
+		return "GBP"
+	}
+	return cur
+}
+
 // fetchFxRates fetches historical FX rates for symbols whose currency differs
 // from the base currency. Returns prices keyed by FX pair and any warnings.
 func (s *Service) fetchFxRates(ctx context.Context, weights []ModelPortfolioWeight, baseCurrency string, dateFrom, dateTo time.Time) (map[string][]market.HistoricalPrice, []string) {
@@ -479,8 +488,10 @@ func (s *Service) fetchFxRates(ctx context.Context, weights []ModelPortfolioWeig
 	// Collect unique FX pairs.
 	pairSet := make(map[string]bool)
 	for _, w := range weights {
-		if w.Currency != "" && w.Currency != baseCurrency {
-			pair := market.FormatFxPair(w.Currency, baseCurrency)
+		cur := normalizeCurrency(w.Currency)
+		base := normalizeCurrency(baseCurrency)
+		if cur != "" && cur != base {
+			pair := market.FormatFxPair(cur, base)
 			pairSet[pair] = true
 		}
 	}
