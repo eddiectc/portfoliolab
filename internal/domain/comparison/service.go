@@ -158,6 +158,30 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 		}, nil
 	}
 
+	// Align both curves to the intersection of their date ranges so metrics
+	// are computed over the same period. This is essential for fair comparison.
+	if len(aCurve) >= 2 && len(bCurve) >= 2 {
+		commonFrom := aCurve[0].Date
+		if bCurve[0].Date.After(commonFrom) {
+			commonFrom = bCurve[0].Date
+		}
+		commonTo := aCurve[len(aCurve)-1].Date
+		if bCurve[len(bCurve)-1].Date.Before(commonTo) {
+			commonTo = bCurve[len(bCurve)-1].Date
+		}
+		if commonFrom.Before(commonTo) {
+			aCurve = clipCurveToDateRange(aCurve, commonFrom, commonTo)
+			bCurve = clipCurveToDateRange(bCurve, commonFrom, commonTo)
+		} else {
+			// No overlapping data.
+			result.Warnings = append(result.Warnings, "No overlapping date range between portfolios")
+		}
+	} else if len(aCurve) >= 2 {
+		// Only A has data — use A's range.
+	} else if len(bCurve) >= 2 {
+		// Only B has data — use B's range.
+	}
+
 	// Compute per-portfolio metrics.
 	result.PortfolioA = s.computePortfolioMetrics(aCurve, aData, baseCurrency)
 	result.PortfolioB = s.computePortfolioMetrics(bCurve, bData, baseCurrency)
@@ -939,4 +963,26 @@ func (s *Service) buildRealHoldings(ctx context.Context, meta *realPortfolioMeta
 	}
 
 	return holdings, true
+}
+
+// clipCurveToDateRange returns only the points in the curve that fall within
+// [dateFrom, dateTo] (inclusive). The curve must be sorted ascending by date.
+func clipCurveToDateRange(curve []EquityCurvePoint, dateFrom, dateTo time.Time) []EquityCurvePoint {
+	if len(curve) == 0 {
+		return curve
+	}
+	// Find start index (first point >= dateFrom).
+	start := 0
+	for start < len(curve) && curve[start].Date.Before(dateFrom) {
+		start++
+	}
+	// Find end index (last point <= dateTo).
+	end := len(curve) - 1
+	for end >= 0 && curve[end].Date.After(dateTo) {
+		end--
+	}
+	if start > end {
+		return nil
+	}
+	return curve[start : end+1]
 }
