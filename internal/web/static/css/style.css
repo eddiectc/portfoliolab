@@ -1324,6 +1324,7 @@ legend {
 .comparison-table {
     width: 100%;
     border-collapse: collapse;
+    border: 1px solid #dee2e6;
 }
 
 .comparison-table th,
@@ -1331,6 +1332,78 @@ legend {
     padding: 8px 12px;
     text-align: left;
     border-bottom: 1px solid #dee2e6;
+    border-right: 1px solid #dee2e6;
+}
+
+.comparison-table th:first-child,
+.comparison-table td:first-child {
+    border-left: none;
+}
+
+.comparison-table th:last-child,
+.comparison-table td:last-child {
+    border-right: none;
+}
+
+.comparison-table thead th {
+    border-top: none;
+}
+
+.comparison-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Comparison filter bar: 2-row layout */
+.filter-row-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.filter-row-secondary .filter-group {
+    flex: 0 1 auto;
+    min-width: 100px;
+}
+
+/* Smaller period buttons for comparison */
+.period-buttons-sm {
+    display: flex;
+    gap: 0;
+    flex-wrap: wrap;
+}
+
+.period-buttons-sm .tab {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: #666;
+    text-decoration: none;
+    border: 1px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+}
+
+.period-buttons-sm .tab:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.period-buttons-sm .tab:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.period-buttons-sm .tab:hover {
+    color: #333;
+    background: #f8f9fa;
+}
+
+.period-buttons-sm .tab.active {
+    color: #fff;
+    background: #1a1a2e;
+    border-color: #1a1a2e;
+    font-weight: 500;
 }
 
 .comparison-table th {

@@ -53,6 +53,7 @@ type PortfolioComparison struct {
 	// availability (e.g. a symbol with shorter history clips the period).
 	EffectiveDateFrom  *time.Time                       `json:"effective_date_from,omitempty"`
 	EffectiveDateTo    *time.Time                       `json:"effective_date_to,omitempty"`
+	ValueGrowthSeries  []EquityCurvePoint               `json:"value_growth_series,omitempty"`
 	ReturnMetrics      *ReturnMetrics                   `json:"return_metrics,omitempty"`
 	RiskMetrics        *RiskMetrics                     `json:"risk_metrics,omitempty"`
 	Drawdown           *DrawdownResult                  `json:"drawdown,omitempty"`
