@@ -34,12 +34,10 @@ func TestComparisonWebHandler_RenderPageWithResult(t *testing.T) {
 			Name: "Model A",
 			Type: comparison.PortTypeModel,
 			ReturnMetrics: &comparison.ReturnMetrics{
-				TWRPct:              &twr,
-				AnnualizedTWRPct:    &annTwr,
-				SimpleReturnPct:     &simpleRet,
-				AnnualizedSimplePct: &annTwr,
-				CAGRPct:             &cagr,
-				DaysElapsed:         365,
+				TWRPct:           &twr,
+				AnnualizedTWRPct: &annTwr,
+				CAGRPct:          &cagr,
+				DaysElapsed:      365,
 			},
 			RiskMetrics: &comparison.RiskMetrics{
 				AnnualizedVolatilityPct: &vol,
@@ -59,10 +57,9 @@ func TestComparisonWebHandler_RenderPageWithResult(t *testing.T) {
 			Name: "Model B",
 			Type: comparison.PortTypeModel,
 			ReturnMetrics: &comparison.ReturnMetrics{
-				TWRPct:          &twr,
-				SimpleReturnPct: &simpleRet,
-				CAGRPct:         &cagr,
-				DaysElapsed:     365,
+				TWRPct:      &twr,
+				CAGRPct:     &cagr,
+				DaysElapsed: 365,
 			},
 			RiskMetrics: &comparison.RiskMetrics{
 				AnnualizedVolatilityPct: &vol,

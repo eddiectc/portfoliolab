@@ -67,11 +67,10 @@ type PortfolioComparison struct {
 }
 
 // ReturnMetrics holds summary return calculations for a portfolio.
+// All metrics are TWR-equivalent (cash-flow-independent).
 type ReturnMetrics struct {
 	TWRPct              *decimal.Decimal `json:"twr_pct,omitempty"`
 	AnnualizedTWRPct    *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
-	SimpleReturnPct     *decimal.Decimal `json:"simple_return_pct,omitempty"`
-	AnnualizedSimplePct *decimal.Decimal `json:"annualized_simple_pct,omitempty"`
 	CAGRPct             *decimal.Decimal `json:"cagr_pct,omitempty"`
 	DaysElapsed         int              `json:"days_elapsed"`
 	HasInsufficientData bool             `json:"has_insufficient_data"`
