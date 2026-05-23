@@ -5,98 +5,81 @@
 
 {{/* Filter bar: portfolio selectors + period */}}
 <form class="filter-bar" method="GET" action="/comparison" id="comparison-form">
-    <div class="filter-row">
-        {{/* Portfolio A type */}}
+   <div class="filter-row">
+        {{/* Portfolio A — combined dropdown with optgroups */}}
         <div class="filter-group">
-            <label for="portfolio_a_type">Portfolio A</label>
-            <select id="portfolio_a_type" name="portfolio_a_type" onchange="updatePortfolioAOptions()">
-                <option value="model" {{if eq .SelectedPortfolioAType "model"}}selected{{end}}>Model Portfolio</option>
-                <option value="real" {{if eq .SelectedPortfolioAType "real"}}selected{{end}}>Real Portfolio</option>
+            <label for="portfolio_a">Portfolio A</label>
+            <select id="portfolio_a" name="portfolio_a_id">
+                <optgroup label="Model Portfolios">
+                    {{range .ModelPortfolios}}
+                    <option value="m{{.ID}}" {{if eq (printf "m%d" .ID) $.SelectedPortfolioA}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </optgroup>
+                <optgroup label="Real Portfolios">
+                    {{range .Portfolios}}
+                    <option value="r{{.ID}}" {{if eq (printf "r%d" .ID) $.SelectedPortfolioA}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
+                    {{end}}
+                </optgroup>
             </select>
         </div>
 
-        {{/* Portfolio A selector */}}
+        {{/* Portfolio B — combined dropdown with optgroups */}}
         <div class="filter-group">
-            <label for="portfolio_a_id">&nbsp;</label>
-            <select id="portfolio_a_id" name="portfolio_a_id">
-                {{if eq .SelectedPortfolioAType "model"}}
-                {{range .ModelPortfolios}}
-                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioAID}}selected{{end}}>{{.Name}}</option>
-                {{end}}
-                {{else}}
-                {{range .Portfolios}}
-                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioAID}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
-                {{end}}
-                {{end}}
+            <label for="portfolio_b">Portfolio B</label>
+            <select id="portfolio_b" name="portfolio_b_id">
+                <optgroup label="Model Portfolios">
+                    {{range .ModelPortfolios}}
+                    <option value="m{{.ID}}" {{if eq (printf "m%d" .ID) $.SelectedPortfolioB}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </optgroup>
+                <optgroup label="Real Portfolios">
+                    {{range .Portfolios}}
+                    <option value="r{{.ID}}" {{if eq (printf "r%d" .ID) $.SelectedPortfolioB}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
+                    {{end}}
+                </optgroup>
             </select>
         </div>
 
-        {{/* Portfolio B type */}}
-        <div class="filter-group">
-            <label for="portfolio_b_type">Portfolio B</label>
-            <select id="portfolio_b_type" name="portfolio_b_type" onchange="updatePortfolioBOptions()">
-                <option value="model" {{if eq .SelectedPortfolioBType "model"}}selected{{end}}>Model Portfolio</option>
-                <option value="real" {{if eq .SelectedPortfolioBType "real"}}selected{{end}}>Real Portfolio</option>
-            </select>
-        </div>
-
-        {{/* Portfolio B selector */}}
-        <div class="filter-group">
-            <label for="portfolio_b_id">&nbsp;</label>
-            <select id="portfolio_b_id" name="portfolio_b_id">
-                {{if eq .SelectedPortfolioBType "model"}}
-                {{range .ModelPortfolios}}
-                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioBID}}selected{{end}}>{{.Name}}</option>
-                {{end}}
-                {{else}}
-                {{range .Portfolios}}
-                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedPortfolioBID}}selected{{end}}>{{.Name}} ({{.Currency}})</option>
-                {{end}}
-                {{end}}
-            </select>
-        </div>
-    </div>
-
-    {{/* Row 2: Period, dates, currency, start value, compare */}}
-    <div class="filter-row filter-row-secondary">
-        {{/* Period */}}
+        {{/* Period buttons */}}
         <div class="filter-group">
             <label>Period</label>
             <div class="period-buttons-sm">
                 {{range $p := slice "1W" "1M" "3M" "1Y" "3Y" "5Y" "YTD" "All"}}
                 <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
                 {{end}}
+                <a href="#" class="tab custom-toggle {{if $.SelectedDateFrom}}active{{end}}" onclick="toggleCustomDates(event)">Custom</a>
             </div>
         </div>
 
-        {{/* Custom date range */}}
-        <div class="filter-group">
-            <label for="date_from">From</label>
-            <input type="date" id="date_from" name="date_from" value="{{.SelectedDateFrom}}" />
+        {{/* Custom date range — hidden by default */}}
+        <div class="filter-group date-range-group" id="date-range-group" style="display:none;">
+            <label>From <input type="date" id="date_from" name="date_from" value="{{.SelectedDateFrom}}" /></label>
+            <label>To <input type="date" id="date_to" name="date_to" value="{{.SelectedDateTo}}" /></label>
         </div>
 
-        <div class="filter-group">
-            <label for="date_to">To</label>
-            <input type="date" id="date_to" name="date_to" value="{{.SelectedDateTo}}" />
-        </div>
-
-        {{/* Base currency */}}
-        <div class="filter-group">
-            <label for="base_currency">Currency</label>
-            <select id="base_currency" name="base_currency">
+        {{/* Currency + Start Value inline */}}
+        <div class="filter-group compact-inline">
+            <label>Currency <select id="base_currency" name="base_currency">
                 {{range $c := slice "USD" "EUR" "GBP" "JPY" "CHF" "CAD" "AUD" "CNY"}}
-                <option value="{{$c}}" {{if eq $.SelectedBaseCurrency $c}}selected{{end}}>{{$c}}</option>
+                <option value="{{$c}}" {{if eq $.SelectedBaseCurrency $c}}selected{{end}}> {{$c}}</option>
                 {{end}}
-            </select>
-        </div>
-
-        {{/* Starting value for model portfolios */}}
-        <div class="filter-group">
-            <label for="starting_value">Start Value</label>
-            <input type="number" id="starting_value" name="starting_value" value="{{.SelectedStartingValue}}" min="1" />
+            </select></label>
+            <label>Start <input type="number" id="starting_value" name="starting_value" value="{{.SelectedStartingValue}}" min="1" class="compact-input" /></label>
         </div>
 
         <div class="filter-group filter-actions">
+            <button type="submit" class="btn">Compare</button>
+        </div>
+    </div>
+</form>
+
+<script>
+function toggleCustomDates(e) {
+    e.preventDefault();
+    var group = document.getElementById('date-range-group');
+    group.style.display = group.style.display === 'none' ? 'flex' : 'none';
+}
+</script>
             <button type="submit" class="btn">Compare</button>
         </div>
     </div>

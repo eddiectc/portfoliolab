@@ -770,7 +770,7 @@ func TestComparison_WebPage_WithSelection(t *testing.T) {
 	}, 120)
 
 	req := httptest.NewRequest(http.MethodGet,
-		fmt.Sprintf("/comparison?portfolio_a_id=%d&portfolio_a_type=model&portfolio_b_id=%d&portfolio_b_type=model&period=3M&starting_value=10000", mpA, mpB), nil)
+		fmt.Sprintf("/comparison?portfolio_a_id=m%d&portfolio_b_id=m%d&period=3M&starting_value=10000", mpA, mpB), nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {

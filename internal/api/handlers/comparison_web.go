@@ -58,9 +58,9 @@ type comparisonPageData struct {
 	Portfolios      []portfolio.Portfolio
 	ModelPortfolios []modelportfolio.ModelPortfolioSummary
 	// UI state.
-	SelectedPortfolioAID   string
+	SelectedPortfolioA     string // combined: m123 or r456
 	SelectedPortfolioAType string
-	SelectedPortfolioBID   string
+	SelectedPortfolioB     string // combined: m123 or r456
 	SelectedPortfolioBType string
 	SelectedPeriod         string
 	SelectedDateFrom       string
@@ -181,9 +181,9 @@ func (h *ComparisonWebHandler) buildPageData(
 		YearlyReturnsMerged:     mergedYearly,
 		Portfolios:              portfolios,
 		ModelPortfolios:         modelPortfolios,
-		SelectedPortfolioAID:    strconv.FormatInt(filter.PortfolioAID, 10),
+		SelectedPortfolioA:      portfolioPrefix(filter.PortfolioAType) + strconv.FormatInt(filter.PortfolioAID, 10),
 		SelectedPortfolioAType:  string(filter.PortfolioAType),
-		SelectedPortfolioBID:    strconv.FormatInt(filter.PortfolioBID, 10),
+		SelectedPortfolioB:      portfolioPrefix(filter.PortfolioBType) + strconv.FormatInt(filter.PortfolioBID, 10),
 		SelectedPortfolioBType:  string(filter.PortfolioBType),
 		SelectedPeriod:          period,
 		SelectedDateFrom:        filter.DateFrom,
@@ -194,28 +194,55 @@ func (h *ComparisonWebHandler) buildPageData(
 	}
 }
 
+// portfolioPrefix returns "m" for model portfolios and "r" for real portfolios.
+func portfolioPrefix(t comparison.PortfolioType) string {
+	if t == comparison.PortTypeReal {
+		return "r"
+	}
+	return "m"
+}
+
 // parseComparisonFilter extracts comparison parameters from query params.
+// Supports both legacy format (portfolio_a_id + portfolio_a_type) and
+// new combined format (portfolio_a_id = "m123" or "r456").
 func parseComparisonFilter(query map[string][]string) comparisonFilter {
 	var filter comparisonFilter
 
+	// Parse Portfolio A (combined format: m123 = model, r456 = real).
 	if vals, ok := query["portfolio_a_id"]; ok && len(vals) > 0 && vals[0] != "" {
-		if n, err := strconv.ParseInt(vals[0], 10, 64); err == nil {
-			filter.PortfolioAID = n
+		v := vals[0]
+		if len(v) > 1 {
+			prefix := string(v[0])
+			idStr := v[1:]
+			if n, err := strconv.ParseInt(idStr, 10, 64); err == nil {
+				filter.PortfolioAID = n
+				if prefix == "r" {
+					filter.PortfolioAType = comparison.PortTypeReal
+				} else {
+					filter.PortfolioAType = comparison.PortTypeModel
+				}
+			}
 		}
-	}
-	if vals, ok := query["portfolio_a_type"]; ok && len(vals) > 0 && vals[0] != "" {
-		filter.PortfolioAType = comparison.PortfolioType(vals[0])
 	}
 	if filter.PortfolioAType == "" {
 		filter.PortfolioAType = comparison.PortTypeModel
 	}
+
+	// Parse Portfolio B (combined format: m123 = model, r456 = real).
 	if vals, ok := query["portfolio_b_id"]; ok && len(vals) > 0 && vals[0] != "" {
-		if n, err := strconv.ParseInt(vals[0], 10, 64); err == nil {
-			filter.PortfolioBID = n
+		v := vals[0]
+		if len(v) > 1 {
+			prefix := string(v[0])
+			idStr := v[1:]
+			if n, err := strconv.ParseInt(idStr, 10, 64); err == nil {
+				filter.PortfolioBID = n
+				if prefix == "r" {
+					filter.PortfolioBType = comparison.PortTypeReal
+				} else {
+					filter.PortfolioBType = comparison.PortTypeModel
+				}
+			}
 		}
-	}
-	if vals, ok := query["portfolio_b_type"]; ok && len(vals) > 0 && vals[0] != "" {
-		filter.PortfolioBType = comparison.PortfolioType(vals[0])
 	}
 	if filter.PortfolioBType == "" {
 		filter.PortfolioBType = comparison.PortTypeModel
@@ -299,12 +326,19 @@ func (h *ComparisonWebHandler) fetchModelPortfolios(ctx context.Context) []model
 func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string) map[string]string {
 	urls := make(map[string]string)
 	periods := []string{"1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"}
+	// Combined portfolio selector format: m123 = model, r456 = real.
+	aPrefix := "m"
+	if filter.PortfolioAType == comparison.PortTypeReal {
+		aPrefix = "r"
+	}
+	bPrefix := "m"
+	if filter.PortfolioBType == comparison.PortTypeReal {
+		bPrefix = "r"
+	}
 	for _, p := range periods {
 		url := "/comparison?"
-		url += "portfolio_a_id=" + strconv.FormatInt(filter.PortfolioAID, 10)
-		url += "&portfolio_a_type=" + string(filter.PortfolioAType)
-		url += "&portfolio_b_id=" + strconv.FormatInt(filter.PortfolioBID, 10)
-		url += "&portfolio_b_type=" + string(filter.PortfolioBType)
+		url += "portfolio_a_id=" + aPrefix + strconv.FormatInt(filter.PortfolioAID, 10)
+		url += "&portfolio_b_id=" + bPrefix + strconv.FormatInt(filter.PortfolioBID, 10)
 		url += "&period=" + p
 		if filter.DateFrom != "" {
 			url += "&date_from=" + filter.DateFrom
@@ -336,6 +370,8 @@ type valueGrowthChartData struct {
 }
 
 // serializeValueGrowthChartData converts equity curves to value growth chart JSON.
+// Both curves are normalized to start from the same starting value so they
+// are directly comparable regardless of actual capital deployed.
 func serializeValueGrowthChartData(result *comparison.ComparisonResult) string {
 	if result == nil || result.PortfolioA == nil || result.PortfolioB == nil {
 		return "{}"
@@ -346,12 +382,25 @@ func serializeValueGrowthChartData(result *comparison.ComparisonResult) string {
 		return "{}"
 	}
 
+	// Determine starting value (use the first point of whichever curve is available).
 	var startVal float64
 	if len(curveA) > 0 {
 		startVal, _ = curveA[0].PortfolioValue.Float64()
 	}
 	if startVal == 0 && len(curveB) > 0 {
 		startVal, _ = curveB[0].PortfolioValue.Float64()
+	}
+	if startVal == 0 {
+		startVal = 10000 // default
+	}
+
+	// Base values for normalization.
+	var baseA, baseB float64
+	if len(curveA) > 0 {
+		baseA, _ = curveA[0].PortfolioValue.Float64()
+	}
+	if len(curveB) > 0 {
+		baseB, _ = curveB[0].PortfolioValue.Float64()
 	}
 
 	data := valueGrowthChartData{
@@ -360,33 +409,22 @@ func serializeValueGrowthChartData(result *comparison.ComparisonResult) string {
 		StartValue: startVal,
 	}
 
+	// Normalize curve A: scale so first point = startVal.
 	for _, pt := range curveA {
 		data.Dates = append(data.Dates, pt.Date.Format("2006-01-02"))
 		val, _ := pt.PortfolioValue.Float64()
+		if baseA > 0 {
+			val = val * startVal / baseA
+		}
 		data.PortfolioA = append(data.PortfolioA, val)
 	}
+	// Normalize curve B: scale so first point = startVal.
 	for _, pt := range curveB {
-		data.Dates = append(data.Dates, pt.Date.Format("2006-01-02"))
 		val, _ := pt.PortfolioValue.Float64()
+		if baseB > 0 {
+			val = val * startVal / baseB
+		}
 		data.PortfolioB = append(data.PortfolioB, val)
-	}
-
-	// If both curves have data, use common dates.
-	if len(curveA) > 0 && len(curveB) > 0 {
-		data = valueGrowthChartData{
-			NameA:      result.PortfolioA.Name,
-			NameB:      result.PortfolioB.Name,
-			StartValue: startVal,
-		}
-		for _, pt := range curveA {
-			data.Dates = append(data.Dates, pt.Date.Format("2006-01-02"))
-			val, _ := pt.PortfolioValue.Float64()
-			data.PortfolioA = append(data.PortfolioA, val)
-		}
-		for _, pt := range curveB {
-			val, _ := pt.PortfolioValue.Float64()
-			data.PortfolioB = append(data.PortfolioB, val)
-		}
 	}
 
 	b, _ := json.Marshal(data)
