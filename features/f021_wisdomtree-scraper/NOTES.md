@@ -2,6 +2,8 @@
 
 ## Decisions
 - 2026-05-26: Migration 021 adds `data_source_url` to `symbol_mappings` and `extractor_as_of_date` to `symbol_details`. Both nullable (NULL = default Yahoo behavior).
+- 2026-05-27: **RefreshAll now includes symbol details refresh** — `doRefreshAll` calls `refreshStaleSymbolDetails` after market data + FX refresh. This satisfies Story 4 Scenario 3: manual "Refresh All" refreshes all data types for provider-configured symbols (market data via Yahoo, symbol details + NAV via extractor). Two new tests added: `TestRefreshAll_IncludesStaleSymbolDetails` and `TestRefreshAll_SkipsSymbolDetails_WhenNoSource`.
+- 2026-05-27: **Integration test location confirmed** — `TestSymbolDetails_ExtractorDataSourceURL_RoundTrip` exists at `tests/integration/symbol_details_test.go:186`. Verifies cross-layer data_source_url round-trip through the stale query and extractor_as_of_date persistence.
 - 2026-05-26: `ParseFundInfo` regex uses `fundInfo\w*` (hash suffix optional) to match both `var fundInfo = {...}` and `var fundInfo<HASH> = {...}` patterns.
 - 2026-05-26: Holdings CSV weights are fractions (0.0137 = 1.37%), converted to percentage (1.37) to match existing `TopHolding.Percent` convention. Sectors CSV weights are already percentages — no conversion needed.
 - 2026-05-26: `parseTableValue` regex uses `labelCell` including the closing `</td>` tag, then matches `\s*<td[^>]*>([^<]+)` for the value cell. This avoids false matches on nested content.

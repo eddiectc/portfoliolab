@@ -593,6 +593,9 @@ func (m *MarketCache) doRefreshAll(ctx context.Context) {
 		m.mu.Unlock()
 	}
 
+	// Refresh stale symbol details (routes to extractor or Yahoo by data_source_url).
+	m.refreshStaleSymbolDetails(ctx)
+
 	if m.logger != nil {
 		m.logger.Info("refresh-all: completed")
 	}

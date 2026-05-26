@@ -1295,3 +1295,54 @@ func TestRefreshStaleSymbolDetails_NonAuthErrorContinues(t *testing.T) {
 	}
 }
 
+func TestRefreshAll_IncludesStaleSymbolDetails(t *testing.T) {
+	now := time.Now().UTC()
+	staleSymbols := []symbol.StaleSymbol{
+		{InternalSymbol: "WMGG.L", MarketDataSymbol: "WMGG.L", DataSourceURL: "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/", FetchedAt: now.AddDate(0, 0, -10)},
+		{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", FetchedAt: now.AddDate(0, 0, -8)},
+	}
+
+	fetcher := &mockFetcher{
+		quotes: map[string]*market.MarketData{
+			"AAPL": {Symbol: "AAPL", Price: decimal.MustNew(17500, 2), Currency: "USD"},
+		},
+		historical: map[string][]market.HistoricalPrice{
+			"AAPL": {{Date: now, Close: decimal.MustNew(17500, 2), Currency: "USD"}},
+		},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	discoverer.SetAllSymbols([]string{"AAPL"})
+
+	source := &mockSymbolDetailsRefresh{}
+	source.SetStaleSymbols(staleSymbols)
+
+	cache := New(fetcher, repo, discoverer, nil)
+	cache.WithSymbolDetailsRefresh(source)
+
+	// Call doRefreshAll directly to isolate from periodic ticker.
+	cache.doRefreshAll(ctx)
+
+	// Both stale symbols should have been refreshed by RefreshAll.
+	calls := source.RefreshCalls()
+	if calls != 2 {
+		t.Errorf("expected 2 stale symbol detail refresh calls from RefreshAll, got %d", calls)
+	}
+}
+
+func TestRefreshAll_SkipsSymbolDetails_WhenNoSource(t *testing.T) {
+	fetcher := &mockFetcher{
+		quotes:     map[string]*market.MarketData{},
+		historical: map[string][]market.HistoricalPrice{},
+	}
+	repo := newMockRepo()
+	discoverer := &mockDiscoverer{}
+	discoverer.SetAllSymbols([]string{"AAPL"})
+
+	// No symbol details refresh source set.
+	cache := New(fetcher, repo, discoverer, nil)
+
+	// Should not panic — nil source is a no-op.
+	cache.doRefreshAll(ctx)
+}
+
