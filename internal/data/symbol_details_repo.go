@@ -76,6 +76,13 @@ func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*symb
 			return nil, fmt.Errorf("parse geographic_allocations for %s: %w", sd.InternalSymbol, err)
 		}
 	}
+	if sd.ExtractorAsOfDate.Valid {
+		asOf, err := parseTime(sd.ExtractorAsOfDate.String)
+		if err != nil {
+			return nil, fmt.Errorf("parse extractor_as_of_date for %s: %w", sd.InternalSymbol, err)
+		}
+		details.ExtractorAsOfDate = asOf
+	}
 
 	return details, nil
 }
@@ -96,6 +103,15 @@ func toSQLNullString(s string) sql.NullString {
 		return sql.NullString{}
 	}
 	return sql.NullString{String: s, Valid: true}
+}
+
+// toSQLNullTime converts a time.Time to sql.NullString.
+// Zero time returns empty (invalid) NullString.
+func toSQLNullTime(t time.Time) sql.NullString {
+	if t.IsZero() {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: t.Format(time.RFC3339), Valid: true}
 }
 
 // toSQLNullJSON marshals a value to JSON and returns sql.NullString.
@@ -130,7 +146,8 @@ func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.Sy
 		AggregatePositions:    toSQLNullJSON(details.AggregatePositions),
 		FundProfile:           toSQLNullJSON(details.FundProfile),
 		EquityValuation:       toSQLNullJSON(details.EquityValuation),
-		GeographicAllocations: toSQLNullJSON(details.GeographicAllocations),
+				GeographicAllocations: toSQLNullJSON(details.GeographicAllocations),
+		ExtractorAsOfDate:     toSQLNullTime(details.ExtractorAsOfDate),
 		FetchedAt:             details.FetchedAt.Format(time.RFC3339),
 		UpdatedAt:          now.Format(time.RFC3339),
 	})

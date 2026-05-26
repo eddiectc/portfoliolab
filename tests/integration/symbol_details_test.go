@@ -183,6 +183,90 @@ func TestSymbolDetails_ListExcludesDetails(t *testing.T) {
 	}
 }
 
+func TestSymbolDetails_ExtractorDataSourceURL_RoundTrip(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Insert a symbol mapping with data_source_url
+	_, err := db.Exec(`
+		INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, data_source_url)
+		VALUES (?, ?, ?)
+	`, "WMGG.L", "WMGG.L", "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/")
+	if err != nil {
+		t.Fatalf("insert symbol mapping: %v", err)
+	}
+
+	// Insert symbol details with extractor_as_of_date
+	asOfDate := time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC)
+	_, err = db.Exec(`
+		INSERT INTO symbol_details (
+			internal_symbol, short_name, long_name, exchange, currency, quote_type,
+			top_holdings, sector_weightings, fund_profile, equity_valuation,
+			geographic_allocations, extractor_as_of_date, fetched_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "WMGG.L", "WisdomTree Megatrends", "WisdomTree Megatrends UCITS ETF",
+		"LSE", "GBP", "ETF",
+		`[{"symbol":"TSLA","name":"Tesla Inc","percent":2.5}]`,
+		`[{"sector":"technology","percent":21.2}]`,
+		`{"family":"WisdomTree","legalType":"Exchange Traded Fund","totalNetAssets":21526.37,"annualExpenseRatio":0.4}`,
+		`{"priceToEarnings":25.3,"priceToBook":4.2,"priceToCashflow":18.0,"priceToSales":5.5}`,
+		`[{"country":"United States","percent":65.0}]`,
+		asOfDate.Format(time.RFC3339),
+		time.Now().Add(-8*24*time.Hour).Format(time.RFC3339)) // stale
+	if err != nil {
+		t.Fatalf("insert symbol details: %v", err)
+	}
+
+	// Verify data_source_url is returned by the stale query (cross-layer audit)
+	var dataSourceURL, internalSymbol string
+	err = db.QueryRow(`
+		SELECT sm.internal_symbol, sm.data_source_url
+		FROM symbol_mappings sm
+		LEFT JOIN symbol_details sd ON sm.internal_symbol = sd.internal_symbol
+		WHERE sd.fetched_at IS NULL OR sd.fetched_at < ?
+	`, time.Now().Add(-7*24*time.Hour).Format(time.RFC3339)).Scan(&internalSymbol, &dataSourceURL)
+	if err != nil {
+		t.Fatalf("query stale with data_source_url: %v", err)
+	}
+	if internalSymbol != "WMGG.L" {
+		t.Errorf("expected internal_symbol WMGG.L, got %q", internalSymbol)
+	}
+	if dataSourceURL != "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/" {
+		t.Errorf("expected data_source_url in stale query, got %q", dataSourceURL)
+	}
+
+	// Verify extractor_as_of_date round-trips through direct SQL read
+	var extractedAsOf string
+	err = db.QueryRow("SELECT extractor_as_of_date FROM symbol_details WHERE internal_symbol = ?",
+		"WMGG.L").Scan(&extractedAsOf)
+	if err != nil {
+		t.Fatalf("query extractor_as_of_date: %v", err)
+	}
+	if extractedAsOf != asOfDate.Format(time.RFC3339) {
+		t.Errorf("expected extractor_as_of_date %q, got %q", asOfDate.Format(time.RFC3339), extractedAsOf)
+	}
+
+	// Verify Yahoo symbol (no data_source_url) is also returned by stale query
+	_, err = db.Exec(`
+		INSERT INTO symbol_mappings (internal_symbol, market_data_symbol) VALUES (?, ?)
+	`, "VOO", "VOO")
+	if err != nil {
+		t.Fatalf("insert VOO mapping: %v", err)
+	}
+
+	var staleCount int
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM symbol_mappings sm
+		LEFT JOIN symbol_details sd ON sm.internal_symbol = sd.internal_symbol
+		WHERE sd.fetched_at IS NULL OR sd.fetched_at < ?
+	`, time.Now().Add(-7*24*time.Hour).Format(time.RFC3339)).Scan(&staleCount)
+	if err != nil {
+		t.Fatalf("count stale: %v", err)
+	}
+	if staleCount != 2 {
+		t.Errorf("expected 2 stale symbols (WMGG.L stale + VOO missing), got %d", staleCount)
+	}
+}
+
 func TestSymbolDetails_StaleRefresh_PicksUpMissingDetails(t *testing.T) {
 	db := setupTestDB(t)
 

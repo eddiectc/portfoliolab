@@ -636,6 +636,59 @@ func TestSymbolDetailsRepository_GeographicAllocations_Overwrite(t *testing.T) {
 	}
 }
 
+func TestSymbolDetailsRepository_ExtractorAsOfDate_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	asOfDate := time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC)
+	details := &symbol.SymbolDetails{
+		InternalSymbol:      "WMGG.L",
+		ShortName:           "WisdomTree Megatrends",
+		ExtractorAsOfDate:   asOfDate,
+		FetchedAt:           time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.ExtractorAsOfDate.IsZero() {
+		t.Error("expected non-zero ExtractorAsOfDate")
+	} else if !got.ExtractorAsOfDate.Equal(asOfDate) {
+		t.Errorf("expected ExtractorAsOfDate %v, got %v", asOfDate, got.ExtractorAsOfDate)
+	}
+}
+
+func TestSymbolDetailsRepository_ExtractorAsOfDate_ZeroStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol:    "VOO",
+		ShortName:         "Vanguard S&P 500",
+		ExtractorAsOfDate: time.Time{}, // zero = not set (Yahoo data)
+		FetchedAt:         time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if !got.ExtractorAsOfDate.IsZero() {
+		t.Errorf("expected zero ExtractorAsOfDate for Yahoo data, got %v", got.ExtractorAsOfDate)
+	}
+}
+
 // isErrNotFound checks if the error is ErrNotFound.
 func isErrNotFound(err error) bool {
 	return err == ErrNotFound

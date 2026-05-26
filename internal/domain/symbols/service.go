@@ -229,8 +229,9 @@ func (s *Service) SetDataSourceURL(ctx context.Context, internalSymbol string, u
 // canonical SymbolDetails type used throughout the application.
 func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbol string) *symbol.SymbolDetails {
 	details := &symbol.SymbolDetails{
-		InternalSymbol: internalSymbol,
-		FetchedAt:      time.Now(),
+		InternalSymbol:      internalSymbol,
+		ExtractorAsOfDate:   result.AsOfDate,
+		FetchedAt:           time.Now(),
 	}
 
 	// Fund info — symbol and name.

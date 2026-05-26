@@ -342,6 +342,10 @@ func (m *mockSymbolRepoForTx) HasReferencingTransactions(_ context.Context, _ in
 	return false, nil
 }
 
+func (m *mockSymbolRepoForTx) UpdateDataSourceURL(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
 // mockTxAccountChecker always says accounts 1-3 exist.
 type mockTxAccountChecker struct{}
 

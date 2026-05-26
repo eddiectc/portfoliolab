@@ -24,7 +24,8 @@ type SymbolDetails struct {
 	GeographicAllocations []GeographicAllocation
 
 	// Metadata
-	FetchedAt time.Time
+	ExtractorAsOfDate time.Time // provider's "as of" date; zero when from Yahoo
+	FetchedAt         time.Time  // when the system fetched the data
 }
 
 // TopHolding represents a single holding in an ETF's portfolio.
