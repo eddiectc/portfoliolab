@@ -341,6 +341,11 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 	if details.EquityValuation.PriceToEarnings != 25.3 {
 		t.Errorf("expected P/E 25.3, got %f", details.EquityValuation.PriceToEarnings)
 	}
+	if details.ExtractorAsOfDate.IsZero() {
+		t.Error("expected non-zero ExtractorAsOfDate")
+	} else if !details.ExtractorAsOfDate.Equal(time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("expected ExtractorAsOfDate 2024-03-29, got %v", details.ExtractorAsOfDate)
+	}
 }
 
 func TestService_FetchAndStore_UsesYahoo_WhenNoURL(t *testing.T) {
@@ -590,106 +595,143 @@ func TestService_FetchAndStore_NAVHistoryStoreFails(t *testing.T) {
 
 // --- DataSourceURL Tests ---
 
-func TestService_GetDataSourceURL_Success(t *testing.T) {
-	svc, _, _ := newTestService()
-
-	urlRepo := newMockDataSourceURLRepo()
-	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
-	urlRepo.ids["WMGG.L"] = 1
-	svc.WithDataSourceURLRepo(urlRepo)
-
-	url, err := svc.GetDataSourceURL(context.Background(), "WMGG.L")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestService_GetDataSourceURL(t *testing.T) {
+	tests := []struct {
+		name       string
+		symbol     string
+		setupRepo  func() DataSourceURLSource
+		wantURL    string
+		wantErr    bool
+	}{
+		{
+			name:   "success",
+			symbol: "WMGG.L",
+			setupRepo: func() DataSourceURLSource {
+				r := newMockDataSourceURLRepo()
+				r.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+				r.ids["WMGG.L"] = 1
+				return r
+			},
+			wantURL: "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/",
+		},
+		{
+			name:   "empty when no URL configured",
+			symbol: "VOO",
+			setupRepo: func() DataSourceURLSource {
+				r := newMockDataSourceURLRepo()
+				r.ids["VOO"] = 1
+				return r
+			},
+			wantURL: "",
+		},
+		{
+			name:       "empty when no repo",
+			symbol:     "VOO",
+			setupRepo:  nil,
+			wantURL:    "",
+			wantErr:    false,
+		},
+		{
+			name:   "error when repo fails",
+			symbol: "WMGG.L",
+			setupRepo: func() DataSourceURLSource {
+				r := newMockDataSourceURLRepo()
+				r.ids["WMGG.L"] = 1
+				r.err = fmt.Errorf("db error")
+				return r
+			},
+			wantErr: true,
+		},
 	}
-	if url != "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/" {
-		t.Errorf("expected configured URL, got %q", url)
-	}
-}
-
-func TestService_GetDataSourceURL_Empty(t *testing.T) {
-	svc, _, _ := newTestService()
-
-	urlRepo := newMockDataSourceURLRepo()
-	urlRepo.ids["VOO"] = 1
-	// No URL set for VOO
-	svc.WithDataSourceURLRepo(urlRepo)
-
-	url, err := svc.GetDataSourceURL(context.Background(), "VOO")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if url != "" {
-		t.Errorf("expected empty URL, got %q", url)
-	}
-}
-
-func TestService_GetDataSourceURL_NoRepo(t *testing.T) {
-	svc, _, _ := newTestService()
-
-	url, err := svc.GetDataSourceURL(context.Background(), "VOO")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if url != "" {
-		t.Errorf("expected empty URL, got %q", url)
-	}
-}
-
-func TestService_SetDataSourceURL_Success(t *testing.T) {
-	svc, _, _ := newTestService()
-
-	urlRepo := newMockDataSourceURLRepo()
-	urlRepo.urls["WMGG.L"] = ""
-	urlRepo.ids["WMGG.L"] = 1
-	svc.WithDataSourceURLRepo(urlRepo)
-
-	err := svc.SetDataSourceURL(context.Background(), "WMGG.L", "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestService_SetDataSourceURL_NoRepo(t *testing.T) {
-	svc, _, _ := newTestService()
-
-	err := svc.SetDataSourceURL(context.Background(), "WMGG.L", "https://example.com")
-	if err == nil {
-		t.Fatal("expected error when repo not configured, got nil")
-	}
-}
-
-func TestService_SetDataSourceURL_SymbolNotFound(t *testing.T) {
-	svc, _, _ := newTestService()
-
-	urlRepo := newMockDataSourceURLRepo()
-	svc.WithDataSourceURLRepo(urlRepo)
-
-	err := svc.SetDataSourceURL(context.Background(), "NONEXISTENT", "https://example.com")
-	if err == nil {
-		t.Fatal("expected error for non-existent symbol, got nil")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, _, _ := newTestService()
+			if tt.setupRepo != nil {
+				svc.WithDataSourceURLRepo(tt.setupRepo())
+			}
+			url, err := svc.GetDataSourceURL(context.Background(), tt.symbol)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if url != tt.wantURL {
+				t.Errorf("expected URL %q, got %q", tt.wantURL, url)
+			}
+		})
 	}
 }
 
-func TestService_SetDataSourceURL_Clear(t *testing.T) {
-	svc, _, _ := newTestService()
-
-	urlRepo := newMockDataSourceURLRepo()
-	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
-	urlRepo.ids["WMGG.L"] = 1
-	svc.WithDataSourceURLRepo(urlRepo)
-
-	// Clear the URL
-	err := svc.SetDataSourceURL(context.Background(), "WMGG.L", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestService_SetDataSourceURL(t *testing.T) {
+	tests := []struct {
+		name      string
+		symbol    string
+		url       string
+		setupRepo func() DataSourceURLSource
+		wantErr   bool
+	}{
+		{
+			name:   "success",
+			symbol: "WMGG.L",
+			url:    "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/",
+			setupRepo: func() DataSourceURLSource {
+				r := newMockDataSourceURLRepo()
+				r.ids["WMGG.L"] = 1
+				return r
+			},
+		},
+		{
+			name:      "error when no repo",
+			symbol:    "WMGG.L",
+			url:       "https://example.com",
+			setupRepo: nil,
+			wantErr:   true,
+		},
+		{
+			name:   "error when symbol not found",
+			symbol: "NONEXISTENT",
+			url:    "https://example.com",
+			setupRepo: func() DataSourceURLSource {
+				return newMockDataSourceURLRepo()
+			},
+			wantErr: true,
+		},
+		{
+			name:   "clear URL",
+			symbol: "WMGG.L",
+			url:    "",
+			setupRepo: func() DataSourceURLSource {
+				r := newMockDataSourceURLRepo()
+				r.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+				r.ids["WMGG.L"] = 1
+				return r
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, _, _ := newTestService()
+			if tt.setupRepo != nil {
+				svc.WithDataSourceURLRepo(tt.setupRepo())
+			}
+			err := svc.SetDataSourceURL(context.Background(), tt.symbol, tt.url)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
 // --- extractResultToSymbolDetails Tests ---
 
 func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
+	asOfDate := time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC)
 	result := &extractor.ExtractResult{
+		AsOfDate: asOfDate,
 		FundInfo: &extractor.FundInfo{
 			Symbol: "WMGG.L",
 			Name:   "WisdomTree Megatrends",
@@ -758,6 +800,11 @@ func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
 	}
 	if details.EquityValuation.PriceToEarnings != 25.3 {
 		t.Errorf("expected P/E 25.3, got %f", details.EquityValuation.PriceToEarnings)
+	}
+	if details.ExtractorAsOfDate.IsZero() {
+		t.Error("expected non-zero ExtractorAsOfDate")
+	} else if !details.ExtractorAsOfDate.Equal(asOfDate) {
+		t.Errorf("expected ExtractorAsOfDate %v, got %v", asOfDate, details.ExtractorAsOfDate)
 	}
 }
 

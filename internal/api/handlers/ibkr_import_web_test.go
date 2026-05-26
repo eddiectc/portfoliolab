@@ -537,6 +537,15 @@ func (m *mockSymbolRepoForImport) RemoveMarketDataSymbol(_ context.Context, id i
 	return nil
 }
 
+func (m *mockSymbolRepoForImport) UpdateDataSourceURL(_ context.Context, id int64, _ string) error {
+	for _, sm := range m.mappings {
+		if sm.ID == id {
+			return nil
+		}
+	}
+	return nil
+}
+
 func (m *mockSymbolRepoForImport) HasReferencingTransactions(_ context.Context, _ int64) (bool, error) {
 	return false, nil
 }

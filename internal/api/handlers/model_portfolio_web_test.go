@@ -115,6 +115,10 @@ func (r *testSymbolRepoForWeb) HasReferencingTransactions(_ context.Context, _ i
 	return false, nil
 }
 
+func (r *testSymbolRepoForWeb) UpdateDataSourceURL(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
 // testModelPortfolioRepoForWeb is a minimal in-memory mock repo for model portfolio web tests.
 type testModelPortfolioRepoForWeb struct {
 	portfolios map[int64]*modelportfolio.ModelPortfolio

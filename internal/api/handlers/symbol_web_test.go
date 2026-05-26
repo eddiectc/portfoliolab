@@ -124,6 +124,10 @@ func (r *testSMWebRepo) HasReferencingTransactions(_ context.Context, id int64) 
 	return false, nil
 }
 
+func (r *testSMWebRepo) UpdateDataSourceURL(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
 func setupWebHandlerWithSMService(t *testing.T) (*SymbolWebHandler, *symbolmapping.Service, *testSMWebRepo) {
 	t.Helper()
 	repo := newTestSMWebRepo()

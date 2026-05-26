@@ -162,6 +162,10 @@ func (r *testSMRepo) HasReferencingTransactions(_ context.Context, id int64) (bo
 	return r.inUseIDs[id], nil
 }
 
+func (r *testSMRepo) UpdateDataSourceURL(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
 func setupSymbolHandler(t *testing.T) (*SymbolHandler, *testSMRepo) {
 	t.Helper()
 	repo := newTestSMRepo()
