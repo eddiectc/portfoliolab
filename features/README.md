@@ -32,3 +32,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f018 | Allocation | done | f009, f010, f011, f001 |
 | f019 | Model Portfolio | done | f003, f009, f011, f018 |
 | f020 | Portfolio Comparison | done | f019, f009, f010, f011, f012, f015 |
+| f021 | WisdomTree Scraper | spec | f015, f011 |
