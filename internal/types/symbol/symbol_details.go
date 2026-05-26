@@ -57,6 +57,7 @@ type FundProfile struct {
 	TotalNetAssets         float64
 	AnnualExpenseRatio     float64
 	AnnualHoldingsTurnover float64
+	InceptionDate          time.Time
 }
 
 // EquityValuation represents aggregate valuation ratios of an ETF's equity holdings.

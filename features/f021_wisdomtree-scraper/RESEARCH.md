@@ -9,7 +9,7 @@
 
 ---
 
-## Status: ✅ Data extraction patterns fully identified, samples saved (including country allocation, market cap, fund characteristics, AUM, TER, inception date)
+## Status: ✅ Data extraction patterns fully identified. ALL data (including country allocation, market cap, fund characteristics) is in raw HTML. CycleTLS bypasses Cloudflare successfully. No headless browser needed.
 
 ---
 
@@ -103,63 +103,113 @@ Same pattern — CSV with literal `\n`.
 
 **To get sector totals**: Take unique `(Sector, wgtSector)` pairs. The `wgtSector` column is the same for all securities within a sector.
 
-### 6. Country Allocation (Dynamically Loaded)
-**NOT embedded as a JavaScript variable.** The country allocation `<tbody>` is empty in the raw HTML — data is loaded dynamically via JavaScript after page load.
+### 6. Country Allocation (In Raw HTML — HTML Table)
+**IS embedded in the raw HTML** as a standard `<table>` inside `id="country-allocation-section"`. Previously thought to be JS-rendered — this was incorrect. The table has a `<thead>` with "Country"/"Weight" headers and a `<tbody>` with numbered rows.
 
-**How it works**: The section has `id="country-allocation-section"` with an empty `<tbody>`. No corresponding `var fundCountryData` variable exists. No `data-href` modal link exists for this section (unlike nav-history, all-holdings, distribuition-history). The data is loaded by an unknown JS mechanism — possibly a Sitecore component that fetches data server-side and injects it into the DOM.
-
-**Extraction method**: Use `web_fetch` (Defuddle article extractor) which returns the fully-rendered page content including the dynamically-loaded country table. The raw HTML (`web_scrape format=raw`) has an empty `<tbody>`.
-
-**Format in extracted content**: Markdown table:
-```
-| Country | Weight |
-| --- | --- |
-| 1. United States | 40.54% |
-| 2. China | 11.62% |
-| 3. South Korea | 6.65% |
-...
-```
-
-**Parsing**: Strip leading "N. " from country names, parse percentage from weight column.
-
-**For Go implementation**: Either use a headless browser (chromedp/playwright) to render the page then extract the table from DOM, OR use an article extraction library similar to Defuddle/Readability.
-
-### 7. Market Capitalization (Dynamically Loaded)
-**NOT in raw HTML at all.** No `id="market-cap"` section or `var fundMarketCapData` variable exists. The entire Market Capitalization table is injected by JavaScript after page load.
-
-**Extraction method**: Same as country allocation — use `web_fetch` (Defuddle article extractor) to get the fully-rendered page.
-
-**Format in extracted content**: HTML table:
-```
-| Market Capitalization | As of 22 May 2026 |
-| Total Market Capitalization ($ Trillion) | 58.68 |
-| Fund MarketCap Breakdown | |
-| Large Cap (> $10 Billion) | 64.42% |
-| Mid Cap (≥ $2 Billion and ≤ $10 Billion) | 26.55% |
-| Small Cap (< $2 Billion) | 9.02% |
+**Format in raw HTML**:
+```html
+<table class="table table-striped-customized">
+    <thead>
+        <tr>
+            <th class="key">Country</th>
+            <th class="value">Weight</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="key">1. United States</td>
+            <td class="value"><span class="value percent positive">40.54%</span></td>
+        </tr>
+        ...
+    </tbody>
+</table>
 ```
 
-**Parsing**: Extract key-value pairs from table rows. The "Fund MarketCap Breakdown" row is a section header (colspan=2) — skip it.
+**Parsing**: Regex on `<td class="key">` for country name (strip leading "N. "), regex on `<span class="value percent` for weight (strip `%`).
 
-### 8. Fund Characteristics (Dynamically Loaded)
-**NOT in raw HTML at all.** Same dynamic loading pattern as Market Capitalization.
+**As of date**: Present in a `<span class="info-component">As of 22 May 2026</span>` above the table.
 
-**Extraction method**: Same as country allocation — use `web_fetch` (Defuddle article extractor).
+### 7. Market Capitalization (In Raw HTML — HTML Table)
+**IS embedded in the raw HTML** as a standard `<table>` inside `id="fund-facts-section"`. Previously thought to be JS-rendered — this was incorrect.
 
-**Format in extracted content**: Markdown table:
+**Format in raw HTML**:
+```html
+<table class="table table-striped-customized">
+    <thead>
+        <tr>
+            <th class="key">Market Capitalization</th>
+            <th class="value">As of 22 May 2026</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="key">Total Market Capitalization ($ Trillion)</td>
+            <td class="value">58.68</td>
+        </tr>
+        <tr>
+            <td colspan="2"><strong>Fund MarketCap Breakdown</strong></td>
+        </tr>
+        <tr>
+            <td class="key shifted">Large Cap (&gt; $10 Billion)</td>
+            <td class="value">64.42%</td>
+        </tr>
+        ...
+    </tbody>
+</table>
 ```
-| Fund Characteristics | As of 22 May 2026 |
-| *Dividend Yield | 0.94 |
-| Price/Earnings | 69.64 |
-| Estimated Price/Earnings | 34.56 |
-| Price/Book | 4.06 |
-| Price/Sales | 2.61 |
-| Price/Cash Flow | 28.69 |
-| Gross Buyback Yield | 0.65 |
-| Net Buyback Yield | -1.21 |
+
+**Parsing**: Extract key-value pairs from table rows. Skip the "Fund MarketCap Breakdown" header row (colspan=2). Parse numeric values and percentages. HTML entities like `&gt;` are used.
+
+### 8. Fund Characteristics (In Raw HTML — HTML Table)
+**IS embedded in the raw HTML** as a standard `<table>` inside `id="fund-facts-section"` (same section as Market Cap, in a separate column). Previously thought to be JS-rendered — this was incorrect.
+
+**Format in raw HTML**:
+```html
+<table class="table table-striped-customized">
+    <thead>
+        <tr>
+            <th class="key">Fund Characteristics</th>
+            <th class="value">As of 22 May 2026</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="key">*Dividend Yield</td>
+            <td class="value">0.94</td>
+        </tr>
+        <tr>
+            <td class="key">Price/Earnings</td>
+            <td class="value">69.64</td>
+        </tr>
+        <tr>
+            <td class="key">Estimated Price/Earnings</td>
+            <td class="value">34.56</td>
+        </tr>
+        <tr>
+            <td class="key">Price/Book</td>
+            <td class="value">4.06</td>
+        </tr>
+        <tr>
+            <td class="key">Price/Sales</td>
+            <td class="value">2.61</td>
+        </tr>
+        <tr>
+            <td class="key">Price/Cash Flow</td>
+            <td class="value">28.69</td>
+        </tr>
+        <tr>
+            <td class="key">Gross Buyback Yield</td>
+            <td class="value">0.65</td>
+        </tr>
+        <tr>
+            <td class="key">Net Buyback Yield</td>
+            <td class="value">-1.21</td>
+        </tr>
+    </tbody>
+</table>
 ```
 
-**Parsing**: Extract key-value pairs from table rows. Strip leading "*" from keys. The first row is a section header — skip it.
+**Parsing**: Extract key-value pairs from table rows. Strip leading "*" from keys. Parse numeric values (may be negative).
 
 ### 9. As of Date (In Raw HTML)
 
@@ -269,9 +319,26 @@ The locale can be: `en-gb`, `pl-pl`, `fr-lu`, `da-dk`, `de-at`, etc. The data is
 
 ---
 
+## Cloudflare Protection — RESOLVED
+
+**WisdomTree.eu is behind Cloudflare bot protection.** Plain `curl` / Go `net/http` requests return a Cloudflare challenge page ("Just a moment...") instead of the actual HTML.
+
+**CycleTLS successfully bypasses Cloudflare** — tested and confirmed (2026-05-26). Returns 200 OK with full page content including all data sections.
+
+**Test configuration**:
+```go
+client := cycletls.Init()
+resp, err := client.Do(url, cycletls.Options{
+    Ja3:       "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21,29-23-24,0",
+    UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+}, "GET")
+```
+
+**No headless browser needed.** CycleTLS (already a transitive dependency via go-yfinance) is sufficient for all data extraction.
+
 ## Implementation Notes for Go Scraper
 
-1. **HTTP Client**: Use a browser-like User-Agent. The page may have Cloudflare protection. Test with `net/http` first; if blocked, try `chromedp` or `playwright-go`.
+1. **HTTP Client**: Use CycleTLS (already a transitive dependency via go-yfinance) for browser-grade TLS fingerprinting. **Confirmed working** — returns 200 OK with full page content.
 
 2. **Parsing Approach**:
    - Fetch the HTML page
@@ -286,6 +353,16 @@ The locale can be: `en-gb`, `pl-pl`, `fr-lu`, `da-dk`, `de-at`, etc. The data is
    - Handle empty/missing fields gracefully
 
 4. **Rate Limiting**: WisdomTree is a static CMS — but add a 1-2 second delay between requests to be safe.
+
+## CycleTLS — Confirmed Working
+
+Country allocation, market cap, and fund characteristics **ARE in the raw HTML** (not JS-rendered as previously believed). CycleTLS successfully bypasses Cloudflare and returns the full page with all data.
+
+**No headless browser needed.** All data is extractable from raw HTML using:
+- Regex + CSV parsing for inline JS variables (holdings, NAV, themes, sectors)
+- Regex on HTML tables for structured data (country allocation, market cap, fund characteristics, AUM, TER, inception date)
+
+**Verdict**: **CycleTLS + HTML parsing** is the complete solution. No chromedp, no external service, no additional dependencies.
 
 ---
 
@@ -309,14 +386,48 @@ The locale can be: `en-gb`, `pl-pl`, `fr-lu`, `da-dk`, `de-at`, etc. The data is
 | Market Capitalization extraction | ✅ Found via `web_fetch` article extraction — same dynamic loading pattern as country allocation |
 | Fund Characteristics extraction | ✅ Found via `web_fetch` article extraction — same dynamic loading pattern |
 | AUM, TER, Inception Date extraction | ✅ Found in raw HTML — server-rendered key-value table rows, same pattern as NAV |
+| `curl` on WisdomTree URL | ❌ Cloudflare challenge page ("Just a moment...") — plain HTTP blocked |
+| `curl` on dataspanapi.wisdomtree.com | ❌ Cloudflare blocked — same protection as main site |
+| dataspanapi `/funddetails/country_allocation` | ❌ 404 endpoint doesn't exist (Cloudflare blocked anyway) |
+| dataspanapi `/funddetails/market_capitalization` | ❌ 404 endpoint doesn't exist (Cloudflare blocked anyway) |
+| Check bundle.js for API endpoints | ❌ No fetch calls, no API URLs (only XML namespace constants) |
+| Check chunk.js for API endpoints | ❌ No fetch calls, no API URLs, no country/allocation references |
+| Check main.js for API endpoints | ✅ Found `dataspanapi.wisdomtree.com/funddetails/calendar_year_performance` but Cloudflare blocked |
+| Check script.js for country allocation loading | ❌ No references to country-allocation-section or info-component |
+| Check for Sitecore rendering API | ❌ No evidence of JSS/rendering API endpoints |
+| Check for hidden JSON data blocks | ❌ Only ld+json is schema.org Organization (not fund data) |
+| Check data- attributes on country section | ❌ No data-href or data-content attributes (unlike modal sections) |
+| Check existing dependencies for TLS fingerprinting | ✅ CycleTLS + utls already in go.mod (via go-yfinance) |
+| CycleTLS against WisdomTree (Cloudflare test) | ✅ CONFIRMED — 200 OK, full page, all data sections present |
+| Country allocation in raw HTML (CycleTLS response) | ✅ CONFIRMED — HTML table with actual data, not empty |
+| Market cap in raw HTML (CycleTLS response) | ✅ CONFIRMED — HTML table with actual data |
+| Fund characteristics in raw HTML (CycleTLS response) | ✅ CONFIRMED — HTML table with actual data |
 
 ---
 
+## Key Findings Summary
+
+1. **Cloudflare protection**: All WisdomTree domains (wisdomtree.eu, dataspanapi.wisdomtree.com) are behind Cloudflare. Plain `net/http` or `curl` requests are blocked. **CycleTLS bypasses Cloudflare successfully** — confirmed 2026-05-26.
+
+2. **Inline data**: Holdings, NAV, sectors, themes, fund info, AUM, TER, inception date are all embedded in the raw HTML as CSV strings in JavaScript variables. Extractable with regex + CSV parsing.
+
+3. ~~JS-rendered data~~: Country allocation, market cap, and fund characteristics **ARE in raw HTML** as standard HTML tables. Previously misidentified as JS-rendered. Extractable with regex on HTML tables.
+
+4. **No dataspanapi endpoints for country/market cap/characteristics**: The only known dataspanapi endpoint is `/funddetails/calendar_year_performance`. Country allocation, market cap, and fund characteristics have no dedicated API.
+
+5. **Existing infrastructure**: The project already uses CycleTLS (via go-yfinance) for Yahoo Finance. The same approach works for WisdomTree — **all data**, not just inline CSV variables.
+
 ## Next Steps for Go Implementation
 
-1. Write HTTP fetcher with proper User-Agent
-2. Implement regex extraction for each data variable
-3. Write CSV parser for each data type
-4. Add unit tests using the sample files in `wisdomtree-samples/`
-5. Handle Cloudflare/bot detection (if needed)
-6. **Country allocation, Market Cap, Fund Characteristics**: Use headless browser (chromedp/playwright) OR article extraction library (go-readability) to get JS-rendered content, then parse the tables from the DOM. All three use the same dynamic loading pattern.
+### Phase 1: All Data (CycleTLS + regex/CSV + HTML table parsing)
+
+1. ~~Test CycleTLS against WisdomTree~~ — **✅ CONFIRMED: CycleTLS bypasses Cloudflare successfully**
+2. Implement HTTP fetcher using CycleTLS (same approach as go-yfinance for Yahoo)
+3. Implement regex extraction for each data variable (holdings, NAV, themes, sectors)
+4. Implement regex on HTML tables for country allocation, market cap, fund characteristics
+5. Write CSV parser for each data type
+6. Add unit tests using the sample files in `samples/`
+
+### Decision Point
+
+**CycleTLS + HTML parsing is the complete solution.** No chromedp, no headless browser, no external service needed. All data (including country allocation, market cap, fund characteristics) is in the raw HTML.
