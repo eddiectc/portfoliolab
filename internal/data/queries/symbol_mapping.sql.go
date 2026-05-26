@@ -7,6 +7,7 @@ package queries
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addBrokerSymbol = `-- name: AddBrokerSymbol :one
@@ -375,6 +376,35 @@ func (q *Queries) UpdateSymbolMapping(ctx context.Context, db DBTX, arg UpdateSy
 		arg.UpdatedAt,
 		arg.ID,
 	)
+	var i SymbolMapping
+	err := row.Scan(
+		&i.ID,
+		&i.InternalSymbol,
+		&i.MarketDataSymbol,
+		&i.IsBenchmark,
+		&i.DataSourceUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateSymbolMappingDataSourceURL = `-- name: UpdateSymbolMappingDataSourceURL :one
+UPDATE symbol_mappings
+SET data_source_url = ?, updated_at = ?
+WHERE id = ?
+RETURNING id, internal_symbol, market_data_symbol, is_benchmark, data_source_url, created_at, updated_at
+`
+
+type UpdateSymbolMappingDataSourceURLParams struct {
+	DataSourceUrl sql.NullString `db:"data_source_url"`
+	UpdatedAt     string         `db:"updated_at"`
+	ID            int64          `db:"id"`
+}
+
+// Update the data_source_url for a symbol mapping.
+func (q *Queries) UpdateSymbolMappingDataSourceURL(ctx context.Context, db DBTX, arg UpdateSymbolMappingDataSourceURLParams) (SymbolMapping, error) {
+	row := db.QueryRowContext(ctx, updateSymbolMappingDataSourceURL, arg.DataSourceUrl, arg.UpdatedAt, arg.ID)
 	var i SymbolMapping
 	err := row.Scan(
 		&i.ID,

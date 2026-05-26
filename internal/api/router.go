@@ -72,10 +72,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	})
 
 	// Extractor registry — WisdomTree extractor registered at startup.
-	// New providers are added here. The dispatcher is wired in Task 4.
+	// New providers are added here.
 	extractorReg := extractor.NewRegistry()
 	extractorReg.Register(wisdomtree.NewExtractor())
-	_ = extractorReg // used in Task 4 (dispatcher)
+	extractorDispatcher := extractor.NewDispatcher(extractorReg)
 
 	// Static files
 	r.Mount("/static", web.StaticHandler("internal/web/static"))
@@ -97,9 +97,15 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	symbolMappingRepo := data.NewSymbolMappingRepository(db)
 	yahooFetcher := market.NewYahooFinanceFetcher(logger)
 
+	// Market data repository (stock quotes + FX rates)
+	marketDataRepo := data.NewMarketDataRepository(db)
+
 	// Symbol details (API enrichment)
 	symbolDetailsRepo := data.NewSymbolDetailsRepository(db)
 	symbolDetailsSvc := symbols.NewService(symbolDetailsRepo, yahooFetcher)
+	symbolDetailsSvc.WithExtractorDispatcher(extractorDispatcher)
+	symbolDetailsSvc.WithDataSourceURLRepo(data.NewSymbolMappingDataSourceURLAdapter(symbolMappingRepo))
+	symbolDetailsSvc.WithMarketDataRepo(marketDataRepo)
 
 	symbolMappingSvc := symbolmapping.NewService(symbolMappingRepo,
 		symbolmapping.WithMarketDataFetcher(yahooFetcher),
@@ -113,9 +119,6 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	accountChecker := data.NewAccountChecker(accountRepo)
 	symbolChecker := data.NewSymbolChecker(symbolMappingRepo)
 	symbolCreator := data.NewSymbolCreator(symbolMappingSvc)
-
-	// Market data repository (stock quotes + FX rates)
-	marketDataRepo := data.NewMarketDataRepository(db)
 
 	// Portfolio currency checker (for FX conversion)
 	portfolioCurrencyChecker := data.NewPortfolioCurrencyChecker(portfolioSvc)

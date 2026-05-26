@@ -45,6 +45,7 @@ func toSymbolMapping(sm queries.SymbolMapping) (*symbolmapping.SymbolMapping, er
 		InternalSymbol:   sm.InternalSymbol,
 		MarketDataSymbol: sm.MarketDataSymbol,
 		IsBenchmark:      sm.IsBenchmark,
+		DataSourceURL:    nullString(sm.DataSourceUrl),
 		CreatedAt:        createdAt,
 		UpdatedAt:        updatedAt,
 	}, nil
@@ -278,4 +279,17 @@ func (r *SymbolMappingRepository) IsBenchmark(ctx context.Context, marketDataSym
 // TODO(f004): Replace with actual check against transactions table.
 func (r *SymbolMappingRepository) HasReferencingTransactions(ctx context.Context, id int64) (bool, error) {
 	return false, nil
+}
+
+// UpdateDataSourceURL updates the data_source_url for a symbol mapping.
+func (r *SymbolMappingRepository) UpdateDataSourceURL(ctx context.Context, id int64, url string) error {
+	_, err := r.q.UpdateSymbolMappingDataSourceURL(ctx, r.db, queries.UpdateSymbolMappingDataSourceURLParams{
+		DataSourceUrl: toSQLNullString(url),
+		UpdatedAt:     time.Now().Format(time.RFC3339),
+		ID:            id,
+	})
+	if err != nil {
+		return fmt.Errorf("update data source URL for symbol mapping %d: %w", id, err)
+	}
+	return nil
 }

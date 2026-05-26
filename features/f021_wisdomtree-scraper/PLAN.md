@@ -119,14 +119,14 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 
 **Description:** Update the symbols service to route FetchAndStore/RefreshSymbol through the extractor dispatcher when a source URL is configured. Also persist extracted data (symbol details + NAV history).
 
-- [ ] Update `symbol.StaleSymbol` type to include `DataSourceURL string`
-- [ ] Update `SymbolDetailsRepository` interface: add `GetDataSourceURL(ctx, internalSymbol) (string, error)` and `SetDataSourceURL(ctx, internalSymbol, url string) error`
-- [ ] Update `SymbolDetailsRepository` implementation: SQL queries for reading/writing `data_source_url`
-- [ ] Update `symbols.Service` to accept `extractor.Dispatcher` and `MarketDataRepository` (for NAV storage)
-- [ ] Update `FetchAndStore`: check source URL → dispatch to extractor → convert `ExtractResult` to `SymbolDetails` → upsert details + NAV history (atomic)
-- [ ] Update `RefreshSymbol`: same routing logic
-- [ ] Add `SetDataSourceURL` and `GetDataSourceURL` methods on service
-- [ ] Convert `ExtractResult` fields to `symbol.SymbolDetails` fields:
+- [x] Update `symbol.StaleSymbol` type to include `DataSourceURL string`
+- [x] Update `SymbolDetailsRepository` interface: add `GetDataSourceURL(ctx, internalSymbol) (string, error)` and `SetDataSourceURL(ctx, internalSymbol, url string) error`
+- [x] Update `SymbolDetailsRepository` implementation: SQL queries for reading/writing `data_source_url`
+- [x] Update `symbols.Service` to accept `extractor.Dispatcher` and `MarketDataRepository` (for NAV storage)
+- [x] Update `FetchAndStore`: check source URL → dispatch to extractor → convert `ExtractResult` to `SymbolDetails` → upsert details + NAV history (atomic)
+- [x] Update `RefreshSymbol`: same routing logic
+- [x] Add `SetDataSourceURL` and `GetDataSourceURL` methods on service
+- [x] Convert `ExtractResult` fields to `symbol.SymbolDetails` fields:
   - Holdings → TopHoldings (all, not limited to 10)
   - Sectors → SectorWeightings
   - Themes → stored in new JSON column `themes`
@@ -135,10 +135,10 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
   - Fund info → update ShortName/LongName if present
   - Fund profile (AUM, TER, Inception Date) → FundProfile (TotalNetAssets, AnnualExpenseRatio, InceptionDate)
   - Characteristics → EquityValuation (P/E, P/B, P/CF, P/S)
-- [ ] Write unit tests: FetchAndStore routes to extractor when URL set, routes to Yahoo when no URL
-- [ ] Write unit tests: extraction error → not persisted (atomic)
-- [ ] Write unit tests: NAV history stored with data_type='nav' and source='wisdomtree'
-- [ ] Write unit tests: SetDataSourceURL / GetDataSourceURL
+- [x] Write unit tests: FetchAndStore routes to extractor when URL set, routes to Yahoo when no URL
+- [x] Write unit tests: extraction error → not persisted (atomic)
+- [x] Write unit tests: NAV history stored with data_type='nav' and source='wisdomtree'
+- [x] Write unit tests: SetDataSourceURL / GetDataSourceURL
 
 **Verification:** URL-configured symbols route to extractor; non-configured route to Yahoo; extracted data persisted correctly; NAV stored with correct data_type and source.
 

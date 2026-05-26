@@ -27,6 +27,7 @@ type Repository interface {
 	AddBrokerSymbol(ctx context.Context, symbolMappingID int64, brokerName, brokerSymbol string) error
 	GetBrokerSymbolByBroker(ctx context.Context, brokerName, brokerSymbol string) (*BrokerSymbol, error)
 	HasReferencingTransactions(ctx context.Context, id int64) (bool, error)
+	UpdateDataSourceURL(ctx context.Context, id int64, url string) error
 }
 
 // ErrNotFound indicates the requested symbol mapping does not exist.
@@ -303,6 +304,15 @@ func (s *Service) PreviewSymbol(ctx context.Context, symbol string) (*market.Mar
 		return nil, fmt.Errorf("%w: %s", ErrPreviewFailed, err.Error())
 	}
 	return data, nil
+}
+
+// SetDataSourceURL sets the data source URL for a symbol mapping.
+// Pass empty string to clear (revert to default Yahoo Finance).
+func (s *Service) SetDataSourceURL(ctx context.Context, id int64, url string) error {
+	if err := s.repo.UpdateDataSourceURL(ctx, id, url); err != nil {
+		return fmt.Errorf("set data source URL: %w", err)
+	}
+	return nil
 }
 
 func validateSymbol(symbol, field string) error {
