@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/govalues/decimal"
 )
 
 // --- Mock Repository ---
@@ -69,6 +72,77 @@ func (m *mockFetcher) FetchSymbolDetails(_ context.Context, _ string) (*symbol.S
 	}
 	cp := *m.details
 	return &cp, nil
+}
+
+// --- Mock DataSourceURLSource ---
+
+type mockDataSourceURLRepo struct {
+	urls map[string]string    // internal_symbol -> data_source_url
+	ids  map[string]int64     // internal_symbol -> id
+	err  error
+}
+
+func newMockDataSourceURLRepo() *mockDataSourceURLRepo {
+	return &mockDataSourceURLRepo{
+		urls: make(map[string]string),
+		ids:  make(map[string]int64),
+	}
+}
+
+func (m *mockDataSourceURLRepo) GetDataSourceURLByInternalSymbol(_ context.Context, internalSymbol string) (string, int64, error) {
+	if m.err != nil {
+		return "", 0, m.err
+	}
+	id, ok := m.ids[internalSymbol]
+	if !ok {
+		return "", 0, fmt.Errorf("symbol mapping not found for %s", internalSymbol)
+	}
+	return m.urls[internalSymbol], id, nil
+}
+
+func (m *mockDataSourceURLRepo) UpdateDataSourceURL(_ context.Context, id int64, url string) error {
+	if m.err != nil {
+		return m.err
+	}
+	return nil
+}
+
+// --- Mock MarketDataRepository ---
+
+type mockMarketDataRepo struct {
+	entries []*market.MarketData
+	err     error
+}
+
+func newMockMarketDataRepo() *mockMarketDataRepo {
+	return &mockMarketDataRepo{}
+}
+
+func (m *mockMarketDataRepo) Upsert(_ context.Context, md *market.MarketData) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.entries = append(m.entries, md)
+	return nil
+}
+
+// --- Mock Extractor ---
+
+type mockExtractor struct {
+	name     string
+	result   *extractor.ExtractResult
+	err      error
+}
+
+func (m *mockExtractor) Name() string { return m.name }
+func (m *mockExtractor) Extract(_ context.Context, _ string) (*extractor.ExtractResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.result, nil
+}
+func (m *mockExtractor) Match(rawURL string) bool {
+	return true // match any URL for simplicity
 }
 
 func newTestService() (*Service, *mockRepo, *mockFetcher) {
@@ -171,6 +245,544 @@ func TestService_FetchAndStore_PartialData(t *testing.T) {
 	}
 }
 
+// --- Extractor Routing Tests ---
+
+func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
+	svc, repo, _ := newTestService()
+
+	// Set up extractor with WisdomTree-style data
+	reg := extractor.NewRegistry()
+	mockExt := &mockExtractor{
+		name: "wisdomtree",
+		result: &extractor.ExtractResult{
+			AsOfDate: time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC),
+			FundInfo: &extractor.FundInfo{
+				Symbol: "WMGG.L",
+				Name:   "WisdomTree Megatrends",
+			},
+			FundProfile: &extractor.FundProfile{
+				Family:             "WisdomTree",
+				LegalType:          "Exchange Traded Fund",
+				TotalNetAssets:     21526.37,
+				AnnualExpenseRatio: 0.4,
+				InceptionDate:      time.Date(2018, 11, 20, 0, 0, 0, 0, time.UTC),
+			},
+			Holdings: []extractor.Holding{
+				{Symbol: "TSLA", Name: "Tesla Inc", Percent: 2.5},
+				{Symbol: "MSFT", Name: "Microsoft Corp", Percent: 1.8},
+			},
+			Sectors: []extractor.SectorWeighting{
+				{Sector: "technology", Percent: 21.2},
+				{Sector: "industrials", Percent: 36.4},
+			},
+			CountryAllocation: []extractor.CountryAllocation{
+				{Country: "United States", Percent: 65.0},
+				{Country: "United Kingdom", Percent: 15.0},
+			},
+			Characteristics: &extractor.FundCharacteristics{
+				PriceToEarnings: 25.3,
+				PriceToBook:     4.2,
+			},
+			NavHistory: []extractor.NavPoint{
+				{Date: "2024-01-15", NAV: 45.20},
+				{Date: "2024-01-16", NAV: 45.50},
+			},
+		},
+	}
+	reg.Register(mockExt)
+	dispatcher := extractor.NewDispatcher(reg)
+
+	// Set up data source URL repo
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+
+	// Set up market data repo for NAV
+	marketDataRepo := newMockMarketDataRepo()
+
+	svc.WithExtractorDispatcher(dispatcher)
+	svc.WithDataSourceURLRepo(urlRepo)
+	svc.WithMarketDataRepo(marketDataRepo)
+
+	err := svc.FetchAndStore(context.Background(), "WMGG.L", "WMGG.L")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify details stored
+	details, err := repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("expected details to be stored: %v", err)
+	}
+	if details.ShortName != "WisdomTree Megatrends" {
+		t.Errorf("expected short_name 'WisdomTree Megatrends', got %q", details.ShortName)
+	}
+	if details.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if details.FundProfile.Family != "WisdomTree" {
+		t.Errorf("expected family 'WisdomTree', got %q", details.FundProfile.Family)
+	}
+	if len(details.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(details.TopHoldings))
+	}
+	if details.TopHoldings[0].Symbol != "TSLA" {
+		t.Errorf("expected first holding 'TSLA', got %q", details.TopHoldings[0].Symbol)
+	}
+	if len(details.SectorWeightings) != 2 {
+		t.Fatalf("expected 2 sectors, got %d", len(details.SectorWeightings))
+	}
+	if len(details.GeographicAllocations) != 2 {
+		t.Fatalf("expected 2 countries, got %d", len(details.GeographicAllocations))
+	}
+	if details.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if details.EquityValuation.PriceToEarnings != 25.3 {
+		t.Errorf("expected P/E 25.3, got %f", details.EquityValuation.PriceToEarnings)
+	}
+}
+
+func TestService_FetchAndStore_UsesYahoo_WhenNoURL(t *testing.T) {
+	svc, repo, fetcher := newTestService()
+
+	// Set up dispatcher but NO data source URL configured
+	reg := extractor.NewRegistry()
+	mockExt := &mockExtractor{
+		name:   "wisdomtree",
+		result: &extractor.ExtractResult{},
+	}
+	reg.Register(mockExt)
+	dispatcher := extractor.NewDispatcher(reg)
+
+	urlRepo := newMockDataSourceURLRepo()
+	// Don't set any URL — symbol falls back to Yahoo
+	urlRepo.ids["VOO"] = 1
+
+	svc.WithExtractorDispatcher(dispatcher)
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	fetcher.details = &symbol.SymbolDetails{
+		ShortName: "Vanguard S&P 500 ETF",
+		FetchedAt: time.Now(),
+	}
+
+	err := svc.FetchAndStore(context.Background(), "VOO", "VOO")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	details, _ := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if details.ShortName != "Vanguard S&P 500 ETF" {
+		t.Errorf("expected Yahoo data, got %q", details.ShortName)
+	}
+}
+
+func TestService_FetchAndStore_RoutesToExtractor_WhenDispatcherSet(t *testing.T) {
+	svc, repo, _ := newTestService()
+
+	reg := extractor.NewRegistry()
+	mockExt := &mockExtractor{
+		name: "wisdomtree",
+		result: &extractor.ExtractResult{
+			FundInfo: &extractor.FundInfo{Name: "Extractor Fund"},
+		},
+	}
+	reg.Register(mockExt)
+	dispatcher := extractor.NewDispatcher(reg)
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+
+	svc.WithExtractorDispatcher(dispatcher)
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	err := svc.FetchAndStore(context.Background(), "WMGG.L", "WMGG.L")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	details, _ := repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if details.ShortName != "Extractor Fund" {
+		t.Errorf("expected extractor data, got %q", details.ShortName)
+	}
+}
+
+func TestService_FetchAndStore_ExtractorError_NotPersisted(t *testing.T) {
+	svc, repo, _ := newTestService()
+
+	reg := extractor.NewRegistry()
+	mockExt := &mockExtractor{
+		name: "wisdomtree",
+		err:  fmt.Errorf("page not found"),
+	}
+	reg.Register(mockExt)
+	dispatcher := extractor.NewDispatcher(reg)
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+
+	svc.WithExtractorDispatcher(dispatcher)
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	err := svc.FetchAndStore(context.Background(), "WMGG.L", "WMGG.L")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	// Verify nothing persisted
+	_, err = repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if !errors.Is(err, ErrNotFound) {
+		t.Error("expected no details stored after extractor error")
+	}
+}
+
+// --- NAV History Tests ---
+
+func TestService_FetchAndStore_NAVHistoryStored(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	reg := extractor.NewRegistry()
+	mockExt := &mockExtractor{
+		name: "wisdomtree",
+		result: &extractor.ExtractResult{
+			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
+			NavHistory: []extractor.NavPoint{
+				{Date: "2024-01-15", NAV: 45.20},
+				{Date: "2024-01-16", NAV: 45.50},
+				{Date: "2024-01-17", NAV: 46.00},
+			},
+		},
+	}
+	reg.Register(mockExt)
+	dispatcher := extractor.NewDispatcher(reg)
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+
+	marketDataRepo := newMockMarketDataRepo()
+	svc.WithExtractorDispatcher(dispatcher)
+	svc.WithDataSourceURLRepo(urlRepo)
+	svc.WithMarketDataRepo(marketDataRepo)
+
+	err := svc.FetchAndStore(context.Background(), "WMGG.L", "WMGG.L")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify NAV entries stored
+	if len(marketDataRepo.entries) != 3 {
+		t.Fatalf("expected 3 NAV entries, got %d", len(marketDataRepo.entries))
+	}
+	for i, entry := range marketDataRepo.entries {
+		if entry.Symbol != "WMGG.L" {
+			t.Errorf("entry %d: expected symbol 'WMGG.L', got %q", i, entry.Symbol)
+		}
+		if entry.DataType != "nav" {
+			t.Errorf("entry %d: expected data_type 'nav', got %q", i, entry.DataType)
+		}
+		if entry.Source != "wisdomtree" {
+			t.Errorf("entry %d: expected source 'wisdomtree', got %q", i, entry.Source)
+		}
+	}
+	// Check dates
+	expectedDates := []string{"2024-01-15", "2024-01-16", "2024-01-17"}
+	for i, date := range expectedDates {
+		if marketDataRepo.entries[i].Date != date {
+			t.Errorf("entry %d: expected date %q, got %q", i, date, marketDataRepo.entries[i].Date)
+		}
+	}
+}
+
+func TestService_FetchAndStore_NAVHistoryNotStored_WhenNoMarketDataRepo(t *testing.T) {
+	svc, repo, _ := newTestService()
+
+	reg := extractor.NewRegistry()
+	mockExt := &mockExtractor{
+		name: "wisdomtree",
+		result: &extractor.ExtractResult{
+			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
+			NavHistory: []extractor.NavPoint{
+				{Date: "2024-01-15", NAV: 45.20},
+			},
+		},
+	}
+	reg.Register(mockExt)
+	dispatcher := extractor.NewDispatcher(reg)
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+
+	// Don't set market data repo
+	svc.WithExtractorDispatcher(dispatcher)
+	svc.WithDataSourceURLRepo(urlRepo)
+	// No WithMarketDataRepo
+
+	err := svc.FetchAndStore(context.Background(), "WMGG.L", "WMGG.L")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Details should still be stored
+	_, err = repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Error("expected details to be stored even without market data repo")
+	}
+}
+
+func TestService_FetchAndStore_NAVHistoryNotStored_WhenYahooRoute(t *testing.T) {
+	svc, _, fetcher := newTestService()
+
+	marketDataRepo := newMockMarketDataRepo()
+	svc.WithMarketDataRepo(marketDataRepo)
+
+	fetcher.details = &symbol.SymbolDetails{
+		ShortName: "Vanguard S&P 500 ETF",
+		FetchedAt: time.Now(),
+	}
+
+	err := svc.FetchAndStore(context.Background(), "VOO", "VOO")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Yahoo route doesn't produce NAV history
+	if len(marketDataRepo.entries) != 0 {
+		t.Errorf("expected 0 NAV entries for Yahoo route, got %d", len(marketDataRepo.entries))
+	}
+}
+
+func TestService_FetchAndStore_NAVHistoryStoreFails(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	reg := extractor.NewRegistry()
+	mockExt := &mockExtractor{
+		name: "wisdomtree",
+		result: &extractor.ExtractResult{
+			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
+			NavHistory: []extractor.NavPoint{
+				{Date: "2024-01-15", NAV: 45.20},
+			},
+		},
+	}
+	reg.Register(mockExt)
+	dispatcher := extractor.NewDispatcher(reg)
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+
+	marketDataRepo := newMockMarketDataRepo()
+	marketDataRepo.err = fmt.Errorf("db connection lost")
+	svc.WithExtractorDispatcher(dispatcher)
+	svc.WithDataSourceURLRepo(urlRepo)
+	svc.WithMarketDataRepo(marketDataRepo)
+
+	err := svc.FetchAndStore(context.Background(), "WMGG.L", "WMGG.L")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+// --- DataSourceURL Tests ---
+
+func TestService_GetDataSourceURL_Success(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	url, err := svc.GetDataSourceURL(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/" {
+		t.Errorf("expected configured URL, got %q", url)
+	}
+}
+
+func TestService_GetDataSourceURL_Empty(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.ids["VOO"] = 1
+	// No URL set for VOO
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	url, err := svc.GetDataSourceURL(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "" {
+		t.Errorf("expected empty URL, got %q", url)
+	}
+}
+
+func TestService_GetDataSourceURL_NoRepo(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	url, err := svc.GetDataSourceURL(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "" {
+		t.Errorf("expected empty URL, got %q", url)
+	}
+}
+
+func TestService_SetDataSourceURL_Success(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = ""
+	urlRepo.ids["WMGG.L"] = 1
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	err := svc.SetDataSourceURL(context.Background(), "WMGG.L", "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestService_SetDataSourceURL_NoRepo(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	err := svc.SetDataSourceURL(context.Background(), "WMGG.L", "https://example.com")
+	if err == nil {
+		t.Fatal("expected error when repo not configured, got nil")
+	}
+}
+
+func TestService_SetDataSourceURL_SymbolNotFound(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	urlRepo := newMockDataSourceURLRepo()
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	err := svc.SetDataSourceURL(context.Background(), "NONEXISTENT", "https://example.com")
+	if err == nil {
+		t.Fatal("expected error for non-existent symbol, got nil")
+	}
+}
+
+func TestService_SetDataSourceURL_Clear(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	urlRepo := newMockDataSourceURLRepo()
+	urlRepo.urls["WMGG.L"] = "https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/"
+	urlRepo.ids["WMGG.L"] = 1
+	svc.WithDataSourceURLRepo(urlRepo)
+
+	// Clear the URL
+	err := svc.SetDataSourceURL(context.Background(), "WMGG.L", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- extractResultToSymbolDetails Tests ---
+
+func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
+	result := &extractor.ExtractResult{
+		FundInfo: &extractor.FundInfo{
+			Symbol: "WMGG.L",
+			Name:   "WisdomTree Megatrends",
+		},
+		FundProfile: &extractor.FundProfile{
+			Family:             "WisdomTree",
+			LegalType:          "Exchange Traded Fund",
+			TotalNetAssets:     21526.37,
+			AnnualExpenseRatio: 0.4,
+			InceptionDate:      time.Date(2018, 11, 20, 0, 0, 0, 0, time.UTC),
+		},
+		Holdings: []extractor.Holding{
+			{Symbol: "TSLA", Name: "Tesla Inc", Percent: 2.5},
+		},
+		Sectors: []extractor.SectorWeighting{
+			{Sector: "technology", Percent: 21.2},
+		},
+		CountryAllocation: []extractor.CountryAllocation{
+			{Country: "United States", Percent: 65.0},
+		},
+		Characteristics: &extractor.FundCharacteristics{
+			PriceToEarnings: 25.3,
+			PriceToBook:     4.2,
+			PriceToCashflow: 18.0,
+			PriceToSales:    5.5,
+		},
+	}
+
+	details := extractResultToSymbolDetails(result, "WMGG.L")
+
+	if details.InternalSymbol != "WMGG.L" {
+		t.Errorf("expected internal symbol 'WMGG.L', got %q", details.InternalSymbol)
+	}
+	if details.ShortName != "WisdomTree Megatrends" {
+		t.Errorf("expected short name 'WisdomTree Megatrends', got %q", details.ShortName)
+	}
+	if len(details.TopHoldings) != 1 {
+		t.Fatalf("expected 1 holding, got %d", len(details.TopHoldings))
+	}
+	if details.TopHoldings[0].Symbol != "TSLA" {
+		t.Errorf("expected holding symbol 'TSLA', got %q", details.TopHoldings[0].Symbol)
+	}
+	if details.TopHoldings[0].Percent != 2.5 {
+		t.Errorf("expected holding percent 2.5, got %f", details.TopHoldings[0].Percent)
+	}
+	if len(details.SectorWeightings) != 1 {
+		t.Fatalf("expected 1 sector, got %d", len(details.SectorWeightings))
+	}
+	if details.SectorWeightings[0].Sector != "technology" {
+		t.Errorf("expected sector 'technology', got %q", details.SectorWeightings[0].Sector)
+	}
+	if len(details.GeographicAllocations) != 1 {
+		t.Fatalf("expected 1 country, got %d", len(details.GeographicAllocations))
+	}
+	if details.GeographicAllocations[0].Country != "United States" {
+		t.Errorf("expected country 'United States', got %q", details.GeographicAllocations[0].Country)
+	}
+	if details.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if details.FundProfile.Family != "WisdomTree" {
+		t.Errorf("expected family 'WisdomTree', got %q", details.FundProfile.Family)
+	}
+	if details.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if details.EquityValuation.PriceToEarnings != 25.3 {
+		t.Errorf("expected P/E 25.3, got %f", details.EquityValuation.PriceToEarnings)
+	}
+}
+
+func TestService_extractResultToSymbolDetails_EmptyResult(t *testing.T) {
+	result := &extractor.ExtractResult{}
+
+	details := extractResultToSymbolDetails(result, "WMGG.L")
+
+	if details.InternalSymbol != "WMGG.L" {
+		t.Errorf("expected internal symbol 'WMGG.L', got %q", details.InternalSymbol)
+	}
+	if details.ShortName != "" {
+		t.Errorf("expected empty short name, got %q", details.ShortName)
+	}
+	if len(details.TopHoldings) != 0 {
+		t.Errorf("expected empty holdings, got %d", len(details.TopHoldings))
+	}
+	if details.FundProfile != nil {
+		t.Error("expected nil FundProfile")
+	}
+	if details.EquityValuation != nil {
+		t.Error("expected nil EquityValuation")
+	}
+}
+
 // --- GetByInternalSymbol Tests ---
 
 func TestService_GetByInternalSymbol_Success(t *testing.T) {
@@ -256,6 +868,26 @@ func TestService_GetStaleSymbols_RepoError(t *testing.T) {
 	}
 }
 
+func TestService_GetStaleSymbols_ExcludesCash(t *testing.T) {
+	svc, repo, _ := newTestService()
+
+	repo.stale = []symbol.StaleSymbol{
+		{InternalSymbol: "$CASH-GBP", MarketDataSymbol: "GBPUSD=X", FetchedAt: time.Now().AddDate(0, 0, -8)},
+		{InternalSymbol: "VOO", MarketDataSymbol: "VOO", FetchedAt: time.Now().AddDate(0, 0, -8)},
+	}
+
+	stale, err := svc.GetStaleSymbols(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(stale) != 1 {
+		t.Errorf("expected 1 stale symbol (cash excluded), got %d", len(stale))
+	}
+	if stale[0].InternalSymbol != "VOO" {
+		t.Errorf("expected stale 'VOO', got %q", stale[0].InternalSymbol)
+	}
+}
+
 // --- RefreshSymbol Tests ---
 
 func TestService_RefreshSymbol_Success(t *testing.T) {
@@ -310,5 +942,44 @@ func TestService_RefreshSymbol_FetchFails(t *testing.T) {
 	details, _ := repo.GetByInternalSymbol(context.Background(), "VOO")
 	if details.ShortName != "Existing Data" {
 		t.Errorf("expected existing data preserved, got %q", details.ShortName)
+	}
+}
+
+// --- Decimal conversion test ---
+
+func TestService_storeNavHistory_DecimalConversion(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	marketDataRepo := newMockMarketDataRepo()
+	svc.WithMarketDataRepo(marketDataRepo)
+
+	navPoints := []extractor.NavPoint{
+		{Date: "2024-01-15", NAV: 45.20},
+		{Date: "2024-01-16", NAV: 100.005},
+	}
+
+	err := svc.storeNavHistory(context.Background(), "WMGG.L", "GBP", navPoints)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(marketDataRepo.entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(marketDataRepo.entries))
+	}
+
+	// Verify decimal conversion
+	expected1 := decimal.MustNew(4520, 2)
+	if !marketDataRepo.entries[0].Price.Equal(expected1) {
+		t.Errorf("expected price %s, got %s", expected1.String(), marketDataRepo.entries[0].Price.String())
+	}
+
+	expected2 := decimal.MustParse("100.005")
+	if !marketDataRepo.entries[1].Price.Equal(expected2) {
+		t.Errorf("expected price %s, got %s", expected2.String(), marketDataRepo.entries[1].Price.String())
+	}
+
+	// Verify currency
+	if marketDataRepo.entries[0].Currency != "GBP" {
+		t.Errorf("expected currency 'GBP', got %q", marketDataRepo.entries[0].Currency)
 	}
 }

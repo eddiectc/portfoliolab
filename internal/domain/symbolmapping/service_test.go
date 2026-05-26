@@ -205,6 +205,18 @@ func (m *mockRepo) HasReferencingTransactions(_ context.Context, id int64) (bool
 	return m.inUseIDs[id], nil
 }
 
+func (m *mockRepo) UpdateDataSourceURL(_ context.Context, id int64, url string) error {
+	if m.err != nil {
+		return m.err
+	}
+	sm, ok := m.mappings[id]
+	if !ok {
+		return ErrNotFound
+	}
+	sm.DataSourceURL = url
+	return nil
+}
+
 func (m *mockRepo) markInUse(id int64) {
 	m.inUseIDs[id] = true
 }

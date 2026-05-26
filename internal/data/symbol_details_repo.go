@@ -177,6 +177,7 @@ func (r *SymbolDetailsRepository) ListStale(ctx context.Context, olderThan time.
 		stale[i] = symbol.StaleSymbol{
 			InternalSymbol:   row.InternalSymbol,
 			MarketDataSymbol: row.MarketDataSymbol,
+			DataSourceURL:    nullString(row.DataSourceUrl),
 			FetchedAt:        fetchedAt,
 		}
 	}

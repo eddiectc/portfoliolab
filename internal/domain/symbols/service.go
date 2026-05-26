@@ -7,8 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/govalues/decimal"
 )
 
 // ErrNotFound indicates no cached symbol details exist for the requested symbol.
@@ -25,10 +27,28 @@ type SymbolDetailsRepository interface {
 	ListStale(ctx context.Context, olderThan time.Time) ([]symbol.StaleSymbol, error)
 }
 
+// DataSourceURLSource looks up and updates the data_source_url for a symbol.
+type DataSourceURLSource interface {
+	// GetDataSourceURLByInternalSymbol returns the data_source_url for a symbol.
+	// Returns empty string and nil error if no URL is configured.
+	// Returns (nil, error) if the symbol mapping doesn't exist.
+	GetDataSourceURLByInternalSymbol(ctx context.Context, internalSymbol string) (string, int64, error)
+	// UpdateDataSourceURL sets the data_source_url for a symbol mapping by ID.
+	UpdateDataSourceURL(ctx context.Context, id int64, url string) error
+}
+
+// MarketDataRepository stores NAV history data points.
+type MarketDataRepository interface {
+	Upsert(ctx context.Context, m *market.MarketData) error
+}
+
 // Service orchestrates fetching, caching, and retrieval of symbol details.
 type Service struct {
-	repo    SymbolDetailsRepository
-	fetcher market.SymbolDetailsFetcher
+	repo              SymbolDetailsRepository
+	fetcher           market.SymbolDetailsFetcher
+	dispatcher        *extractor.Dispatcher
+	dataSourceURLRepo DataSourceURLSource
+	marketDataRepo    MarketDataRepository
 }
 
 // NewService creates a new symbol details service.
@@ -36,20 +56,106 @@ func NewService(repo SymbolDetailsRepository, fetcher market.SymbolDetailsFetche
 	return &Service{repo: repo, fetcher: fetcher}
 }
 
+// WithExtractorDispatcher sets the extractor dispatcher for URL-based
+// symbol details routing. When a symbol has a data_source_url configured,
+// the dispatcher routes the fetch to the appropriate extractor instead of
+// Yahoo Finance.
+func (s *Service) WithExtractorDispatcher(dispatcher *extractor.Dispatcher) *Service {
+	s.dispatcher = dispatcher
+	return s
+}
+
+// WithDataSourceURLRepo sets the data source URL source for looking up
+// and updating data_source_url on symbols.
+func (s *Service) WithDataSourceURLRepo(repo DataSourceURLSource) *Service {
+	s.dataSourceURLRepo = repo
+	return s
+}
+
+// WithMarketDataRepo sets the market data repository for storing NAV history.
+func (s *Service) WithMarketDataRepo(repo MarketDataRepository) *Service {
+	s.marketDataRepo = repo
+	return s
+}
+
 // FetchAndStore fetches symbol details from the market data provider and
 // stores them in the cache. Returns an error if the fetch or storage fails.
+// If the symbol has a data_source_url configured and an extractor dispatcher
+// is available, it routes through the extractor instead of Yahoo Finance.
 func (s *Service) FetchAndStore(ctx context.Context, internalSymbol, marketDataSymbol string) error {
-	details, err := s.fetcher.FetchSymbolDetails(ctx, marketDataSymbol)
+	details, navHistory, err := s.fetchDetails(ctx, internalSymbol, marketDataSymbol)
 	if err != nil {
 		return fmt.Errorf("fetch symbol details for %s: %w", internalSymbol, err)
 	}
 
-	details.InternalSymbol = internalSymbol
-
+	// Store symbol details.
 	if err := s.repo.Upsert(ctx, details); err != nil {
 		return fmt.Errorf("store symbol details for %s: %w", internalSymbol, err)
 	}
 
+	// Store NAV history (if any and market data repo available).
+	if len(navHistory) > 0 && s.marketDataRepo != nil {
+		if err := s.storeNavHistory(ctx, internalSymbol, details.Currency, navHistory); err != nil {
+			return fmt.Errorf("store NAV history for %s: %w", internalSymbol, err)
+		}
+	}
+
+	return nil
+}
+
+// fetchDetails fetches symbol details either through the extractor dispatcher
+// (when a data_source_url is configured) or through Yahoo Finance (default).
+// Returns the details, any NAV history points, and an error.
+func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSymbol string) (*symbol.SymbolDetails, []extractor.NavPoint, error) {
+	// Check if there's a data_source_url configured for this symbol.
+	sourceURL := ""
+	if s.dataSourceURLRepo != nil {
+		url, _, err := s.dataSourceURLRepo.GetDataSourceURLByInternalSymbol(ctx, internalSymbol)
+		if err == nil {
+			sourceURL = url
+		}
+	}
+
+	// Route through extractor if URL is configured and dispatcher available.
+	if sourceURL != "" && s.dispatcher != nil {
+		result, err := s.dispatcher.Dispatch(ctx, sourceURL)
+		if err != nil {
+			return nil, nil, fmt.Errorf("extract from %s: %w", sourceURL, err)
+		}
+		details := extractResultToSymbolDetails(result, internalSymbol)
+		return details, result.NavHistory, nil
+	}
+
+	// Default: Yahoo Finance.
+	details, err := s.fetcher.FetchSymbolDetails(ctx, marketDataSymbol)
+	if err != nil {
+		return nil, nil, err
+	}
+	details.InternalSymbol = internalSymbol
+	return details, nil, nil
+}
+
+// storeNavHistory stores NAV data points in the market_data table.
+func (s *Service) storeNavHistory(ctx context.Context, internalSymbol, currency string, navPoints []extractor.NavPoint) error {
+	now := time.Now()
+	for _, np := range navPoints {
+		price, err := decimal.NewFromFloat64(np.NAV)
+		if err != nil {
+			return fmt.Errorf("convert NAV %f for %s: %w", np.NAV, internalSymbol, err)
+		}
+		md := &market.MarketData{
+			Symbol:    internalSymbol,
+			Price:     price,
+			Currency:  currency,
+			DataType:  "nav",
+			Source:    "wisdomtree",
+			Date:      np.Date,
+			FetchedAt: now,
+		}
+		if err := s.marketDataRepo.Upsert(ctx, md); err != nil {
+			return fmt.Errorf("upsert NAV for %s on %s: %w", internalSymbol, np.Date, err)
+		}
+	}
 	return nil
 }
 
@@ -84,7 +190,110 @@ func (s *Service) GetStaleSymbols(ctx context.Context) ([]symbol.StaleSymbol, er
 }
 
 // RefreshSymbol re-fetches and updates the cached details for a single symbol.
+// Routes through the extractor dispatcher if a data_source_url is configured.
 // Returns an error if the fetch or storage fails.
 func (s *Service) RefreshSymbol(ctx context.Context, internalSymbol, marketDataSymbol string) error {
 	return s.FetchAndStore(ctx, internalSymbol, marketDataSymbol)
+}
+
+// GetDataSourceURL retrieves the configured data source URL for a symbol.
+// Returns empty string if no URL is configured (uses default Yahoo Finance).
+func (s *Service) GetDataSourceURL(ctx context.Context, internalSymbol string) (string, error) {
+	if s.dataSourceURLRepo == nil {
+		return "", nil
+	}
+	url, _, err := s.dataSourceURLRepo.GetDataSourceURLByInternalSymbol(ctx, internalSymbol)
+	if err != nil {
+		return "", fmt.Errorf("get data source URL for %s: %w", internalSymbol, err)
+	}
+	return url, nil
+}
+
+// SetDataSourceURL sets the data source URL for a symbol.
+// Pass empty string to clear (revert to default Yahoo Finance).
+func (s *Service) SetDataSourceURL(ctx context.Context, internalSymbol string, url string) error {
+	if s.dataSourceURLRepo == nil {
+		return fmt.Errorf("symbol mapping repo not configured")
+	}
+	_, id, err := s.dataSourceURLRepo.GetDataSourceURLByInternalSymbol(ctx, internalSymbol)
+	if err != nil {
+		return fmt.Errorf("get symbol mapping for %s: %w", internalSymbol, err)
+	}
+	if err := s.dataSourceURLRepo.UpdateDataSourceURL(ctx, id, url); err != nil {
+		return fmt.Errorf("set data source URL for %s: %w", internalSymbol, err)
+	}
+	return nil
+}
+
+// extractResultToSymbolDetails converts an extractor ExtractResult to the
+// canonical SymbolDetails type used throughout the application.
+func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbol string) *symbol.SymbolDetails {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: internalSymbol,
+		FetchedAt:      time.Now(),
+	}
+
+	// Fund info — symbol and name.
+	if result.FundInfo != nil {
+		details.ShortName = result.FundInfo.Name
+		details.LongName = result.FundInfo.Name
+	}
+
+	// Holdings — all holdings, not limited to top 10.
+	if len(result.Holdings) > 0 {
+		details.TopHoldings = make([]symbol.TopHolding, len(result.Holdings))
+		for i, h := range result.Holdings {
+			details.TopHoldings[i] = symbol.TopHolding{
+				Symbol:  h.Symbol,
+				Name:    h.Name,
+				Percent: h.Percent,
+			}
+		}
+	}
+
+	// Sectors.
+	if len(result.Sectors) > 0 {
+		details.SectorWeightings = make([]symbol.SectorWeighting, len(result.Sectors))
+		for i, sw := range result.Sectors {
+			details.SectorWeightings[i] = symbol.SectorWeighting{
+				Sector:  sw.Sector,
+				Percent: sw.Percent,
+			}
+		}
+	}
+
+	// Country allocation — maps to GeographicAllocations.
+	if len(result.CountryAllocation) > 0 {
+		details.GeographicAllocations = make([]symbol.GeographicAllocation, len(result.CountryAllocation))
+		for i, ca := range result.CountryAllocation {
+			details.GeographicAllocations[i] = symbol.GeographicAllocation{
+				Country: ca.Country,
+				Percent: ca.Percent,
+			}
+		}
+	}
+
+	// Fund profile.
+	if result.FundProfile != nil {
+		details.FundProfile = &symbol.FundProfile{
+			Family:                 result.FundProfile.Family,
+			LegalType:              result.FundProfile.LegalType,
+			TotalNetAssets:         result.FundProfile.TotalNetAssets,
+			AnnualExpenseRatio:     result.FundProfile.AnnualExpenseRatio,
+			AnnualHoldingsTurnover: result.FundProfile.AnnualHoldingsTurnover,
+			InceptionDate:          result.FundProfile.InceptionDate,
+		}
+	}
+
+	// Equity valuation from characteristics.
+	if result.Characteristics != nil {
+		details.EquityValuation = &symbol.EquityValuation{
+			PriceToEarnings: result.Characteristics.PriceToEarnings,
+			PriceToBook:     result.Characteristics.PriceToBook,
+			PriceToCashflow: result.Characteristics.PriceToCashflow,
+			PriceToSales:    result.Characteristics.PriceToSales,
+		}
+	}
+
+	return details
 }

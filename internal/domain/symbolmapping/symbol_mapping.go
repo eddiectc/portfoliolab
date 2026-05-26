@@ -18,6 +18,7 @@ type SymbolMapping struct {
 	InternalSymbol   string         `json:"internal_symbol"`
 	MarketDataSymbol string         `json:"market_data_symbol"`
 	IsBenchmark      bool           `json:"is_benchmark"`
+	DataSourceURL    string         `json:"data_source_url"`
 	BrokerSymbols    []BrokerSymbol `json:"broker_symbols"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`

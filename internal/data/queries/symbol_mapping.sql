@@ -55,3 +55,10 @@ SELECT * FROM symbol_mappings WHERE is_benchmark = 1 ORDER BY internal_symbol;
 -- All symbols for market data fetching.
 SELECT internal_symbol, market_data_symbol FROM symbol_mappings
 ORDER BY internal_symbol;
+
+-- name: UpdateSymbolMappingDataSourceURL :one
+-- Update the data_source_url for a symbol mapping.
+UPDATE symbol_mappings
+SET data_source_url = ?, updated_at = ?
+WHERE id = ?
+RETURNING *;

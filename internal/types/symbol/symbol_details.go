@@ -78,5 +78,6 @@ type GeographicAllocation struct {
 type StaleSymbol struct {
 	InternalSymbol   string
 	MarketDataSymbol string
+	DataSourceURL    string // empty string = use default (Yahoo Finance)
 	FetchedAt        time.Time
 }
