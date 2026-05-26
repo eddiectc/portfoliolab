@@ -115,18 +115,20 @@ type SymbolDetail struct {
 	FundProfile           sql.NullString `db:"fund_profile"`
 	EquityValuation       sql.NullString `db:"equity_valuation"`
 	GeographicAllocations sql.NullString `db:"geographic_allocations"`
+	ExtractorAsOfDate     sql.NullString `db:"extractor_as_of_date"`
 	FetchedAt             string         `db:"fetched_at"`
 	CreatedAt             string         `db:"created_at"`
 	UpdatedAt             string         `db:"updated_at"`
 }
 
 type SymbolMapping struct {
-	ID               int64  `db:"id"`
-	InternalSymbol   string `db:"internal_symbol"`
-	MarketDataSymbol string `db:"market_data_symbol"`
-	IsBenchmark      bool   `db:"is_benchmark"`
-	CreatedAt        string `db:"created_at"`
-	UpdatedAt        string `db:"updated_at"`
+	ID               int64          `db:"id"`
+	InternalSymbol   string         `db:"internal_symbol"`
+	MarketDataSymbol string         `db:"market_data_symbol"`
+	IsBenchmark      bool           `db:"is_benchmark"`
+	DataSourceUrl    sql.NullString `db:"data_source_url"`
+	CreatedAt        string         `db:"created_at"`
+	UpdatedAt        string         `db:"updated_at"`
 }
 
 type TargetAllocation struct {

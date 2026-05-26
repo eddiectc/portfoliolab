@@ -88,3 +88,13 @@ LIMIT 1;
 SELECT DISTINCT symbol, data_type, MAX(date) AS latest_date
 FROM market_data
 GROUP BY symbol, data_type;
+
+-- name: GetNavHistoryBySymbol :many
+-- NAV history for one symbol, sorted by date ASC.
+-- Excludes current (date='') entries.
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND data_type = 'nav'
+  AND date != ''
+ORDER BY date ASC;

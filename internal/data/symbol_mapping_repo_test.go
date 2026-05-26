@@ -26,6 +26,7 @@ func setupSymbolMappingDB(t *testing.T) *sql.DB {
 			internal_symbol     TEXT    NOT NULL UNIQUE,
 			market_data_symbol  TEXT    NOT NULL,
 			is_benchmark        BOOLEAN NOT NULL DEFAULT 0,
+			data_source_url     TEXT,
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
 		);

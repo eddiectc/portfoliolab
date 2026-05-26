@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"database/sql"
+	"fmt"
 	"testing"
 )
 
@@ -477,5 +479,193 @@ func TestMigration_MarketDataUpdatedAtColumnExists(t *testing.T) {
 	}
 	if columnName != "updated_at" {
 		t.Errorf("expected 'updated_at', got %q", columnName)
+	}
+}
+
+func TestMigration_ExtractorColumnsExist(t *testing.T) {
+	db := setupTestDB(t)
+
+	for _, tc := range []struct {
+		table string
+		col   string
+	}{
+		{"symbol_mappings", "data_source_url"},
+		{"symbol_details", "extractor_as_of_date"},
+	} {
+		t.Run(fmt.Sprintf("%s.%s", tc.table, tc.col), func(t *testing.T) {
+			var columnName string
+			err := db.QueryRow(
+				"SELECT name FROM pragma_table_info(?) WHERE name=?",
+				tc.table, tc.col,
+			).Scan(&columnName)
+			if err != nil {
+				t.Fatalf("column %s not found in %s: %v", tc.col, tc.table, err)
+			}
+			if columnName != tc.col {
+				t.Errorf("expected %q, got %q", tc.col, columnName)
+			}
+		})
+	}
+}
+
+func TestMigration_NavHistoryQuery(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Insert NAV data points
+	for _, date := range []string{"2026-01-01", "2026-01-02", "2026-01-03"} {
+		_, err := db.Exec(
+			"INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			"WMGT LN", "50.00", "GBP", "nav", "wisdomtree", date, "2026-01-03T00:00:00Z",
+		)
+		if err != nil {
+			t.Fatalf("insert nav data: %v", err)
+		}
+	}
+
+	// Query using the same filter as GetNavHistoryBySymbol
+	rows, err := db.Query(`
+		SELECT symbol, price, data_type, source, date
+		FROM market_data
+		WHERE symbol = ?
+		  AND data_type = 'nav'
+		  AND date != ''
+		ORDER BY date ASC
+	`, "WMGT LN")
+	if err != nil {
+		t.Fatalf("query nav history: %v", err)
+	}
+	defer rows.Close()
+
+	var count int
+	expected := []string{"2026-01-01", "2026-01-02", "2026-01-03"}
+	for rows.Next() {
+		var symbol, price, dataType, source, date string
+		if err := rows.Scan(&symbol, &price, &dataType, &source, &date); err != nil {
+			t.Fatalf("scan row: %v", err)
+		}
+		if symbol != "WMGT LN" {
+			t.Errorf("expected symbol WMGT LN, got %s", symbol)
+		}
+		if dataType != "nav" {
+			t.Errorf("expected data_type nav, got %s", dataType)
+		}
+		if source != "wisdomtree" {
+			t.Errorf("expected source wisdomtree, got %s", source)
+		}
+		if date != expected[count] {
+			t.Errorf("expected date %s, got %s", expected[count], date)
+		}
+		count++
+	}
+	if count != 3 {
+		t.Errorf("expected 3 nav rows, got %d", count)
+	}
+}
+
+func TestMigration_NavDataIsolation(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Insert stock price data
+	_, err := db.Exec(
+		"INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"WMGT LN", "52.00", "GBP", "stock", "yahoo", "2026-01-01", "2026-01-03T00:00:00Z",
+	)
+	if err != nil {
+		t.Fatalf("insert stock data: %v", err)
+	}
+
+	// Insert NAV data for same symbol
+	_, err = db.Exec(
+		"INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"WMGT LN", "50.00", "GBP", "nav", "wisdomtree", "2026-01-01", "2026-01-03T00:00:00Z",
+	)
+	if err != nil {
+		t.Fatalf("insert nav data: %v", err)
+	}
+
+	// Verify GetHistoricalPricesBySymbolAndRange excludes NAV
+	rows, err := db.Query(`
+		SELECT symbol, price, data_type FROM market_data
+		WHERE symbol = ?
+		  AND date >= '2026-01-01'
+		  AND date <= '2026-01-01'
+		  AND date != ''
+		  AND data_type IN ('stock', 'fx')
+		ORDER BY date ASC
+	`, "WMGT LN")
+	if err != nil {
+		t.Fatalf("query prices: %v", err)
+	}
+	defer rows.Close()
+
+	var count int
+	for rows.Next() {
+		var symbol, price, dataType string
+		if err := rows.Scan(&symbol, &price, &dataType); err != nil {
+			t.Fatalf("scan row: %v", err)
+		}
+		if dataType == "nav" {
+			t.Error("NAV data leaked into stock/fx price query")
+		}
+		if price != "52.00" {
+			t.Errorf("expected stock price 52.00, got %s", price)
+		}
+		count++
+	}
+	if count != 1 {
+		t.Errorf("expected 1 stock row, got %d", count)
+	}
+}
+
+func TestMigration_StaleSymbolDetailsIncludesDataSourceURL(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Create symbol mapping with data_source_url
+	_, err := db.Exec(
+		"INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, is_benchmark, data_source_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"WMGT", "WMGT LN", 0, "https://www.wisdomtree.eu/en-gb/etfs/wmgt", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z",
+	)
+	if err != nil {
+		t.Fatalf("insert symbol mapping: %v", err)
+	}
+
+	// Create stale symbol details (fetched_at older than threshold)
+	_, err = db.Exec(
+		"INSERT INTO symbol_details (internal_symbol, short_name, fetched_at) VALUES (?, ?, ?)",
+		"WMGT", "WisdomTree", "2025-01-01T00:00:00Z",
+	)
+	if err != nil {
+		t.Fatalf("insert symbol details: %v", err)
+	}
+
+	// Query using same logic as ListStaleSymbolDetails
+	rows, err := db.Query(`
+		SELECT sm.internal_symbol, sm.market_data_symbol, sm.data_source_url, sd.fetched_at
+		FROM symbol_mappings sm
+		LEFT JOIN symbol_details sd ON sm.internal_symbol = sd.internal_symbol
+		WHERE sd.fetched_at IS NULL OR sd.fetched_at < '2026-01-01T00:00:00Z'
+		ORDER BY sd.fetched_at ASC
+	`)
+	if err != nil {
+		t.Fatalf("query stale symbols: %v", err)
+	}
+	defer rows.Close()
+
+	var found bool
+	for rows.Next() {
+		var internalSymbol, marketDataSymbol, fetchedAt string
+		var dataSourceURL sql.NullString
+		if err := rows.Scan(&internalSymbol, &marketDataSymbol, &dataSourceURL, &fetchedAt); err != nil {
+			t.Fatalf("scan row: %v", err)
+		}
+		if internalSymbol == "WMGT" {
+			found = true
+			if !dataSourceURL.Valid || dataSourceURL.String != "https://www.wisdomtree.eu/en-gb/etfs/wmgt" {
+				t.Errorf("expected data_source_url to be set, got valid=%v, value=%q", dataSourceURL.Valid, dataSourceURL.String)
+			}
+		}
+	}
+	if !found {
+		t.Error("WMGT not found in stale symbol details results")
 	}
 }

@@ -53,6 +53,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			internal_symbol     TEXT    NOT NULL UNIQUE,
 			market_data_symbol  TEXT    NOT NULL,
 			is_benchmark        BOOLEAN NOT NULL DEFAULT 0,
+			data_source_url     TEXT,
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
 		);
@@ -193,6 +194,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			fund_profile          TEXT,
 			equity_valuation      TEXT,
 			geographic_allocations TEXT,
+			extractor_as_of_date  TEXT,
 			fetched_at            TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at            TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -231,7 +233,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			is_applied INTEGER NOT NULL DEFAULT 1,
 			tstamp TIMESTAMP DEFAULT (datetime('now'))
 		);
-		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (20, 1);
+		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (21, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)

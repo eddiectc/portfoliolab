@@ -334,6 +334,51 @@ func (q *Queries) GetMarketDataBySymbolAndSourceAndDate(ctx context.Context, db 
 	return i, err
 }
 
+const getNavHistoryBySymbol = `-- name: GetNavHistoryBySymbol :many
+SELECT id, symbol, price, currency, data_type, source, date, fetched_at, created_at, updated_at
+FROM market_data
+WHERE symbol = ?
+  AND data_type = 'nav'
+  AND date != ''
+ORDER BY date ASC
+`
+
+// NAV history for one symbol, sorted by date ASC.
+// Excludes current (date=”) entries.
+func (q *Queries) GetNavHistoryBySymbol(ctx context.Context, db DBTX, symbol string) ([]MarketDatum, error) {
+	rows, err := db.QueryContext(ctx, getNavHistoryBySymbol, symbol)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MarketDatum{}
+	for rows.Next() {
+		var i MarketDatum
+		if err := rows.Scan(
+			&i.ID,
+			&i.Symbol,
+			&i.Price,
+			&i.Currency,
+			&i.DataType,
+			&i.Source,
+			&i.Date,
+			&i.FetchedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertMarketData = `-- name: InsertMarketData :one
 INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)
