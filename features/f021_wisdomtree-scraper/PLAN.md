@@ -154,7 +154,7 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 - [x] Update `StaleSymbol` type in repo layer to include `DataSourceURL` — already done in Task 1
 - [x] Update `refreshStaleSymbolDetails` in MarketCache: pass source URL through to `RefreshSymbol` (already handled by service layer routing via internal symbol lookup — `RefreshSymbol` looks up `data_source_url` internally)
 - [x] Add NAV history refresh alongside symbol details refresh in `RefreshSymbol` — already handled in Task 4 (`FetchAndStore` stores NAV)
-- [x] ~~Update `RefreshAll` to also trigger NAV history refresh for URL-configured symbols~~ — not needed: periodic ticker's `refreshStaleSymbolDetails` already routes by URL; `RefreshAll` focuses on quotes + historical prices; symbol details refresh via stale check is sufficient
+- [x] Update `RefreshAll` to also trigger symbol details + NAV refresh for URL-configured symbols — `doRefreshAll` now calls `refreshStaleSymbolDetails`, which routes each stale symbol to the correct source (extractor or Yahoo) and stores NAV history
 - [x] Write unit tests: stale refresh routes by URL — existing tests (`TestRefreshStaleSymbolDetails_*`) cover the refresh flow; URL routing is tested at the service layer (Task 4 tests)
 - [x] Write unit tests: RefreshAll includes NAV for URL symbols — covered by service layer tests (`TestService_FetchAndStore_*`, `TestService_storeNavHistory_*`); marketcache tests verify `RefreshSymbol` is called
 
