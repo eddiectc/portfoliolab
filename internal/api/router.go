@@ -17,6 +17,8 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
@@ -68,6 +70,12 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+
+	// Extractor registry — WisdomTree extractor registered at startup.
+	// New providers are added here. The dispatcher is wired in Task 4.
+	extractorReg := extractor.NewRegistry()
+	extractorReg.Register(wisdomtree.NewExtractor())
+	_ = extractorReg // used in Task 4 (dispatcher)
 
 	// Static files
 	r.Mount("/static", web.StaticHandler("internal/web/static"))
