@@ -1,0 +1,837 @@
+date,securityName,weight,Sector,wgtSector
+5/22/2026,\"Bloom Energy Corp- A\",0.0142886,Industrials,0.3711180
+5/22/2026,\"Prysmian SpA\",0.0130207,Industrials,0.3711180
+5/22/2026,\"DOOSAN FUEL CELL CO LTD KRW100\",0.0111811,Industrials,0.3711180
+5/22/2026,\"BEIJING SIFANG CNY 1.000000000\",0.0106795,Industrials,0.3711180
+5/22/2026,\"Rocket Lab Corp\",0.0105851,Industrials,0.3711180
+5/22/2026,\"Quanta Services Inc\",0.0091625,Industrials,0.3711180
+5/22/2026,\"ABB Ltd-Reg\",0.0084621,Industrials,0.3711180
+5/22/2026,\"Ballard Power Systems Inc\",0.0068326,Industrials,0.3711180
+5/22/2026,\"Intuitive Machines Inc\",0.0059904,Industrials,0.3711180
+5/22/2026,\"Mitsubishi Heavy Industries Ltd\",0.0056505,Industrials,0.3711180
+5/22/2026,\"SIEMENS ENERGY AG NPV\",0.0052956,Industrials,0.3711180
+5/22/2026,\"GE Vernova Inc\",0.0049895,Industrials,0.3711180
+5/22/2026,\"VESTAS WIND SYSTEM DKK 0.20\",0.0042039,Industrials,0.3711180
+5/22/2026,\"Vinci SA\",0.0041408,Industrials,0.3711180
+5/22/2026,\"Legrand SA\",0.0041360,Industrials,0.3711180
+5/22/2026,\"Nordex SE\",0.0040256,Industrials,0.3711180
+5/22/2026,\"Schneider Electric SA\",0.0039211,Industrials,0.3711180
+5/22/2026,\"BAE Systems PLC\",0.0037981,Industrials,0.3711180
+5/22/2026,\"HD HYUNDAI ELECTRIC \u0026 Energy System Co Ltd KRW5000\",0.0037921,Industrials,0.3711180
+5/22/2026,\"Nextracker Inc-Cl A\",0.0036679,Industrials,0.3711180
+5/22/2026,\"Mda Space Ltd\",0.0036453,Industrials,0.3711180
+5/22/2026,\"Jiangsu Zhongtian Technology Co\",0.0036005,Industrials,0.3711180
+5/22/2026,\"Contemporary Amperex Techn-A\",0.0033893,Industrials,0.3711180
+5/22/2026,\"Planet Labs Pbc\",0.0033585,Industrials,0.3711180
+5/22/2026,\"EnerSys\",0.0033042,Industrials,0.3711180
+5/22/2026,\"SIEYUAN ELECTRIC CO LTD-A CNY 1.0000\",0.0032299,Industrials,0.3711180
+5/22/2026,\"Rolls-Royce Holdings PLC\",0.0032048,Industrials,0.3711180
+5/22/2026,\"Plug Power Inc\",0.0031644,Industrials,0.3711180
+5/22/2026,\"NARI TECHNOLOGY CO LTD-A CNY 1.0000\",0.0031519,Industrials,0.3711180
+5/22/2026,\"Thales SA\",0.0030996,Industrials,0.3711180
+5/22/2026,\"JOHNSON CONTROLS INTERNATION USD0.01\",0.0028792,Industrials,0.3711180
+5/22/2026,\"Rheinmetall AG\",0.0028388,Industrials,0.3711180
+5/22/2026,\"Ferrovial NV EUR NPV\",0.0027836,Industrials,0.3711180
+5/22/2026,\"NKT Holding A/S\",0.0027367,Industrials,0.3711180
+5/22/2026,\"Ubtech Robotics Corp Ltd-H\",0.0026548,Industrials,0.3711180
+5/22/2026,\"AVIO SPA NPV\",0.0026437,Industrials,0.3711180
+5/22/2026,\"Curtiss-Wright Corp\",0.0025402,Industrials,0.3711180
+5/22/2026,\"SUNGROW POWER SUPPLY CO LT-A CNY 1.0000\",0.0025143,Industrials,0.3711180
+5/22/2026,\"Qingdao Tgood Electric-A\",0.0024963,Industrials,0.3711180
+5/22/2026,\"HYOSUNG HEAVY INDUSTRIES COR KRW5000\",0.0024591,Industrials,0.3711180
+5/22/2026,\"Doosan Heavy Industries\",0.0023909,Industrials,0.3711180
+5/22/2026,\"Fanuc Ltd\",0.0023907,Industrials,0.3711180
+5/22/2026,\"Wartsila Oyj\",0.0023761,Industrials,0.3711180
+5/22/2026,\"Hubbell Inc\",0.0023449,Industrials,0.3711180
+5/22/2026,\"Generac Holdings Inc\",0.0023438,Industrials,0.3711180
+5/22/2026,\"Rainbow Robotics\",0.0023384,Industrials,0.3711180
+5/22/2026,\"Vertiv Holdings Co\",0.0023349,Industrials,0.3711180
+5/22/2026,\"Hanwha Techwin Co Ltd\",0.0023215,Industrials,0.3711180
+5/22/2026,\"Kongsberg Gruppen Asa\",0.0023120,Industrials,0.3711180
+5/22/2026,\"Yaskawa Electric Corp\",0.0022836,Industrials,0.3711180
+5/22/2026,\"Harmonic Drive Systems Inc\",0.0022700,Industrials,0.3711180
+5/22/2026,\"Safran SA\",0.0022251,Industrials,0.3711180
+5/22/2026,\"Symbotic Inc\",0.0021822,Industrials,0.3711180
+5/22/2026,\"IHI Corp\",0.0021343,Industrials,0.3711180
+5/22/2026,\"Skanska AB\",0.0021310,Industrials,0.3711180
+5/22/2026,\"JOBY AVIATION INC USD 0.0001\",0.0021221,Industrials,0.3711180
+5/22/2026,\"Hyundai Rotem Co Ltd\",0.0021175,Industrials,0.3711180
+5/22/2026,\"Siemens Ag-Reg\",0.0020970,Industrials,0.3711180
+5/22/2026,\"Array Technologies Inc\",0.0020853,Industrials,0.3711180
+5/22/2026,\"Leonardo Spa\",0.0020363,Industrials,0.3711180
+5/22/2026,\"Comfort Systems USA Inc\",0.0019752,Industrials,0.3711180
+5/22/2026,\"Airbus SE\",0.0019575,Industrials,0.3711180
+5/22/2026,\"ACS Actividades de Construccion y Servivios SA\",0.0019538,Industrials,0.3711180
+5/22/2026,\"Blacksky Technology Inc\",0.0019207,Industrials,0.3711180
+5/22/2026,\"Goldwind Science \u0026 Technology Co ltd CNY 1.0000\",0.0018672,Industrials,0.3711180
+5/22/2026,\"Synspective Inc\",0.0018560,Industrials,0.3711180
+5/22/2026,\"Astroscale Holdings Inc\",0.0017935,Industrials,0.3711180
+5/22/2026,\"Korea Aerospace Industries Ltd\",0.0017882,Industrials,0.3711180
+5/22/2026,\"Allegheny Technologies Inc\",0.0017830,Industrials,0.3711180
+5/22/2026,\"Hexcel Corp\",0.0017692,Industrials,0.3711180
+5/22/2026,\"Ducommun Inc\",0.0017517,Industrials,0.3711180
+5/22/2026,\"Siasun Robot \u0026 Automation-A\",0.0017506,Industrials,0.3711180
+5/22/2026,\"Moog Inc\",0.0017176,Industrials,0.3711180
+5/22/2026,\"Kawasaki Heavy Industries Ltd\",0.0017069,Industrials,0.3711180
+5/22/2026,\"GEM Co Ltd\",0.0016927,Industrials,0.3711180
+5/22/2026,\"Red Cat Holdings Inc\",0.0016465,Industrials,0.3711180
+5/22/2026,\"CHINA XD ELECTRIC CO LTD-A CNY 1.0000\",0.0016093,Industrials,0.3711180
+5/22/2026,\"Sunrun Inc\",0.0015771,Industrials,0.3711180
+5/22/2026,\"NVENT ELECTRIC PLC USD0.01\",0.0015737,Industrials,0.3711180
+5/22/2026,\"Nexans SA\",0.0015214,Industrials,0.3711180
+5/22/2026,\"Aerovironment Inc\",0.0015087,Industrials,0.3711180
+5/22/2026,\"YELLOW CAKE PLC GBP NPV\",0.0015069,Industrials,0.3711180
+5/22/2026,\"CAMEL GROUP CO CNY 1.000000000\",0.0015048,Industrials,0.3711180
+5/22/2026,\"SAAB AB-B SEK NPV\",0.0014604,Industrials,0.3711180
+5/22/2026,\"Fortune Electric Co Ltd\",0.0014297,Industrials,0.3711180
+5/22/2026,\"Hanwha Systems Co Ltd\",0.0014218,Industrials,0.3711180
+5/22/2026,\"Atkinsrealis Group Inc\",0.0013868,Industrials,0.3711180
+5/22/2026,\"CNGR ADVANCED MATERIAL CO -A CNY 1.0000\",0.0013474,Industrials,0.3711180
+5/22/2026,\"Fluence Energy Inc\",0.0013030,Industrials,0.3711180
+5/22/2026,\"Karman Holdings Inc\",0.0012987,Industrials,0.3711180
+5/22/2026,\"DASSAULT AVIATION EUR 0.8\",0.0012976,Industrials,0.3711180
+5/22/2026,\"ITM POWER PLC GBp 5.0000\",0.0012183,Industrials,0.3711180
+5/22/2026,\"CS Wind Corp\",0.0012093,Industrials,0.3711180
+5/22/2026,\"HYUNDAI HEAVY INDUSTRIES CO KRW 5000.0000\",0.0012072,Industrials,0.3711180
+5/22/2026,\"Exail Technologies\",0.0011748,Industrials,0.3711180
+5/22/2026,\"Allient Inc\",0.0011618,Industrials,0.3711180
+5/22/2026,\"Kratos Defense  Security Solu\",0.0011542,Industrials,0.3711180
+5/22/2026,\"SKF AB\",0.0011361,Industrials,0.3711180
+5/22/2026,\"Fluor Corp\",0.0011179,Industrials,0.3711180
+5/22/2026,\"Singapore Technologies Engineering Ltd\",0.0010815,Industrials,0.3711180
+5/22/2026,\"Sterling Construction Co Inc\",0.0010599,Industrials,0.3711180
+5/22/2026,\"Taihan Electric Wire Co Ltd\",0.0010557,Industrials,0.3711180
+5/22/2026,\"Powell Industries Inc\",0.0010256,Industrials,0.3711180
+5/22/2026,\"Hainan Jinpan Smart Techno-A\",0.0009801,Industrials,0.3711180
+5/22/2026,\"Satrec Initiative Co Ltd\",0.0009570,Industrials,0.3711180
+5/22/2026,\"Daewoo Shipbuilding  Marine E\",0.0009387,Industrials,0.3711180
+5/22/2026,\"Strabag SE\",0.0009306,Industrials,0.3711180
+5/22/2026,\"Sanil Electric Co Ltd\",0.0009195,Industrials,0.3711180
+5/22/2026,\"Windey Energy Technology G-A\",0.0009084,Industrials,0.3711180
+5/22/2026,\"ASTOR TRANSFORMATOR ENERJI T\",0.0008953,Industrials,0.3711180
+5/22/2026,\"Toyo Tanso Co Ltd\",0.0008767,Industrials,0.3711180
+5/22/2026,\"NINGBO ORIENT WIRES \u0026 CABL-A CNY 1.0000\",0.0008499,Industrials,0.3711180
+5/22/2026,\"LG ENERGY SOLUTION KRW 500.0000\",0.0008472,Industrials,0.3711180
+5/22/2026,\"Balfour Beatty PLC\",0.0008430,Industrials,0.3711180
+5/22/2026,\"Andritz AG\",0.0008318,Industrials,0.3711180
+5/22/2026,\"Satellogic Inc-A\",0.0008313,Industrials,0.3711180
+5/22/2026,\"Timken Co\",0.0008174,Industrials,0.3711180
+5/22/2026,\"Droneshield Ltd\",0.0007965,Industrials,0.3711180
+5/22/2026,\"LS Corp\",0.0007929,Industrials,0.3711180
+5/22/2026,\"MINMETALS NEW ENERGY MATERIALS(HUNAN) CO LTD CNY 1\",0.0007767,Industrials,0.3711180
+5/22/2026,\"Eiffage SA\",0.0007697,Industrials,0.3711180
+5/22/2026,\"FAR EAST SMART CNY 1.000000000\",0.0007199,Industrials,0.3711180
+5/22/2026,\"Richtech Robotics Inc-Cl B\",0.0007159,Industrials,0.3711180
+5/22/2026,\"LS Electric\",0.0007021,Industrials,0.3711180
+5/22/2026,\"Nabtesco Corp\",0.0006888,Industrials,0.3711180
+5/22/2026,\"Argan Inc\",0.0006873,Industrials,0.3711180
+5/22/2026,\"Fuji Electric Holdings Co Ltd\",0.0006803,Industrials,0.3711180
+5/22/2026,\"Hitachi Ltd\",0.0006793,Industrials,0.3711180
+5/22/2026,\"Eve Energy Co Ltd-A\",0.0006770,Industrials,0.3711180
+5/22/2026,\"Daifuku Co Ltd\",0.0006725,Industrials,0.3711180
+5/22/2026,\"CERES POWER HOLDINGS PLC GBp 10.0000\",0.0006637,Industrials,0.3711180
+5/22/2026,\"Rockwell Automation Inc/DE\",0.0006540,Industrials,0.3711180
+5/22/2026,\"Spire Global Inc\",0.0006397,Industrials,0.3711180
+5/22/2026,\"HENAN PINGGAO  CNY 1.000000000\",0.0006342,Industrials,0.3711180
+5/22/2026,\"HENSOLDT AG EUR NPV\",0.0006299,Industrials,0.3711180
+5/22/2026,\"Sacyr SA\",0.0006269,Industrials,0.3711180
+5/22/2026,\"Furukawa Electric Co Ltd\",0.0006164,Industrials,0.3711180
+5/22/2026,\"Anhui Yingliu Electromecha-A\",0.0006068,Industrials,0.3711180
+5/22/2026,\"Elecnor SA\",0.0006067,Industrials,0.3711180
+5/22/2026,\"Suzhou Recodeal Interconne-A\",0.0006019,Industrials,0.3711180
+5/22/2026,\"Qingdao Hanhe Cable Co Ltd-A\",0.0005992,Industrials,0.3711180
+5/22/2026,\"AutoStore Holdings Ltd.\",0.0005887,Industrials,0.3711180
+5/22/2026,\"Hubei Wanrun New Energy Te-A\",0.0005816,Industrials,0.3711180
+5/22/2026,\"Ackermans  van Haaren NV\",0.0005652,Industrials,0.3711180
+5/22/2026,\"GUOXUAN HIGH-TECH CO LTD-A CNY 1.0000\",0.0005438,Industrials,0.3711180
+5/22/2026,\"HUNAN YUNENG N CNY 1.000000000\",0.0005351,Industrials,0.3711180
+5/22/2026,\"Creotech Instruments Sa\",0.0005325,Industrials,0.3711180
+5/22/2026,\"Bouygues SA\",0.0005296,Industrials,0.3711180
+5/22/2026,\"Shijiazhuang Shangtai Tech-A\",0.0005213,Industrials,0.3711180
+5/22/2026,\"ADVANCED ENERGY SOLUTION HOL TWD 10.0000\",0.0005121,Industrials,0.3711180
+5/22/2026,\"OHB AG NPV\",0.0005118,Industrials,0.3711180
+5/22/2026,\"Honeywell International Inc\",0.0005039,Industrials,0.3711180
+5/22/2026,\"NINGBO RONBAY NEW ENERGY T-A CNY 1.0000\",0.0004944,Industrials,0.3711180
+5/22/2026,\"Deere  Co\",0.0004925,Industrials,0.3711180
+5/22/2026,\"Shoals Technologies Group -A\",0.0004925,Industrials,0.3711180
+5/22/2026,\"VENTIA SAUD NPV\",0.0004879,Industrials,0.3711180
+5/22/2026,\"Jiangxi Special Electric -A\",0.0004878,Industrials,0.3711180
+5/22/2026,\"Deme Group\",0.0004794,Industrials,0.3711180
+5/22/2026,\"Doosan Robotics Inc\",0.0004591,Industrials,0.3711180
+5/22/2026,\"CHINA SOUTHERN POWER GRID -A CNY 1.0000\",0.0004486,Industrials,0.3711180
+5/22/2026,\"Xuji Electric Co Ltd-A\",0.0004437,Industrials,0.3711180
+5/22/2026,\"Austal Ltd\",0.0004388,Industrials,0.3711180
+5/22/2026,\"MYR Group Inc/Delaware\",0.0004383,Industrials,0.3711180
+5/22/2026,\"SWCC Corp\",0.0004290,Industrials,0.3711180
+5/22/2026,\"SHENZHEN CLOU  CNY 1.000000000\",0.0004278,Industrials,0.3711180
+5/22/2026,\"Huaming Power Equipment Co-A\",0.0004264,Industrials,0.3711180
+5/22/2026,\"Shihlin Electric  Engineering\",0.0004159,Industrials,0.3711180
+5/22/2026,\"Sulzer AG\",0.0004006,Industrials,0.3711180
+5/22/2026,\"Electro Optic Systems Holdin\",0.0003998,Industrials,0.3711180
+5/22/2026,\"Xiamen Kehua Hengsheng Co-A\",0.0003918,Industrials,0.3711180
+5/22/2026,\"Jungheinrich - Prfd\",0.0003898,Industrials,0.3711180
+5/22/2026,\"RONGFA NUCLEAR CNY 1.000000000\",0.0003877,Industrials,0.3711180
+5/22/2026,\"STX Engine Co Ltd\",0.0003796,Industrials,0.3711180
+5/22/2026,\"Kongsberg Maritime As\",0.0003633,Industrials,0.3711180
+5/22/2026,\"KEPCO Engineering  Constructi\",0.0003629,Industrials,0.3711180
+5/22/2026,\"Hunan Zhongke Electric Co -A\",0.0003513,Industrials,0.3711180
+5/22/2026,\"Broadridge Financial Solutions Inc.\",0.0003502,Industrials,0.3711180
+5/22/2026,\"Cadeler A/S\",0.0003501,Industrials,0.3711180
+5/22/2026,\"2G Energy Ag\",0.0003437,Industrials,0.3711180
+5/22/2026,\"BEIJING EASPRING MATERIAL-A CNY 1.0000\",0.0003415,Industrials,0.3711180
+5/22/2026,\"Daihen Corp\",0.0003414,Industrials,0.3711180
+5/22/2026,\"RENK GMBH EUR 1.0000\",0.0003403,Industrials,0.3711180
+5/22/2026,\"Vitzrocell Co Ltd\",0.0003349,Industrials,0.3711180
+5/22/2026,\"Hebei Huatong Wires \u0026 Cabl-A\",0.0003345,Industrials,0.3711180
+5/22/2026,\"Maire Tecnimont Spa\",0.0003293,Industrials,0.3711180
+5/22/2026,\"Acter Group Corp Ltd\",0.0003283,Industrials,0.3711180
+5/22/2026,\"Valmont Industries Inc\",0.0003243,Industrials,0.3711180
+5/22/2026,\"Guocheng Mining Co Ltd-A\",0.0003143,Industrials,0.3711180
+5/22/2026,\"AQ GROUP AB SEK NPV\",0.0003135,Industrials,0.3711180
+5/22/2026,\"Babcock International Group PL\",0.0003130,Industrials,0.3711180
+5/22/2026,\"SILEX SYSTEMS LTD NPV\",0.0003104,Industrials,0.3711180
+5/22/2026,\"CHINA BAOAN GROUP-A CNY 1.0000\",0.0003055,Industrials,0.3711180
+5/22/2026,\"Firstec Co Ltd\",0.0003029,Industrials,0.3711180
+5/22/2026,\"MELROSE INDUSTRIES PLC GBP NPV\",0.0003027,Industrials,0.3711180
+5/22/2026,\"Koninklijke Heijmans NV\",0.0002995,Industrials,0.3711180
+5/22/2026,\"Aerospace Industrial Development\",0.0002944,Industrials,0.3711180
+5/22/2026,\"SHENZHEN MEGME CNY 1.000000000\",0.0002942,Industrials,0.3711180
+5/22/2026,\"Fangda Carbon New Material Co\",0.0002936,Industrials,0.3711180
+5/22/2026,\"CHINA ENERGY ENGINEERING C-H HKD 1.0000\",0.0002935,Industrials,0.3711180
+5/22/2026,\"Chemring Group PLC\",0.0002935,Industrials,0.3711180
+5/22/2026,\"HARBIN ELECTRI CNY 1.000000000\",0.0002898,Industrials,0.3711180
+5/22/2026,\"Shenzhen Inovance Technology-A\",0.0002897,Industrials,0.3711180
+5/22/2026,\"GOODWIN PLC GBP0.1\",0.0002894,Industrials,0.3711180
+5/22/2026,\"Ningbo Deye Technology Corp CNY 1.0000\",0.0002892,Industrials,0.3711180
+5/22/2026,\"Danieli  C Officine Meccanich SpA\",0.0002836,Industrials,0.3711180
+5/22/2026,\"Kubota Corp\",0.0002821,Industrials,0.3711180
+5/22/2026,\"Exosens Sas\",0.0002790,Industrials,0.3711180
+5/22/2026,\"SES AI Corp\",0.0002738,Industrials,0.3711180
+5/22/2026,\"Morgan Sindall Group PLC\",0.0002681,Industrials,0.3711180
+5/22/2026,\"Senior PLC\",0.0002658,Industrials,0.3711180
+5/22/2026,\"United Integrated Services Co\",0.0002652,Industrials,0.3711180
+5/22/2026,\"CSBC Corp Taiwan\",0.0002643,Industrials,0.3711180
+5/22/2026,\"Kier Group PLC\",0.0002633,Industrials,0.3711180
+5/22/2026,\"Korea Plant Service  Engineer\",0.0002621,Industrials,0.3711180
+5/22/2026,\"GALLIFORD TRY HOLDINGS PLC NPV\",0.0002618,Industrials,0.3711180
+5/22/2026,\"CHINA FIRST HEAVY INDUSTR-A CNY 1.0000\",0.0002608,Industrials,0.3711180
+5/22/2026,\"Komatsu Ltd\",0.0002606,Industrials,0.3711180
+5/22/2026,\"Aecon Group Inc\",0.0002591,Industrials,0.3711180
+5/22/2026,\"QinetiQ Group PLC\",0.0002588,Industrials,0.3711180
+5/22/2026,\"Costain Group PLC\",0.0002548,Industrials,0.3711180
+5/22/2026,\"ZHEJIANG CHINT ELECTRICS-A CNY 1.0000\",0.0002543,Industrials,0.3711180
+5/22/2026,\"Sime Darby Bhd\",0.0002522,Industrials,0.3711180
+5/22/2026,\"Serco Group PLC\",0.0002517,Industrials,0.3711180
+5/22/2026,\"Renew Holdings Plc\",0.0002514,Industrials,0.3711180
+5/22/2026,\"Koninklijke BAM NBM NV\",0.0002507,Industrials,0.3711180
+5/22/2026,\"COHORT PLC GBp 10.0000\",0.0002473,Industrials,0.3711180
+5/22/2026,\"Mota Engil SGPS Sa\",0.0002411,Industrials,0.3711180
+5/22/2026,\"Implenia AG\",0.0002404,Industrials,0.3711180
+5/22/2026,\"Sung Kwang Bend Co Ltd\",0.0002403,Industrials,0.3711180
+5/22/2026,\"Per Aarsleff Holding AS B\",0.0002399,Industrials,0.3711180
+5/22/2026,\"NCC AB\",0.0002376,Industrials,0.3711180
+5/22/2026,\"Porr Ag\",0.0002364,Industrials,0.3711180
+5/22/2026,\"Obrascon Huarte Lain SA\",0.0002344,Industrials,0.3711180
+5/22/2026,\"Peab AB\",0.0002313,Industrials,0.3711180
+5/22/2026,\"Fincantieri Spa\",0.0002292,Industrials,0.3711180
+5/22/2026,\"Hanjin Heavy Industries  Cons\",0.0002291,Industrials,0.3711180
+5/22/2026,\"AVON RUBBER PLC GBP1\",0.0002163,Industrials,0.3711180
+5/22/2026,\"Studsvik Ab\",0.0002061,Industrials,0.3711180
+5/22/2026,\"Central Glass Co Ltd\",0.0002019,Industrials,0.3711180
+5/22/2026,\"Air Asia Co Ltd\",0.0001998,Industrials,0.3711180
+5/22/2026,\"Taihei Dengyo Kaisha Ltd\",0.0001981,Industrials,0.3711180
+5/22/2026,\"Nippon Carbon Co\",0.0001971,Industrials,0.3711180
+5/22/2026,\"Tokyo Keiki Inc\",0.0001959,Industrials,0.3711180
+5/22/2026,\"Harbin Power Equipment Co Ltd\",0.0001930,Industrials,0.3711180
+5/22/2026,\"Sk Oceanplant Co Ltd\",0.0001923,Industrials,0.3711180
+5/22/2026,\"Chengdu Guoguang Electric -A\",0.0001919,Industrials,0.3711180
+5/22/2026,\"ZANGGE MINING CO LTD-A CNY 1.0000\",0.0001782,Industrials,0.3711180
+5/22/2026,\"Mitsui  Co Ltd\",0.0001696,Industrials,0.3711180
+5/22/2026,\"Shin Nippon Air Technologies\",0.0001671,Industrials,0.3711180
+5/22/2026,\"Marubeni Corp\",0.0001569,Industrials,0.3711180
+5/22/2026,\"Delta Electronics Inc\",0.0079103,Information Technology,0.2266660
+5/22/2026,\"Advanced Micro Devices\",0.0066981,Information Technology,0.2266660
+5/22/2026,\"Solaredge Technologies Inc\",0.0066434,Information Technology,0.2266660
+5/22/2026,\"SK Hynix Inc\",0.0049774,Information Technology,0.2266660
+5/22/2026,\"Samsung Electronics Co Ltd\",0.0046606,Information Technology,0.2266660
+5/22/2026,\"Intel Corp\",0.0044279,Information Technology,0.2266660
+5/22/2026,\"Nvidia Corp\",0.0043807,Information Technology,0.2266660
+5/22/2026,\"Coreweave Inc-Cl A\",0.0042045,Information Technology,0.2266660
+5/22/2026,\"Samsung SDI Co Ltd\",0.0042045,Information Technology,0.2266660
+5/22/2026,\"Micron Technology Inc\",0.0041192,Information Technology,0.2266660
+5/22/2026,\"Taiwan Semiconductor Manufacturing Co Ltd\",0.0041019,Information Technology,0.2266660
+5/22/2026,\"Broadcom Inc\",0.0039717,Information Technology,0.2266660
+5/22/2026,\"LAM RESEARCH CORP\",0.0036288,Information Technology,0.2266660
+5/22/2026,\"ASML Holding NV\",0.0035310,Information Technology,0.2266660
+5/22/2026,\"Applied Materials Inc\",0.0033688,Information Technology,0.2266660
+5/22/2026,\"TDK Corp\",0.0033639,Information Technology,0.2266660
+5/22/2026,\"IREN Ltd USD NPV\",0.0031492,Information Technology,0.2266660
+5/22/2026,\"KLA Corp\",0.0027306,Information Technology,0.2266660
+5/22/2026,\"Viasat Inc\",0.0026520,Information Technology,0.2266660
+5/22/2026,\"Teradyne Inc\",0.0026452,Information Technology,0.2266660
+5/22/2026,\"Advantest Corp\",0.0025238,Information Technology,0.2266660
+5/22/2026,\"Elite Material Co Ltd\",0.0023401,Information Technology,0.2266660
+5/22/2026,\"Nokia OYJ\",0.0023367,Information Technology,0.2266660
+5/22/2026,\"Rigetti Computing Inc\",0.0023322,Information Technology,0.2266660
+5/22/2026,\"Crowdstrike Holdings Inc - A\",0.0023267,Information Technology,0.2266660
+5/22/2026,\"D-Wave Quantum Inc\",0.0022498,Information Technology,0.2266660
+5/22/2026,\"Datadog Inc - Class A\",0.0022318,Information Technology,0.2266660
+5/22/2026,\"Palo Alto Networks Inc\",0.0021829,Information Technology,0.2266660
+5/22/2026,\"Zscaler Inc\",0.0021309,Information Technology,0.2266660
+5/22/2026,\"Sentinelone Inc -Class A\",0.0020991,Information Technology,0.2266660
+5/22/2026,\"CREDO TECHNOLOGY GROUP HOLDI USD 0.0001\",0.0020511,Information Technology,0.2266660
+5/22/2026,\"Unimicron Technology Corp\",0.0020476,Information Technology,0.2266660
+5/22/2026,\"Hon Precision Inc\",0.0019744,Information Technology,0.2266660
+5/22/2026,\"Fortinet Inc\",0.0019367,Information Technology,0.2266660
+5/22/2026,\"Hengtong Optic-electric Co Ltd\",0.0018757,Information Technology,0.2266660
+5/22/2026,\"Amphenol Corp\",0.0018745,Information Technology,0.2266660
+5/22/2026,\"Ondas Inc\",0.0018673,Information Technology,0.2266660
+5/22/2026,\"Murata Manufacturing Co Ltd\",0.0018620,Information Technology,0.2266660
+5/22/2026,\"Ouster Inc\",0.0018175,Information Technology,0.2266660
+5/22/2026,\"Ciena Corp\",0.0018144,Information Technology,0.2266660
+5/22/2026,\"Omron Corp\",0.0017745,Information Technology,0.2266660
+5/22/2026,\"Akamai Technologies Inc\",0.0017375,Information Technology,0.2266660
+5/22/2026,\"Applied Digital Corp\",0.0017307,Information Technology,0.2266660
+5/22/2026,\"Cloudflare Inc - Class A\",0.0017139,Information Technology,0.2266660
+5/22/2026,\"CAMBRICON TECHNOLOGIES-A CNY 1.0000\",0.0017108,Information Technology,0.2266660
+5/22/2026,\"Sandisk Corp-W/I\",0.0016712,Information Technology,0.2266660
+5/22/2026,\"JINKO SOLAR CO LTD-A CNY 1.0000\",0.0016380,Information Technology,0.2266660
+5/22/2026,\"Teledyne Technologies Inc\",0.0016294,Information Technology,0.2266660
+5/22/2026,\"AMBARELLA INC USD0.00045\",0.0016269,Information Technology,0.2266660
+5/22/2026,\"Okta Inc\",0.0016159,Information Technology,0.2266660
+5/22/2026,\"Rubrik Inc-A\",0.0015340,Information Technology,0.2266660
+5/22/2026,\"Canadian Solar Inc\",0.0015003,Information Technology,0.2266660
+5/22/2026,\"Cipher Mining Inc\",0.0014954,Information Technology,0.2266660
+5/22/2026,\"Keyence Corp\",0.0014924,Information Technology,0.2266660
+5/22/2026,\"Trend Micro Inc\",0.0014858,Information Technology,0.2266660
+5/22/2026,\"Terawulf Inc\",0.0014796,Information Technology,0.2266660
+5/22/2026,\"Allegro Microsystems Inc\",0.0014496,Information Technology,0.2266660
+5/22/2026,\"Cleanspark Inc\",0.0014304,Information Technology,0.2266660
+5/22/2026,\"Sailpoint Inc\",0.0014288,Information Technology,0.2266660
+5/22/2026,\"Hut 8 Corp\",0.0014239,Information Technology,0.2266660
+5/22/2026,\"Riot Blockchain Inc\",0.0014023,Information Technology,0.2266660
+5/22/2026,\"STMicroelectronics NV\",0.0013839,Information Technology,0.2266660
+5/22/2026,\"Asia Vital Components Co Ltd\",0.0013538,Information Technology,0.2266660
+5/22/2026,\"Cisco Systems Inc\",0.0013189,Information Technology,0.2266660
+5/22/2026,\"First Solar Inc\",0.0013157,Information Technology,0.2266660
+5/22/2026,\"Core Scientific Inc\",0.0012654,Information Technology,0.2266660
+5/22/2026,\"F5, Inc\",0.0012627,Information Technology,0.2266660
+5/22/2026,\"FOXCONN INDUSTRIAL INTERNE-A CNY 1.0000\",0.0012482,Information Technology,0.2266660
+5/22/2026,\"Wiwynn Corp\",0.0012479,Information Technology,0.2266660
+5/22/2026,\"Marathon Digital Holdings Inc\",0.0012384,Information Technology,0.2266660
+5/22/2026,\"NXP SEMICONDUCTORS NV NPV\",0.0011940,Information Technology,0.2266660
+5/22/2026,\"Marvell Technology Inc\",0.0011617,Information Technology,0.2266660
+5/22/2026,\"MediaTek Inc\",0.0011530,Information Technology,0.2266660
+5/22/2026,\"Monolithic Power Systems Inc\",0.0011362,Information Technology,0.2266660
+5/22/2026,\"Robosense Technology Co Ltd\",0.0011350,Information Technology,0.2266660
+5/22/2026,\"Accton Technology Corp\",0.0011288,Information Technology,0.2266660
+5/22/2026,\"Robotis Co Ltd\",0.0011245,Information Technology,0.2266660
+5/22/2026,\"Qualys Inc\",0.0011110,Information Technology,0.2266660
+5/22/2026,\"Elastic Nv\",0.0010513,Information Technology,0.2266660
+5/22/2026,\"Cadence Design Systems Inc\",0.0010494,Information Technology,0.2266660
+5/22/2026,\"Lumentum Holdings Inc\",0.0010387,Information Technology,0.2266660
+5/22/2026,\"LONGi Green Energy Technology\",0.0010128,Information Technology,0.2266660
+5/22/2026,\"Celestica Inc\",0.0010082,Information Technology,0.2266660
+5/22/2026,\"Horizon Robotics Inc\",0.0009709,Information Technology,0.2266660
+5/22/2026,\"Qualcomm Inc\",0.0009579,Information Technology,0.2266660
+5/22/2026,\"Check Point Software Technolog\",0.0009395,Information Technology,0.2266660
+5/22/2026,\"Dell Technologies -C\",0.0009224,Information Technology,0.2266660
+5/22/2026,\"Astera Labs Inc\",0.0008722,Information Technology,0.2266660
+5/22/2026,\"Sitime Corp\",0.0008597,Information Technology,0.2266660
+5/22/2026,\"ASPEED TECHNOLOGY INC TWD10\",0.0008351,Information Technology,0.2266660
+5/22/2026,\"Frequency Electronics Inc\",0.0008263,Information Technology,0.2266660
+5/22/2026,\"ZHONGJI INNOLIGHT CO LTD-A\",0.0007615,Information Technology,0.2266660
+5/22/2026,\"Kraken Robotics Inc\",0.0007236,Information Technology,0.2266660
+5/22/2026,\"BITDEER TECHNO USD 0.000000100\",0.0007146,Information Technology,0.2266660
+5/22/2026,\"Synopsys Inc\",0.0006629,Information Technology,0.2266660
+5/22/2026,\"Microsoft Corp\",0.0006261,Information Technology,0.2266660
+5/22/2026,\"Oracle Corp\",0.0006257,Information Technology,0.2266660
+5/22/2026,\"GLOBALFOUNDRIES INC USD 0.0200\",0.0006234,Information Technology,0.2266660
+5/22/2026,\"Mirion Technologies Inc\",0.0006099,Information Technology,0.2266660
+5/22/2026,\"Coherent Corp\",0.0006087,Information Technology,0.2266660
+5/22/2026,\"SHENGYI TECHNOLOGY CO LTD -A CNY 1.0000\",0.0006074,Information Technology,0.2266660
+5/22/2026,\"Hewlett Packard Enterprise Co\",0.0006066,Information Technology,0.2266660
+5/22/2026,\"Infineon Technologies AG\",0.0006058,Information Technology,0.2266660
+5/22/2026,\"MONTAGE TECHNOLOGY CO LTD-A CNY 1.0000\",0.0006036,Information Technology,0.2266660
+5/22/2026,\"Uipath Inc - Class A\",0.0005886,Information Technology,0.2266660
+5/22/2026,\"Fastly Inc - Class A\",0.0005626,Information Technology,0.2266660
+5/22/2026,\"Palantir Technologies Inc-A\",0.0005574,Information Technology,0.2266660
+5/22/2026,\"Keysight Technologies Inc\",0.0005357,Information Technology,0.2266660
+5/22/2026,\"Hive Digital Technologies Lt\",0.0005336,Information Technology,0.2266660
+5/22/2026,\"SMA Solar Technology AG\",0.0005285,Information Technology,0.2266660
+5/22/2026,\"Lotes Co Ltd\",0.0005232,Information Technology,0.2266660
+5/22/2026,\"Skywater Technology Inc\",0.0005214,Information Technology,0.2266660
+5/22/2026,\"Bigbear.Ai Holdings Inc\",0.0004961,Information Technology,0.2266660
+5/22/2026,\"Ffri Security Inc\",0.0004839,Information Technology,0.2266660
+5/22/2026,\"Fujitsu Ltd\",0.0004836,Information Technology,0.2266660
+5/22/2026,\"Microchip Technology Inc\",0.0004814,Information Technology,0.2266660
+5/22/2026,\"Woori Technology Inc\",0.0004722,Information Technology,0.2266660
+5/22/2026,\"Luxshare Precision Industry Co\",0.0004637,Information Technology,0.2266660
+5/22/2026,\"TE CONNECTIVITY PLC USD NPV\",0.0004617,Information Technology,0.2266660
+5/22/2026,\"GIGADEVICE SEMICONDUCTOR INC CNY 1\",0.0004585,Information Technology,0.2266660
+5/22/2026,\"Formfactor Inc\",0.0004417,Information Technology,0.2266660
+5/22/2026,\"Onespan Inc\",0.0004379,Information Technology,0.2266660
+5/22/2026,\"Kinsus Interconnect Technology\",0.0004271,Information Technology,0.2266660
+5/22/2026,\"BIT DIGITAL INC USD NPV\",0.0004214,Information Technology,0.2266660
+5/22/2026,\"EOPTOLINK TECHNOLOGY INC L-A CNY 1.0000\",0.0004155,Information Technology,0.2266660
+5/22/2026,\"Dynatrace Inc\",0.0004137,Information Technology,0.2266660
+5/22/2026,\"Chenbro Micom Co Ltd\",0.0004131,Information Technology,0.2266660
+5/22/2026,\"Powertech Technology Inc\",0.0004123,Information Technology,0.2266660
+5/22/2026,\"Shenzhen Longsys Electroni-A\",0.0004031,Information Technology,0.2266660
+5/22/2026,\"Aixtron AG\",0.0003860,Information Technology,0.2266660
+5/22/2026,\"NEC Corp\",0.0003859,Information Technology,0.2266660
+5/22/2026,\"Sanan Optoelectronics Co Ltd\",0.0003842,Information Technology,0.2266660
+5/22/2026,\"Renesas Electronics Corp\",0.0003802,Information Technology,0.2266660
+5/22/2026,\"Suzhou Dongshan Precision-A\",0.0003775,Information Technology,0.2266660
+5/22/2026,\"BOE TECHNOLOGY GROUP CO LT-A CNY 1.0000\",0.0003760,Information Technology,0.2266660
+5/22/2026,\"Indra Sistemas SA\",0.0003737,Information Technology,0.2266660
+5/22/2026,\"Ennoconn Corp\",0.0003699,Information Technology,0.2266660
+5/22/2026,\"Pegasystems Inc\",0.0003603,Information Technology,0.2266660
+5/22/2026,\"Nexchip Semiconductor Corp-A\",0.0003443,Information Technology,0.2266660
+5/22/2026,\"Apple Inc\",0.0003439,Information Technology,0.2266660
+5/22/2026,\"Acer Inc\",0.0003431,Information Technology,0.2266660
+5/22/2026,\"ROCKCHIP ELECTRONICS CO L-A CNY 1.0000\",0.0003342,Information Technology,0.2266660
+5/22/2026,\"International Business Machines Corp\",0.0003333,Information Technology,0.2266660
+5/22/2026,\"Lenovo Group Ltd\",0.0003308,Information Technology,0.2266660
+5/22/2026,\"MicroStrategy Inc\",0.0003295,Information Technology,0.2266660
+5/22/2026,\"ASML HOLDING NV-NY REG SHS EUR0.09\",0.0003257,Information Technology,0.2266660
+5/22/2026,\"BEIJING KINGSOFT OFFICE SO-A CNY 1.0000\",0.0003155,Information Technology,0.2266660
+5/22/2026,\"LINGYI ITECH GUANGDONG CO -A CNY 1.0000\",0.0003151,Information Technology,0.2266660
+5/22/2026,\"Cicor Technologies-Reg\",0.0003128,Information Technology,0.2266660
+5/22/2026,\"NAURA TECHNOLOGY GROUP CO-A CNY 1.0000\",0.0003125,Information Technology,0.2266660
+5/22/2026,\"HUA HONG SEMICONDUCTOR LTD NPV\",0.0003113,Information Technology,0.2266660
+5/22/2026,\"United Nova Technology Co-A\",0.0003069,Information Technology,0.2266660
+5/22/2026,\"Biwin Storage Technology C-A\",0.0003054,Information Technology,0.2266660
+5/22/2026,\"METAPLANET INCJPY NPV\",0.0003045,Information Technology,0.2266660
+5/22/2026,\"Iflytek Co Ltd\",0.0003010,Information Technology,0.2266660
+5/22/2026,\"Kitron Asa\",0.0002951,Information Technology,0.2266660
+5/22/2026,\"Wus Printed Circuit Kunsha-A\",0.0002790,Information Technology,0.2266660
+5/22/2026,\"ZTE Corp\",0.0002789,Information Technology,0.2266660
+5/22/2026,\"HTC Corp\",0.0002760,Information Technology,0.2266660
+5/22/2026,\"VICTORY GIANT TECHNOLOGY -A CNY 1.0000\",0.0002755,Information Technology,0.2266660
+5/22/2026,\"Canaan Inc\",0.0002652,Information Technology,0.2266660
+5/22/2026,\"Bittium Oyj\",0.0002628,Information Technology,0.2266660
+5/22/2026,\"Ahnlab Inc\",0.0002555,Information Technology,0.2266660
+5/22/2026,\"Sinbon Electronics Co Ltd\",0.0002476,Information Technology,0.2266660
+5/22/2026,\"Jiangsu Transimage Technol-A\",0.0002475,Information Technology,0.2266660
+5/22/2026,\"GMO Internet Group Inc\",0.0002426,Information Technology,0.2266660
+5/22/2026,\"Bitmine Immersion Technologi\",0.0002366,Information Technology,0.2266660
+5/22/2026,\"EVERDISPLAY OPTRONICS SHAN-A CNY 1.0000\",0.0002089,Information Technology,0.2266660
+5/22/2026,\"SUZHOU TFC OPTICAL COMMUNI-A CNY 1.0000\",0.0002067,Information Technology,0.2266660
+5/22/2026,\"Composecure Inc-A\",0.0001978,Information Technology,0.2266660
+5/22/2026,\"Wasion Group Holdings Ltd\",0.0001912,Information Technology,0.2266660
+5/22/2026,\"Nippon Avionics Co Ltd\",0.0001783,Information Technology,0.2266660
+5/22/2026,\"Sigma Lithium Corp\",0.0077609,Materials,0.1087820
+5/22/2026,\"UMICORE NPV\",0.0033102,Materials,0.1087820
+5/22/2026,\"Albemarle Corp\",0.0032938,Materials,0.1087820
+5/22/2026,\"Holcim Ltd\",0.0030606,Materials,0.1087820
+5/22/2026,\"Quimica Y Minera Chil-Sp Adr\",0.0026867,Materials,0.1087820
+5/22/2026,\"Lynas Rare Earths Ltd\",0.0025897,Materials,0.1087820
+5/22/2026,\"Heidelberg Materials AG\",0.0025487,Materials,0.1087820
+5/22/2026,\"CRH PLC USD 0.3200\",0.0024640,Materials,0.1087820
+5/22/2026,\"CHENGXIN LITHIUM GROUP CO-A CNY 1.0000\",0.0023898,Materials,0.1087820
+5/22/2026,\"GUANGDONG DOWSTONE TECHNOL-A CNY 1.0000\",0.0022324,Materials,0.1087820
+5/22/2026,\"Impala Platinum Holdings Ltd\",0.0022173,Materials,0.1087820
+5/22/2026,\"NORTHAM PLATINUM HOLDINGS LT ZAR NPV\",0.0021870,Materials,0.1087820
+5/22/2026,\"Hanwha Chem Corp\",0.0021543,Materials,0.1087820
+5/22/2026,\"YOUNGY CO LTD-A CNY 1.0000\",0.0021127,Materials,0.1087820
+5/22/2026,\"Norsk Hydro ASA\",0.0021041,Materials,0.1087820
+5/22/2026,\"Aurubis AG\",0.0020858,Materials,0.1087820
+5/22/2026,\"Sumitomo Metal Mining Co Ltd\",0.0020848,Materials,0.1087820
+5/22/2026,\"COMPANHIA BRASILEIRA DE ALUM BRL NPV\",0.0016031,Materials,0.1087820
+5/22/2026,\"ZHEJIANG HUAYOU COBALT CO -A CNY 1.0000\",0.0015982,Materials,0.1087820
+5/22/2026,\"Tianqi Lithium Corp\",0.0015779,Materials,0.1087820
+5/22/2026,\"Air Liquide SA\",0.0015752,Materials,0.1087820
+5/22/2026,\"Constellium Se\",0.0015033,Materials,0.1087820
+5/22/2026,\"Shin-Etsu Chemical Co Ltd\",0.0014695,Materials,0.1087820
+5/22/2026,\"Materion Corp\",0.0013510,Materials,0.1087820
+5/22/2026,\"SICHUAN YAHUA INDUSTRIAL-A CNY 1.0000\",0.0013321,Materials,0.1087820
+5/22/2026,\"Novozymes A/S\",0.0013253,Materials,0.1087820
+5/22/2026,\"Kaiser Aluminum Corp\",0.0012512,Materials,0.1087820
+5/22/2026,\"NAC Kazatomprom Jsc-GDR\",0.0012343,Materials,0.1087820
+5/22/2026,\"NAC Kazatomprom Jsc-Gdr Regs\",0.0012343,Materials,0.1087820
+5/22/2026,\"SHENGHE RESOURCES HOLDINGS-A CNY 1.0000\",0.0012222,Materials,0.1087820
+5/22/2026,\"Sibanye Stillwater Ltd\",0.0011929,Materials,0.1087820
+5/22/2026,\"Pacific Metals Co Ltd\",0.0011765,Materials,0.1087820
+5/22/2026,\"XIAMEN TUNGSTEN CO LTD-A CNY 1.0000\",0.0011708,Materials,0.1087820
+5/22/2026,\"Century Aluminum Co\",0.0011526,Materials,0.1087820
+5/22/2026,\"KGHM Polska Miedz SA\",0.0011317,Materials,0.1087820
+5/22/2026,\"5N Plus Inc\",0.0011206,Materials,0.1087820
+5/22/2026,\"Press Metal Aluminium Holdings\",0.0011170,Materials,0.1087820
+5/22/2026,\"Ganfeng Lithium Co Ltd\",0.0010765,Materials,0.1087820
+5/22/2026,\"Alcoa Corp\",0.0010713,Materials,0.1087820
+5/22/2026,\"Santacruz Silver Mining Ltd\",0.0010642,Materials,0.1087820
+5/22/2026,\"Taseko Mines Ltd\",0.0010203,Materials,0.1087820
+5/22/2026,\"SHENZHEN SENIOR TECHNOLOGY-A CNY 1.0000\",0.0010164,Materials,0.1087820
+5/22/2026,\"Corteva Inc\",0.0009971,Materials,0.1087820
+5/22/2026,\"Arcelormittal\",0.0009851,Materials,0.1087820
+5/22/2026,\"Silvercorp Metals Inc\",0.0009806,Materials,0.1087820
+5/22/2026,\"Lundin Mining Corp\",0.0009806,Materials,0.1087820
+5/22/2026,\"Sociedad Quimica y Minera de C\",0.0009392,Materials,0.1087820
+5/22/2026,\"First Quantum Minerals Ltd\",0.0009083,Materials,0.1087820
+5/22/2026,\"UACJ Corp\",0.0008927,Materials,0.1087820
+5/22/2026,\"BOLIDEN AB SEK 2.1100\",0.0008782,Materials,0.1087820
+5/22/2026,\"Nippon Light Metal Holdings\",0.0007805,Materials,0.1087820
+5/22/2026,\"Antofagasta PLC\",0.0007496,Materials,0.1087820
+5/22/2026,\"HudBay Minerals Inc\",0.0007151,Materials,0.1087820
+5/22/2026,\"Mitsubishi Materials Corp\",0.0006842,Materials,0.1087820
+5/22/2026,\"Nickel Industries Ltd. AUD NPV\",0.0006837,Materials,0.1087820
+5/22/2026,\"Jinhui Mining Co Ltd-A\",0.0006363,Materials,0.1087820
+5/22/2026,\"Grupo Mexico SAB de CV\",0.0006258,Materials,0.1087820
+5/22/2026,\"SHENZHEN DYNANONIC CO LTD-A CNY 1.0000\",0.0006134,Materials,0.1087820
+5/22/2026,\"Fortescue Ltd\",0.0006037,Materials,0.1087820
+5/22/2026,\"First Majestic Silver Corp\",0.0005955,Materials,0.1087820
+5/22/2026,\"Fresnillo Plc\",0.0005940,Materials,0.1087820
+5/22/2026,\"YUNNAN TIN CO LTD-A CNY 1.0000\",0.0005856,Materials,0.1087820
+5/22/2026,\"Hecla Mining Co\",0.0005724,Materials,0.1087820
+5/22/2026,\"JFE Holdings Inc\",0.0005636,Materials,0.1087820
+5/22/2026,\"Nittetsu Mining Co\",0.0005419,Materials,0.1087820
+5/22/2026,\"Ero Copper Corp\",0.0004879,Materials,0.1087820
+5/22/2026,\"Shanghai Putailai New Energy Technology Grou CNY 1\",0.0004748,Materials,0.1087820
+5/22/2026,\"Industrias Penoles SAB de CV\",0.0004475,Materials,0.1087820
+5/22/2026,\"GUANGZHOU TINCI MATERIALS -A CNY 1.0000\",0.0004403,Materials,0.1087820
+5/22/2026,\"Wheaton Precious Metals Corp\",0.0004164,Materials,0.1087820
+5/22/2026,\"HULUDAO ZINC INDUSTRY CO-A CNY 1.0000\",0.0003961,Materials,0.1087820
+5/22/2026,\"YUNNAN CHIHONG ZINC \u0026 GERM-A CNY 1.0000\",0.0003950,Materials,0.1087820
+5/22/2026,\"AMG Advanced Metallurgical Grp\",0.0003918,Materials,0.1087820
+5/22/2026,\"Jiangsu Lopal Tech Group C-A\",0.0003915,Materials,0.1087820
+5/22/2026,\"Jilin Chemical Fibre Co-A\",0.0003861,Materials,0.1087820
+5/22/2026,\"Guangxi Huaxi Nonferrous M-A\",0.0003812,Materials,0.1087820
+5/22/2026,\"DO-FLUORIDE NEW MATERIALS -A CNY 1.0000\",0.0003759,Materials,0.1087820
+5/22/2026,\"SHENZHEN CAPCHEM TECHNOLOG-A CNY 1.0000\",0.0003744,Materials,0.1087820
+5/22/2026,\"China Rare Earth Resources And Technology Co CNY 1\",0.0003527,Materials,0.1087820
+5/22/2026,\"JIANGXI COPPER CO LTD-A CNY 1.0000\",0.0003322,Materials,0.1087820
+5/22/2026,\"SOULBRAIN CO LTD/NEW KRW500\",0.0003295,Materials,0.1087820
+5/22/2026,\"Hill  Smith Holdings PLC\",0.0003198,Materials,0.1087820
+5/22/2026,\"HENAN YUGUANG GOLD\u0026LEAD CO-A CNY 1.0000\",0.0003097,Materials,0.1087820
+5/22/2026,\"SHIDA SHINGHWA ADVANCED MATERIAL GROUP CO L-A CNY1\",0.0003090,Materials,0.1087820
+5/22/2026,\"TONGLING NONFERROUS METALS-A CNY 1.0000\",0.0003064,Materials,0.1087820
+5/22/2026,\"MMG Ltd\",0.0003024,Materials,0.1087820
+5/22/2026,\"CHINA NONFERROUS METAL IND-A CNY 1.0000\",0.0003003,Materials,0.1087820
+5/22/2026,\"Nippon Paint Co Ltd\",0.0002955,Materials,0.1087820
+5/22/2026,\"Coeur d\u0027Alene Mines Corp\",0.0002839,Materials,0.1087820
+5/22/2026,\"WESTERN MINING CO -A CNY 1.0000\",0.0002803,Materials,0.1087820
+5/22/2026,\"BAOTAILONG NEW CNY 1.000000000\",0.0002745,Materials,0.1087820
+5/22/2026,\"LG Chem Ltd\",0.0002731,Materials,0.1087820
+5/22/2026,\"XIANGTAN ELECT CNY 1.000000000\",0.0002664,Materials,0.1087820
+5/22/2026,\"SSR Mining Inc\",0.0002579,Materials,0.1087820
+5/22/2026,\"TIBET MINERAL  CNY 1.000000000\",0.0002573,Materials,0.1087820
+5/22/2026,\"SHANDONG HUMON SMELTING-A CNY 1.0000\",0.0002456,Materials,0.1087820
+5/22/2026,\"ISE CHEMICALS CORP NPV\",0.0002452,Materials,0.1087820
+5/22/2026,\"Vicat SA\",0.0002395,Materials,0.1087820
+5/22/2026,\"Sigmaroc Plc\",0.0002356,Materials,0.1087820
+5/22/2026,\"Global Atomic Corp\",0.0002203,Materials,0.1087820
+5/22/2026,\"CEMENTIR HOLDING NV EUR1\",0.0002187,Materials,0.1087820
+5/22/2026,\"Evolution Mining Ltd\",0.0002174,Materials,0.1087820
+5/22/2026,\"Pengxin International Mini-A\",0.0002167,Materials,0.1087820
+5/22/2026,\"SHENGDA RESOUR CNY 1.000000000\",0.0002021,Materials,0.1087820
+5/22/2026,\"China Molybdenum Co Ltd\",0.0002009,Materials,0.1087820
+5/22/2026,\"WANHUA CHEMICAL GROUP CO -A CNY 1.0000\",0.0001526,Materials,0.1087820
+5/22/2026,\"Eli Lilly  Co\",0.0035934,Health Care,0.0720980
+5/22/2026,\"Moderna Inc\",0.0030038,Health Care,0.0720980
+5/22/2026,\"Twist Bioscience Corp\",0.0022199,Health Care,0.0720980
+5/22/2026,\"Johnson  Johnson\",0.0022124,Health Care,0.0720980
+5/22/2026,\"United Therapeutics Corp\",0.0021163,Health Care,0.0720980
+5/22/2026,\"Pfizer Inc\",0.0019268,Health Care,0.0720980
+5/22/2026,\"Natera Inc\",0.0017933,Health Care,0.0720980
+5/22/2026,\"Intuitive Surgical Inc\",0.0017185,Health Care,0.0720980
+5/22/2026,\"Stoke Therapeutics Inc\",0.0016586,Health Care,0.0720980
+5/22/2026,\"Amgen Inc\",0.0016524,Health Care,0.0720980
+5/22/2026,\"Vertex Pharmaceuticals Inc\",0.0016033,Health Care,0.0720980
+5/22/2026,\"Biontech Se-ADR\",0.0015207,Health Care,0.0720980
+5/22/2026,\"Beam Therapeutics Inc\",0.0015180,Health Care,0.0720980
+5/22/2026,\"Ionis Pharmaceuticals Inc\",0.0014317,Health Care,0.0720980
+5/22/2026,\"Astrazeneca Plc\",0.0013671,Health Care,0.0720980
+5/22/2026,\"10X Genomics Inc-Class A\",0.0013448,Health Care,0.0720980
+5/22/2026,\"Crispr Therapeutics Ag\",0.0013426,Health Care,0.0720980
+5/22/2026,\"Immunome Inc\",0.0013392,Health Care,0.0720980
+5/22/2026,\"Gilead Sciences Inc\",0.0013087,Health Care,0.0720980
+5/22/2026,\"ASTRAZENECA PLC USD 0.2500\",0.0012310,Health Care,0.0720980
+5/22/2026,\"Structure Therapeutics Inc\",0.0011907,Health Care,0.0720980
+5/22/2026,\"Novartis AG\",0.0011697,Health Care,0.0720980
+5/22/2026,\"ABSCI Corp\",0.0011677,Health Care,0.0720980
+5/22/2026,\"ROIVANT SCIENCES LTD USD 0.0000\",0.0011573,Health Care,0.0720980
+5/22/2026,\"Arrowhead Pharmaceuticals Inc\",0.0011137,Health Care,0.0720980
+5/22/2026,\"Intellia Therapeutics Inc\",0.0010038,Health Care,0.0720980
+5/22/2026,\"Veracyte Inc\",0.0009647,Health Care,0.0720980
+5/22/2026,\"Agios Pharmaceuticals Inc\",0.0009499,Health Care,0.0720980
+5/22/2026,\"Krystal Biotech Inc\",0.0009406,Health Care,0.0720980
+5/22/2026,\"Bristol-Myers Squibb Co\",0.0008568,Health Care,0.0720980
+5/22/2026,\"Uniqure NV\",0.0008416,Health Care,0.0720980
+5/22/2026,\"Revolution Medicines Inc\",0.0008238,Health Care,0.0720980
+5/22/2026,\"Regenxbio Inc\",0.0007468,Health Care,0.0720980
+5/22/2026,\"Genmab A/S -Sp ADR\",0.0007418,Health Care,0.0720980
+5/22/2026,\"Argenx Se - Adr\",0.0007238,Health Care,0.0720980
+5/22/2026,\"BioMarin Pharmaceutical Inc\",0.0006949,Health Care,0.0720980
+5/22/2026,\"Takeda Pharmaceutical Co Ltd\",0.0006816,Health Care,0.0720980
+5/22/2026,\"Regeneron Pharmaceuticals Inc\",0.0006796,Health Care,0.0720980
+5/22/2026,\"Iovance Biotherapeutics Inc\",0.0006766,Health Care,0.0720980
+5/22/2026,\"Bayer AG\",0.0006726,Health Care,0.0720980
+5/22/2026,\"Illumina Inc\",0.0006601,Health Care,0.0720980
+5/22/2026,\"Editas Medicine Inc\",0.0006447,Health Care,0.0720980
+5/22/2026,\"Exelixis Inc\",0.0006318,Health Care,0.0720980
+5/22/2026,\"Viking Therapeutics Inc\",0.0006171,Health Care,0.0720980
+5/22/2026,\"Danaher Corp\",0.0005746,Health Care,0.0720980
+5/22/2026,\"Biogen Idec Inc\",0.0005604,Health Care,0.0720980
+5/22/2026,\"Merck  Co Inc/NJ\",0.0005452,Health Care,0.0720980
+5/22/2026,\"Repligen Corp\",0.0005412,Health Care,0.0720980
+5/22/2026,\"Sana Biotechnology Inc\",0.0004662,Health Care,0.0720980
+5/22/2026,\"Hoya Corp\",0.0004629,Health Care,0.0720980
+5/22/2026,\"Fate Therapeutics Inc\",0.0004618,Health Care,0.0720980
+5/22/2026,\"Caribou Biosciences Inc\",0.0004579,Health Care,0.0720980
+5/22/2026,\"Halozyme Therapeutics Inc\",0.0004485,Health Care,0.0720980
+5/22/2026,\"Bridgebio Pharma Inc\",0.0003802,Health Care,0.0720980
+5/22/2026,\"DaVita Inc.\",0.0003465,Health Care,0.0720980
+5/22/2026,\"PHARMAESSENTIA CORP TWD 10.0000\",0.0003403,Health Care,0.0720980
+5/22/2026,\"Lantheus Holdings Inc\",0.0003390,Health Care,0.0720980
+5/22/2026,\"OXFORD NANOPORE TECHNOLO-W/I GBP 0.0001\",0.0003366,Health Care,0.0720980
+5/22/2026,\"Genus Plc\",0.0003071,Health Care,0.0720980
+5/22/2026,\"Cytokinetics Inc\",0.0003069,Health Care,0.0720980
+5/22/2026,\"Edwards Lifesciences Corp\",0.0002922,Health Care,0.0720980
+5/22/2026,\"DexCom Inc\",0.0002840,Health Care,0.0720980
+5/22/2026,\"Neurocrine Biosciences Inc\",0.0002838,Health Care,0.0720980
+5/22/2026,\"SHANGHAI UNITED IMAGING HE-A CNY 1.0000\",0.0002836,Health Care,0.0720980
+5/22/2026,\"STRAUMANN HOLDING AG CHF 0.01\",0.0002776,Health Care,0.0720980
+5/22/2026,\"Geron Corp\",0.0002774,Health Care,0.0720980
+5/22/2026,\"Encompass Health Corp\",0.0002757,Health Care,0.0720980
+5/22/2026,\"LivaNova PLC\",0.0002737,Health Care,0.0720980
+5/22/2026,\"Bio-Techne Corp\",0.0002709,Health Care,0.0720980
+5/22/2026,\"IHH Healthcare Bhd\",0.0002639,Health Care,0.0720980
+5/22/2026,\"Incyte Corp\",0.0002633,Health Care,0.0720980
+5/22/2026,\"Glaukos Corp\",0.0002598,Health Care,0.0720980
+5/22/2026,\"Labcorp Holdings Inc\",0.0002592,Health Care,0.0720980
+5/22/2026,\"Immunitybio Inc\",0.0002568,Health Care,0.0720980
+5/22/2026,\"WUXI APPTEC CO LTD-A CNY 1.0000\",0.0002543,Health Care,0.0720980
+5/22/2026,\"Asahi Intecc Co Ltd\",0.0002499,Health Care,0.0720980
+5/22/2026,\"Quest Diagnostics Inc/DE\",0.0002498,Health Care,0.0720980
+5/22/2026,\"Sonic Healthcare Ltd\",0.0002479,Health Care,0.0720980
+5/22/2026,\"Fresenius Medical Care AG  Co\",0.0002464,Health Care,0.0720980
+5/22/2026,\"REDE D\u0027OR SAO LUIZ SA BRL NPV\",0.0002463,Health Care,0.0720980
+5/22/2026,\"Ideaya Biosciences Inc\",0.0002447,Health Care,0.0720980
+5/22/2026,\"Irhythm Technologies Inc\",0.0002441,Health Care,0.0720980
+5/22/2026,\"Zimmer Biomet Holdings Inc\",0.0002402,Health Care,0.0720980
+5/22/2026,\"Thermo Fisher Scientific Inc\",0.0002310,Health Care,0.0720980
+5/22/2026,\"ALCON INC CHF0.04\",0.0002310,Health Care,0.0720980
+5/22/2026,\"Pacs Group Inc\",0.0002290,Health Care,0.0720980
+5/22/2026,\"Globus Medical Inc\",0.0002283,Health Care,0.0720980
+5/22/2026,\"Qiagen N.V.\",0.0002163,Health Care,0.0720980
+5/22/2026,\"MEDACTA GROUP SA CHF0.1\",0.0002118,Health Care,0.0720980
+5/22/2026,\"Acadia Pharmaceuticals Inc\",0.0002100,Health Care,0.0720980
+5/22/2026,\"Beigene Ltd\",0.0002093,Health Care,0.0720980
+5/22/2026,\"WUXI BIOLOGICS CAYMAN INC USD0.00001\",0.0002082,Health Care,0.0720980
+5/22/2026,\"Alnylam Pharmaceuticals Inc\",0.0002076,Health Care,0.0720980
+5/22/2026,\"Ensign Group Inc/The\",0.0002029,Health Care,0.0720980
+5/22/2026,\"Alignment Healthcare Inc\",0.0001992,Health Care,0.0720980
+5/22/2026,\"Genmab A/S\",0.0001868,Health Care,0.0720980
+5/22/2026,\"Option Care Health Inc\",0.0001524,Health Care,0.0720980
+5/22/2026,\"ProLogis Inc\",0.0055726,Real Estate,0.0524810
+5/22/2026,\"Equinix Inc\",0.0055278,Real Estate,0.0524810
+5/22/2026,\"Digital Realty Trust Inc\",0.0053749,Real Estate,0.0524810
+5/22/2026,\"American Tower Corp\",0.0051459,Real Estate,0.0524810
+5/22/2026,\"Iron Mountain Inc\",0.0040777,Real Estate,0.0524810
+5/22/2026,\"SBA Communications Corp\",0.0029726,Real Estate,0.0524810
+5/22/2026,\"Healthpeak Properties Inc\",0.0025290,Real Estate,0.0524810
+5/22/2026,\"Segro PLC\",0.0021223,Real Estate,0.0524810
+5/22/2026,\"EastGroup Properties Inc\",0.0019437,Real Estate,0.0524810
+5/22/2026,\"Ascendas Real Estate Investment\",0.0016735,Real Estate,0.0524810
+5/22/2026,\"First Industrial Realty Trust\",0.0015524,Real Estate,0.0524810
+5/22/2026,\"Terreno Realty Corp\",0.0012646,Real Estate,0.0524810
+5/22/2026,\"WAREHOUSES DE PAUW SCA NPV\",0.0012544,Real Estate,0.0524810
+5/22/2026,\"Londonmetric Property PLC\",0.0011609,Real Estate,0.0524810
+5/22/2026,\"Keppel DC REIT\",0.0010616,Real Estate,0.0524810
+5/22/2026,\"Tritax Big Box REIT Plc\",0.0010469,Real Estate,0.0524810
+5/22/2026,\"Nippon Prologis REIT Inc\",0.0009612,Real Estate,0.0524810
+5/22/2026,\"Mapletree Industrial Trust\",0.0009196,Real Estate,0.0524810
+5/22/2026,\"GLP J-Reit\",0.0009163,Real Estate,0.0524810
+5/22/2026,\"Frasers Logistics  Industrial Trust\",0.0007992,Real Estate,0.0524810
+5/22/2026,\"Lxp Industrial Trust\",0.0007797,Real Estate,0.0524810
+5/22/2026,\"Mitsui Fudosan Logistics Park\",0.0006818,Real Estate,0.0524810
+5/22/2026,\"Japan Logistics Fund Inc\",0.0005387,Real Estate,0.0524810
+5/22/2026,\"LaSalle Logiport REIT\",0.0004864,Real Estate,0.0524810
+5/22/2026,\"Montea Nv\",0.0004585,Real Estate,0.0524810
+5/22/2026,\"MITSUBISHI ESTATE LOGISTICS NPV\",0.0004137,Real Estate,0.0524810
+5/22/2026,\"Welltower OP Inc\",0.0003880,Real Estate,0.0524810
+5/22/2026,\"Esr-Reit\",0.0003184,Real Estate,0.0524810
+5/22/2026,\"Sosila Logistics Reit Inc\",0.0002976,Real Estate,0.0524810
+5/22/2026,\"Ventas Inc\",0.0002418,Real Estate,0.0524810
+5/22/2026,\"Ast Spacemobile Inc\",0.0081799,Communication Services,0.0454070
+5/22/2026,\"Alphabet Inc-Cl A\",0.0059898,Communication Services,0.0454070
+5/22/2026,\"Nebius Group N.V. Class A\",0.0050083,Communication Services,0.0454070
+5/22/2026,\"Globalstar Inc\",0.0037758,Communication Services,0.0454070
+5/22/2026,\"Cellnex Telecom Sau\",0.0034257,Communication Services,0.0454070
+5/22/2026,\"EchoStar Corp\",0.0026526,Communication Services,0.0454070
+5/22/2026,\"Iridium Communications Inc\",0.0021853,Communication Services,0.0454070
+5/22/2026,\"Ses\",0.0017324,Communication Services,0.0454070
+5/22/2026,\"SKY Perfect JSAT Holdings Inc\",0.0012015,Communication Services,0.0454070
+5/22/2026,\"NETEASE INC HKD 0.0001\",0.0009344,Communication Services,0.0454070
+5/22/2026,\"US Cellular Corp\",0.0008186,Communication Services,0.0454070
+5/22/2026,\"HELIOS TOWERS PLC GBP0.01\",0.0007903,Communication Services,0.0454070
+5/22/2026,\"Walt Disney Co/The\",0.0006984,Communication Services,0.0454070
+5/22/2026,\"Ihs Holding Ltd\",0.0006198,Communication Services,0.0454070
+5/22/2026,\"SK Telecom Co Ltd\",0.0005497,Communication Services,0.0454070
+5/22/2026,\"Nippon Telegraph  Telephone Corp\",0.0005435,Communication Services,0.0454070
+5/22/2026,\"Deutsche Telekom AG\",0.0005018,Communication Services,0.0454070
+5/22/2026,\"ADVANCED INFO SERVICE-FOR RG THB1 (ALN)\",0.0004502,Communication Services,0.0454070
+5/22/2026,\"Meta Platforms, Inc. Cl A\",0.0004462,Communication Services,0.0454070
+5/22/2026,\"Softbank Corp\",0.0004235,Communication Services,0.0454070
+5/22/2026,\"NAVER Corp\",0.0004027,Communication Services,0.0454070
+5/22/2026,\"Celcomdigi Bhd\",0.0003299,Communication Services,0.0454070
+5/22/2026,\"Telesat Corp\",0.0003289,Communication Services,0.0454070
+5/22/2026,\"Ovzon Ab\",0.0003267,Communication Services,0.0454070
+5/22/2026,\"Vodacom Group Pty Ltd\",0.0003210,Communication Services,0.0454070
+5/22/2026,\"KRAFTON INC KRW 100.0000\",0.0002940,Communication Services,0.0454070
+5/22/2026,\"MTN Group Ltd\",0.0002582,Communication Services,0.0454070
+5/22/2026,\"Maxis Bhd\",0.0002544,Communication Services,0.0454070
+5/22/2026,\"LG Uplus Corp\",0.0002475,Communication Services,0.0454070
+5/22/2026,\"Turkcell Iletisim Hizmet AS\",0.0002420,Communication Services,0.0454070
+5/22/2026,\"Kakao Corp\",0.0002385,Communication Services,0.0454070
+5/22/2026,\"KINGNET NETWORK CO LTD-A CNY 1.0000\",0.0002375,Communication Services,0.0454070
+5/22/2026,\"Taiwan Mobile Co Ltd\",0.0002364,Communication Services,0.0454070
+5/22/2026,\"GIANT NETWORK GROUP CO LTD-A CNY 1.0000\",0.0002216,Communication Services,0.0454070
+5/22/2026,\"BILIBILI INC-CLASS Z HKD NPV\",0.0001910,Communication Services,0.0454070
+5/22/2026,\"Wuhu Sanqi Interactive Ent-A\",0.0001830,Communication Services,0.0454070
+5/22/2026,\"Nexon Co Ltd\",0.0001662,Communication Services,0.0454070
+5/22/2026,\"Uranium Energy Corp\",0.0043742,Energy,0.0358210
+5/22/2026,\"Nexgen Energy Ltd\",0.0041015,Energy,0.0358210
+5/22/2026,\"Cameco Corp\",0.0040966,Energy,0.0358210
+5/22/2026,\"Energy Fuels Inc\",0.0037448,Energy,0.0358210
+5/22/2026,\"BP PLC\",0.0031700,Energy,0.0358210
+5/22/2026,\"SHELL PLC GBP 0.0700\",0.0031129,Energy,0.0358210
+5/22/2026,\"PALADIN ENERGY LTD NPV\",0.0028239,Energy,0.0358210
+5/22/2026,\"CGN MINING CO LTD HKD 0.0100\",0.0025365,Energy,0.0358210
+5/22/2026,\"Denison Mines Corp\",0.0023981,Energy,0.0358210
+5/22/2026,\"DEEP YELLOW LTD NPV\",0.0011129,Energy,0.0358210
+5/22/2026,\"Verbio AG\",0.0007698,Energy,0.0358210
+5/22/2026,\"Centrus Energy Corp-Class A\",0.0005933,Energy,0.0358210
+5/22/2026,\"Ur-Energy Inc\",0.0004631,Energy,0.0358210
+5/22/2026,\"Green Plains Inc\",0.0004561,Energy,0.0358210
+5/22/2026,\"Isoenergy Ltd\",0.0004438,Energy,0.0358210
+5/22/2026,\"Uranium Royalty Corp\",0.0004248,Energy,0.0358210
+5/22/2026,\"BANNERMAN RESOURCES LTD NPV\",0.0003684,Energy,0.0358210
+5/22/2026,\"Friedrich Vorwerk Group Se\",0.0002984,Energy,0.0358210
+5/22/2026,\"CANGZHOU MINGZ CNY 1.000000000\",0.0002968,Energy,0.0358210
+5/22/2026,\"TECHNIP ENERGIES NV EUR 0.0100\",0.0002359,Energy,0.0358210
+5/22/2026,\"Tesla Inc\",0.0032925,Consumer Discretionary,0.0343240
+5/22/2026,\"ALIBABA GROUP HOLDING LTD HKD 0.0000\",0.0032350,Consumer Discretionary,0.0343240
+5/22/2026,\"Schaeffler Ag\",0.0031228,Consumer Discretionary,0.0343240
+5/22/2026,\"Amazon.com Inc\",0.0029702,Consumer Discretionary,0.0343240
+5/22/2026,\"Hyundai Motor Co\",0.0025840,Consumer Discretionary,0.0343240
+5/22/2026,\"Solid Power Inc\",0.0022174,Consumer Discretionary,0.0343240
+5/22/2026,\"XPENG INC - CLASS A SHARES HKD 0.0000\",0.0021555,Consumer Discretionary,0.0343240
+5/22/2026,\"PDD Holdings Inc.\",0.0017234,Consumer Discretionary,0.0343240
+5/22/2026,\"MercadoLibre Inc\",0.0012172,Consumer Discretionary,0.0343240
+5/22/2026,\"Serve Robotics Inc\",0.0009561,Consumer Discretionary,0.0343240
+5/22/2026,\"GS Yuasa Corp\",0.0006974,Consumer Discretionary,0.0343240
+5/22/2026,\"Fulin Precision Co Ltd-A\",0.0005431,Consumer Discretionary,0.0343240
+5/22/2026,\"LG Electronics Inc\",0.0005195,Consumer Discretionary,0.0343240
+5/22/2026,\"BYD Co Ltd\",0.0004858,Consumer Discretionary,0.0343240
+5/22/2026,\"Hyundai Mobis\",0.0004743,Consumer Discretionary,0.0343240
+5/22/2026,\"Kia Corp\",0.0004280,Consumer Discretionary,0.0343240
+5/22/2026,\"Midea Group Co Ltd\",0.0004123,Consumer Discretionary,0.0343240
+5/22/2026,\"Delivery Hero Se\",0.0003601,Consumer Discretionary,0.0343240
+5/22/2026,\"Yamaha Motor Co Ltd\",0.0003338,Consumer Discretionary,0.0343240
+5/22/2026,\"JD.COM INC - CL A HKD 0.0000\",0.0003227,Consumer Discretionary,0.0343240
+5/22/2026,\"Hilton Grand Vacations Inc\",0.0002961,Consumer Discretionary,0.0343240
+5/22/2026,\"Allegro.Eu Sa\",0.0002832,Consumer Discretionary,0.0343240
+5/22/2026,\"Alibaba Group Holding Ltd ADR\",0.0002831,Consumer Discretionary,0.0343240
+5/22/2026,\"HAIER SMART HOME CO LTD-A CNY 1.0000\",0.0002790,Consumer Discretionary,0.0343240
+5/22/2026,\"Hotel Shilla Co Ltd\",0.0002786,Consumer Discretionary,0.0343240
+5/22/2026,\"TCL TECHNOLOGY GROUP CORP-A CNY 1.0000\",0.0002753,Consumer Discretionary,0.0343240
+5/22/2026,\"ROYAL CARIBBEAN CRUISES LTD USD0.01\",0.0002682,Consumer Discretionary,0.0343240
+5/22/2026,\"Coupang Inc\",0.0002580,Consumer Discretionary,0.0343240
+5/22/2026,\"Calb Group Co Ltd-H\",0.0002575,Consumer Discretionary,0.0343240
+5/22/2026,\"Service Corp International\",0.0002573,Consumer Discretionary,0.0343240
+5/22/2026,\"CENTRAL RETAIL CORP PCL THB NPV\",0.0002559,Consumer Discretionary,0.0343240
+5/22/2026,\"Mr Price Group Ltd\",0.0002514,Consumer Discretionary,0.0343240
+5/22/2026,\"Suzuki Motor Corp\",0.0002439,Consumer Discretionary,0.0343240
+5/22/2026,\"Arcelik\",0.0002373,Consumer Discretionary,0.0343240
+5/22/2026,\"Pepkor Holdings Ltd\",0.0002355,Consumer Discretionary,0.0343240
+5/22/2026,\"Moncler SpA\",0.0002354,Consumer Discretionary,0.0343240
+5/22/2026,\"Dogus Otomotiv Servis ve Ticar\",0.0002354,Consumer Discretionary,0.0343240
+5/22/2026,\"Vivara Participacoes Sa\",0.0002348,Consumer Discretionary,0.0343240
+5/22/2026,\"NIO INC- A\",0.0002332,Consumer Discretionary,0.0343240
+5/22/2026,\"ZHEJIANG CENTURY HUATONG -A CNY 1.0000\",0.0002326,Consumer Discretionary,0.0343240
+5/22/2026,\"Youngone Corp\",0.0002324,Consumer Discretionary,0.0343240
+5/22/2026,\"Travel + Leisure Co\",0.0002240,Consumer Discretionary,0.0343240
+5/22/2026,\"Central Plaza Hotel PCL\",0.0002200,Consumer Discretionary,0.0343240
+5/22/2026,\"Hotai Motor Co Ltd\",0.0002196,Consumer Discretionary,0.0343240
+5/22/2026,\"Sanyang Industry Co Ltd\",0.0002162,Consumer Discretionary,0.0343240
+5/22/2026,\"CENTRAL RETAIL CORP-FOREIGN THB1 (ALN)\",0.0000166,Consumer Discretionary,0.0343240
+5/22/2026,\"Central Plaza Hotel PCL (F)\",0.0000131,Consumer Discretionary,0.0343240
+5/22/2026,\"National Grid Plc\",0.0035942,Utilities,0.0327510
+5/22/2026,\"Terna SPA\",0.0034888,Utilities,0.0327510
+5/22/2026,\"Elia Group SA\",0.0026128,Utilities,0.0327510
+5/22/2026,\"Acciona SA\",0.0025845,Utilities,0.0327510
+5/22/2026,\"Enel SpA\",0.0024298,Utilities,0.0327510
+5/22/2026,\"Oklo Inc\",0.0018264,Utilities,0.0327510
+5/22/2026,\"Constellation Energy\",0.0015543,Utilities,0.0327510
+5/22/2026,\"Hydro One Ltd\",0.0015101,Utilities,0.0327510
+5/22/2026,\"Chubu Electric Power Co Inc\",0.0011823,Utilities,0.0327510
+5/22/2026,\"E.On Se\",0.0011066,Utilities,0.0327510
+5/22/2026,\"SOLARIA ENERGIA Y MEDIO AMBI EUR0.01\",0.0010447,Utilities,0.0327510
+5/22/2026,\"Ormat Technologies Inc\",0.0009006,Utilities,0.0327510
+5/22/2026,\"Equatorial Energia SA\",0.0008887,Utilities,0.0327510
+5/22/2026,\"Edison International\",0.0008707,Utilities,0.0327510
+5/22/2026,\"Boralex Inc\",0.0008701,Utilities,0.0327510
+5/22/2026,\"CPFL Energia SA\",0.0007365,Utilities,0.0327510
+5/22/2026,\"NRG Energy Inc\",0.0006772,Utilities,0.0327510
+5/22/2026,\"ERG SpA\",0.0006540,Utilities,0.0327510
+5/22/2026,\"Cia Paranaense de Energia\",0.0006528,Utilities,0.0327510
+5/22/2026,\"Verbund - Oesterreichische Ele\",0.0006459,Utilities,0.0327510
+5/22/2026,\"CORP ACCIONA ENERGIAS RENOVA EUR NPV\",0.0006053,Utilities,0.0327510
+5/22/2026,\"CHINA YANGTZE POWER CO LTD-A CNY 1.0000\",0.0004871,Utilities,0.0327510
+5/22/2026,\"Scatec Solar ASA\",0.0004112,Utilities,0.0327510
+5/22/2026,\"Exelon Corp\",0.0004065,Utilities,0.0327510
+5/22/2026,\"Eversource Energy\",0.0003851,Utilities,0.0327510
+5/22/2026,\"Transmissora Alianca de Energia Eletrica SA\",0.0003624,Utilities,0.0327510
+5/22/2026,\"EVN AG\",0.0002633,Utilities,0.0327510
+5/22/2026,\"Coinbase Global Inc -Class A\",0.0013252,Financials,0.0153300
+5/22/2026,\"GALAXY DUSD NPV\",0.0011352,Financials,0.0153300
+5/22/2026,\"Robinhood Markets Inc - A\",0.0007430,Financials,0.0153300
+5/22/2026,\"Morgan Stanley\",0.0007418,Financials,0.0153300
+5/22/2026,\"Block Inc - A\",0.0007061,Financials,0.0153300
+5/22/2026,\"SBI Holdings Inc/Japan\",0.0006825,Financials,0.0153300
+5/22/2026,\"PayPal Holdings Inc\",0.0006344,Financials,0.0153300
+5/22/2026,\"Swissquote Group Holding SA\",0.0004664,Financials,0.0153300
+5/22/2026,\"BLACKROCK INC\",0.0004637,Financials,0.0153300
+5/22/2026,\"NU HOLDINGS LTD/CAYMAN ISL-A USD 0.0000\",0.0004281,Financials,0.0153300
+5/22/2026,\"UBS Group AG\",0.0004212,Financials,0.0153300
+5/22/2026,\"Visa Inc\",0.0004100,Financials,0.0153300
+5/22/2026,\"Katilimevim Tasarruf Finansm\",0.0003839,Financials,0.0153300
+5/22/2026,\"Mastercard Inc\",0.0003728,Financials,0.0153300
+5/22/2026,\"DBS Group Holdings Ltd\",0.0003476,Financials,0.0153300
+5/22/2026,\"HITHINK ROYALFLUSH INFORMA-A CNY 1.0000\",0.0003329,Financials,0.0153300
+5/22/2026,\"Charles Schwab Corp/The\",0.0003297,Financials,0.0153300
+5/22/2026,\"East Money Information Co-A\",0.0003195,Financials,0.0153300
+5/22/2026,\"Julius Baer Group Ltd\",0.0003109,Financials,0.0153300
+5/22/2026,\"ASR Nederland NV\",0.0002915,Financials,0.0153300
+5/22/2026,\"Prudential PLC\",0.0002905,Financials,0.0153300
+5/22/2026,\"Shift4 Payments Inc-Class A\",0.0002896,Financials,0.0153300
+5/22/2026,\"Monex Group Inc\",0.0002895,Financials,0.0153300
+5/22/2026,\"Payoneer Global Inc\",0.0002856,Financials,0.0153300
+5/22/2026,\"JPMorgan Chase  Co\",0.0002851,Financials,0.0153300
+5/22/2026,\"First Financial Holding Co Ltd\",0.0002763,Financials,0.0153300
+5/22/2026,\"Reinsurance Group of America Inc\",0.0002597,Financials,0.0153300
+5/22/2026,\"Bursa Malaysia Bhd\",0.0002570,Financials,0.0153300
+5/22/2026,\"Hana Financial Group Inc\",0.0002542,Financials,0.0153300
+5/22/2026,\"Sofi Technologies Inc\",0.0002534,Financials,0.0153300
+5/22/2026,\"Cathay Financial Holding Co Ltd\",0.0002524,Financials,0.0153300
+5/22/2026,\"Kakaopay Corp\",0.0002499,Financials,0.0153300
+5/22/2026,\"VZ HOLDING AG CHF0.25\",0.0002407,Financials,0.0153300
+5/22/2026,\"Hua Nan Financial Holdings Co\",0.0002345,Financials,0.0153300
+5/22/2026,\"B3 Sa-Brasil Bolsa Balcao\",0.0002220,Financials,0.0153300
+5/22/2026,\"E.Sun Financial Holding Co Ltd\",0.0002128,Financials,0.0153300
+5/22/2026,\"LPL Financial Holdings Inc\",0.0001948,Financials,0.0153300
+5/22/2026,\"BC TECHNOLOGY GROUP LTD HKD 0.0100\",0.0001362,Financials,0.0153300
+5/22/2026,\"Darling Ingredients Inc\",0.0012516,Consumer Staples,0.0043170
+5/22/2026,\"BUNGE GLOBAL SA USD NPV\",0.0011135,Consumer Staples,0.0043170
+5/22/2026,\"BIM Birlesik Magazalar AS\",0.0003380,Consumer Staples,0.0043170
+5/22/2026,\"Kimberly-Clark de Mexico SAB d\",0.0002725,Consumer Staples,0.0043170
+5/22/2026,\"Migros Ticaret A.S\",0.0002722,Consumer Staples,0.0043170
+5/22/2026,\"Tyson Foods Inc\",0.0002552,Consumer Staples,0.0043170
+5/22/2026,\"JD Health International Inc\",0.0002410,Consumer Staples,0.0043170
+5/22/2026,\"Coca-Cola HBC AG\",0.0002340,Consumer Staples,0.0043170
+5/22/2026,\"Raia Drogasil SA\",0.0002016,Consumer Staples,0.0043170
+5/22/2026,\"Sugi Holdings Co Ltd\",0.0001375,Consumer Staples,0.0043170
+5/22/2026,\"Uniti Group Inc\",0.0008995,Telecommunication Services,0.0008990
+
