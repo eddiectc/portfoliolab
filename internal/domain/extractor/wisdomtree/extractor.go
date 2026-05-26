@@ -3,8 +3,6 @@ package wisdomtree
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
@@ -125,10 +123,4 @@ func extractFromHTML(html string) (*extractor.ExtractResult, error) {
 	}, nil
 }
 
-// MockClient returns a client that always returns the given HTML.
-func MockClient(html string) *Client {
-	return &Client{
-		httpClient: http.Client{Timeout: 1 * time.Second},
-		minDelay:   0,
-	}
-}
+

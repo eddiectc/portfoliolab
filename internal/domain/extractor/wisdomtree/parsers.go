@@ -34,7 +34,8 @@ func ParseFundInfo(html string) (*extractor.FundInfo, error) {
 	}, nil
 }
 
-// ParseFundProfile extracts AUM, TER, and Inception Date from HTML table rows.
+// ParseFundProfile extracts AUM, TER, Inception Date, Family, and Legal Type from HTML table rows.
+// AnnualHoldingsTurnover is not available on WisdomTree pages and is left at zero.
 func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 	profile := &extractor.FundProfile{}
 
@@ -56,6 +57,18 @@ func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 		if t, err := parseDate(inceptionRaw); err == nil {
 			profile.InceptionDate = t
 		}
+	}
+
+	// Fund Umbrella (Family): <td class="key">Fund Umbrella</td> ... <td>...</td>
+	familyRaw, err := parseTableRawValue(html, `<td class="key">Fund Umbrella</td>`)
+	if err == nil {
+		profile.Family = strings.TrimSpace(familyRaw)
+	}
+
+	// Legal Form (Legal Type): <td class="key">Legal Form</td> ... <td>...</td>
+	legalRaw, err := parseTableRawValue(html, `<td class="key">Legal Form</td>`)
+	if err == nil {
+		profile.LegalType = strings.TrimSpace(legalRaw)
 	}
 
 	if profile.TotalNetAssets == 0 && profile.AnnualExpenseRatio == 0 && profile.InceptionDate.IsZero() {
