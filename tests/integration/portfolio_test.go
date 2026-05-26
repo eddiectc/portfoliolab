@@ -19,11 +19,14 @@ import (
 
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	// Use anonymous in-memory DB for test isolation (no shared cache)
+	// Use anonymous in-memory DB for test isolation (no shared cache).
+	// Limit to 1 connection so all queries hit the same in-memory database
+	// (each sqlite :memory: connection gets its own private database).
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
+	db.SetMaxOpenConns(1)
 
 	// Run migrations manually (goose not needed for in-memory)
 	_, err = db.Exec(`
