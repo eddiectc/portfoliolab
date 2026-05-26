@@ -9,7 +9,7 @@
 
 ---
 
-## Status: ✅ Data extraction patterns fully identified, samples saved (including country allocation, market cap, fund characteristics)
+## Status: ✅ Data extraction patterns fully identified, samples saved (including country allocation, market cap, fund characteristics, AUM, TER, inception date)
 
 ---
 
@@ -34,6 +34,10 @@ Plus one JSON object:
 | `var fundInfo<HASH>` | Fund identifier | `{'symbol':'WMGT', 'name':'WisdomTree Megatrends UCITS ETF - USD Acc'}` |
 
 The `<HASH>` suffix (e.g. `657FFD51CE524D86BA76544F895FF0FE`) is a Sitecore item ID unique to each fund page. For `fundHoldingsData`, `fundThemeData`, and `fundSectorsData`, the variable name has **no hash suffix**.
+
+**Additionally**, the raw HTML contains **server-rendered tables** with:
+- **NAV table**: NAV, Daily Change, Daily Return, Total AUM of fund, Issuer AUM (with "as of" date in header)
+- **Product Overview table**: Inception Date, TER, Exchange Ticker, Index Name (key-value rows with `class="key"` and `class="value"`)
 
 ---
 
@@ -181,6 +185,60 @@ The captured group is the date string (e.g. "22 May 2026"). Trim whitespace and 
 
 **Note**: The holdings/themes/sectors CSV data have their own dates embedded in each row (e.g. "5/11/2026", "5/8/2026") which may differ from the NAV "as of" date. Use the NAV table header date as the primary fund data timestamp. The country allocation section has a placeholder `<span class="info-component">As of 01 Jan 001</span>` in raw HTML — ignore it; use the NAV table date instead.
 
+### 10. AUM, TER, Inception Date (In Raw HTML)
+
+**All three are embedded in the raw HTML** as key-value rows in server-rendered tables — no dynamic loading required.
+
+#### Inception Date & TER — Product Overview Table
+
+**Location**: A `<table class="table table-striped-customized">` in the "Product Overview" section, before the NAV table. Each row is:
+```html
+<tr>
+    <td class="key">Inception Date</td>
+    <td class="value">05 Dec 2023</td>
+</tr>
+<tr>
+    <td class="key">TER</td>
+    <td class="value">0.50%</td>
+</tr>
+```
+
+**Extraction regex** (for each field):
+```regex
+<td class="key">\s*Inception Date\s*</td>\s*<td class="value">\s*([^<]+)\s*</td>
+<td class="key">\s*TER\s*</td>\s*<td class="value">\s*([^<]+)\s*</td>
+```
+
+**Parsing**:
+- **Inception Date**: Trim whitespace, parse as `"02 Jan 2006"` (Go reference time). E.g. `"05 Dec 2023"` → `time.Date(2023, 12, 5, 0, 0, 0, 0, time.UTC)`
+- **TER**: Trim whitespace, strip trailing `%`, parse as float (e.g. `"0.50%"` → `0.50`). Represents annual total expense ratio as a percentage.
+
+#### AUM — NAV Table
+
+**Location**: Same table as NAV (the one with the "Net Asset Value" header), below the Daily Return row:
+```html
+<tr>
+    <td>Total AUM of fund</td>
+    <td><span class="value currency positive">$60,368,055</span></td>
+</tr>
+<tr>
+    <td>Issuer AUM</td>
+    <td><span class="value currency positive">$17,226,851,369</span></td>
+</tr>
+```
+
+**Extraction regex**:
+```regex
+<td>Total AUM of fund</td>\s*<td><span class="value[^>]*">([^<]+)</span></td>
+<td>Issuer AUM</td>\s*<td><span class="value[^>]*">([^<]+)</span></td>
+```
+
+**Parsing**:
+- **Total AUM of fund**: Trim, strip `$` and commas, parse as float (e.g. `"$60,368,055"` → `60368055.00`). Represents total assets under management for this specific fund in USD.
+- **Issuer AUM**: Same pattern. Represents total AUM across all WisdomTree products (not just this fund). E.g. `"$17,226,851,369"` → `17226851369.00`.
+
+**Note**: The AUM values share the same "as of" date as the NAV (from the NAV table header, see Section 9).
+
 Saved in `wisdomtree-samples/`:
 
 | File | Size | Description |
@@ -250,6 +308,7 @@ The locale can be: `en-gb`, `pl-pl`, `fr-lu`, `da-dk`, `de-at`, etc. The data is
 | Country allocation extraction | ✅ Found via `web_fetch` article extraction — data is JS-rendered, not in raw HTML |
 | Market Capitalization extraction | ✅ Found via `web_fetch` article extraction — same dynamic loading pattern as country allocation |
 | Fund Characteristics extraction | ✅ Found via `web_fetch` article extraction — same dynamic loading pattern |
+| AUM, TER, Inception Date extraction | ✅ Found in raw HTML — server-rendered key-value table rows, same pattern as NAV |
 
 ---
 
