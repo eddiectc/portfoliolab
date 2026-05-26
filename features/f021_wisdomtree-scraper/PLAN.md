@@ -28,13 +28,13 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 
 **Description:** Add columns for source URL assignment, extractor metadata, and NAV support.
 
-- [ ] Migration 021: `ALTER TABLE symbol_mappings ADD COLUMN data_source_url TEXT DEFAULT NULL`
-- [ ] Migration 021: `ALTER TABLE symbol_details ADD COLUMN extractor_as_of_date TEXT` (provider's "as of" date, distinct from `fetched_at`)
-- [ ] Update `schema.sql` for sqlc
-- [ ] Add new sqlc queries for NAV: `GetNavHistoryBySymbol` (SELECT from market_data WHERE data_type='nav')
-- [ ] Run `sqlc generate`
-- [ ] Update `ListStaleSymbolDetails` query to include `data_source_url` column (add to SELECT)
-- [ ] Write tests (migration smoke test verifies schema applies cleanly)
+- [x] Migration 021: `ALTER TABLE symbol_mappings ADD COLUMN data_source_url TEXT DEFAULT NULL`
+- [x] Migration 021: `ALTER TABLE symbol_details ADD COLUMN extractor_as_of_date TEXT` (provider's "as of" date, distinct from `fetched_at`)
+- [x] Update `schema.sql` for sqlc
+- [x] Add new sqlc queries for NAV: `GetNavHistoryBySymbol` (SELECT from market_data WHERE data_type='nav')
+- [x] Run `sqlc generate`
+- [x] Update `ListStaleSymbolDetails` query to include `data_source_url` column (add to SELECT)
+- [x] Write tests (migration smoke test verifies schema applies cleanly)
 
 **Verification:** `goose up` runs cleanly, `sqlc generate` succeeds, new queries compile.
 
