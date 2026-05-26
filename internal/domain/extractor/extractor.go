@@ -50,11 +50,14 @@ type FundInfo struct {
 	Name   string
 }
 
-// FundProfile contains fund-level metadata (AUM, TER, inception date).
+// FundProfile contains fund-level metadata (AUM, TER, inception date, family, legal type).
 type FundProfile struct {
-	TotalNetAssets     float64
-	AnnualExpenseRatio float64
-	InceptionDate      time.Time
+	Family                 string
+	LegalType              string
+	TotalNetAssets         float64
+	AnnualExpenseRatio     float64
+	AnnualHoldingsTurnover float64
+	InceptionDate          time.Time
 }
 
 // Holding is a single security holding with weight percentage.

@@ -124,9 +124,11 @@ var fundThemeData = 'date,Weight,Security Description\n5/8/2026,0.0884090,"Grid 
 var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"Prysmian",0.0137,"Industrials",0.5\n5/11/2026,"Bloom",0.0132,"Technology",0.3';
 </script>
 <table>
-<tr><td>Total AUM of fund</td><td>€1.5 billion</td></tr>
+<tr><td>Total AUM of fund</td><td><span class="value currency positive">$1,500,000</span></td></tr>
 <tr><td class="key">TER</td><td>0.40%</td></tr>
 <tr><td class="key">Inception Date</td><td>01/06/2023</td></tr>
+<tr><td class="key">Fund Umbrella</td><td>WisdomTree Issuer ICAV</td></tr>
+<tr><td class="key">Legal Form</td><td>Irish Collective Asset-management Vehicle (ICAV)</td></tr>
 </table>
 <table>
 <tr><th>Net Asset Value</th><th>22 May 2026</th></tr>
@@ -244,5 +246,13 @@ func TestExtractFromHTML(t *testing.T) {
 		if result.Characteristics.PriceToEarnings != 69.64 {
 			t.Errorf("expected P/E 69.64, got %f", result.Characteristics.PriceToEarnings)
 		}
+	}
+
+	// FundProfile Family and LegalType
+	if result.FundProfile.Family != "WisdomTree Issuer ICAV" {
+		t.Errorf("expected family 'WisdomTree Issuer ICAV', got %q", result.FundProfile.Family)
+	}
+	if result.FundProfile.LegalType != "Irish Collective Asset-management Vehicle (ICAV)" {
+		t.Errorf("unexpected legal type: %q", result.FundProfile.LegalType)
 	}
 }
