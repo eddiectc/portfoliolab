@@ -77,35 +77,37 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 | NAV History | `var fundMarketData<HASH> = '...'` | Regex + CSV parse |
 | Themes | `var fundThemeData = '...'` | Regex + CSV parse |
 | Sectors | `var fundSectorsData = '...'` | Regex + CSV parse |
-| Country Allocation | JS-rendered (empty `<tbody>` in raw HTML) | Headless browser or article extraction |
-| Market Cap | JS-rendered (injected by JS) | Headless browser or article extraction |
-| Fund Characteristics | JS-rendered (injected by JS) | Headless browser or article extraction |
+| Country Allocation | HTML table in raw HTML (`id="country-allocation-section"`) | Regex on HTML table rows |
+| Market Cap | HTML table in raw HTML (`id="fund-facts-section"`) | Regex on HTML table rows |
+| Fund Characteristics | HTML table in raw HTML (`id="fund-facts-section"`) | Regex on HTML table rows |
 | As Of Date | Raw HTML `<th>Net Asset Value</th><th>22 May 2026</th>` | Regex on raw HTML |
 
-- [ ] Create `internal/domain/extractor/wisdomtree/` package
-- [ ] Implement HTTP client with 1-2s rate limiting between requests and error handling for non-200 responses / Cloudflare blocks
-- [ ] Implement `ParseFundInfo` — regex `var fundInfo\w+ = \{...\}`, extract symbol + name
-- [ ] Implement `ParseFundProfile` — regex on raw HTML tables: AUM (`<td>Total AUM of fund</td>`), TER (`<td class="key">TER</td>`), Inception Date (`<td class="key">Inception Date</td>`)
-- [ ] Add `InceptionDate time.Time` to `symbol.FundProfile` struct (AUM → existing `TotalNetAssets`, TER → existing `AnnualExpenseRatio`)
-- [ ] Implement `ParseHoldings` — regex `var fundHoldingsData = '...'`, CSV parse (date, Weight, Security Description), filter out cash/currency positions
-- [ ] Implement `ParseNavHistory` — regex `var fundMarketData\w+ = '...'`, CSV parse (date, fund_ticker, nav, uv10KMP, uv10KNAV)
-- [ ] Implement `ParseThemes` — regex `var fundThemeData = '...'`, CSV parse (date, Weight, Security Description)
-- [ ] Implement `ParseSectors` — regex `var fundSectorsData = '...'`, CSV parse (date, securityName, weight, Sector, wgtSector), aggregate to sector totals
-- [ ] Implement `ParseAsOfDate` — regex `<th>\s*Net Asset Value\s*</th>\s*<th>\s*([^<]+)\s*</th>` from raw HTML
-- [ ] Implement `wisdomtree.URLMatcher` — matches `*.wisdomtree.eu/*` pattern
-- [ ] Implement `wisdomtree.Extractor` struct satisfying `extractor.Extractor` interface
-- [ ] Implement orchestrator: calls all parsers, returns `ExtractResult` or error (atomic — no partial data)
-- [ ] Write unit tests for each parser (table-driven with sample CSV snippets from `samples/`)
-- [ ] Write unit test for atomic extraction (one parser fails → entire extraction fails)
-- [ ] Write unit test for empty/missing data sections → error
-- [ ] Write unit test for URL matching (wisdomtree.eu URLs match, others don't)
+- [x] Create `internal/domain/extractor/wisdomtree/` package
+- [x] Implement HTTP client with 1-2s rate limiting between requests and error handling for non-200 responses / Cloudflare blocks
+- [x] Implement `ParseFundInfo` — regex `var fundInfo\w+ = \{...\}`, extract symbol + name
+- [x] Implement `ParseFundProfile` — regex on raw HTML tables: AUM (`<td>Total AUM of fund</td>`), TER (`<td class="key">TER</td>`), Inception Date (`<td class="key">Inception Date</td>`)
+- [x] Add `InceptionDate time.Time` to `symbol.FundProfile` struct (AUM → existing `TotalNetAssets`, TER → existing `AnnualExpenseRatio`)
+- [x] Implement `ParseHoldings` — regex `var fundHoldingsData = '...'`, CSV parse (date, Weight, Security Description), filter out cash/currency positions
+- [x] Implement `ParseNavHistory` — regex `var fundMarketData\w+ = '...'`, CSV parse (date, fund_ticker, nav, uv10KMP, uv10KNAV)
+- [x] Implement `ParseThemes` — regex `var fundThemeData = '...'`, CSV parse (date, Weight, Security Description)
+- [x] Implement `ParseSectors` — regex `var fundSectorsData = '...'`, CSV parse (date, securityName, weight, Sector, wgtSector), aggregate to sector totals
+- [x] Implement `ParseAsOfDate` — regex `<th>\s*Net Asset Value\s*</th>\s*<th>\s*([^<]+)\s*</th>` from raw HTML
+- [x] Implement `wisdomtree.URLMatcher` — matches `*.wisdomtree.eu/*` pattern
+- [x] Implement `wisdomtree.Extractor` struct satisfying `extractor.Extractor` interface
+- [x] Implement orchestrator: calls all parsers, returns `ExtractResult` or error (atomic — no partial data)
+- [x] Write unit tests for each parser (table-driven with sample CSV snippets from `samples/`)
+- [x] Write unit test for atomic extraction (one parser fails → entire extraction fails)
+- [x] Write unit test for empty/missing data sections → error
+- [x] Write unit test for URL matching (wisdomtree.eu URLs match, others don't)
 
-**Phase 2 (JS-rendered data, lower priority):**
+**Phase 2 (HTML table parsing, lower priority):**
 
-- [ ] Implement `ParseCountryAllocation` — JS-rendered table, requires headless browser or article extraction
-- [ ] Implement `ParseMarketCap` — JS-rendered table, requires headless browser or article extraction
-- [ ] Implement `ParseFundCharacteristics` — JS-rendered table, requires headless browser or article extraction
-- [ ] Decide on approach: `chromedp` (headless Chrome) vs. external article extraction service vs. skip for now
+- [x] Decide on approach: **CycleTLS + HTML parsing** — confirmed working. Country allocation, market cap, and fund characteristics ARE in raw HTML as standard tables. No headless browser needed.
+- [x] Implement `ParseCountryAllocation` — regex on HTML table in `id="country-allocation-section"` (strip "N. " prefix, parse %)
+- [x] Implement `ParseMarketCap` — regex on HTML table in `id="fund-facts-section"` (total + breakdown)
+- [x] Implement `ParseFundCharacteristics` — regex on HTML table in `id="fund-facts-section"` (P/E, P/B, P/S, P/CF, div yield)
+- [x] Write unit tests for HTML table parsers (inline sample HTML in test file)
+- [x] Remove `Renderer` interface (unnecessary — all data in raw HTML)
 
 **Verification:** All parsers return correct structs from sample CSV/HTML; atomic extraction rejects partial results; implements `extractor.Extractor` interface; URL matcher works correctly.
 
@@ -259,7 +261,7 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 | Extractor "as of" date | `extractor_as_of_date TEXT` column on `symbol_details` | Distinct from `fetched_at` (when system fetched). NULL when data is from Yahoo (Yahoo has no "as of" concept). |
 | WisdomTree registration | Register at startup in `router.go` | Simpler than API endpoint; WisdomTree is the only provider in scope. Future providers registered the same way. |
 | HTML parsing approach | Regex to extract CSV from JS variables + `encoding/csv` | Data is embedded inline in `<script>` blocks as CSV strings. No external library needed. |
-| JS-rendered data (country, market cap, characteristics) | Phase 2 (lower priority) | Requires headless browser or article extraction. Core data (holdings, NAV, sectors, themes, AUM, TER, inception date) available from raw HTML. |
+| ~~JS-rendered data~~ (country, market cap, characteristics) | Phase 2 (lower priority) | ARE in raw HTML as standard tables. Previously misidentified as JS-rendered. Extractable with regex on HTML tables. |
 | Atomic extraction | Buffer all sections in memory, return error if any fails; persist only on full success | Spec requirement: "partial data is not persisted". Simpler than DB transactions for this use case. |
 | Full holdings display | No artificial limit (spec: "not limited to top 10") | Existing code limits to 10 for Yahoo data. Extractor data shows all holdings. Template handles large lists. |
 | NAV vs Price chart | Two ECharts line series on same axes, no interpolation | Spec: "displayed as-is without interpolation". Non-overlapping date ranges shown naturally. |
@@ -270,5 +272,5 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 - **WisdomTree page structure changes**: HTML/JS variable patterns are fragile. Mitigation: clear error messages, explicit logging of parse failures, symbol marked as failed (no silent degradation).
 - **Cloudflare/bot detection**: WisdomTree may block automated requests. Mitigation: rate limiting (1-2s delay), proper User-Agent, graceful error handling (symbol marked failed, existing cached data preserved).
 - **Large holdings lists (800+)**: Memory and rendering concerns. Mitigation: stream parsing where possible; web template handles large tables (existing position tables handle similar sizes).
-- **JS-rendered data (Phase 2)**: Country allocation, market cap, and fund characteristics require headless browser or article extraction. Mitigation: core data (holdings, NAV, sectors, themes, AUM, TER, inception date) works from raw HTML; Phase 2 is lower priority.
+- ~~**JS-rendered data (Phase 2)**~~: Country allocation, market cap, and fund characteristics **ARE in raw HTML** as standard tables. Previously misidentified as JS-rendered. No headless browser needed.
 - **CSV parsing edge cases**: WisdomTree CSV contains `\u0026` for `&`, quoted strings, and mixed date formats. Mitigation: unit tests against actual sample files.
