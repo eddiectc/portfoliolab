@@ -46,16 +46,16 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 
 **Description:** Create the extensible framework for registering extractors by URL pattern and dispatching to the correct extractor based on the source URL.
 
-- [ ] Create `internal/domain/extractor/` package
-- [ ] Define `Extractor` interface: `Name() string`, `Extract(ctx, url string) (*ExtractResult, error)` — receives the full source URL
-- [ ] Define `ExtractResult` struct: holds all extracted data sections (overview, holdings, nav, etc.) plus `AsOfDate time.Time`
-- [ ] Define `URLMatcher` type: `Match(url string) bool` — checks if URL belongs to this extractor
-- [ ] Define `Registry` type: `Register(Extractor)`, `FindByURL(url string) (Extractor, error)`, `Get(name string) (Extractor, error)`
-- [ ] Define `Dispatcher` type: `Dispatch(ctx, sourceURL string) (*ExtractResult, error)` — finds matching extractor by URL, returns explicit error for no match
-- [ ] Register WisdomTree at startup in `router.go` (new provider = new code)
-- [ ] Write unit tests for registry (register, find by URL, not found, get by name)
-- [ ] Write unit tests for dispatcher (dispatch to registered, error for no match, error propagated from extractor)
-- [ ] Write unit tests for URL matching (wisdomtree.eu matches, other domains don't)
+- [x] Create `internal/domain/extractor/` package
+- [x] Define `Extractor` interface: `Name() string`, `Extract(ctx, url string) (*ExtractResult, error)` — receives the full source URL
+- [x] Define `ExtractResult` struct: holds all extracted data sections (overview, holdings, nav, etc.) plus `AsOfDate time.Time`
+- [x] Define `URLMatcher` type: `Match(url string) bool` — checks if URL belongs to this extractor
+- [x] Define `Registry` type: `Register(Extractor)`, `FindByURL(url string) (Extractor, error)`, `Get(name string) (Extractor, error)`
+- [x] Define `Dispatcher` type: `Dispatch(ctx, sourceURL string) (*ExtractResult, error)` — finds matching extractor by URL, returns explicit error for no match
+- [x] Register WisdomTree at startup in `router.go` (new provider = new code)
+- [x] Write unit tests for registry (register, find by URL, not found, get by name)
+- [x] Write unit tests for dispatcher (dispatch to registered, error for no match, error propagated from extractor)
+- [x] Write unit tests for URL matching (wisdomtree.eu matches, other domains don't)
 
 **Verification:** Registry finds extractors by URL; dispatcher routes correctly; no match returns explicit error.
 
