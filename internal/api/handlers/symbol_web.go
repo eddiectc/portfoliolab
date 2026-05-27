@@ -32,11 +32,11 @@ type symbolMappingFormPageData struct {
 // newSymbolMappingFormPageData creates a symbolMappingFormPageData with common defaults.
 func newSymbolMappingFormPageData(pd web.PageData, action, submitText, cancelHref string) *symbolMappingFormPageData {
 	return &symbolMappingFormPageData{
-		PageData:       pd,
-		BrokerSymbols:  []symbolmapping.BrokerSymbolRequest{},
-		Action:         action,
-		SubmitText:     submitText,
-		CancelHref:     cancelHref,
+		PageData:      pd,
+		BrokerSymbols: []symbolmapping.BrokerSymbolRequest{},
+		Action:        action,
+		SubmitText:    submitText,
+		CancelHref:    cancelHref,
 	}
 }
 
