@@ -707,6 +707,12 @@ func TestDetailsHandleDetailsPage_ExtractorData_FullSections(t *testing.T) {
 			t.Errorf("page missing %s: %q", label, text)
 		}
 	}
+	checkNotContains := func(label, text string) {
+		t.Helper()
+		if strings.Contains(body, text) {
+			t.Errorf("page should not contain %s: %q", label, text)
+		}
+	}
 
 	// Holdings header always says "Top 10 Holdings" (expandable)
 	checkContains("holdings header", "Top 10 Holdings")
@@ -728,6 +734,10 @@ func TestDetailsHandleDetailsPage_ExtractorData_FullSections(t *testing.T) {
 	checkContains("theme header", "Theme Breakdown")
 	checkContains("theme 1", "Large Cap")
 	checkContains("theme 2", "Developed Markets")
+
+	// Country Allocation (renamed from Geographic Allocation for extractor data)
+	checkContains("country allocation header", "Country Allocation")
+	checkNotContains("geographic allocation header", "Geographic Allocation")
 
 	// As of date
 	checkContains("as of date", "2026-05-22")
