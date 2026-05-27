@@ -753,6 +753,94 @@ func TestService_Update_IsBenchmarkNil_NoChange(t *testing.T) {
 	}
 }
 
+func TestService_Update_DataSourceURL(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	repo.mappings[1] = &SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    "",
+	}
+	repo.byInternal["WMGT"] = 1
+
+	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
+	sm, err := svc.Update(context.Background(), 1, UpdateRequest{DataSourceURL: &url})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.DataSourceURL != url {
+		t.Errorf("expected data_source_url %q, got %q", url, sm.DataSourceURL)
+	}
+}
+
+func TestService_Update_DataSourceURL_Clear(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	repo.mappings[1] = &SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
+	}
+	repo.byInternal["WMGT"] = 1
+
+	empty := ""
+	sm, err := svc.Update(context.Background(), 1, UpdateRequest{DataSourceURL: &empty})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.DataSourceURL != "" {
+		t.Errorf("expected empty data_source_url, got %q", sm.DataSourceURL)
+	}
+}
+
+func TestService_Update_DataSourceURL_NoChange(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	originalTime := time.Now()
+	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
+	repo.mappings[1] = &SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    url,
+		UpdatedAt:        originalTime,
+	}
+	repo.byInternal["WMGT"] = 1
+
+	// Send same URL — should not trigger update
+	sm, err := svc.Update(context.Background(), 1, UpdateRequest{DataSourceURL: &url})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.UpdatedAt != originalTime {
+		t.Errorf("expected unchanged updated_at when URL is the same")
+	}
+}
+
+func TestService_Update_DataSourceURL_NilNoChange(t *testing.T) {
+	svc, repo := newTestService(t)
+
+	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
+	repo.mappings[1] = &SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    url,
+	}
+	repo.byInternal["WMGT"] = 1
+
+	// Send empty UpdateRequest (DataSourceURL is nil) — URL should stay unchanged
+	sm, err := svc.Update(context.Background(), 1, UpdateRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.DataSourceURL != url {
+		t.Errorf("expected data_source_url to remain %q, got %q", url, sm.DataSourceURL)
+	}
+}
+
 // --- Delete Tests ---
 
 func TestService_Delete_Unused(t *testing.T) {

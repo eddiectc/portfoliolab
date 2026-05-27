@@ -296,5 +296,26 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 		}
 	}
 
+	// Market cap breakdown.
+	if result.MarketCap != nil {
+		details.MarketCapBreakdown = &symbol.MarketCapBreakdown{
+			Total: result.MarketCap.Total,
+			Large: result.MarketCap.Large,
+			Mid:   result.MarketCap.Mid,
+			Small: result.MarketCap.Small,
+		}
+	}
+
+	// Themes.
+	if len(result.Themes) > 0 {
+		details.Themes = make([]symbol.ThemeBreakdown, len(result.Themes))
+		for i, th := range result.Themes {
+			details.Themes[i] = symbol.ThemeBreakdown{
+				Name:    th.Name,
+				Percent: th.Percent,
+			}
+		}
+	}
+
 	return details
 }

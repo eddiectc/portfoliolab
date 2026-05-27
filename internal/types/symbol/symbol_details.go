@@ -22,6 +22,8 @@ type SymbolDetails struct {
 	FundProfile          *FundProfile
 	EquityValuation      *EquityValuation
 	GeographicAllocations []GeographicAllocation
+	MarketCapBreakdown   *MarketCapBreakdown
+	Themes               []ThemeBreakdown
 
 	// Metadata
 	ExtractorAsOfDate time.Time // provider's "as of" date; zero when from Yahoo
@@ -73,6 +75,20 @@ type EquityValuation struct {
 type GeographicAllocation struct {
 	Country string
 	Percent float64 // 0-100 percentage, e.g. 45.2 = 45.2% (not 0-1 fraction)
+}
+
+// MarketCapBreakdown contains market capitalization distribution.
+type MarketCapBreakdown struct {
+	Total float64 // 0-100 percentage
+	Large float64 // 0-100 percentage
+	Mid   float64 // 0-100 percentage
+	Small float64 // 0-100 percentage
+}
+
+// ThemeBreakdown represents a thematic allocation entry.
+type ThemeBreakdown struct {
+	Name    string
+	Percent float64 // 0-100 percentage
 }
 
 // StaleSymbol represents a symbol whose details need refreshing.

@@ -11,7 +11,7 @@ import (
 )
 
 const getSymbolDetailsByInternalSymbol = `-- name: GetSymbolDetailsByInternalSymbol :one
-SELECT id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, extractor_as_of_date, fetched_at, created_at, updated_at FROM symbol_details WHERE internal_symbol = ?
+SELECT id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, market_cap_breakdown, themes, extractor_as_of_date, fetched_at, created_at, updated_at FROM symbol_details WHERE internal_symbol = ?
 `
 
 func (q *Queries) GetSymbolDetailsByInternalSymbol(ctx context.Context, db DBTX, internalSymbol string) (SymbolDetail, error) {
@@ -32,6 +32,8 @@ func (q *Queries) GetSymbolDetailsByInternalSymbol(ctx context.Context, db DBTX,
 		&i.FundProfile,
 		&i.EquityValuation,
 		&i.GeographicAllocations,
+		&i.MarketCapBreakdown,
+		&i.Themes,
 		&i.ExtractorAsOfDate,
 		&i.FetchedAt,
 		&i.CreatedAt,
@@ -44,8 +46,8 @@ const insertSymbolDetails = `-- name: InsertSymbolDetails :one
 INSERT INTO symbol_details (
     internal_symbol, short_name, long_name, exchange, currency, quote_type,
     sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation,
-    geographic_allocations, extractor_as_of_date, fetched_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    geographic_allocations, market_cap_breakdown, themes, extractor_as_of_date, fetched_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(internal_symbol) DO UPDATE SET
     short_name = excluded.short_name,
     long_name = excluded.long_name,
@@ -59,10 +61,12 @@ ON CONFLICT(internal_symbol) DO UPDATE SET
     fund_profile = excluded.fund_profile,
     equity_valuation = excluded.equity_valuation,
     geographic_allocations = excluded.geographic_allocations,
+    market_cap_breakdown = excluded.market_cap_breakdown,
+    themes = excluded.themes,
     extractor_as_of_date = excluded.extractor_as_of_date,
     fetched_at = excluded.fetched_at,
     updated_at = excluded.updated_at
-RETURNING id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, extractor_as_of_date, fetched_at, created_at, updated_at
+RETURNING id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, market_cap_breakdown, themes, extractor_as_of_date, fetched_at, created_at, updated_at
 `
 
 type InsertSymbolDetailsParams struct {
@@ -79,6 +83,8 @@ type InsertSymbolDetailsParams struct {
 	FundProfile           sql.NullString `db:"fund_profile"`
 	EquityValuation       sql.NullString `db:"equity_valuation"`
 	GeographicAllocations sql.NullString `db:"geographic_allocations"`
+	MarketCapBreakdown    sql.NullString `db:"market_cap_breakdown"`
+	Themes                sql.NullString `db:"themes"`
 	ExtractorAsOfDate     sql.NullString `db:"extractor_as_of_date"`
 	FetchedAt             string         `db:"fetched_at"`
 	UpdatedAt             string         `db:"updated_at"`
@@ -99,6 +105,8 @@ func (q *Queries) InsertSymbolDetails(ctx context.Context, db DBTX, arg InsertSy
 		arg.FundProfile,
 		arg.EquityValuation,
 		arg.GeographicAllocations,
+		arg.MarketCapBreakdown,
+		arg.Themes,
 		arg.ExtractorAsOfDate,
 		arg.FetchedAt,
 		arg.UpdatedAt,
@@ -119,6 +127,8 @@ func (q *Queries) InsertSymbolDetails(ctx context.Context, db DBTX, arg InsertSy
 		&i.FundProfile,
 		&i.EquityValuation,
 		&i.GeographicAllocations,
+		&i.MarketCapBreakdown,
+		&i.Themes,
 		&i.ExtractorAsOfDate,
 		&i.FetchedAt,
 		&i.CreatedAt,

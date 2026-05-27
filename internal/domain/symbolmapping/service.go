@@ -224,6 +224,14 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Sym
 		changed = true
 	}
 
+	if req.DataSourceURL != nil {
+		newURL := strings.TrimSpace(*req.DataSourceURL)
+		if sm.DataSourceURL != newURL {
+			sm.DataSourceURL = newURL
+			changed = true
+		}
+	}
+
 	if changed {
 		sm.UpdatedAt = time.Now()
 	}

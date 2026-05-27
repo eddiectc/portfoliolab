@@ -173,6 +173,7 @@ func (r *SymbolMappingRepository) Update(ctx context.Context, sm *symbolmapping.
 		InternalSymbol:   sm.InternalSymbol,
 		MarketDataSymbol: sm.MarketDataSymbol,
 		IsBenchmark:      sm.IsBenchmark,
+		DataSourceUrl:    toSQLNullString(sm.DataSourceURL),
 		UpdatedAt:        sm.UpdatedAt.Format(time.RFC3339),
 		ID:               sm.ID,
 	})

@@ -168,16 +168,16 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 
 **Description:** Expose source URL assignment in the symbol CRUD API and include extractor-specific fields in responses.
 
-- [ ] Update `symbolmapping.UpdateRequest` to include `DataSourceURL *string`
-- [ ] Update `symbolmapping.SymbolMapping` type to include `DataSourceURL string`
-- [ ] Update `symbolmapping.Service` to handle source URL assignment on Update
-- [ ] Update `SymbolMappingRepository` SQL queries to read/write `data_source_url`
-- [ ] Update `SymbolGetResponse` to include `data_source_url` field
-- [ ] Update `SymbolDetailsResponse` to include extractor-specific fields: `ExtractorAsOfDate`, `MarketCapBreakdown`, `ThemeBreakdown`, `FullHoldings` (renamed from TopHoldings when from extractor)
-- [ ] Update `HandleUpdate` to persist source URL assignment
-- [ ] Update `toSymbolGetResponse` / `toSymbolDetailsResponse` to include new fields
-- [ ] Write unit tests: PATCH sets data_source_url, GET returns it
-- [ ] Write unit tests: SymbolDetailsResponse includes extractor fields when present
+- [x] Update `symbolmapping.UpdateRequest` to include `DataSourceURL *string`
+- [x] Update `symbolmapping.SymbolMapping` type to include `DataSourceURL string` — already present from Task 1
+- [x] Update `symbolmapping.Service` to handle source URL assignment on Update
+- [x] Update `SymbolMappingRepository` SQL queries to read/write `data_source_url` — updated `UpdateSymbolMapping` SQL to include `data_source_url`, regenerated sqlc
+- [x] Update `SymbolGetResponse` to include `data_source_url` field
+- [x] Update `SymbolDetailsResponse` to include extractor-specific fields: `ExtractorAsOfDate`, `MarketCapBreakdown`, `ThemeBreakdown`
+- [x] Update `HandleUpdate` to persist source URL assignment — handled by service layer Update
+- [x] Update `toSymbolGetResponse` / `toSymbolDetailsResponse` to include new fields
+- [x] Write unit tests: PATCH sets data_source_url, GET returns it
+- [x] Write unit tests: SymbolDetailsResponse includes extractor fields when present
 
 **Verification:** Source URL can be set via PATCH; returned in GET; extractor fields included in response.
 

@@ -197,6 +197,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 			fund_profile          TEXT,
 			equity_valuation      TEXT,
 			geographic_allocations TEXT,
+			market_cap_breakdown  TEXT,
+			themes                TEXT,
 			extractor_as_of_date  TEXT,
 			fetched_at            TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at            TEXT    NOT NULL DEFAULT (datetime('now')),

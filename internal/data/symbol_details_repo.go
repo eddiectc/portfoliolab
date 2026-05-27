@@ -76,6 +76,16 @@ func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*symb
 			return nil, fmt.Errorf("parse geographic_allocations for %s: %w", sd.InternalSymbol, err)
 		}
 	}
+	if sd.MarketCapBreakdown.Valid {
+		if err := json.Unmarshal([]byte(sd.MarketCapBreakdown.String), &details.MarketCapBreakdown); err != nil {
+			return nil, fmt.Errorf("parse market_cap_breakdown for %s: %w", sd.InternalSymbol, err)
+		}
+	}
+	if sd.Themes.Valid {
+		if err := json.Unmarshal([]byte(sd.Themes.String), &details.Themes); err != nil {
+			return nil, fmt.Errorf("parse themes for %s: %w", sd.InternalSymbol, err)
+		}
+	}
 	if sd.ExtractorAsOfDate.Valid {
 		asOf, err := parseTime(sd.ExtractorAsOfDate.String)
 		if err != nil {
@@ -147,6 +157,8 @@ func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.Sy
 		FundProfile:           toSQLNullJSON(details.FundProfile),
 		EquityValuation:       toSQLNullJSON(details.EquityValuation),
 				GeographicAllocations: toSQLNullJSON(details.GeographicAllocations),
+		MarketCapBreakdown:    toSQLNullJSON(details.MarketCapBreakdown),
+		Themes:                toSQLNullJSON(details.Themes),
 		ExtractorAsOfDate:     toSQLNullTime(details.ExtractorAsOfDate),
 		FetchedAt:             details.FetchedAt.Format(time.RFC3339),
 		UpdatedAt:          now.Format(time.RFC3339),
