@@ -50,7 +50,7 @@ func toMarketDatum(m queries.MarketDatum) (*market.MarketData, error) {
 	}, nil
 }
 
-// GetLatest retrieves the latest (current, date='') market data entry for a
+// GetLatest retrieves the latest (current, date=”) market data entry for a
 // symbol, ordered by fetched_at DESC.
 func (r *MarketDataRepository) GetLatest(ctx context.Context, symbol string) (*market.MarketData, error) {
 	m, err := r.q.GetLatestMarketData(ctx, r.db, symbol)
@@ -116,7 +116,7 @@ func (r *MarketDataRepository) Upsert(ctx context.Context, m *market.MarketData)
 	return nil
 }
 
-// GetCurrentFxRate retrieves the current (date='') FX rate.
+// GetCurrentFxRate retrieves the current (date=”) FX rate.
 // baseCurrency is the source currency, quoteCurrency is the target.
 // Returns nil if no rate found.
 func (r *MarketDataRepository) GetCurrentFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error) {
@@ -131,7 +131,7 @@ func (r *MarketDataRepository) GetCurrentFxRate(ctx context.Context, baseCurrenc
 	return toMarketDatum(m)
 }
 
-// DeleteStaleMarketData removes current (date='') entries for a symbol that
+// DeleteStaleMarketData removes current (date=”) entries for a symbol that
 // are older than the given fetched_at threshold.
 func (r *MarketDataRepository) DeleteStaleMarketData(ctx context.Context, symbol string, olderThan time.Time) (int64, error) {
 	return r.q.DeleteStaleMarketData(ctx, r.db, queries.DeleteStaleMarketDataParams{
@@ -173,7 +173,7 @@ func (r *MarketDataRepository) GetHistoricalPricesBySymbol(ctx context.Context, 
 	return prices, nil
 }
 
-// GetLatestQuotesBatch reads the latest (date='') quote for multiple symbols.
+// GetLatestQuotesBatch reads the latest (date=”) quote for multiple symbols.
 // Symbols with no cached quote are omitted from the result. This loops over
 // the single-symbol sqlc query because sqlc doesn't support dynamic IN clauses
 // for SQLite.
@@ -195,7 +195,7 @@ func (r *MarketDataRepository) GetLatestQuotesBatch(ctx context.Context, symbols
 }
 
 // GetLatestPriceDatePerSymbol reads MAX(date) for stock data per symbol,
-// excluding current (date='') entries. Symbols with no cached history are
+// excluding current (date=”) entries. Symbols with no cached history are
 // omitted from the result.
 func (r *MarketDataRepository) GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time {
 	result := make(map[string]*time.Time)
@@ -251,4 +251,33 @@ func (r *MarketDataRepository) UpsertHistoricalPrices(ctx context.Context, symbo
 		}
 	}
 	return nil
+}
+
+// GetNavHistoryBySymbol reads cached NAV history for one symbol, sorted by
+// date ASC. Excludes current (date=”) entries. Returns empty slice if no
+// data found.
+func (r *MarketDataRepository) GetNavHistoryBySymbol(ctx context.Context, symbol string) ([]market.HistoricalPrice, error) {
+	rows, err := r.q.GetNavHistoryBySymbol(ctx, r.db, symbol)
+	if err != nil {
+		return nil, fmt.Errorf("get NAV history for %s: %w", symbol, err)
+	}
+
+	var prices []market.HistoricalPrice
+	for _, row := range rows {
+		date, err := time.Parse("2006-01-02", row.Date)
+		if err != nil {
+			return nil, fmt.Errorf("parse date %q for %s: %w", row.Date, symbol, err)
+		}
+		price, err := decimal.Parse(row.Price)
+		if err != nil {
+			return nil, fmt.Errorf("parse NAV for %s on %s: %w", symbol, row.Date, err)
+		}
+		prices = append(prices, market.HistoricalPrice{
+			Date:     date,
+			Close:    price,
+			Currency: row.Currency,
+		})
+	}
+
+	return prices, nil
 }

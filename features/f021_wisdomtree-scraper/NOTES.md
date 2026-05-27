@@ -28,6 +28,15 @@
 - 2026-05-26: **`extractor_as_of_date` pipeline gap fixed** — Implementation review found that while the SQL migration and sqlc layer included `extractor_as_of_date`, the application pipeline was incomplete: `symbol.SymbolDetails` struct lacked the field, `extractResultToSymbolDetails` didn't set it, and the repo's `Upsert`/`toSymbolDetail` omitted it. Fixed: added `ExtractorAsOfDate time.Time` to `symbol.SymbolDetails`, set it from `result.AsOfDate` in service layer, added `toSQLNullTime` helper, updated `Upsert` to write and `toSymbolDetail` to read. Added round-trip tests in both service and repo layers.
 - 2026-05-26: **Table-driven tests** — `GetDataSourceURL` and `SetDataSourceURL` in the `symbols` service (Task 4) use table-driven format. The `symbolmapping` service `Update_DataSourceURL` tests were converted from 4 individual functions to a single table-driven test (`TestService_Update_DataSourceURL` with subtests). `SetDataSourceURL` in `symbolmapping` service added as table-driven test (`TestService_SetDataSourceURL`). Routing tests kept as individual functions since they exercise fundamentally different code paths with distinct setups and assertions.
 - 2026-05-26: **Integration test added** — `TestSymbolDetails_ExtractorDataSourceURL_RoundTrip` verifies the full DB round-trip: symbol mapping with `data_source_url`, symbol details with `extractor_as_of_date`, stale query includes both fields, and cross-layer consistency.
+- 2026-05-27: **Task 8: `navHistorySource` interface** — The web handler needs both `GetNavHistoryBySymbol` and `GetHistoricalPricesBySymbol` from the `MarketDataRepository`. Created a minimal `navHistorySource` interface on the handler instead of depending on the full repository type. Added `GetNavHistoryBySymbol` wrapper to `MarketDataRepository` (the sqlc query existed but had no Go wrapper).
+- 2026-05-27: **Task 8: `EquityValuation.DividendYield`** — The `EquityValuation` struct was missing `DividendYield` which is extracted by the WisdomTree characteristics parser. Added `DividendYield float64` field and wired it through the service layer conversion.
+- 2026-05-27: **Task 8: `FundProfile.InceptionDate`** — The `displayFundProfile` struct was missing `InceptionDate` which is extracted by WisdomTree. Added `InceptionDate string` to display struct and conditional rendering in `toDisplayDetails`.
+- 2026-05-27: **Task 8: Holdings display logic** — Always shows "Top 10 Holdings" header. When more than 10 holdings exist, extra rows are hidden and a "Show all N" button toggles them visible. No extractor vs Yahoo detection needed — consistent UX regardless of data source. All holdings are passed to the template; limiting is a presentation concern only.
+- 2026-05-27: **Task 8: NAV vs Price chart** — Uses ECharts with two line series (NAV and Price). Data serialized as JSON with separate date/value arrays per series. Chart shows non-overlapping date ranges naturally. No interpolation (`smooth: false`).
+- 2026-05-27: **Task 8: `formatFloat` helper** — Formats float64 values with 2 decimal places, showing "—" for zero values. Used for equity valuation display.
+- 2026-05-27: **Task 8: `decimal.Float64()` returns `(float64, bool)`** — Not `(float64, error)`. Used bool check instead of error check in chart serialization.
+- 2026-05-27: **Task 8: Router update** — `NewSymbolDetailsWebHandler` now takes `navHistorySource` (4th param). Updated router.go to pass `marketDataRepo`.
+- 2026-05-27: **Implementation review fixes** — `symbol.go` had gofmt issue (fixed). API.md updated with `data_source_url`, `extractor_as_of_date`, `market_cap_breakdown`, `theme_breakdown` documentation. Added `SetDataSourceURL` table-driven tests to `symbolmapping/service_test.go`. Converted `Update_DataSourceURL` tests from 4 individual functions to table-driven format.
 
 ## Deviations from Plan
 - Task 1: `InsertSymbolDetails` SQL query was missing `extractor_as_of_date` in INSERT columns and ON CONFLICT UPDATE. Fixed during implementation review (add column to write path alongside the read path that was already updated).
@@ -42,8 +51,6 @@
 
 ## Future Improvements
 - None yet.
-
-- 2026-05-27: **Implementation review fixes** — `symbol.go` had gofmt issue (fixed). API.md updated with `data_source_url`, `extractor_as_of_date`, `market_cap_breakdown`, `theme_breakdown` documentation. Added `SetDataSourceURL` table-driven tests to `symbolmapping/service_test.go`. Converted `Update_DataSourceURL` tests from 4 individual functions to table-driven format.
 
 ## Known Issues
 - None.

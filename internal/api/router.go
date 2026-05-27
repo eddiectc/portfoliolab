@@ -200,7 +200,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		symbolWebHandler.RegisterRoutes(r)
 
 		// Symbol details web pages
-		symbolDetailsWebHandler := handlers.NewSymbolDetailsWebHandler(symbolMappingSvc, symbolDetailsSvc, yahooFetcher, renderer)
+		symbolDetailsWebHandler := handlers.NewSymbolDetailsWebHandler(symbolMappingSvc, symbolDetailsSvc, yahooFetcher, marketDataRepo, renderer)
 		symbolDetailsWebHandler.RegisterRoutes(r)
 
 		// Transaction web pages
