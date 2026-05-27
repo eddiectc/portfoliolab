@@ -54,5 +54,14 @@
 ## Future Improvements
 - None yet.
 
+## Task 9 Completion (2026-05-27)
+- Cross-layer data audit completed. All 5 price-related SQL queries correctly exclude `data_type = 'nav'`:
+  - `GetHistoricalPricesBySymbolAndRange`: filters `IN ('stock', 'fx')` ✅
+  - `GetLatestQuote`: filters `= 'stock'` ✅
+  - `GetLatestPriceDatePerSymbol`: filters `= 'stock'` ✅
+  - `UpsertHistoricalPrices`: accepts arbitrary `dataType` parameter, works with 'nav' ✅
+  - `GetDistinctCachedSymbols`: no data_type filter (returns all types, including NAV) ✅
+- Integration test `TestNAV_DataTypeIsolation` added at `tests/integration/nav_data_type_test.go` with 7 subtests covering all audit items end-to-end.
+
 ## Known Issues
 - None.
