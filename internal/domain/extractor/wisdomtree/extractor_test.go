@@ -2,6 +2,8 @@ package wisdomtree
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,10 +35,19 @@ func TestExtractor_Extract(t *testing.T) {
 	defer server.Close()
 
 	e := NewExtractor()
-	e.client = &Client{
-		httpClient: *server.Client(),
-		minDelay:   0,
-	}
+	e.client = &Client{minDelay: 0}
+	e.client.SetFetchFunc(func(url string) (string, error) {
+		resp, err := server.Client().Get(url)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		return string(body), nil
+	})
 
 	result, err := e.Extract(context.Background(), server.URL+"/etfs/wmgt")
 	if err != nil {
@@ -79,10 +90,19 @@ func TestExtractor_Extract_HTTPError(t *testing.T) {
 	defer server.Close()
 
 	e := NewExtractor()
-	e.client = &Client{
-		httpClient: *server.Client(),
-		minDelay:   0,
-	}
+	e.client = &Client{minDelay: 0}
+	e.client.SetFetchFunc(func(url string) (string, error) {
+		resp, err := server.Client().Get(url)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		return string(body), nil
+	})
 
 	_, err := e.Extract(context.Background(), server.URL+"/etfs/wmgt")
 	if err == nil {
@@ -103,10 +123,19 @@ func TestExtractor_Extract_Atomic(t *testing.T) {
 	defer server.Close()
 
 	e := NewExtractor()
-	e.client = &Client{
-		httpClient: *server.Client(),
-		minDelay:   0,
-	}
+	e.client = &Client{minDelay: 0}
+	e.client.SetFetchFunc(func(url string) (string, error) {
+		resp, err := server.Client().Get(url)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		return string(body), nil
+	})
 
 	_, err := e.Extract(context.Background(), server.URL+"/etfs/wmgt")
 	if err == nil {

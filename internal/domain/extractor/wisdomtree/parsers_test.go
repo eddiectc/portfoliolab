@@ -124,6 +124,7 @@ func TestParseNavHistory(t *testing.T) {
 		name    string
 		html    string
 		wantLen int
+		wantNil bool
 		wantErr bool
 	}{
 		{
@@ -139,7 +140,7 @@ func TestParseNavHistory(t *testing.T) {
 		{
 			name:    "missing nav data",
 			html:    `<script>var other = 'data'</script>`,
-			wantErr: true,
+			wantNil: true, // optional section — nil, nil when not found
 		},
 		{
 			name: "nav with hash suffix",
@@ -154,6 +155,15 @@ func TestParseNavHistory(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if tt.wantNil {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if got != nil {
+					t.Errorf("expected nil result, got %d items", len(got))
 				}
 				return
 			}
@@ -172,6 +182,7 @@ func TestParseThemes(t *testing.T) {
 		name    string
 		html    string
 		wantLen int
+		wantNil bool
 		wantErr bool
 	}{
 		{
@@ -182,7 +193,7 @@ func TestParseThemes(t *testing.T) {
 		{
 			name:    "missing theme data",
 			html:    `<script>var other = 'data'</script>`,
-			wantErr: true,
+			wantNil: true,
 		},
 		{
 			name: "single theme",
@@ -200,6 +211,15 @@ func TestParseThemes(t *testing.T) {
 				}
 				return
 			}
+			if tt.wantNil {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if got != nil {
+					t.Errorf("expected nil result, got %d items", len(got))
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -212,20 +232,26 @@ func TestParseThemes(t *testing.T) {
 
 func TestParseSectors(t *testing.T) {
 	tests := []struct {
-		name    string
-		html    string
-		wantLen int
-		wantErr bool
+		name       string
+		html       string
+		wantLen    int
+		wantValues map[string]float64 // sector name -> expected percent
+		wantNil    bool
+		wantErr    bool
 	}{
 		{
-			name: "basic sectors with aggregation",
-			html: `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"Technology",0.5\n5/11/2026,"B",0.02,"Technology",0.3\n5/11/2026,"C",0.01,"Healthcare",1.2'`,
-			wantLen: 2, // Technology aggregated, Healthcare separate
+			name: "basic sectors — wgtSector repeated, take first",
+			html: `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"Technology",0.05\n5/11/2026,"B",0.02,"Technology",0.05\n5/11/2026,"C",0.01,"Healthcare",0.12'`,
+			wantLen: 2,
+			wantValues: map[string]float64{
+				"Technology": 5.0,   // 0.05 * 100
+				"Healthcare": 12.0, // 0.12 * 100
+			},
 		},
 		{
 			name:    "missing sectors data",
 			html:    `<script>var other = 'data'</script>`,
-			wantErr: true,
+			wantNil: true,
 		},
 		{
 			name: "empty sector names skipped",
@@ -243,11 +269,33 @@ func TestParseSectors(t *testing.T) {
 				}
 				return
 			}
+			if tt.wantNil {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if got != nil {
+					t.Errorf("expected nil result, got %d items", len(got))
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if len(got) != tt.wantLen {
 				t.Errorf("got %d sectors, want %d", len(got), tt.wantLen)
+			}
+			if tt.wantValues != nil {
+				gotMap := make(map[string]float64)
+				for _, s := range got {
+					gotMap[s.Sector] = s.Percent
+				}
+				for sector, wantPercent := range tt.wantValues {
+					if gotPercent, ok := gotMap[sector]; !ok {
+						t.Errorf("missing sector %q", sector)
+					} else if gotPercent != wantPercent {
+						t.Errorf("%s: got %.2f%%, want %.2f%%", sector, gotPercent, wantPercent)
+					}
+				}
 			}
 		})
 	}
@@ -304,6 +352,7 @@ func TestParseFundProfile(t *testing.T) {
 		wantTER       float64
 		wantFamily    string
 		wantLegalType string
+		wantNil       bool
 		wantErr       bool
 	}{
 		{
@@ -343,7 +392,7 @@ func TestParseFundProfile(t *testing.T) {
 		{
 			name:    "no profile data",
 			html:    `<table><tr><td>other</td><td>data</td></tr></table>`,
-			wantErr: true,
+			wantNil: true,
 		},
 	}
 
@@ -353,6 +402,15 @@ func TestParseFundProfile(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if tt.wantNil {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if got != nil {
+					t.Error("expected nil result")
 				}
 				return
 			}
@@ -380,6 +438,7 @@ func TestParseCountryAllocation(t *testing.T) {
 		name    string
 		html    string
 		wantLen int
+		wantNil bool
 		wantErr bool
 	}{
 		{
@@ -397,12 +456,12 @@ func TestParseCountryAllocation(t *testing.T) {
 		{
 			name:    "missing section",
 			html:    `<section id="other-section"></section>`,
-			wantErr: true,
+			wantNil: true,
 		},
 		{
 			name:    "empty section",
 			html:    `<section id="country-allocation-section"></section>`,
-			wantErr: true,
+			wantNil: true,
 		},
 	}
 
@@ -412,6 +471,15 @@ func TestParseCountryAllocation(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if tt.wantNil {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if got != nil {
+					t.Errorf("expected nil result, got %d items", len(got))
 				}
 				return
 			}
@@ -430,6 +498,7 @@ func TestParseMarketCap(t *testing.T) {
 		name      string
 		html      string
 		wantTotal float64
+		wantNil   bool
 		wantErr   bool
 	}{
 		{
@@ -445,7 +514,7 @@ func TestParseMarketCap(t *testing.T) {
 		{
 			name:    "missing data",
 			html:    `<section id="fund-facts-section">nothing here</section>`,
-			wantErr: true,
+			wantNil: true,
 		},
 	}
 
@@ -455,6 +524,15 @@ func TestParseMarketCap(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if tt.wantNil {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if got != nil {
+					t.Error("expected nil result")
 				}
 				return
 			}

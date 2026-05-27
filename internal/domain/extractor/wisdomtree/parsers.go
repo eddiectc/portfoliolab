@@ -72,7 +72,7 @@ func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 	}
 
 	if profile.TotalNetAssets == 0 && profile.AnnualExpenseRatio == 0 && profile.InceptionDate.IsZero() {
-		return nil, fmt.Errorf("fund profile data not found")
+		return nil, nil // optional section — not present on all pages
 	}
 
 	return profile, nil
@@ -133,7 +133,7 @@ func ParseNavHistory(html string) ([]extractor.NavPoint, error) {
 	re := regexp.MustCompile(`var\s+fundMarketData\w+\s*=\s*'((?:[^'\\]|\\.)*)'`)
 	match := re.FindStringSubmatch(html)
 	if match == nil || len(match) < 2 {
-		return nil, fmt.Errorf("fund market data not found")
+		return nil, nil // optional section — not present on all pages
 	}
 
 	csvData := unescapeJSString(match[1])
@@ -176,11 +176,12 @@ func ParseNavHistory(html string) ([]extractor.NavPoint, error) {
 
 // ParseThemes extracts themes from `var fundThemeData = '...'`.
 // CSV format: date,Weight,Security Description
+// Returns nil, nil if the section is not present on the page.
 func ParseThemes(html string) ([]extractor.Theme, error) {
 	re := regexp.MustCompile(`var\s+fundThemeData\s*=\s*'((?:[^'\\]|\\.)*)'`)
 	match := re.FindStringSubmatch(html)
 	if match == nil || len(match) < 2 {
-		return nil, fmt.Errorf("fund theme data not found")
+		return nil, nil // optional section — not present on all pages
 	}
 
 	csvData := unescapeJSString(match[1])
@@ -220,11 +221,12 @@ func ParseThemes(html string) ([]extractor.Theme, error) {
 // ParseSectors extracts sectors from `var fundSectorsData = '...'`.
 // CSV format: date,securityName,weight,Sector,wgtSector
 // Aggregates to sector totals using the wgtSector column.
+// Returns nil, nil if the section is not present on the page.
 func ParseSectors(html string) ([]extractor.SectorWeighting, error) {
 	re := regexp.MustCompile(`var\s+fundSectorsData\s*=\s*'((?:[^'\\]|\\.)*)'`)
 	match := re.FindStringSubmatch(html)
 	if match == nil || len(match) < 2 {
-		return nil, fmt.Errorf("fund sectors data not found")
+		return nil, nil // optional section — not present on all pages
 	}
 
 	csvData := unescapeJSString(match[1])
@@ -236,7 +238,10 @@ func ParseSectors(html string) ([]extractor.SectorWeighting, error) {
 		return nil, fmt.Errorf("parse sectors CSV: %w", err)
 	}
 
-	// Aggregate by sector
+	// Aggregate by sector.
+	// wgtSector (column 4) is the sector total weight repeated for each security
+	// in that sector. Take unique (Sector, wgtSector) pairs — do NOT sum.
+	// wgtSector is a fraction (e.g. 0.3685 = 36.85%), convert to percentage.
 	sectorMap := make(map[string]float64)
 	for i, record := range records {
 		if i == 0 {
@@ -257,8 +262,11 @@ func ParseSectors(html string) ([]extractor.SectorWeighting, error) {
 			continue
 		}
 
-		// Weight is already a percentage in sectors data (based on sample)
-		sectorMap[sector] += weight
+		// Only set if not already present (take first occurrence; all rows
+		// in the same sector have the same wgtSector value)
+		if _, exists := sectorMap[sector]; !exists {
+			sectorMap[sector] = weight * 100 // fraction to percentage
+		}
 	}
 
 	var sectors []extractor.SectorWeighting
@@ -276,13 +284,14 @@ func ParseSectors(html string) ([]extractor.SectorWeighting, error) {
 
 // ParseCountryAllocation extracts country allocation from the HTML table.
 // Pattern: <td class="key">1. United States</td> ... <td class="value"><span>40.54%</span></td>
+// Returns nil, nil if the section is not present on the page.
 func ParseCountryAllocation(html string) ([]extractor.CountryAllocation, error) {
 	// Extract the country allocation section (between id= and </section>)
 	// Use [\s\S] instead of . to match across newlines (RE2 engine)
 	sectionRe := regexp.MustCompile(`id="country-allocation-section"[^>]*>([\s\S]+?)</section`) //nolint:revive
 	sectionMatch := sectionRe.FindStringSubmatch(html)
 	if sectionMatch == nil || len(sectionMatch) < 2 {
-		return nil, fmt.Errorf("country allocation section not found")
+		return nil, nil // optional section — not present on all pages
 	}
 
 	section := sectionMatch[1]
@@ -363,7 +372,7 @@ func ParseMarketCap(html string) (*extractor.MarketCapBreakdown, error) {
 	}
 
 	if breakdown.Total == 0 && breakdown.Large == 0 && breakdown.Mid == 0 && breakdown.Small == 0 {
-		return nil, fmt.Errorf("market cap data not found")
+		return nil, nil // optional section — not present on all pages
 	}
 
 	return breakdown, nil
@@ -379,7 +388,7 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 	sectionRe := regexp.MustCompile(`<th class="key">Fund Characteristics</th>[\s\S]*?</tbody>`) //nolint:revive
 	sectionMatch := sectionRe.FindStringSubmatch(html)
 	if sectionMatch == nil {
-		return nil, fmt.Errorf("fund characteristics section not found")
+		return nil, nil // optional section — not present on all pages
 	}
 
 	section := sectionMatch[0]
@@ -407,7 +416,7 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 
 	// Check if at least one value was parsed
 	if chars.DividendYield == 0 && chars.PriceToEarnings == 0 && chars.PriceToBook == 0 {
-		return nil, fmt.Errorf("fund characteristics data not found")
+		return nil, nil // optional section — data not parseable
 	}
 
 	return chars, nil
