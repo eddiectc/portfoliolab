@@ -237,14 +237,14 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 
 **Description:** Audit all SQL queries and repository methods that filter on `data_type` to ensure NAV data is handled correctly. Create NAV-specific queries where needed.
 
-- [ ] Audit `GetHistoricalPricesBySymbolAndRange` — filters `data_type IN ('stock', 'fx')`. **Decision:** Leave unchanged (price charting doesn't include NAV). Create separate `GetNavHistoryBySymbol` query instead.
-- [ ] Audit `GetLatestQuote` — filters `data_type = 'stock'`. **Decision:** Leave unchanged (NAV is not a quote).
-- [ ] Audit `GetLatestPriceDatePerSymbol` — filters `data_type = 'stock'`. **Decision:** Leave unchanged (gap-fill is for stock prices only).
-- [ ] Audit `UpsertHistoricalPrices` — accepts `dataType` parameter. **Decision:** Already supports arbitrary data_type; pass 'nav' from service layer.
-- [ ] Audit `GetDistinctCachedSymbols` — no data_type filter. **Decision:** Leave unchanged (returns all types).
-- [ ] Verify NAV data is never returned by price-related queries (stock/fx only)
-- [ ] Verify NAV data can be fetched by symbol using `GetNavHistoryBySymbol`
-- [ ] Write integration test: NAV data stored and retrieved correctly, not mixed with stock prices
+- [x] Audit `GetHistoricalPricesBySymbolAndRange` — filters `data_type IN ('stock', 'fx')`. **Decision:** Leave unchanged (price charting doesn't include NAV). Separate `GetNavHistoryBySymbol` query exists.
+- [x] Audit `GetLatestQuote` — filters `data_type = 'stock'`. **Decision:** Leave unchanged (NAV is not a quote).
+- [x] Audit `GetLatestPriceDatePerSymbol` — filters `data_type = 'stock'`. **Decision:** Leave unchanged (gap-fill is for stock prices only).
+- [x] Audit `UpsertHistoricalPrices` — accepts `dataType` parameter. **Decision:** Already supports arbitrary data_type; 'nav' works correctly.
+- [x] Audit `GetDistinctCachedSymbols` — no data_type filter. **Decision:** Leave unchanged (returns all types including NAV).
+- [x] Verify NAV data is never returned by price-related queries (stock/fx only) — confirmed via SQL audit + integration test
+- [x] Verify NAV data can be fetched by symbol using `GetNavHistoryBySymbol` — confirmed via integration test
+- [x] Write integration test: `TestNAV_DataTypeIsolation` in `tests/integration/nav_data_type_test.go` — covers all audit items end-to-end
 
 **Verification:** All existing queries unchanged (correctly exclude NAV); new NAV query works; no data leakage between types.
 
