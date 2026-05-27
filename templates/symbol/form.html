@@ -33,6 +33,12 @@
     </div>
 
     <div class="form-group">
+        <label for="data_source_url">Source URL (optional)</label>
+        <input type="url" id="data_source_url" name="data_source_url" value="{{.DataSourceURL}}" maxlength="500" placeholder="e.g. https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt---...">
+        <small>Provider page URL for symbol details (e.g. WisdomTree ETF page). Leave empty for Yahoo Finance (default)</small>
+    </div>
+
+    <div class="form-group">
         <label for="is_benchmark" class="checkbox-label">
             <input type="checkbox" id="is_benchmark" name="is_benchmark" {{if .IsBenchmark}}checked{{end}}>
             Use as benchmark

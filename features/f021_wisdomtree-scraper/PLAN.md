@@ -190,14 +190,14 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 
 **Description:** Add a "Source URL" input field to the symbol create and edit forms so the user can specify the provider URL (e.g. WisdomTree ETF page). The dispatcher will match the URL domain to determine which extractor to use.
 
-- [ ] Add `data_source_url` field to `symbolMappingForm` struct (or equivalent form struct)
-- [ ] Update `symbol_mappings/create.html` template: add "Source URL" text input field
-- [ ] Update `symbol_mappings/edit.html` template: add "Source URL" text input field, pre-populate with existing value
-- [ ] Update create handler (`symbol_mappings/create.go`): accept and persist `data_source_url`
-- [ ] Update edit handler (`symbol_mappings/edit.go`): accept and persist `data_source_url`
-- [ ] Write unit tests: create with source URL persists correctly
-- [ ] Write unit tests: edit with source URL updates correctly
-- [ ] Write unit tests: empty source URL leaves field NULL (default Yahoo)
+- [x] Add `data_source_url` field to `symbolMappingForm` struct (or equivalent form struct)
+- [x] Update `symbol_mappings/create.html` template: add "Source URL" text input field
+- [x] Update `symbol_mappings/edit.html` template: add "Source URL" text input field, pre-populate with existing value
+- [x] Update create handler (`symbol_mappings/create.go`): accept and persist `data_source_url`
+- [x] Update edit handler (`symbol_mappings/edit.go`): accept and persist `data_source_url`
+- [x] Write unit tests: create with source URL persists correctly
+- [x] Write unit tests: edit with source URL updates correctly
+- [x] Write unit tests: empty source URL leaves field NULL (default Yahoo)
 
 **Verification:** Source URL can be set on create and edit; displayed correctly on edit form; NULL when empty.
 

@@ -465,6 +465,56 @@ func TestService_Create_WithoutBenchmark_DefaultsFalse(t *testing.T) {
 	}
 }
 
+func TestService_Create_WithDataSourceURL_PersistsURL(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    url,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.DataSourceURL != url {
+		t.Errorf("expected DataSourceURL=%q, got %q", url, sm.DataSourceURL)
+	}
+}
+
+func TestService_Create_DataSourceURLTrimmed(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	url := "  https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt  "
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    url,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.DataSourceURL != "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt" {
+		t.Errorf("expected trimmed DataSourceURL, got %q", sm.DataSourceURL)
+	}
+}
+
+func TestService_Create_EmptyDataSourceURL_DefaultsEmpty(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	sm, err := svc.Create(context.Background(), CreateRequest{
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+		DataSourceURL:    "",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sm.DataSourceURL != "" {
+		t.Errorf("expected empty DataSourceURL, got %q", sm.DataSourceURL)
+	}
+}
+
 // --- Get Tests ---
 
 func TestService_Get(t *testing.T) {

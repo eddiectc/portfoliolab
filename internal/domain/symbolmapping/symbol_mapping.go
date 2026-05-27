@@ -29,6 +29,7 @@ type CreateRequest struct {
 	InternalSymbol   string                `json:"internal_symbol"`
 	MarketDataSymbol string                `json:"market_data_symbol"`
 	IsBenchmark      bool                  `json:"is_benchmark"`
+	DataSourceURL    string                `json:"data_source_url,omitempty"`
 	BrokerSymbols    []BrokerSymbolRequest `json:"broker_symbols,omitempty"`
 }
 
