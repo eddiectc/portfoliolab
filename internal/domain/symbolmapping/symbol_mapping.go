@@ -43,4 +43,5 @@ type UpdateRequest struct {
 	InternalSymbol   *string `json:"internal_symbol,omitempty"`
 	MarketDataSymbol *string `json:"market_data_symbol,omitempty"`
 	IsBenchmark      *bool   `json:"is_benchmark,omitempty"`
+	DataSourceURL    *string `json:"data_source_url,omitempty"`
 }

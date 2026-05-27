@@ -572,6 +572,65 @@ func TestSymbolHandleUpdate_DisableBenchmark(t *testing.T) {
 	}
 }
 
+func TestSymbolHandleUpdate_DataSourceURL(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "WMGT", MarketDataSymbol: "WMGT"}
+	repo.byInternal["WMGT"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	r := chi.NewRouter()
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
+
+	body := `{"data_source_url": "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var sm symbolmapping.SymbolMapping
+	json.NewDecoder(w.Body).Decode(&sm)
+	if sm.DataSourceURL != "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt" {
+		t.Errorf("expected data_source_url to be set, got %q", sm.DataSourceURL)
+	}
+}
+
+func TestSymbolHandleUpdate_DataSourceURL_Clear(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:            1,
+		InternalSymbol: "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL: "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
+	}
+	repo.byInternal["WMGT"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	r := chi.NewRouter()
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
+
+	body := `{"data_source_url": ""}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/symbols/1", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var sm symbolmapping.SymbolMapping
+	json.NewDecoder(w.Body).Decode(&sm)
+	if sm.DataSourceURL != "" {
+		t.Errorf("expected empty data_source_url, got %q", sm.DataSourceURL)
+	}
+}
+
 func TestSymbolHandleUpdate_InvalidSymbol(t *testing.T) {
 	repo := newTestSMRepo()
 	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"}
@@ -1398,5 +1457,294 @@ func TestHandleGet_GeographicAllocations_Missing(t *testing.T) {
 	// (omitempty on nil slice = omitted; on empty slice = omitted)
 	if resp.SymbolDetails.GeographicAllocations != nil {
 		t.Errorf("expected nil geographic_allocations, got %v", resp.SymbolDetails.GeographicAllocations)
+	}
+}
+
+func TestSymbolHandleGet_WithDataSourceURL(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	repo.byInternal["WMGT"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	r := chi.NewRouter()
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.DataSourceURL != "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt" {
+		t.Errorf("expected data_source_url in response, got %q", resp.DataSourceURL)
+	}
+}
+
+func TestSymbolHandleGet_DataSourceURL_Empty(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+		DataSourceURL:    "",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	r := chi.NewRouter()
+	NewSymbolHandler(svc, nil).RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.DataSourceURL != "" {
+		t.Errorf("expected empty data_source_url, got %q", resp.DataSourceURL)
+	}
+}
+
+func TestHandleGet_WithExtractorAsOfDate(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "WMGT", MarketDataSymbol: "WMGT", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["WMGT"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	asOfDate := time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC)
+	detailsRepo.byInternal["WMGT"] = &symbol.SymbolDetails{
+		InternalSymbol:      "WMGT",
+		ShortName:           "WisdomTree Mid Cap Growth",
+		QuoteType:           "ETF",
+		ExtractorAsOfDate:   asOfDate,
+		FetchedAt:           time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	if resp.SymbolDetails.ExtractorAsOfDate == nil {
+		t.Fatal("expected non-nil extractor_as_of_date")
+	}
+	if !resp.SymbolDetails.ExtractorAsOfDate.Equal(asOfDate) {
+		t.Errorf("expected extractor_as_of_date %v, got %v", asOfDate, *resp.SymbolDetails.ExtractorAsOfDate)
+	}
+}
+
+func TestHandleGet_WithoutExtractorAsOfDate(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	// Yahoo-sourced details have zero ExtractorAsOfDate
+	detailsRepo.byInternal["AAPL"] = &symbol.SymbolDetails{
+		InternalSymbol:    "AAPL",
+		ShortName:         "Apple Inc.",
+		QuoteType:         "EQUITY",
+		ExtractorAsOfDate: time.Time{}, // zero value
+		FetchedAt:         time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	// ExtractorAsOfDate should be nil (omitted) when zero
+	if resp.SymbolDetails.ExtractorAsOfDate != nil {
+		t.Errorf("expected nil extractor_as_of_date for Yahoo data, got %v", *resp.SymbolDetails.ExtractorAsOfDate)
+	}
+}
+
+func TestHandleGet_WithMarketCapBreakdown(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "WMGT", MarketDataSymbol: "WMGT", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["WMGT"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	detailsRepo.byInternal["WMGT"] = &symbol.SymbolDetails{
+		InternalSymbol: "WMGT",
+		ShortName:      "WisdomTree Mid Cap Growth",
+		QuoteType:      "ETF",
+		MarketCapBreakdown: &symbol.MarketCapBreakdown{
+			Total: 100,
+			Large: 15.2,
+			Mid:   68.5,
+			Small: 16.3,
+		},
+		FetchedAt: time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	if resp.SymbolDetails.MarketCapBreakdown == nil {
+		t.Fatal("expected non-nil market_cap_breakdown")
+	}
+	if resp.SymbolDetails.MarketCapBreakdown.Total != 100 {
+		t.Errorf("expected total 100, got %f", resp.SymbolDetails.MarketCapBreakdown.Total)
+	}
+	if resp.SymbolDetails.MarketCapBreakdown.Large != 15.2 {
+		t.Errorf("expected large 15.2, got %f", resp.SymbolDetails.MarketCapBreakdown.Large)
+	}
+	if resp.SymbolDetails.MarketCapBreakdown.Mid != 68.5 {
+		t.Errorf("expected mid 68.5, got %f", resp.SymbolDetails.MarketCapBreakdown.Mid)
+	}
+	if resp.SymbolDetails.MarketCapBreakdown.Small != 16.3 {
+		t.Errorf("expected small 16.3, got %f", resp.SymbolDetails.MarketCapBreakdown.Small)
+	}
+}
+
+func TestHandleGet_WithThemeBreakdown(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "WMGG.L", MarketDataSymbol: "WMGG.L", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["WMGG.L"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	detailsRepo.byInternal["WMGG.L"] = &symbol.SymbolDetails{
+		InternalSymbol: "WMGG.L",
+		ShortName:      "WisdomTree Megatrends",
+		QuoteType:      "ETF",
+		Themes: []symbol.ThemeBreakdown{
+			{Name: "Technology", Percent: 42.5},
+			{Name: "Consumer Discretionary", Percent: 28.3},
+		},
+		FetchedAt: time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	if len(resp.SymbolDetails.ThemeBreakdown) != 2 {
+		t.Fatalf("expected 2 themes, got %d", len(resp.SymbolDetails.ThemeBreakdown))
+	}
+	if resp.SymbolDetails.ThemeBreakdown[0].Name != "Technology" || resp.SymbolDetails.ThemeBreakdown[0].Percent != 42.5 {
+		t.Errorf("expected first theme Technology 42.5, got %s %f", resp.SymbolDetails.ThemeBreakdown[0].Name, resp.SymbolDetails.ThemeBreakdown[0].Percent)
+	}
+	if resp.SymbolDetails.ThemeBreakdown[1].Name != "Consumer Discretionary" || resp.SymbolDetails.ThemeBreakdown[1].Percent != 28.3 {
+		t.Errorf("expected second theme Consumer Discretionary 28.3, got %s %f", resp.SymbolDetails.ThemeBreakdown[1].Name, resp.SymbolDetails.ThemeBreakdown[1].Percent)
+	}
+}
+
+func TestHandleGet_WithoutMarketCapAndThemes(t *testing.T) {
+	repo := newTestSMRepo()
+	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	repo.byInternal["AAPL"] = 1
+	svc := symbolmapping.NewService(repo)
+
+	detailsRepo := newTestDetailsRepo()
+	// Yahoo-sourced details have no market cap or themes
+	detailsRepo.byInternal["AAPL"] = &symbol.SymbolDetails{
+		InternalSymbol:     "AAPL",
+		ShortName:          "Apple Inc.",
+		QuoteType:          "EQUITY",
+		MarketCapBreakdown: nil,
+		Themes:             nil,
+		FetchedAt:          time.Now(),
+	}
+	detailsSvc := symbols.NewService(detailsRepo, nil)
+
+	handler := NewSymbolHandler(svc, detailsSvc)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/symbols/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SymbolGetResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SymbolDetails == nil {
+		t.Fatal("expected non-nil symbol_details")
+	}
+	if resp.SymbolDetails.MarketCapBreakdown != nil {
+		t.Errorf("expected nil market_cap_breakdown for Yahoo data, got %+v", resp.SymbolDetails.MarketCapBreakdown)
+	}
+	if resp.SymbolDetails.ThemeBreakdown != nil {
+		t.Errorf("expected nil theme_breakdown for Yahoo data, got %+v", resp.SymbolDetails.ThemeBreakdown)
 	}
 }

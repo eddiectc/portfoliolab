@@ -48,6 +48,7 @@ type SymbolGetResponse struct {
 	InternalSymbol   string                   `json:"internal_symbol"`
 	MarketDataSymbol string                   `json:"market_data_symbol"`
 	IsBenchmark      bool                     `json:"is_benchmark"`
+	DataSourceURL    string                   `json:"data_source_url"`
 	BrokerSymbols    []symbolmapping.BrokerSymbol `json:"broker_symbols"`
 	CreatedAt        time.Time                `json:"created_at"`
 	UpdatedAt        time.Time                `json:"updated_at"`
@@ -68,7 +69,10 @@ type SymbolDetailsResponse struct {
 	FundProfile             *symbol.FundProfile      `json:"fund_profile,omitempty"`
 	EquityValuation         *symbol.EquityValuation  `json:"equity_valuation,omitempty"`
 	GeographicAllocations   []symbol.GeographicAllocation `json:"geographic_allocations,omitempty"`
-	FetchedAt               time.Time                `json:"fetched_at"`
+	MarketCapBreakdown      *symbol.MarketCapBreakdown   `json:"market_cap_breakdown,omitempty"`
+	ThemeBreakdown          []symbol.ThemeBreakdown      `json:"theme_breakdown,omitempty"`
+	ExtractorAsOfDate       *time.Time                   `json:"extractor_as_of_date,omitempty"`
+	FetchedAt               time.Time                    `json:"fetched_at"`
 }
 
 // HandleCreate handles POST /api/symbols.
@@ -275,6 +279,7 @@ func (h *SymbolHandler) toSymbolGetResponse(sm *symbolmapping.SymbolMapping) Sym
 		InternalSymbol:   sm.InternalSymbol,
 		MarketDataSymbol: sm.MarketDataSymbol,
 		IsBenchmark:      sm.IsBenchmark,
+		DataSourceURL:    sm.DataSourceURL,
 		BrokerSymbols:    sm.BrokerSymbols,
 		CreatedAt:        sm.CreatedAt,
 		UpdatedAt:        sm.UpdatedAt,
@@ -293,7 +298,7 @@ func toSymbolDetailsResponse(details *symbol.SymbolDetails) *SymbolDetailsRespon
 		return allocs[i].Percent > allocs[j].Percent
 	})
 
-	return &SymbolDetailsResponse{
+	resp := &SymbolDetailsResponse{
 		InternalSymbol:         details.InternalSymbol,
 		ShortName:              details.ShortName,
 		LongName:               details.LongName,
@@ -306,6 +311,12 @@ func toSymbolDetailsResponse(details *symbol.SymbolDetails) *SymbolDetailsRespon
 		FundProfile:            details.FundProfile,
 		EquityValuation:        details.EquityValuation,
 		GeographicAllocations:  allocs,
+		MarketCapBreakdown:     details.MarketCapBreakdown,
+		ThemeBreakdown:         details.Themes,
 		FetchedAt:              details.FetchedAt,
 	}
+	if !details.ExtractorAsOfDate.IsZero() {
+		resp.ExtractorAsOfDate = &details.ExtractorAsOfDate
+	}
+	return resp
 }

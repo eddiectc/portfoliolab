@@ -758,6 +758,16 @@ func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
 			PriceToCashflow: 18.0,
 			PriceToSales:    5.5,
 		},
+		MarketCap: &extractor.MarketCapBreakdown{
+			Total: 100,
+			Large: 15.2,
+			Mid:   68.5,
+			Small: 16.3,
+		},
+		Themes: []extractor.Theme{
+			{Name: "Technology", Percent: 42.5},
+			{Name: "Consumer Discretionary", Percent: 28.3},
+		},
 	}
 
 	details := extractResultToSymbolDetails(result, "WMGG.L")
@@ -805,6 +815,30 @@ func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
 		t.Error("expected non-zero ExtractorAsOfDate")
 	} else if !details.ExtractorAsOfDate.Equal(asOfDate) {
 		t.Errorf("expected ExtractorAsOfDate %v, got %v", asOfDate, details.ExtractorAsOfDate)
+	}
+	if details.MarketCapBreakdown == nil {
+		t.Fatal("expected non-nil MarketCapBreakdown")
+	}
+	if details.MarketCapBreakdown.Total != 100 {
+		t.Errorf("expected total 100, got %f", details.MarketCapBreakdown.Total)
+	}
+	if details.MarketCapBreakdown.Large != 15.2 {
+		t.Errorf("expected large 15.2, got %f", details.MarketCapBreakdown.Large)
+	}
+	if details.MarketCapBreakdown.Mid != 68.5 {
+		t.Errorf("expected mid 68.5, got %f", details.MarketCapBreakdown.Mid)
+	}
+	if details.MarketCapBreakdown.Small != 16.3 {
+		t.Errorf("expected small 16.3, got %f", details.MarketCapBreakdown.Small)
+	}
+	if len(details.Themes) != 2 {
+		t.Fatalf("expected 2 themes, got %d", len(details.Themes))
+	}
+	if details.Themes[0].Name != "Technology" || details.Themes[0].Percent != 42.5 {
+		t.Errorf("expected first theme Technology 42.5, got %s %f", details.Themes[0].Name, details.Themes[0].Percent)
+	}
+	if details.Themes[1].Name != "Consumer Discretionary" || details.Themes[1].Percent != 28.3 {
+		t.Errorf("expected second theme Consumer Discretionary 28.3, got %s %f", details.Themes[1].Name, details.Themes[1].Percent)
 	}
 }
 

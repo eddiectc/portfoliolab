@@ -47,6 +47,8 @@ func setupSymbolDetailsDB(t *testing.T) *sql.DB {
 			fund_profile        TEXT,
 			equity_valuation         TEXT,
 			geographic_allocations   TEXT,
+			market_cap_breakdown     TEXT,
+			themes                   TEXT,
 			extractor_as_of_date     TEXT,
 			fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -686,6 +688,136 @@ func TestSymbolDetailsRepository_ExtractorAsOfDate_ZeroStoredAsNull(t *testing.T
 	}
 	if !got.ExtractorAsOfDate.IsZero() {
 		t.Errorf("expected zero ExtractorAsOfDate for Yahoo data, got %v", got.ExtractorAsOfDate)
+	}
+}
+
+func TestSymbolDetailsRepository_MarketCapBreakdown_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "WMGT",
+		ShortName:      "WisdomTree Mid Cap Growth",
+		MarketCapBreakdown: &symbol.MarketCapBreakdown{
+			Total: 100,
+			Large: 15.2,
+			Mid:   68.5,
+			Small: 16.3,
+		},
+		FetchedAt: time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "WMGT")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.MarketCapBreakdown == nil {
+		t.Fatal("expected non-nil MarketCapBreakdown")
+	}
+	if got.MarketCapBreakdown.Total != 100 {
+		t.Errorf("expected total 100, got %f", got.MarketCapBreakdown.Total)
+	}
+	if got.MarketCapBreakdown.Large != 15.2 {
+		t.Errorf("expected large 15.2, got %f", got.MarketCapBreakdown.Large)
+	}
+	if got.MarketCapBreakdown.Mid != 68.5 {
+		t.Errorf("expected mid 68.5, got %f", got.MarketCapBreakdown.Mid)
+	}
+	if got.MarketCapBreakdown.Small != 16.3 {
+		t.Errorf("expected small 16.3, got %f", got.MarketCapBreakdown.Small)
+	}
+}
+
+func TestSymbolDetailsRepository_MarketCapBreakdown_NilStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol:     "VOO",
+		ShortName:          "Vanguard S&P 500",
+		MarketCapBreakdown: nil,
+		FetchedAt:          time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.MarketCapBreakdown != nil {
+		t.Errorf("expected nil MarketCapBreakdown, got %+v", got.MarketCapBreakdown)
+	}
+}
+
+func TestSymbolDetailsRepository_Themes_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "WMGG.L",
+		ShortName:      "WisdomTree Megatrends",
+		Themes: []symbol.ThemeBreakdown{
+			{Name: "Technology", Percent: 42.5},
+			{Name: "Consumer Discretionary", Percent: 28.3},
+			{Name: "Healthcare", Percent: 15.1},
+		},
+		FetchedAt: time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if len(got.Themes) != 3 {
+		t.Fatalf("expected 3 themes, got %d", len(got.Themes))
+	}
+	if got.Themes[0].Name != "Technology" || got.Themes[0].Percent != 42.5 {
+		t.Errorf("expected first theme Technology 42.5, got %s %f", got.Themes[0].Name, got.Themes[0].Percent)
+	}
+	if got.Themes[1].Name != "Consumer Discretionary" || got.Themes[1].Percent != 28.3 {
+		t.Errorf("expected second theme Consumer Discretionary 28.3, got %s %f", got.Themes[1].Name, got.Themes[1].Percent)
+	}
+	if got.Themes[2].Name != "Healthcare" || got.Themes[2].Percent != 15.1 {
+		t.Errorf("expected third theme Healthcare 15.1, got %s %f", got.Themes[2].Name, got.Themes[2].Percent)
+	}
+}
+
+func TestSymbolDetailsRepository_Themes_NilStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		ShortName:      "Vanguard S&P 500",
+		Themes:         nil,
+		FetchedAt:      time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.Themes != nil {
+		t.Errorf("expected nil Themes, got %+v", got.Themes)
 	}
 }
 

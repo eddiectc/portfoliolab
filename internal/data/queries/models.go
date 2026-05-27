@@ -115,6 +115,8 @@ type SymbolDetail struct {
 	FundProfile           sql.NullString `db:"fund_profile"`
 	EquityValuation       sql.NullString `db:"equity_valuation"`
 	GeographicAllocations sql.NullString `db:"geographic_allocations"`
+	MarketCapBreakdown    sql.NullString `db:"market_cap_breakdown"`
+	Themes                sql.NullString `db:"themes"`
 	ExtractorAsOfDate     sql.NullString `db:"extractor_as_of_date"`
 	FetchedAt             string         `db:"fetched_at"`
 	CreatedAt             string         `db:"created_at"`

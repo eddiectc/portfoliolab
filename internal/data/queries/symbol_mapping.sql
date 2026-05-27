@@ -20,7 +20,7 @@ ORDER BY created_at DESC;
 
 -- name: UpdateSymbolMapping :one
 UPDATE symbol_mappings
-SET internal_symbol = ?, market_data_symbol = ?, is_benchmark = ?, updated_at = ?
+SET internal_symbol = ?, market_data_symbol = ?, is_benchmark = ?, data_source_url = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
 

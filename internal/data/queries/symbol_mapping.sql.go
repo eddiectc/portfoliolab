@@ -355,17 +355,18 @@ func (q *Queries) ListSymbolMappings(ctx context.Context, db DBTX, arg ListSymbo
 
 const updateSymbolMapping = `-- name: UpdateSymbolMapping :one
 UPDATE symbol_mappings
-SET internal_symbol = ?, market_data_symbol = ?, is_benchmark = ?, updated_at = ?
+SET internal_symbol = ?, market_data_symbol = ?, is_benchmark = ?, data_source_url = ?, updated_at = ?
 WHERE id = ?
 RETURNING id, internal_symbol, market_data_symbol, is_benchmark, data_source_url, created_at, updated_at
 `
 
 type UpdateSymbolMappingParams struct {
-	InternalSymbol   string `db:"internal_symbol"`
-	MarketDataSymbol string `db:"market_data_symbol"`
-	IsBenchmark      bool   `db:"is_benchmark"`
-	UpdatedAt        string `db:"updated_at"`
-	ID               int64  `db:"id"`
+	InternalSymbol   string         `db:"internal_symbol"`
+	MarketDataSymbol string         `db:"market_data_symbol"`
+	IsBenchmark      bool           `db:"is_benchmark"`
+	DataSourceUrl    sql.NullString `db:"data_source_url"`
+	UpdatedAt        string         `db:"updated_at"`
+	ID               int64          `db:"id"`
 }
 
 func (q *Queries) UpdateSymbolMapping(ctx context.Context, db DBTX, arg UpdateSymbolMappingParams) (SymbolMapping, error) {
@@ -373,6 +374,7 @@ func (q *Queries) UpdateSymbolMapping(ctx context.Context, db DBTX, arg UpdateSy
 		arg.InternalSymbol,
 		arg.MarketDataSymbol,
 		arg.IsBenchmark,
+		arg.DataSourceUrl,
 		arg.UpdatedAt,
 		arg.ID,
 	)
