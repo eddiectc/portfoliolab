@@ -178,6 +178,7 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 - [x] Update `toSymbolGetResponse` / `toSymbolDetailsResponse` to include new fields
 - [x] Write unit tests: PATCH sets data_source_url, GET returns it
 - [x] Write unit tests: SymbolDetailsResponse includes extractor fields when present
+- [x] Write unit tests: SetDataSourceURL (table-driven) — `GetDataSourceURL` is covered by the `symbols` service tests (Task 4) and the handler GET tests
 
 **Verification:** Source URL can be set via PATCH; returned in GET; extractor fields included in response.
 

@@ -754,90 +754,149 @@ func TestService_Update_IsBenchmarkNil_NoChange(t *testing.T) {
 }
 
 func TestService_Update_DataSourceURL(t *testing.T) {
-	svc, repo := newTestService(t)
+	wisdomTreeURL := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
 
-	repo.mappings[1] = &SymbolMapping{
-		ID:               1,
-		InternalSymbol:   "WMGT",
-		MarketDataSymbol: "WMGT",
-		DataSourceURL:    "",
+	tests := []struct {
+		name          string
+		existingURL   string
+		requestURL    *string // nil = not sent, pointer = sent
+		wantURL       string
+		wantUpdatedAt bool // true = updated_at should change
+	}{
+		{
+			name:          "set from empty",
+			existingURL:   "",
+			requestURL:    ptr(wisdomTreeURL),
+			wantURL:       wisdomTreeURL,
+			wantUpdatedAt: true,
+		},
+		{
+			name:          "clear",
+			existingURL:   wisdomTreeURL,
+			requestURL:    ptr(""),
+			wantURL:       "",
+			wantUpdatedAt: true,
+		},
+		{
+			name:          "same value no change",
+			existingURL:   wisdomTreeURL,
+			requestURL:    ptr(wisdomTreeURL),
+			wantURL:       wisdomTreeURL,
+			wantUpdatedAt: false,
+		},
+		{
+			name:          "nil not sent no change",
+			existingURL:   wisdomTreeURL,
+			requestURL:    nil,
+			wantURL:       wisdomTreeURL,
+			wantUpdatedAt: false,
+		},
 	}
-	repo.byInternal["WMGT"] = 1
 
-	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
-	sm, err := svc.Update(context.Background(), 1, UpdateRequest{DataSourceURL: &url})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if sm.DataSourceURL != url {
-		t.Errorf("expected data_source_url %q, got %q", url, sm.DataSourceURL)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, repo := newTestService(t)
+			originalTime := time.Now()
+
+			repo.mappings[1] = &SymbolMapping{
+				ID:               1,
+				InternalSymbol:   "WMGT",
+				MarketDataSymbol: "WMGT",
+				DataSourceURL:    tt.existingURL,
+				UpdatedAt:        originalTime,
+			}
+			repo.byInternal["WMGT"] = 1
+
+			sm, err := svc.Update(context.Background(), 1, UpdateRequest{DataSourceURL: tt.requestURL})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if sm.DataSourceURL != tt.wantURL {
+				t.Errorf("expected data_source_url %q, got %q", tt.wantURL, sm.DataSourceURL)
+			}
+			if tt.wantUpdatedAt && sm.UpdatedAt == originalTime {
+				t.Error("expected updated_at to change")
+			}
+			if !tt.wantUpdatedAt && sm.UpdatedAt != originalTime {
+				t.Errorf("expected unchanged updated_at, got %v", sm.UpdatedAt)
+			}
+		})
 	}
 }
 
-func TestService_Update_DataSourceURL_Clear(t *testing.T) {
-	svc, repo := newTestService(t)
+func ptr(s string) *string { return &s }
 
-	repo.mappings[1] = &SymbolMapping{
-		ID:               1,
-		InternalSymbol:   "WMGT",
-		MarketDataSymbol: "WMGT",
-		DataSourceURL:    "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
-	}
-	repo.byInternal["WMGT"] = 1
+func TestService_SetDataSourceURL(t *testing.T) {
+	wisdomTreeURL := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
 
-	empty := ""
-	sm, err := svc.Update(context.Background(), 1, UpdateRequest{DataSourceURL: &empty})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	tests := []struct {
+		name    string
+		setup   func(*mockRepo)
+		url     string
+		wantErr bool
+		wantURL string
+	}{
+		{
+			name: "success",
+			setup: func(m *mockRepo) {
+				m.mappings[1] = &SymbolMapping{ID: 1, InternalSymbol: "WMGT", MarketDataSymbol: "WMGT"}
+				m.byInternal["WMGT"] = 1
+			},
+			url:     wisdomTreeURL,
+			wantErr: false,
+			wantURL: wisdomTreeURL,
+		},
+		{
+			name: "clear",
+			setup: func(m *mockRepo) {
+				m.mappings[1] = &SymbolMapping{ID: 1, InternalSymbol: "WMGT", MarketDataSymbol: "WMGT", DataSourceURL: wisdomTreeURL}
+				m.byInternal["WMGT"] = 1
+			},
+			url:     "",
+			wantErr: false,
+			wantURL: "",
+		},
+		{
+			name:    "not found",
+			setup:   func(*mockRepo) {},
+			url:     wisdomTreeURL,
+			wantErr: true,
+			wantURL: "",
+		},
+		{
+			name: "repo error",
+			setup: func(m *mockRepo) {
+				m.mappings[1] = &SymbolMapping{ID: 1, InternalSymbol: "WMGT", MarketDataSymbol: "WMGT"}
+				m.byInternal["WMGT"] = 1
+				m.err = fmt.Errorf("db unavailable")
+			},
+			url:     wisdomTreeURL,
+			wantErr: true,
+			wantURL: "",
+		},
 	}
-	if sm.DataSourceURL != "" {
-		t.Errorf("expected empty data_source_url, got %q", sm.DataSourceURL)
-	}
-}
 
-func TestService_Update_DataSourceURL_NoChange(t *testing.T) {
-	svc, repo := newTestService(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockRepo()
+			tt.setup(repo)
+			svc := NewService(repo)
 
-	originalTime := time.Now()
-	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
-	repo.mappings[1] = &SymbolMapping{
-		ID:               1,
-		InternalSymbol:   "WMGT",
-		MarketDataSymbol: "WMGT",
-		DataSourceURL:    url,
-		UpdatedAt:        originalTime,
-	}
-	repo.byInternal["WMGT"] = 1
+			err := svc.SetDataSourceURL(context.Background(), 1, tt.url)
+			if tt.wantErr && err == nil {
+				t.Error("expected error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-	// Send same URL — should not trigger update
-	sm, err := svc.Update(context.Background(), 1, UpdateRequest{DataSourceURL: &url})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if sm.UpdatedAt != originalTime {
-		t.Errorf("expected unchanged updated_at when URL is the same")
-	}
-}
-
-func TestService_Update_DataSourceURL_NilNoChange(t *testing.T) {
-	svc, repo := newTestService(t)
-
-	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
-	repo.mappings[1] = &SymbolMapping{
-		ID:               1,
-		InternalSymbol:   "WMGT",
-		MarketDataSymbol: "WMGT",
-		DataSourceURL:    url,
-	}
-	repo.byInternal["WMGT"] = 1
-
-	// Send empty UpdateRequest (DataSourceURL is nil) — URL should stay unchanged
-	sm, err := svc.Update(context.Background(), 1, UpdateRequest{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if sm.DataSourceURL != url {
-		t.Errorf("expected data_source_url to remain %q, got %q", url, sm.DataSourceURL)
+			// Verify the URL was persisted
+			if sm, ok := repo.mappings[1]; ok {
+				if sm.DataSourceURL != tt.wantURL {
+					t.Errorf("expected DataSourceURL %q, got %q", tt.wantURL, sm.DataSourceURL)
+				}
+			}
+		})
 	}
 }
 

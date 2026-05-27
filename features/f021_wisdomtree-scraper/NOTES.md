@@ -25,7 +25,7 @@
 - 2026-05-26: **`float64` for extractor types** — The CONVENTIONS.md rule ("Use `decimal.Decimal` for all monetary values") targets transaction/P&L data (prices, costs, P&L). The extractor types (`FundProfile`, `NavPoint`, `Holding`, etc.) are display metadata that map directly to the existing `symbol` types, which use `float64` for the same fields (e.g., `symbol.FundProfile.TotalNetAssets float64`, `symbol.TopHolding.Percent float64`). Keeping `float64` maintains type consistency through the extraction → storage pipeline. The service layer (Task 4) will convert `ExtractResult` → `SymbolDetails` with no type mismatch.
 - 2026-05-26: **"As of" date missing** — Spec edge case says "stores the fetch date as a fallback". Decision: **do NOT fallback**. If the "as of" date cannot be parsed, the extraction fails (atomic). This avoids silently storing data with an incorrect reference date. The fetch date is already captured in `fetched_at`.
 - 2026-05-26: **`extractor_as_of_date` pipeline gap fixed** — Implementation review found that while the SQL migration and sqlc layer included `extractor_as_of_date`, the application pipeline was incomplete: `symbol.SymbolDetails` struct lacked the field, `extractResultToSymbolDetails` didn't set it, and the repo's `Upsert`/`toSymbolDetail` omitted it. Fixed: added `ExtractorAsOfDate time.Time` to `symbol.SymbolDetails`, set it from `result.AsOfDate` in service layer, added `toSQLNullTime` helper, updated `Upsert` to write and `toSymbolDetail` to read. Added round-trip tests in both service and repo layers.
-- 2026-05-26: **Table-driven tests** — Converted `GetDataSourceURL` and `SetDataSourceURL` tests from individual functions to table-driven format per CONVENTIONS.md. Routing tests kept as individual functions since they exercise fundamentally different code paths with distinct setups and assertions.
+- 2026-05-26: **Table-driven tests** — `GetDataSourceURL` and `SetDataSourceURL` in the `symbols` service (Task 4) use table-driven format. The `symbolmapping` service `Update_DataSourceURL` tests were converted from 4 individual functions to a single table-driven test (`TestService_Update_DataSourceURL` with subtests). `SetDataSourceURL` in `symbolmapping` service added as table-driven test (`TestService_SetDataSourceURL`). Routing tests kept as individual functions since they exercise fundamentally different code paths with distinct setups and assertions.
 - 2026-05-26: **Integration test added** — `TestSymbolDetails_ExtractorDataSourceURL_RoundTrip` verifies the full DB round-trip: symbol mapping with `data_source_url`, symbol details with `extractor_as_of_date`, stale query includes both fields, and cross-layer consistency.
 
 ## Deviations from Plan
@@ -41,6 +41,8 @@
 
 ## Future Improvements
 - None yet.
+
+- 2026-05-27: **Implementation review fixes** — `symbol.go` had gofmt issue (fixed). API.md updated with `data_source_url`, `extractor_as_of_date`, `market_cap_breakdown`, `theme_breakdown` documentation. Added `SetDataSourceURL` table-driven tests to `symbolmapping/service_test.go`. Converted `Update_DataSourceURL` tests from 4 individual functions to table-driven format.
 
 ## Known Issues
 - None.
