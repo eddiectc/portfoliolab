@@ -122,5 +122,3 @@ func extractFromHTML(html string) (*extractor.ExtractResult, error) {
 		Characteristics:   characteristics,
 	}, nil
 }
-
-

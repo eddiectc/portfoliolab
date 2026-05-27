@@ -15,15 +15,15 @@ import (
 // SymbolDetailsRepository provides data access for cached symbol details,
 // delegating to sqlc-generated queries.
 type SymbolDetailsRepository struct {
-	q    *queries.Queries
-	db   queries.DBTX
+	q  *queries.Queries
+	db queries.DBTX
 }
 
 // NewSymbolDetailsRepository creates a new symbol details repository.
 func NewSymbolDetailsRepository(db *sql.DB) *SymbolDetailsRepository {
 	return &SymbolDetailsRepository{
 		q:  queries.New(),
-		db:   db,
+		db: db,
 	}
 }
 
@@ -144,24 +144,24 @@ func toSQLNullJSON(v interface{}) sql.NullString {
 func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.SymbolDetails) error {
 	now := time.Now()
 	_, err := r.q.InsertSymbolDetails(ctx, r.db, queries.InsertSymbolDetailsParams{
-		InternalSymbol:     details.InternalSymbol,
-		ShortName:          toSQLNullString(details.ShortName),
-		LongName:           toSQLNullString(details.LongName),
-		Exchange:           toSQLNullString(details.Exchange),
-		Currency:           toSQLNullString(details.Currency),
-		QuoteType:          toSQLNullString(details.QuoteType),
-		Sector:             toSQLNullString(details.Sector),
+		InternalSymbol:        details.InternalSymbol,
+		ShortName:             toSQLNullString(details.ShortName),
+		LongName:              toSQLNullString(details.LongName),
+		Exchange:              toSQLNullString(details.Exchange),
+		Currency:              toSQLNullString(details.Currency),
+		QuoteType:             toSQLNullString(details.QuoteType),
+		Sector:                toSQLNullString(details.Sector),
 		TopHoldings:           toSQLNullJSON(details.TopHoldings),
 		SectorWeightings:      toSQLNullJSON(details.SectorWeightings),
 		AggregatePositions:    toSQLNullJSON(details.AggregatePositions),
 		FundProfile:           toSQLNullJSON(details.FundProfile),
 		EquityValuation:       toSQLNullJSON(details.EquityValuation),
-				GeographicAllocations: toSQLNullJSON(details.GeographicAllocations),
+		GeographicAllocations: toSQLNullJSON(details.GeographicAllocations),
 		MarketCapBreakdown:    toSQLNullJSON(details.MarketCapBreakdown),
 		Themes:                toSQLNullJSON(details.Themes),
 		ExtractorAsOfDate:     toSQLNullTime(details.ExtractorAsOfDate),
 		FetchedAt:             details.FetchedAt.Format(time.RFC3339),
-		UpdatedAt:          now.Format(time.RFC3339),
+		UpdatedAt:             now.Format(time.RFC3339),
 	})
 	if err != nil {
 		return fmt.Errorf("upsert symbol details for %s: %w", details.InternalSymbol, err)

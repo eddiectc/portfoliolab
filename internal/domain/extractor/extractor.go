@@ -93,19 +93,19 @@ type CountryAllocation struct {
 
 // MarketCapBreakdown contains market capitalization distribution.
 type MarketCapBreakdown struct {
-	Total    float64
-	Large    float64
-	Mid      float64
-	Small    float64
+	Total float64
+	Large float64
+	Mid   float64
+	Small float64
 }
 
 // FundCharacteristics contains valuation and other fund characteristics.
 type FundCharacteristics struct {
-	PriceToEarnings  float64
-	PriceToBook      float64
-	PriceToCashflow  float64
-	PriceToSales     float64
-	DividendYield    float64
+	PriceToEarnings float64
+	PriceToBook     float64
+	PriceToCashflow float64
+	PriceToSales    float64
+	DividendYield   float64
 }
 
 // Extractor extracts data from a specific provider's web pages.
