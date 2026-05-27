@@ -386,11 +386,11 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 
 	// Parse each characteristic
 	pairs := map[string]*float64{
-		"*Dividend Yield":   &chars.DividendYield,
-		"Price/Earnings":    &chars.PriceToEarnings,
-		"Price/Book":        &chars.PriceToBook,
-		"Price/Sales":       &chars.PriceToSales,
-		"Price/Cash Flow":   &chars.PriceToCashflow,
+		"*Dividend Yield": &chars.DividendYield,
+		"Price/Earnings":  &chars.PriceToEarnings,
+		"Price/Book":      &chars.PriceToBook,
+		"Price/Sales":     &chars.PriceToSales,
+		"Price/Cash Flow": &chars.PriceToCashflow,
 	}
 
 	for key, target := range pairs {
@@ -432,13 +432,13 @@ func parseDate(dateStr string) (time.Time, error) {
 	dateStr = strings.TrimSpace(dateStr)
 
 	formats := []string{
-		"02 January 2006",  // "22 May 2026"
-		"2 January 2006",   // "1 May 2026"
-		"02/01/2006",       // "22/05/2026"
-		"01/02/2006",       // "05/22/2026"
-		"2/1/2006",         // "5/22/2026"
-		"1/2/2006",         // "22/5/2026"
-		"2006-01-02",       // "2026-05-22"
+		"02 January 2006", // "22 May 2026"
+		"2 January 2006",  // "1 May 2026"
+		"02/01/2006",      // "22/05/2026"
+		"01/02/2006",      // "05/22/2026"
+		"2/1/2006",        // "5/22/2026"
+		"1/2/2006",        // "22/5/2026"
+		"2006-01-02",      // "2026-05-22"
 	}
 
 	for _, format := range formats {
