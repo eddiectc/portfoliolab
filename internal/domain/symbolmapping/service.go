@@ -117,6 +117,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*SymbolMapping
 		InternalSymbol:   internalSymbol,
 		MarketDataSymbol: marketDataSymbol,
 		IsBenchmark:      req.IsBenchmark,
+		DataSourceURL:    strings.TrimSpace(req.DataSourceURL),
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}

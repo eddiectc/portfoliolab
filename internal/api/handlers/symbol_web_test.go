@@ -807,3 +807,183 @@ func TestSMRegisterRoutes(t *testing.T) {
 	handler := &SymbolWebHandler{}
 	handler.RegisterRoutes(r)
 }
+
+// TestSMHandleNewPage_RendersDataSourceURLInput verifies the source URL input is on the create form.
+func TestSMHandleNewPage_RendersDataSourceURLInput(t *testing.T) {
+	handler, _, _ := setupWebHandlerWithSMService(t)
+	r := httptest.NewRequest(http.MethodGet, "/symbols/new", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleNewPage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="data_source_url"`) {
+		t.Error("missing data_source_url input")
+	}
+	if !strings.Contains(body, "Source URL") {
+		t.Error("missing 'Source URL' label")
+	}
+}
+
+// TestHandleCreatePage_WithDataSourceURL creates a mapping with source URL and verifies it is persisted.
+func TestHandleCreatePage_WithDataSourceURL(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
+	body := strings.NewReader("internal_symbol=WMGT&market_data_symbol=WMGT&data_source_url=" + url)
+	r := httptest.NewRequest(http.MethodPost, "/symbols", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	mappings, _ := repo.GetAll(context.Background(), 0, 0)
+	if len(mappings) != 1 {
+		t.Fatalf("expected 1 mapping, got %d", len(mappings))
+	}
+	if mappings[0].DataSourceURL != url {
+		t.Errorf("expected DataSourceURL=%q, got %q", url, mappings[0].DataSourceURL)
+	}
+}
+
+// TestHandleCreatePage_EmptyDataSourceURL creates a mapping without source URL (empty = default Yahoo).
+func TestHandleCreatePage_EmptyDataSourceURL(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL&data_source_url=")
+	r := httptest.NewRequest(http.MethodPost, "/symbols", body)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleCreatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	mappings, _ := repo.GetAll(context.Background(), 0, 0)
+	if len(mappings) != 1 {
+		t.Fatalf("expected 1 mapping, got %d", len(mappings))
+	}
+	if mappings[0].DataSourceURL != "" {
+		t.Errorf("expected empty DataSourceURL, got %q", mappings[0].DataSourceURL)
+	}
+}
+
+// TestHandleEditPage_LoadsDataSourceURL shows source URL pre-populated on the edit form.
+func TestHandleEditPage_LoadsDataSourceURL(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    url,
+	}
+	repo.byInternal["WMGT"] = 1
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/edit", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+
+	w := httptest.NewRecorder()
+	handler.HandleEditPage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	pageBody := w.Body.String()
+	if !strings.Contains(pageBody, `id="data_source_url"`) {
+		t.Error("missing data_source_url input")
+	}
+	if !strings.Contains(pageBody, url) {
+		t.Error("expected source URL pre-populated in form")
+	}
+}
+
+// TestHandleUpdatePage_SetDataSourceURL sets source URL via edit form.
+func TestHandleUpdatePage_SetDataSourceURL(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "AAPL",
+		MarketDataSymbol: "AAPL",
+	}
+	repo.byInternal["AAPL"] = 1
+
+	url := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt"
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	body := strings.NewReader("internal_symbol=AAPL&market_data_symbol=AAPL&data_source_url=" + url)
+	r := httptest.NewRequest(http.MethodPost, "/symbols/1/edit", body)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleUpdatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	updated, err := repo.GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("failed to get updated mapping: %v", err)
+	}
+	if updated.DataSourceURL != url {
+		t.Errorf("expected DataSourceURL=%q, got %q", url, updated.DataSourceURL)
+	}
+}
+
+// TestHandleUpdatePage_ClearDataSourceURL clears source URL (empty string).
+func TestHandleUpdatePage_ClearDataSourceURL(t *testing.T) {
+	handler, _, repo := setupWebHandlerWithSMService(t)
+
+	repo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT",
+		DataSourceURL:    "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
+	}
+	repo.byInternal["WMGT"] = 1
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	body := strings.NewReader("internal_symbol=WMGT&market_data_symbol=WMGT&data_source_url=")
+	r := httptest.NewRequest(http.MethodPost, "/symbols/1/edit", body)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleUpdatePage(w, r)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, resp.StatusCode)
+	}
+
+	updated, err := repo.GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("failed to get updated mapping: %v", err)
+	}
+	if updated.DataSourceURL != "" {
+		t.Errorf("expected empty DataSourceURL after clear, got %q", updated.DataSourceURL)
+	}
+}
