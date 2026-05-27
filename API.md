@@ -429,6 +429,8 @@ POST /api/symbol-mappings
 |---|---|---|---|
 | `internal_symbol` | string | yes | Internal symbol (e.g. `AAPL`) |
 | `market_data_symbol` | string | yes | Market data symbol (e.g. `AAPL.US`) |
+| `is_benchmark` | bool | no | Mark as benchmark (default `false`) |
+| `data_source_url` | string | no | Provider source URL (e.g. WisdomTree ETF page). NULL/empty = Yahoo Finance (default) |
 
 **Response:** `201 Created` — `SymbolMapping`
 
@@ -452,6 +454,8 @@ PATCH /api/symbol-mappings/{id}
 |---|---|---|
 | `internal_symbol` | string | New internal symbol |
 | `market_data_symbol` | string | New market data symbol |
+| `is_benchmark` | bool | Benchmark flag |
+| `data_source_url` | string | Provider source URL. Empty string = clear (revert to Yahoo) |
 
 **Response:** `200 OK` — `SymbolMapping` | `404` — not found
 
@@ -938,6 +942,59 @@ DELETE /api/model-portfolios/{id}
   }
 }
 ```
+
+### SymbolMapping
+
+```json
+{
+  "id": 1,
+  "internal_symbol": "AAPL",
+  "market_data_symbol": "AAPL",
+  "is_benchmark": false,
+  "data_source_url": "",
+  "broker_symbols": [],
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+> `data_source_url` — optional provider source URL (e.g. WisdomTree ETF page). When set, symbol details fetching is routed to the matching extractor instead of Yahoo Finance. Empty/NULL = Yahoo Finance.
+
+### SymbolDetailsResponse
+
+Embedded in `SymbolGetResponse.symbol_details`. Includes standard Yahoo fields (holdings, sectors, geographic allocations, fund profile, equity valuation) plus extractor-specific fields:
+
+```json
+{
+  "internal_symbol": "WMGT",
+  "short_name": "WisdomTree Mid Cap Growth",
+  "long_name": "WisdomTree Mid Cap Growth UCITS ETF",
+  "exchange": "ILS",
+  "currency": "GBP",
+  "quote_type": "ETF",
+  "top_holdings": [...],
+  "sector_weightings": [...],
+  "geographic_allocations": [...],
+  "fund_profile": {...},
+  "equity_valuation": {...},
+  "market_cap_breakdown": {
+    "total": 100.0,
+    "large": 15.2,
+    "mid": 68.5,
+    "small": 16.3
+  },
+  "theme_breakdown": [
+    {"name": "Technology", "percent": 42.5},
+    {"name": "Consumer Discretionary", "percent": 28.3}
+  ],
+  "extractor_as_of_date": "2026-05-22T00:00:00Z",
+  "fetched_at": "2026-05-26T12:00:00Z"
+}
+```
+
+> `market_cap_breakdown` — total market cap + large/mid/small cap split (extractor data only).  
+> `theme_breakdown` — theme allocation percentages (extractor data only).  
+> `extractor_as_of_date` — provider's reference date (not the fetch date). Present only when data comes from an extractor; omitted for Yahoo-sourced data.
 
 ### PreviewResponse (Symbol Mapping)
 

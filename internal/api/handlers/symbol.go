@@ -11,15 +11,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // SymbolHandler handles HTTP requests for symbol CRUD operations.
 type SymbolHandler struct {
-	service       *symbolmapping.Service
+	service        *symbolmapping.Service
 	detailsService *symbols.Service
 }
 
@@ -44,35 +44,35 @@ func (h *SymbolHandler) RegisterRoutes(r *chi.Mux) {
 
 // SymbolGetResponse is the enriched response for GET /api/symbols/{id}.
 type SymbolGetResponse struct {
-	ID               int64                    `json:"id"`
-	InternalSymbol   string                   `json:"internal_symbol"`
-	MarketDataSymbol string                   `json:"market_data_symbol"`
-	IsBenchmark      bool                     `json:"is_benchmark"`
-	DataSourceURL    string                   `json:"data_source_url"`
+	ID               int64                        `json:"id"`
+	InternalSymbol   string                       `json:"internal_symbol"`
+	MarketDataSymbol string                       `json:"market_data_symbol"`
+	IsBenchmark      bool                         `json:"is_benchmark"`
+	DataSourceURL    string                       `json:"data_source_url"`
 	BrokerSymbols    []symbolmapping.BrokerSymbol `json:"broker_symbols"`
-	CreatedAt        time.Time                `json:"created_at"`
-	UpdatedAt        time.Time                `json:"updated_at"`
-	SymbolDetails    *SymbolDetailsResponse   `json:"symbol_details"`
+	CreatedAt        time.Time                    `json:"created_at"`
+	UpdatedAt        time.Time                    `json:"updated_at"`
+	SymbolDetails    *SymbolDetailsResponse       `json:"symbol_details"`
 }
 
 // SymbolDetailsResponse is the API representation of cached symbol details.
 type SymbolDetailsResponse struct {
-	InternalSymbol          string                   `json:"internal_symbol"`
-	ShortName               string                   `json:"short_name"`
-	LongName                string                   `json:"long_name"`
-	Exchange                string                   `json:"exchange"`
-	Currency                string                   `json:"currency"`
-	QuoteType               string                   `json:"quote_type"`
-	TopHoldings             []symbol.TopHolding      `json:"top_holdings,omitempty"`
-	SectorWeightings        []symbol.SectorWeighting `json:"sector_weightings,omitempty"`
-	AggregatePositions      *symbol.AggregatePositions `json:"aggregate_positions,omitempty"`
-	FundProfile             *symbol.FundProfile      `json:"fund_profile,omitempty"`
-	EquityValuation         *symbol.EquityValuation  `json:"equity_valuation,omitempty"`
-	GeographicAllocations   []symbol.GeographicAllocation `json:"geographic_allocations,omitempty"`
-	MarketCapBreakdown      *symbol.MarketCapBreakdown   `json:"market_cap_breakdown,omitempty"`
-	ThemeBreakdown          []symbol.ThemeBreakdown      `json:"theme_breakdown,omitempty"`
-	ExtractorAsOfDate       *time.Time                   `json:"extractor_as_of_date,omitempty"`
-	FetchedAt               time.Time                    `json:"fetched_at"`
+	InternalSymbol        string                        `json:"internal_symbol"`
+	ShortName             string                        `json:"short_name"`
+	LongName              string                        `json:"long_name"`
+	Exchange              string                        `json:"exchange"`
+	Currency              string                        `json:"currency"`
+	QuoteType             string                        `json:"quote_type"`
+	TopHoldings           []symbol.TopHolding           `json:"top_holdings,omitempty"`
+	SectorWeightings      []symbol.SectorWeighting      `json:"sector_weightings,omitempty"`
+	AggregatePositions    *symbol.AggregatePositions    `json:"aggregate_positions,omitempty"`
+	FundProfile           *symbol.FundProfile           `json:"fund_profile,omitempty"`
+	EquityValuation       *symbol.EquityValuation       `json:"equity_valuation,omitempty"`
+	GeographicAllocations []symbol.GeographicAllocation `json:"geographic_allocations,omitempty"`
+	MarketCapBreakdown    *symbol.MarketCapBreakdown    `json:"market_cap_breakdown,omitempty"`
+	ThemeBreakdown        []symbol.ThemeBreakdown       `json:"theme_breakdown,omitempty"`
+	ExtractorAsOfDate     *time.Time                    `json:"extractor_as_of_date,omitempty"`
+	FetchedAt             time.Time                     `json:"fetched_at"`
 }
 
 // HandleCreate handles POST /api/symbols.
@@ -299,21 +299,21 @@ func toSymbolDetailsResponse(details *symbol.SymbolDetails) *SymbolDetailsRespon
 	})
 
 	resp := &SymbolDetailsResponse{
-		InternalSymbol:         details.InternalSymbol,
-		ShortName:              details.ShortName,
-		LongName:               details.LongName,
-		Exchange:               details.Exchange,
-		Currency:               details.Currency,
-		QuoteType:              details.QuoteType,
-		TopHoldings:            details.TopHoldings,
-		SectorWeightings:       details.SectorWeightings,
-		AggregatePositions:     details.AggregatePositions,
-		FundProfile:            details.FundProfile,
-		EquityValuation:        details.EquityValuation,
-		GeographicAllocations:  allocs,
-		MarketCapBreakdown:     details.MarketCapBreakdown,
-		ThemeBreakdown:         details.Themes,
-		FetchedAt:              details.FetchedAt,
+		InternalSymbol:        details.InternalSymbol,
+		ShortName:             details.ShortName,
+		LongName:              details.LongName,
+		Exchange:              details.Exchange,
+		Currency:              details.Currency,
+		QuoteType:             details.QuoteType,
+		TopHoldings:           details.TopHoldings,
+		SectorWeightings:      details.SectorWeightings,
+		AggregatePositions:    details.AggregatePositions,
+		FundProfile:           details.FundProfile,
+		EquityValuation:       details.EquityValuation,
+		GeographicAllocations: allocs,
+		MarketCapBreakdown:    details.MarketCapBreakdown,
+		ThemeBreakdown:        details.Themes,
+		FetchedAt:             details.FetchedAt,
 	}
 	if !details.ExtractorAsOfDate.IsZero() {
 		resp.ExtractorAsOfDate = &details.ExtractorAsOfDate
