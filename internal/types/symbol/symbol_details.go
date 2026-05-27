@@ -16,30 +16,30 @@ type SymbolDetails struct {
 	Sector         string // primary sector for individual stocks (e.g. "Technology")
 
 	// ETF-specific fields (JSON in DB, deserialized here)
-	TopHoldings          []TopHolding
-	SectorWeightings     []SectorWeighting
-	AggregatePositions   *AggregatePositions
-	FundProfile          *FundProfile
-	EquityValuation      *EquityValuation
+	TopHoldings           []TopHolding
+	SectorWeightings      []SectorWeighting
+	AggregatePositions    *AggregatePositions
+	FundProfile           *FundProfile
+	EquityValuation       *EquityValuation
 	GeographicAllocations []GeographicAllocation
-	MarketCapBreakdown   *MarketCapBreakdown
-	Themes               []ThemeBreakdown
+	MarketCapBreakdown    *MarketCapBreakdown
+	Themes                []ThemeBreakdown
 
 	// Metadata
 	ExtractorAsOfDate time.Time // provider's "as of" date; zero when from Yahoo
-	FetchedAt         time.Time  // when the system fetched the data
+	FetchedAt         time.Time // when the system fetched the data
 }
 
 // TopHolding represents a single holding in an ETF's portfolio.
 type TopHolding struct {
-	Symbol    string
-	Name      string
-	Percent   float64 // 0-100 percentage, e.g. 1.399 = 1.399% (not 0-1 fraction)
+	Symbol  string
+	Name    string
+	Percent float64 // 0-100 percentage, e.g. 1.399 = 1.399% (not 0-1 fraction)
 }
 
 // SectorWeighting represents the allocation to a single sector.
 type SectorWeighting struct {
-	Sector  string // e.g. "technology", "financial_services"
+	Sector  string  // e.g. "technology", "financial_services"
 	Percent float64 // 0-100 percentage, e.g. 25.5 = 25.5% (not 0-1 fraction)
 }
 
@@ -69,6 +69,7 @@ type EquityValuation struct {
 	PriceToBook     float64
 	PriceToCashflow float64
 	PriceToSales    float64
+	DividendYield   float64
 }
 
 // GeographicAllocation represents a country/region exposure entry.

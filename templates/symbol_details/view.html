@@ -63,6 +63,9 @@
             <span class="badge badge-warning">Stale</span>
             {{end}}
             <span class="text-muted">{{.FetchedText}}</span>
+            {{if .Details.ExtractorAsOfDate}}
+            <span class="text-muted"> · As of {{.Details.ExtractorAsOfDate}}</span>
+            {{end}}
         </div>
         {{end}}
     </div>
@@ -85,15 +88,31 @@
         </thead>
         <tbody>
             {{range $i, $h := .Details.TopHoldings}}
+            {{if lt $i 10}}
             <tr>
                 <td>{{add $i 1}}</td>
                 <td><strong>{{$h.Symbol}}</strong></td>
                 <td>{{$h.Name}}</td>
                 <td class="text-right">{{$h.Percent}}</td>
             </tr>
+            {{else}}
+            <tr class="holding-extra" style="display:none;">
+                <td>{{add $i 1}}</td>
+                <td><strong>{{$h.Symbol}}</strong></td>
+                <td>{{$h.Name}}</td>
+                <td class="text-right">{{$h.Percent}}</td>
+            </tr>
+            {{end}}
             {{end}}
         </tbody>
     </table>
+    {{if gt (len .Details.TopHoldings) 10}}
+    <div class="card-body" style="padding: 0.5rem 1rem; border-top: 1px solid #eee;">
+        <button type="button" class="btn" style="font-size: 0.85em; padding: 0.25rem 0.75rem;" onclick="var rows=this.parentElement.parentElement.querySelectorAll('.holding-extra');var show=this.textContent==='Show all {{.Details.TopHoldings | len}}';rows.forEach(function(r){r.style.display=show?'none':''});this.textContent=show?'Hide':'Show all {{.Details.TopHoldings | len}}';">
+            Show all {{len .Details.TopHoldings}}
+        </button>
+    </div>
+    {{end}}
 </div>
 {{end}}
 
@@ -118,6 +137,38 @@
             {{end}}
         </tbody>
     </table>
+    {{if .Details.ExtractorAsOfDate}}
+    <div class="card-body text-muted" style="padding: 0.5rem 1rem; font-size: 0.85em; border-top: 1px solid #eee;">
+        As of {{.Details.ExtractorAsOfDate}}
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+{{if .Details.Themes}}
+<div class="card">
+    <div class="card-header">
+        <h2>Theme Breakdown</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Theme</th>
+                <th class="text-right">Weight</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Details.Themes}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td class="text-right">{{.Percent}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <div class="card-body text-muted" style="padding: 0.5rem 1rem; font-size: 0.85em; border-top: 1px solid #eee;">
+        As of {{.Details.ExtractorAsOfDate}}
+    </div>
 </div>
 {{end}}
 
@@ -195,7 +246,75 @@
             <th>Annual Holdings Turnover</th>
             <td>{{.Details.FundProfile.Turnover}}</td>
         </tr>
+        {{if .Details.FundProfile.InceptionDate}}
+        <tr>
+            <th>Inception Date</th>
+            <td>{{.Details.FundProfile.InceptionDate}}</td>
+        </tr>
+        {{end}}
     </table>
+</div>
+{{end}}
+
+{{if .Details.MarketCapBreakdown}}
+<div class="card">
+    <div class="card-header">
+        <h2>Market Capitalization</h2>
+    </div>
+    <table class="table table-details">
+        <tr>
+            <th>Total Market Cap</th>
+            <td>{{.Details.MarketCapBreakdown.Total}}</td>
+        </tr>
+        <tr>
+            <th>Large Cap</th>
+            <td>{{.Details.MarketCapBreakdown.Large}}</td>
+        </tr>
+        <tr>
+            <th>Mid Cap</th>
+            <td>{{.Details.MarketCapBreakdown.Mid}}</td>
+        </tr>
+        <tr>
+            <th>Small Cap</th>
+            <td>{{.Details.MarketCapBreakdown.Small}}</td>
+        </tr>
+    </table>
+    <div class="card-body text-muted" style="padding: 0.5rem 1rem; font-size: 0.85em; border-top: 1px solid #eee;">
+        As of {{.Details.ExtractorAsOfDate}}
+    </div>
+</div>
+{{end}}
+
+{{if .Details.EquityValuation}}
+<div class="card">
+    <div class="card-header">
+        <h2>Fund Characteristics</h2>
+    </div>
+    <table class="table table-details">
+        <tr>
+            <th>P/E Ratio</th>
+            <td>{{.Details.EquityValuation.PriceToEarnings}}</td>
+        </tr>
+        <tr>
+            <th>P/B Ratio</th>
+            <td>{{.Details.EquityValuation.PriceToBook}}</td>
+        </tr>
+        <tr>
+            <th>P/CF Ratio</th>
+            <td>{{.Details.EquityValuation.PriceToCashflow}}</td>
+        </tr>
+        <tr>
+            <th>P/S Ratio</th>
+            <td>{{.Details.EquityValuation.PriceToSales}}</td>
+        </tr>
+        <tr>
+            <th>Dividend Yield</th>
+            <td>{{.Details.EquityValuation.DividendYield}}</td>
+        </tr>
+    </table>
+    <div class="card-body text-muted" style="padding: 0.5rem 1rem; font-size: 0.85em; border-top: 1px solid #eee;">
+        As of {{.Details.ExtractorAsOfDate}}
+    </div>
 </div>
 {{end}}
 
@@ -221,6 +340,11 @@
             {{end}}
         </tbody>
     </table>
+    {{if .Details.ExtractorAsOfDate}}
+    <div class="card-body text-muted" style="padding: 0.5rem 1rem; font-size: 0.85em; border-top: 1px solid #eee;">
+        As of {{.Details.ExtractorAsOfDate}}
+    </div>
+    {{end}}
 </div>
 {{end}}
 {{else}}
@@ -235,6 +359,72 @@
     </div>
 </div>
 {{end}}
+{{end}}
+
+{{if .HasChartData}}
+<div class="card">
+    <div class="card-header">
+        <h2>NAV vs Price</h2>
+    </div>
+    <div class="card-body">
+        <div id="nav-price-chart" style="width: 100%; height: 400px;"></div>
+        <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+        <script>
+        (function() {
+            var chartData = {{.NavPriceChartData}};
+            var chart = echarts.init(document.getElementById('nav-price-chart'));
+            var option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' }
+                },
+                legend: {
+                    data: ['NAV', 'Price']
+                },
+                xAxis: {
+                    type: 'category',
+                    data: chartData.navDates.concat(chartData.priceDates)
+                        .sort(function(a, b) { return a.localeCompare(b); })
+                        .filter(function(item, i, arr) { return arr.indexOf(item) === i; })
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [
+                    {
+                        name: 'NAV',
+                        type: 'line',
+                        data: (function() {
+                            var map = {};
+                            for (var i = 0; i < chartData.navDates.length; i++) {
+                                map[chartData.navDates[i]] = chartData.navValues[i];
+                            }
+                            return Object.keys(map).map(function(d) { return [d, map[d]]; });
+                        })(),
+                        showSymbol: false,
+                        smooth: false
+                    },
+                    {
+                        name: 'Price',
+                        type: 'line',
+                        data: (function() {
+                            var map = {};
+                            for (var i = 0; i < chartData.priceDates.length; i++) {
+                                map[chartData.priceDates[i]] = chartData.priceValues[i];
+                            }
+                            return Object.keys(map).map(function(d) { return [d, map[d]]; });
+                        })(),
+                        showSymbol: false,
+                        smooth: false
+                    }
+                ]
+            };
+            chart.setOption(option);
+            window.addEventListener('resize', function() { chart.resize(); });
+        })();
+        </script>
+    </div>
+</div>
 {{end}}
 {{else}}
 <!-- No cached details -->

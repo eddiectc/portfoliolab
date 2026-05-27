@@ -209,10 +209,10 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
 
 **Description:** Update the symbol details web page to show all extracted data sections with "as of" dates, and render the NAV vs Price chart.
 
-- [ ] Update `symbolDetailsDisplay` struct to include new sections: `MarketCapBreakdown`, `FundCharacteristics` (extended), `FullHoldings`, `ThemeBreakdown`, `CountryAllocation`, `ExtractorAsOfDate`
-- [ ] Update `toDisplayDetails` to populate new sections from `SymbolDetails`
-- [ ] Update `symbolDetailsPageData` to include chart data for NAV vs Price
-- [ ] Add new template sections in `templates/symbol_details/view.html`:
+- [x] Update `symbolDetailsDisplay` struct to include new sections: `MarketCapBreakdown`, `FundCharacteristics` (extended), `FullHoldings`, `ThemeBreakdown`, `CountryAllocation`, `ExtractorAsOfDate`
+- [x] Update `toDisplayDetails` to populate new sections from `SymbolDetails`
+- [x] Update `symbolDetailsPageData` to include chart data for NAV vs Price
+- [x] Add new template sections in `templates/symbol_details/view.html`:
   - Market Capitalization table (total + large/mid/small)
   - Fund Characteristics table (extended P/E, Est P/E, P/B, P/S, P/CF, div yield)
   - Full Holdings table (all securities, not limited to 10)
@@ -220,12 +220,12 @@ Task 9 (Cross-Layer Audit) runs alongside Tasks 3-6 and verifies all data_type q
   - Sector Breakdown table (replaces Yahoo sector when extractor data present)
   - Country Allocation table (replaces Yahoo geographic when extractor data present)
   - NAV vs Price chart (ECharts, two series, no interpolation)
-- [ ] Add conditional logic: show extractor sections when extractor data present, fall back to Yahoo sections otherwise
-- [ ] Show "As of {date}" label on each extractor-sourced section
-- [ ] Fetch NAV history in handler and serialize as JSON for ECharts
-- [ ] Write unit tests: page renders extractor sections when data present
-- [ ] Write unit tests: page falls back to Yahoo sections when no extractor data
-- [ ] Write unit tests: "As of" date displayed correctly
+- [x] Add conditional logic: show extractor sections when extractor data present, fall back to Yahoo sections otherwise
+- [x] Show "As of {date}" label on each extractor-sourced section
+- [x] Fetch NAV history in handler and serialize as JSON for ECharts
+- [x] Write unit tests: page renders extractor sections when data present
+- [x] Write unit tests: page falls back to Yahoo sections when no extractor data
+- [x] Write unit tests: "As of" date displayed correctly
 
 **Verification:** All new sections render with correct data; "As of" date shown; NAV chart displays both series; Yahoo sections shown when no extractor data.
 
