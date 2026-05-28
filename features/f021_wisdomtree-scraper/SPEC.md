@@ -169,7 +169,8 @@ Provider-extracted data carries a reference date (the date embedded in the provi
 ## Edge Cases
 
 - **Provider assigned but extractor not registered**: Symbol has a provider assignment but no extractor implementation exists — fetch fails with explicit error, no fallback to Yahoo.
-- **Partial extraction (some sections parse, others don't)**: Entire extraction is treated as failed (atomic); partial data is not persisted.
+- **Partial extraction (some sections parse, others don't)**: Required sections (fund info, holdings, as-of date) are atomic — if any fails, entire extraction is rejected. Optional sections (NAV history, themes, sectors, country allocation, market cap, fund characteristics, fund profile) return empty results when not present on the page; the extraction succeeds with whatever data is available.
+- **Different provider pages have different data sections**: Not all WisdomTree pages include all data sections. E.g., WMGT lacks `fundSectorsData`, QGRW.L lacks `fundMarketData` and `fundThemeData`. The extractor handles this gracefully — missing optional sections return nil, present sections are parsed normally.
 - **NAV data and price data on same symbol**: NAV and price share the same symbol identifier but are distinguished by data type and source; queries must not mix them.
 - **Rate limiting between Yahoo and extractor**: Extractor-configured symbols trigger both Yahoo (market data) and extractor (symbol details + NAV) fetches; rate limiting applies independently to each source.
 - **Cloudflare/bot detection blocks the extractor**: The request fails with an explicit error; the symbol is marked as failed and existing cached data is preserved.
@@ -177,7 +178,7 @@ Provider-extracted data carries a reference date (the date embedded in the provi
 - **Provider returns no data for a symbol**: The page loads but expected data sections are missing — treated as a parsing error (same as above).
 - **Holdings list is very large (800+ securities)**: All holdings are fetched and stored; no artificial cap is applied.
 - **NAV history has gaps or non-trading dates**: NAV data points are stored as-is from the provider; the chart displays available points without interpolation.
-- **"As of" date is missing from provider page**: The extraction stores the fetch date as a fallback but logs a warning.
+- **"As of" date is missing from provider page**: The extraction fails entirely (no fallback to fetch date). The "as of" date is a required field — without it, the reference date for all extracted data is unknown, and storing data with an incorrect reference date would be worse than failing. The fetch date is already captured in `fetched_at`.
 
 ## Non-Goals
 
@@ -193,7 +194,7 @@ Provider-extracted data carries a reference date (the date embedded in the provi
 - Error handling: Explicit errors, no silent fallbacks. If extraction fails, the symbol is marked as failed.
 - Cloudflare/bot detection: Must handle potential challenges gracefully.
 - Data consistency: NAV history uses the same symbol identifier as market data (e.g., "WMGT LN"), stored with a distinct data type and source tag to distinguish from Yahoo data.
-- Extraction is atomic: if any section fails to parse, the entire extraction is rejected (no partial data persisted).
+- Extraction is atomic for required sections (fund info, holdings, as-of date): if any required section fails to parse, the entire extraction is rejected. Optional sections (NAV, themes, sectors, country, market cap, characteristics, profile) may be absent on some pages without causing failure.
 - Provider assignment is manual: symbols are associated with providers through configuration, not auto-detection.
 - NAV chart displays both series without interpolation: NAV and price data points that don't share dates are shown as-is.
 

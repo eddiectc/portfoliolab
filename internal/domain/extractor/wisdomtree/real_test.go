@@ -46,8 +46,11 @@ func TestParseFundCharacteristics_Real(t *testing.T) {
 	if ch.PriceToEarnings == 0 {
 		t.Error("expected P/E > 0")
 	}
-	t.Logf("Characteristics: PE=%.2f, PB=%.2f, PS=%.2f, PCF=%.2f, DY=%.2f",
-		ch.PriceToEarnings, ch.PriceToBook, ch.PriceToSales, ch.PriceToCashflow, ch.DividendYield)
+	if ch.EstimatedPriceToEarnings == 0 {
+		t.Error("expected Estimated P/E > 0")
+	}
+	t.Logf("Characteristics: PE=%.2f, EstPE=%.2f, PB=%.2f, PS=%.2f, PCF=%.2f, DY=%.2f",
+		ch.PriceToEarnings, ch.EstimatedPriceToEarnings, ch.PriceToBook, ch.PriceToSales, ch.PriceToCashflow, ch.DividendYield)
 }
 
 func TestExtractFromHTML_Real(t *testing.T) {

@@ -546,6 +546,91 @@ func TestParseMarketCap(t *testing.T) {
 	}
 }
 
+func TestParseFundCharacteristics(t *testing.T) {
+	tests := []struct {
+		name               string
+		html               string
+		wantPE             float64
+		wantEstimatedPE    float64
+		wantNil            bool
+		wantErr            bool
+	}{
+		{
+			name: "complete characteristics",
+			html: `<table>
+<thead><tr><th class="key">Fund Characteristics</th><th class="value">As of 22 May 2026</th></tr></thead>
+<tbody>
+<tr><td class="key">*Dividend Yield</td><td class="value">0.94</td></tr>
+<tr><td class="key">Price/Earnings</td><td class="value">69.64</td></tr>
+<tr><td class="key">Estimated Price/Earnings</td><td class="value">34.56</td></tr>
+<tr><td class="key">Price/Book</td><td class="value">4.06</td></tr>
+<tr><td class="key">Price/Sales</td><td class="value">2.61</td></tr>
+<tr><td class="key">Price/Cash Flow</td><td class="value">28.69</td></tr>
+</tbody>
+</table>`,
+			wantPE:          69.64,
+			wantEstimatedPE: 34.56,
+		},
+		{
+			name: "partial characteristics",
+			html: `<table>
+<thead><tr><th class="key">Fund Characteristics</th><th class="value">As of 22 May 2026</th></tr></thead>
+<tbody>
+<tr><td class="key">Price/Earnings</td><td class="value">15.20</td></tr>
+<tr><td class="key">Price/Book</td><td class="value">2.10</td></tr>
+</tbody>
+</table>`,
+			wantPE: 15.20,
+		},
+		{
+			name:    "missing section",
+			html:    `<section id="other">no characteristics here</section>`,
+			wantNil: true,
+		},
+		{
+			name: "negative values",
+			html: `<table>
+<thead><tr><th class="key">Fund Characteristics</th><th class="value">As of 22 May 2026</th></tr></thead>
+<tbody>
+<tr><td class="key">Price/Earnings</td><td class="value">-5.20</td></tr>
+<tr><td class="key">Price/Book</td><td class="value">1.50</td></tr>
+</tbody>
+</table>`,
+			wantPE: -5.20,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseFundCharacteristics(tt.html)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if tt.wantNil {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if got != nil {
+					t.Error("expected nil result")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.PriceToEarnings != tt.wantPE {
+				t.Errorf("PriceToEarnings = %f, want %f", got.PriceToEarnings, tt.wantPE)
+			}
+			if got.EstimatedPriceToEarnings != tt.wantEstimatedPE {
+				t.Errorf("EstimatedPriceToEarnings = %f, want %f", got.EstimatedPriceToEarnings, tt.wantEstimatedPE)
+			}
+		})
+	}
+}
+
 func TestIsCashPosition(t *testing.T) {
 	tests := []struct {
 		name     string

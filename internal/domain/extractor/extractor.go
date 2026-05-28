@@ -101,11 +101,12 @@ type MarketCapBreakdown struct {
 
 // FundCharacteristics contains valuation and other fund characteristics.
 type FundCharacteristics struct {
-	PriceToEarnings float64
-	PriceToBook     float64
-	PriceToCashflow float64
-	PriceToSales    float64
-	DividendYield   float64
+	PriceToEarnings          float64
+	EstimatedPriceToEarnings float64
+	PriceToBook              float64
+	PriceToCashflow          float64
+	PriceToSales             float64
+	DividendYield            float64
 }
 
 // Extractor extracts data from a specific provider's web pages.

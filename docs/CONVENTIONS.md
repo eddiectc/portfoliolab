@@ -43,6 +43,7 @@
 ## Domain Logic
 - **Position calculations** are the heart of the app — be extra careful with P&L math
 - Use `github.com/govalues/decimal` for all monetary values (prices, costs, P&L) — never `float64`
+- **Exception**: Display-only metadata (allocations, weights, characteristics, valuations) may use `float64` — these are presentation values that map to existing `symbol` types and are not used in P&L calculations
 - Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
 - Document all rounding rules and edge cases in code comments
 - **Trade suggestions need price resolution for unheld symbols** — when computing rebalancing or trade suggestions, symbols in the target allocation may not yet be held. The interface (e.g., `PositionSource`) must expose a price lookup method (e.g., `GetMarketPrice`) independent of position enrichment.

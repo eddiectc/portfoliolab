@@ -289,11 +289,12 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 	// Equity valuation from characteristics.
 	if result.Characteristics != nil {
 		details.EquityValuation = &symbol.EquityValuation{
-			PriceToEarnings: result.Characteristics.PriceToEarnings,
-			PriceToBook:     result.Characteristics.PriceToBook,
-			PriceToCashflow: result.Characteristics.PriceToCashflow,
-			PriceToSales:    result.Characteristics.PriceToSales,
-			DividendYield:   result.Characteristics.DividendYield,
+			PriceToEarnings:          result.Characteristics.PriceToEarnings,
+			EstimatedPriceToEarnings: result.Characteristics.EstimatedPriceToEarnings,
+			PriceToBook:              result.Characteristics.PriceToBook,
+			PriceToCashflow:          result.Characteristics.PriceToCashflow,
+			PriceToSales:             result.Characteristics.PriceToSales,
+			DividendYield:            result.Characteristics.DividendYield,
 		}
 	}
 
