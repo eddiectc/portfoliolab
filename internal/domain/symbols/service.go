@@ -10,7 +10,6 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
-	"github.com/govalues/decimal"
 )
 
 // ErrNotFound indicates no cached symbol details exist for the requested symbol.
@@ -139,13 +138,9 @@ func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSy
 func (s *Service) storeNavHistory(ctx context.Context, internalSymbol, currency string, navPoints []extractor.NavPoint) error {
 	now := time.Now()
 	for _, np := range navPoints {
-		price, err := decimal.NewFromFloat64(np.NAV)
-		if err != nil {
-			return fmt.Errorf("convert NAV %f for %s: %w", np.NAV, internalSymbol, err)
-		}
 		md := &market.MarketData{
 			Symbol:    internalSymbol,
-			Price:     price,
+			Price:     np.NAV,
 			Currency:  currency,
 			DataType:  "nav",
 			Source:    "wisdomtree",
