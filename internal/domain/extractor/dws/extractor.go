@@ -14,19 +14,26 @@ const Name = "dws"
 
 // Extractor extracts fund data from the DWS JSON API.
 type Extractor struct {
-	client *Client
+	matcher *URLMatcher
+	client  *Client
 }
 
 // NewExtractor creates a new DWS extractor.
 func NewExtractor() *Extractor {
 	return &Extractor{
-		client: NewClient(),
+		matcher: NewURLMatcher(),
+		client:  NewClient(),
 	}
 }
 
 // Name returns the extractor identifier.
 func (e *Extractor) Name() string {
 	return Name
+}
+
+// Match checks if a URL belongs to a DWS fund.
+func (e *Extractor) Match(rawURL string) bool {
+	return e.matcher.Match(rawURL)
 }
 
 // Extract fetches and parses data from the DWS API.
