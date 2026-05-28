@@ -166,8 +166,6 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 	for _, v := range resp.Tables[0].Values {
 		weight, err := parsePercent(v.Column1.Value)
 		if err != nil {
-			// Log error but skip this holding if weight is unparseable
-			fmt.Printf("warning: failed to parse weight %q for %s: %v\n", v.Column1.Value, v.Header.Value, err)
 			continue
 		}
 

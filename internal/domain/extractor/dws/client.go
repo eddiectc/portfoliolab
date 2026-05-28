@@ -57,8 +57,6 @@ func (c *Client) Fetch(slug, endpoint string) (string, error) {
 	c.mu.Unlock()
 
 	fullURL := fmt.Sprintf("%s/%s/%s", c.baseURL, slug, endpoint)
-	// Log the URL being fetched for debugging purposes
-	fmt.Printf("DWS API Request: %s\n", fullURL)
 
 	if c.fetch != nil {
 		return c.fetch(fullURL)
