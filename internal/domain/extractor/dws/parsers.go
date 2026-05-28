@@ -23,6 +23,22 @@ type pdpSettingsResp struct {
 	} `json:"costsAndFees"`
 }
 
+type pdpMetaTagsResp struct {
+	PdpResult struct {
+		PageFrame struct {
+			ProductHeader struct {
+				Texts struct {
+					Title string `json:"title"`
+				} `json:"texts"`
+				TableValues []struct {
+					Key   string      `json:"key"`
+					Value interface{} `json:"value"`
+				} `json:"tableValues"`
+			} `json:"productHeader"`
+		} `json:"pageFrame"`
+	} `json:"pdpResult"`
+}
+
 type holdingsResp struct {
 	Tables []struct {
 		Values []struct {
@@ -64,21 +80,20 @@ type performanceChartResp struct {
 }
 
 // ParseFundInfo extracts basic identity data.
-func ParseFundInfo(data string, slug string) (*extractor.FundInfo, error) {
-	var resp pdpSettingsResp
-	if err := json.Unmarshal([]byte(data), &resp); err != nil {
+func ParseFundInfo(settingsData, metaData string, slug string) (*extractor.FundInfo, error) {
+	var sResp pdpSettingsResp
+	if err := json.Unmarshal([]byte(settingsData), &sResp); err != nil {
 		return nil, fmt.Errorf("unmarshal pdpSettings: %w", err)
 	}
 
-	name := resp.InternalId
+	var mResp pdpMetaTagsResp
+	if err := json.Unmarshal([]byte(metaData), &mResp); err != nil {
+		return nil, fmt.Errorf("unmarshal pdpMetaTags: %w", err)
+	}
+
+	name := mResp.PdpResult.PageFrame.ProductHeader.Texts.Title
 	if name == "" {
-		// Fallback: extract name from slug (e.g. "IE00BMFKG444-nasdaq-100-ucits-etf-1c" -> "Nasdaq 100 Ucits Etf 1c")
-		parts := strings.Split(slug, "-")
-		if len(parts) > 1 {
-			name = strings.Join(parts[1:], " ")
-			// Simple title case
-			name = strings.Title(strings.ToLower(name))
-		}
+		name = sResp.InternalId
 	}
 
 	return &extractor.FundInfo{
@@ -88,46 +103,65 @@ func ParseFundInfo(data string, slug string) (*extractor.FundInfo, error) {
 }
 
 // ParseFundProfile extracts metadata and TER.
-func ParseFundProfile(data string, aum float64) (*extractor.FundProfile, error) {
-	var resp pdpSettingsResp
-	if err := json.Unmarshal([]byte(data), &resp); err != nil {
+func ParseFundProfile(settingsData, metaData string) (*extractor.FundProfile, error) {
+	var sResp pdpSettingsResp
+	if err := json.Unmarshal([]byte(settingsData), &sResp); err != nil {
 		return nil, fmt.Errorf("unmarshal pdpSettings: %w", err)
 	}
 
+	var mResp pdpMetaTagsResp
+	if err := json.Unmarshal([]byte(metaData), &mResp); err != nil {
+		return nil, fmt.Errorf("unmarshal pdpMetaTags: %w", err)
+	}
+
+	var aum float64
 	var ter float64
-	if resp.CostsAndFees.TotalOngoingCosts != "" {
-		val, err := parsePercent(resp.CostsAndFees.TotalOngoingCosts)
-		if err != nil {
-			// Log error but don't fail the entire extraction for optional TER
-			fmt.Printf("warning: failed to parse TER %q: %v\n", resp.CostsAndFees.TotalOngoingCosts, err)
-		} else {
-			ter = val
+
+	for _, tv := range mResp.PdpResult.PageFrame.ProductHeader.TableValues {
+		valStr, ok := tv.Value.(string)
+		if !ok {
+			continue
+		}
+
+		switch tv.Key {
+		case "Total AUM of fund":
+			aum = parseAUMValue(valStr)
+		case "All-in-fee (TER)":
+			if v, err := parsePercent(valStr); err == nil {
+				ter = v
+			}
+		}
+	}
+
+	// Fallback for TER from settings if not found in meta tags
+	if ter == 0 && sResp.CostsAndFees.TotalOngoingCosts != "" {
+		if v, err := parsePercent(sResp.CostsAndFees.TotalOngoingCosts); err == nil {
+			ter = v
 		}
 	}
 
 	return &extractor.FundProfile{
-		Family:             resp.FundFamily,
-		LegalType:          resp.LegalType,
+		Family:             sResp.FundFamily,
+		LegalType:          sResp.LegalType,
 		TotalNetAssets:     aum,
 		AnnualExpenseRatio: ter,
 	}, nil
 }
 
 // ParseHoldings extracts all security holdings and performs aggregations.
-func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocation, []extractor.SectorWeighting, float64, error) {
+func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocation, []extractor.SectorWeighting, error) {
 	var resp holdingsResp
 	if err := json.Unmarshal([]byte(data), &resp); err != nil {
-		return nil, nil, nil, 0, fmt.Errorf("unmarshal holdings: %w", err)
+		return nil, nil, nil, fmt.Errorf("unmarshal holdings: %w", err)
 	}
 
 	if len(resp.Tables) == 0 || len(resp.Tables[0].Values) == 0 {
-		return nil, nil, nil, 0, fmt.Errorf("holdings list is empty")
+		return nil, nil, nil, fmt.Errorf("holdings list is empty")
 	}
 
 	var holdings []extractor.Holding
 	countryMap := make(map[string]float64)
 	sectorMap := make(map[string]float64)
-	var totalAUM float64
 
 	for _, v := range resp.Tables[0].Values {
 		weight, err := parsePercent(v.Column1.Value)
@@ -145,7 +179,6 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 
 		countryMap[v.Column3.Value] += weight * 100
 		sectorMap[v.Column4.Value] += weight * 100
-		totalAUM += v.Column2.SortValue
 	}
 
 	var countries []extractor.CountryAllocation
@@ -158,7 +191,7 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 		sectors = append(sectors, extractor.SectorWeighting{Sector: s, Percent: w})
 	}
 
-	return holdings, countries, sectors, totalAUM, nil
+	return holdings, countries, sectors, nil
 }
 
 // ParseNavHistory extracts time series data.
@@ -239,6 +272,35 @@ func ParseAsOfDate(data string) (time.Time, error) {
 }
 
 // Helpers
+
+func parseAUMValue(s string) float64 {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	
+	// Extract numeric part and multiplier
+	// Example: "1.77 B GBP" -> 1.77, "B"
+	var val float64
+	var multiplier float64 = 1
+
+	// Simple parser for B (Billion), M (Million), K (Thousand)
+	if strings.Contains(s, " B") {
+		multiplier = 1_000_000_000
+	} else if strings.Contains(s, " M") {
+		multiplier = 1_000_000
+	} else if strings.Contains(s, " K") {
+		multiplier = 1_000
+	}
+
+	// Find the first part that looks like a number
+	fields := strings.Fields(s)
+	if len(fields) > 0 {
+		f, err := strconv.ParseFloat(fields[0], 64)
+		if err == nil {
+			val = f
+		}
+	}
+
+	return val * multiplier
+}
 
 func parsePercent(s string) (float64, error) {
 	s = strings.TrimSpace(s)

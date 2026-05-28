@@ -59,7 +59,12 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("fetch settings: %w", err)
 	}
 
-	fundInfo, err := ParseFundInfo(settingsData, slug)
+	metaData, err := e.client.Fetch(slug, "pdpMetaTagsTealium")
+	if err != nil {
+		return nil, fmt.Errorf("fetch meta tags: %w", err)
+	}
+
+	fundInfo, err := ParseFundInfo(settingsData, metaData, slug)
 	if err != nil {
 		return nil, fmt.Errorf("parse fund info: %w", err)
 	}
@@ -70,7 +75,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("fetch holdings: %w", err)
 	}
 
-	holdings, countries, sectors, aum, err := ParseHoldings(holdingsData)
+	holdings, countries, sectors, err := ParseHoldings(holdingsData)
 	if err != nil {
 		return nil, fmt.Errorf("parse holdings: %w", err)
 	}
@@ -91,8 +96,8 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("parse nav history: %w", err)
 	}
 
-	// Now parse fund profile with the calculated AUM
-	fundProfile, err := ParseFundProfile(settingsData, aum)
+	// Now parse fund profile with AUM and TER from meta tags
+	fundProfile, err := ParseFundProfile(settingsData, metaData)
 	if err != nil {
 		return nil, fmt.Errorf("parse fund profile: %w", err)
 	}
