@@ -1,39 +1,43 @@
 {
-  "holdings": [
+  "tables": [
     {
-      "isin": "US0378331005",
-      "name": "APPLE INC",
-      "weight": 7.5,
-      "country": "USA",
-      "industry": "Technology"
-    },
-    {
-      "isin": "US5949181045",
-      "name": "MICROSOFT CORP",
-      "weight": 6.8,
-      "country": "USA",
-      "industry": "Technology"
-    },
-    {
-      "isin": "US0231351067",
-      "name": "AMAZON COM INC",
-      "weight": 3.2,
-      "country": "USA",
-      "industry": "Consumer Discretionary"
-    },
-    {
-      "isin": "JP3435000009",
-      "name": "TOYOTA MOTOR CORP",
-      "weight": 2.1,
-      "country": "Japan",
-      "industry": "Consumer Discretionary"
-    },
-    {
-      "isin": "DE0005190003",
-      "name": "SAP SE",
-      "weight": 1.5,
-      "country": "Germany",
-      "industry": "Technology"
+      "values": [
+        {
+          "header": { "value": "US0378331005" },
+          "column_0": { "value": "APPLE INC" },
+          "column_1": { "value": "7.5%" },
+          "column_3": { "value": "USA" },
+          "column_4": { "value": "Technology" }
+        },
+        {
+          "header": { "value": "US67066G1040" },
+          "column_0": { "value": "NVIDIA CORP" },
+          "column_1": { "value": "6.8%" },
+          "column_3": { "value": "USA" },
+          "column_4": { "value": "Technology" }
+        },
+        {
+          "header": { "value": "US1234567890" },
+          "column_0": { "value": "TEST ASSET 3" },
+          "column_1": { "value": "3.2%" },
+          "column_3": { "value": "USA" },
+          "column_4": { "value": "Finance" }
+        },
+        {
+          "header": { "value": "GB0000000001" },
+          "column_0": { "value": "UK ASSET 4" },
+          "column_1": { "value": "1.5%" },
+          "column_3": { "value": "UK" },
+          "column_4": { "value": "Energy" }
+        },
+        {
+          "header": { "value": "DE0000000002" },
+          "column_0": { "value": "DE ASSET 5" },
+          "column_1": { "value": "1.0%" },
+          "column_3": { "value": "Germany" },
+          "column_4": { "value": "Industrial" }
+        }
+      ]
     }
   ]
 }

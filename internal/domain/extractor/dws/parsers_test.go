@@ -1,6 +1,7 @@
 package dws
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -95,7 +96,7 @@ func TestParseHoldings(t *testing.T) {
 			techWeight = s.Percent
 		}
 	}
-	expectedTech := 7.5 + 6.8 + 1.5
+	expectedTech := 7.5 + 6.8
 	if techWeight != expectedTech {
 		t.Errorf("expected Tech weight %f, got %f", expectedTech, techWeight)
 	}
@@ -119,16 +120,56 @@ func TestParseNavHistory(t *testing.T) {
 }
 
 func TestParseAsOfDate(t *testing.T) {
-	data := loadTestData(t, "performancechart.json")
-	
-	asOf, err := ParseAsOfDate(data)
-	if err != nil {
-		t.Fatalf("ParseAsOfDate failed: %v", err)
+	tests := []struct {
+		name     string
+		dateStr  string
+		expected time.Time
+		wantErr  bool
+	}{
+		{
+			name:     "RFC3339",
+			dateStr:  "2026-05-27T00:00:00Z",
+			expected: time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+			wantErr:  false,
+		},
+		{
+			name:     "Slash format",
+			dateStr:  "27/05/2026",
+			expected: time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+			wantErr:  false,
+		},
+		{
+			name:     "Dash format",
+			dateStr:  "27-05-2026",
+			expected: time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+			wantErr:  false,
+		},
+		{
+			name:     "ISO format",
+			dateStr:  "2026-05-27",
+			expected: time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+			wantErr:  false,
+		},
+		{
+			name:     "Invalid format",
+			dateStr:  "May 27, 2026",
+			expected: time.Time{},
+			wantErr:  true,
+		},
 	}
 
-	expected := time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC)
-	if !asOf.Equal(expected) {
-		t.Errorf("expected date %v, got %v", expected, asOf)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := fmt.Sprintf(`{"asOfDate": "%s"}`, tt.dateStr)
+			asOf, err := ParseAsOfDate(data)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseAsOfDate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && !asOf.Equal(tt.expected) {
+				t.Errorf("expected date %v, got %v", tt.expected, asOf)
+			}
+		})
 	}
 }
 
