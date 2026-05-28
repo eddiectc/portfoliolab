@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/govalues/decimal"
 )
 
 // ExtractResult holds all data sections extracted from a provider page.
@@ -70,7 +72,7 @@ type Holding struct {
 // NavPoint is a single NAV data point.
 type NavPoint struct {
 	Date string
-	NAV  float64
+	NAV  decimal.Decimal
 }
 
 // Theme is a thematic allocation entry.
