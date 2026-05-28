@@ -162,9 +162,25 @@ func ParseAsOfDate(data string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("unmarshal performanceChart: %w", err)
 	}
 
+	// Try RFC3339 first (standard API), then fall back to common date formats
 	t, err := time.Parse(time.RFC3339, resp.AsOfDate)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("parse asOfDate %q: %w", resp.AsOfDate, err)
+		// Fallback to common date formats used in DWS API
+		formats := []string{
+			"02/01/2006",
+			"02-01-2006",
+			"2006-01-02",
+		}
+		var parsed bool
+		for _, f := range formats {
+			if t, err = time.Parse(f, resp.AsOfDate); err == nil {
+				parsed = true
+				break
+			}
+		}
+		if !parsed {
+			return time.Time{}, fmt.Errorf("parse asOfDate %q: %w", resp.AsOfDate, err)
+		}
 	}
 
 	return t, nil
