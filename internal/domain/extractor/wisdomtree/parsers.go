@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/govalues/decimal"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
@@ -167,7 +168,7 @@ func ParseNavHistory(html string) ([]extractor.NavPoint, error) {
 
 		points = append(points, extractor.NavPoint{
 			Date: date,
-			NAV:  nav,
+			NAV:  decimal.MustParse(fmt.Sprintf("%.4f", nav)),
 		})
 	}
 
