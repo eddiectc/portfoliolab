@@ -395,11 +395,12 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 
 	// Parse each characteristic
 	pairs := map[string]*float64{
-		"*Dividend Yield": &chars.DividendYield,
-		"Price/Earnings":  &chars.PriceToEarnings,
-		"Price/Book":      &chars.PriceToBook,
-		"Price/Sales":     &chars.PriceToSales,
-		"Price/Cash Flow": &chars.PriceToCashflow,
+		"*Dividend Yield":          &chars.DividendYield,
+		"Price/Earnings":           &chars.PriceToEarnings,
+		"Estimated Price/Earnings": &chars.EstimatedPriceToEarnings,
+		"Price/Book":               &chars.PriceToBook,
+		"Price/Sales":              &chars.PriceToSales,
+		"Price/Cash Flow":          &chars.PriceToCashflow,
 	}
 
 	for key, target := range pairs {

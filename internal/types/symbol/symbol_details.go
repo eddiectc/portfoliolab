@@ -65,11 +65,12 @@ type FundProfile struct {
 
 // EquityValuation represents aggregate valuation ratios of an ETF's equity holdings.
 type EquityValuation struct {
-	PriceToEarnings float64
-	PriceToBook     float64
-	PriceToCashflow float64
-	PriceToSales    float64
-	DividendYield   float64
+	PriceToEarnings          float64
+	EstimatedPriceToEarnings float64
+	PriceToBook              float64
+	PriceToCashflow          float64
+	PriceToSales             float64
+	DividendYield            float64
 }
 
 // GeographicAllocation represents a country/region exposure entry.

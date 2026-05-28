@@ -652,11 +652,12 @@ func TestDetailsHandleDetailsPage_ExtractorData_FullSections(t *testing.T) {
 			Small: 5,
 		},
 		EquityValuation: &symbol.EquityValuation{
-			PriceToEarnings: 14.5,
-			PriceToBook:     2.3,
-			PriceToCashflow: 9.8,
-			PriceToSales:    2.1,
-			DividendYield:   2.5,
+			PriceToEarnings:          14.5,
+			EstimatedPriceToEarnings: 12.0,
+			PriceToBook:              2.3,
+			PriceToCashflow:          9.8,
+			PriceToSales:             2.1,
+			DividendYield:            2.5,
 		},
 		Themes: []symbol.ThemeBreakdown{
 			{Name: "Large Cap", Percent: 80},
@@ -885,9 +886,10 @@ func TestToDisplayDetails_ExtractorData_FullHoldings(t *testing.T) {
 			Small: 5,
 		},
 		EquityValuation: &symbol.EquityValuation{
-			PriceToEarnings: 15,
-			PriceToBook:     0, // zero value
-			DividendYield:   2.5,
+			PriceToEarnings:          15,
+			EstimatedPriceToEarnings: 12.5,
+			PriceToBook:              0, // zero value
+			DividendYield:            2.5,
 		},
 		Themes: []symbol.ThemeBreakdown{
 			{Name: "Theme A", Percent: 60},
@@ -928,6 +930,9 @@ func TestToDisplayDetails_ExtractorData_FullHoldings(t *testing.T) {
 	} else {
 		if dd.EquityValuation.PriceToEarnings != "15.00" {
 			t.Errorf("expected P/E '15.00', got %q", dd.EquityValuation.PriceToEarnings)
+		}
+		if dd.EquityValuation.EstimatedPriceToEarnings != "12.50" {
+			t.Errorf("expected Estimated P/E '12.50', got %q", dd.EquityValuation.EstimatedPriceToEarnings)
 		}
 		if dd.EquityValuation.PriceToBook != "—" {
 			t.Errorf("expected P/B '—' for zero, got %q", dd.EquityValuation.PriceToBook)

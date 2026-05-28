@@ -280,8 +280,9 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 				{Country: "United Kingdom", Percent: 15.0},
 			},
 			Characteristics: &extractor.FundCharacteristics{
-				PriceToEarnings: 25.3,
-				PriceToBook:     4.2,
+				PriceToEarnings:          25.3,
+				EstimatedPriceToEarnings: 18.7,
+				PriceToBook:              4.2,
 			},
 			NavHistory: []extractor.NavPoint{
 				{Date: "2024-01-15", NAV: 45.20},
@@ -340,6 +341,9 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 	}
 	if details.EquityValuation.PriceToEarnings != 25.3 {
 		t.Errorf("expected P/E 25.3, got %f", details.EquityValuation.PriceToEarnings)
+	}
+	if details.EquityValuation.EstimatedPriceToEarnings != 18.7 {
+		t.Errorf("expected Estimated P/E 18.7, got %f", details.EquityValuation.EstimatedPriceToEarnings)
 	}
 	if details.ExtractorAsOfDate.IsZero() {
 		t.Error("expected non-zero ExtractorAsOfDate")
@@ -753,10 +757,11 @@ func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
 			{Country: "United States", Percent: 65.0},
 		},
 		Characteristics: &extractor.FundCharacteristics{
-			PriceToEarnings: 25.3,
-			PriceToBook:     4.2,
-			PriceToCashflow: 18.0,
-			PriceToSales:    5.5,
+			PriceToEarnings:          25.3,
+			EstimatedPriceToEarnings: 19.1,
+			PriceToBook:              4.2,
+			PriceToCashflow:          18.0,
+			PriceToSales:             5.5,
 		},
 		MarketCap: &extractor.MarketCapBreakdown{
 			Total: 100,
@@ -810,6 +815,9 @@ func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
 	}
 	if details.EquityValuation.PriceToEarnings != 25.3 {
 		t.Errorf("expected P/E 25.3, got %f", details.EquityValuation.PriceToEarnings)
+	}
+	if details.EquityValuation.EstimatedPriceToEarnings != 19.1 {
+		t.Errorf("expected Estimated P/E 19.1, got %f", details.EquityValuation.EstimatedPriceToEarnings)
 	}
 	if details.ExtractorAsOfDate.IsZero() {
 		t.Error("expected non-zero ExtractorAsOfDate")

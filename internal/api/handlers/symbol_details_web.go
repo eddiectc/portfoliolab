@@ -73,11 +73,12 @@ type displayMarketCapBreakdown struct {
 
 // displayEquityValuation is a template-friendly equity valuation with pre-formatted values.
 type displayEquityValuation struct {
-	PriceToEarnings string // e.g. "15.20"
-	PriceToBook     string // e.g. "2.50"
-	PriceToCashflow string // e.g. "8.30"
-	PriceToSales    string // e.g. "3.10"
-	DividendYield   string // e.g. "1.50%"
+	PriceToEarnings          string // e.g. "15.20"
+	EstimatedPriceToEarnings string // e.g. "12.50"
+	PriceToBook              string // e.g. "2.50"
+	PriceToCashflow          string // e.g. "8.30"
+	PriceToSales             string // e.g. "3.10"
+	DividendYield            string // e.g. "1.50%"
 }
 
 // navPriceChartDataPoint is a single data point for the NAV vs Price chart.
@@ -327,11 +328,12 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 	if details.EquityValuation != nil {
 		ev := details.EquityValuation
 		dd.EquityValuation = &displayEquityValuation{
-			PriceToEarnings: formatFloat(ev.PriceToEarnings),
-			PriceToBook:     formatFloat(ev.PriceToBook),
-			PriceToCashflow: formatFloat(ev.PriceToCashflow),
-			PriceToSales:    formatFloat(ev.PriceToSales),
-			DividendYield:   fmt.Sprintf("%.2f%%", ev.DividendYield),
+			PriceToEarnings:          formatFloat(ev.PriceToEarnings),
+			EstimatedPriceToEarnings: formatFloat(ev.EstimatedPriceToEarnings),
+			PriceToBook:              formatFloat(ev.PriceToBook),
+			PriceToCashflow:          formatFloat(ev.PriceToCashflow),
+			PriceToSales:             formatFloat(ev.PriceToSales),
+			DividendYield:            fmt.Sprintf("%.2f%%", ev.DividendYield),
 		}
 	}
 
