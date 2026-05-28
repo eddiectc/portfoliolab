@@ -69,10 +69,10 @@ Unlike HTML scraping, the DWS provider utilizes a REST API. The extractor will m
 | DWS API Endpoint | Portfolio Lab Domain Field | Logic |
 |---|---|---|
 | `pdpSettings` | Fund Profile | Map product type and identifier. |
+| `pdpMetaTagsTealium` | Fund Info, Fund Profile | Extract Fund Name, Total AUM, and TER. |
 | `holdings` | Full Holdings | Extract ISIN, Name, and Weight. |
 | `holdings` | Country Allocation | Aggregate weights grouped by Country. |
 | `holdings` | Sector Weightings | Aggregate weights grouped by Industry. |
-| `holdings` | TER | Find "Total ongoing costs..." in the cost and fees data. |
 | `performancechart` | NAV History | Map timestamps and values to market data points. |
 | `performancechart` | "As of" Date | Use the API's provided reference date as the extraction date. |
 

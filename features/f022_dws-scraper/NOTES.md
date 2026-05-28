@@ -1,6 +1,8 @@
 # Notes: dws-scraper
 
 ## Decisions
+- **Authoritative Fund Data**: Discovered the `pdpMetaTagsTealium` API endpoint, which provides more reliable data than `pdpSettings`. The extractor now uses this endpoint for the fund's full name, Total AUM, and TER.
+- **AUM Parsing**: Implemented a custom parser for AUM values (e.g., "1.77 B GBP") that handles magnitude multipliers (Billion, Million, Thousand) to provide a precise `float64` value.
 - **Optional TER**: The `ParseFundProfile` parser was updated to treat TER as optional. If the API returns an empty string or invalid value for TER, the extractor logs a warning but continues, as the spec defines Holdings and Reference Date as the only strictly required sections.
 - **Slug-based Routing**: The extractor expects the `sourceURL` to be the DWS slug. The `URLMatcher` recognizes both DWS domain URLs and common ISIN-like patterns (starting with IE or LU).
 
