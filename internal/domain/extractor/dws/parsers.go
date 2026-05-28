@@ -24,13 +24,25 @@ type pdpSettingsResp struct {
 }
 
 type holdingsResp struct {
-	Holdings []struct {
-		ISIN    string  `json:"isin"`
-		Name    string  `json:"name"`
-		Weight  float64 `json:"weight"`
-		Country string  `json:"country"`
-		Industry string `json:"industry"`
-	} `json:"holdings"`
+	Tables []struct {
+		Values []struct {
+			Header struct {
+				Value string `json:"value"`
+			} `json:"header"`
+			Column0 struct {
+				Value string `json:"value"`
+			} `json:"column_0"`
+			Column1 struct {
+				Value string `json:"value"`
+			} `json:"column_1"`
+			Column3 struct {
+				Value string `json:"value"`
+			} `json:"column_3"`
+			Column4 struct {
+				Value string `json:"value"`
+			} `json:"column_4"`
+		} `json:"values"`
+	} `json:"tables"`
 }
 
 type performanceChartResp struct {
@@ -86,7 +98,7 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 		return nil, nil, nil, fmt.Errorf("unmarshal holdings: %w", err)
 	}
 
-	if len(resp.Holdings) == 0 {
+	if len(resp.Tables) == 0 || len(resp.Tables[0].Values) == 0 {
 		return nil, nil, nil, fmt.Errorf("holdings list is empty")
 	}
 
@@ -94,15 +106,22 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 	countryMap := make(map[string]float64)
 	sectorMap := make(map[string]float64)
 
-	for _, h := range resp.Holdings {
+	for _, v := range resp.Tables[0].Values {
+		weight, err := parsePercent(v.Column1.Value)
+		if err != nil {
+			// Log error but skip this holding if weight is unparseable
+			fmt.Printf("warning: failed to parse weight %q for %s: %v\n", v.Column1.Value, v.Header.Value, err)
+			continue
+		}
+
 		holdings = append(holdings, extractor.Holding{
-			Symbol:  h.ISIN,
-			Name:    h.Name,
-			Percent: h.Weight,
+			Symbol:  v.Header.Value,
+			Name:    v.Column0.Value,
+			Percent: weight * 100, // Convert back to percentage for domain model (e.g. 8.315)
 		})
 
-		countryMap[h.Country] += h.Weight
-		sectorMap[h.Industry] += h.Weight
+		countryMap[v.Column3.Value] += weight * 100
+		sectorMap[v.Column4.Value] += weight * 100
 	}
 
 	var countries []extractor.CountryAllocation

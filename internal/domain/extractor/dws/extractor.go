@@ -3,7 +3,7 @@ package dws
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"net/url"
 	"strings"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
@@ -113,19 +113,18 @@ func (e *Extractor) SetClient(c *Client) {
 }
 
 func extractSlug(sourceURL string) string {
-	// The DWS source URL is expected to be the slug, 
-	// or at least the last part of the path if it's a full URL.
-	// For now, we assume the sourceURL passed to Extract is the slug.
-	// If it's a full URL, we'll extract the last part.
-	
-	// Simplified: if it contains '://', take the last part of the path.
-	// Otherwise, treat it as the slug.
-	if containsProtocol(sourceURL) {
-		return filepath.Base(sourceURL)
+	u, err := url.Parse(sourceURL)
+	if err != nil {
+		return sourceURL
 	}
-	return sourceURL
+
+	path := strings.Trim(u.Path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) == 0 {
+		return sourceURL
+	}
+	return parts[len(parts)-1]
 }
 
-func containsProtocol(s string) bool {
-	return strings.Contains(s, "://")
-}
+// containsProtocol is no longer needed as we use url.Parse
+
