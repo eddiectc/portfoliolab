@@ -64,18 +64,13 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("parse fund info: %w", err)
 	}
 
-	fundProfile, err := ParseFundProfile(settingsData)
-	if err != nil {
-		return nil, fmt.Errorf("parse fund profile: %w", err)
-	}
-
 	// 2. Fetch and parse Holdings (Required)
 	holdingsData, err := e.client.Fetch(slug, "holdings")
 	if err != nil {
 		return nil, fmt.Errorf("fetch holdings: %w", err)
 	}
 
-	holdings, countries, sectors, err := ParseHoldings(holdingsData)
+	holdings, countries, sectors, aum, err := ParseHoldings(holdingsData)
 	if err != nil {
 		return nil, fmt.Errorf("parse holdings: %w", err)
 	}
@@ -94,6 +89,12 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	navHistory, err := ParseNavHistory(chartData)
 	if err != nil {
 		return nil, fmt.Errorf("parse nav history: %w", err)
+	}
+
+	// Now parse fund profile with the calculated AUM
+	fundProfile, err := ParseFundProfile(settingsData, aum)
+	if err != nil {
+		return nil, fmt.Errorf("parse fund profile: %w", err)
 	}
 
 	return &extractor.ExtractResult{
