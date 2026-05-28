@@ -1,0 +1,9 @@
+{
+  "productType": "ETF",
+  "internalId": "DE000A2X47S0",
+  "costsAndFees": {
+    "totalOngoingCosts": "0.20%"
+  },
+  "fundFamily": "Xtrackers",
+  "legalType": "UCITS ETF"
+}

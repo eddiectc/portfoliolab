@@ -1,0 +1,39 @@
+{
+  "holdings": [
+    {
+      "isin": "US0378331005",
+      "name": "APPLE INC",
+      "weight": 7.5,
+      "country": "USA",
+      "industry": "Technology"
+    },
+    {
+      "isin": "US5949181045",
+      "name": "MICROSOFT CORP",
+      "weight": 6.8,
+      "country": "USA",
+      "industry": "Technology"
+    },
+    {
+      "isin": "US0231351067",
+      "name": "AMAZON COM INC",
+      "weight": 3.2,
+      "country": "USA",
+      "industry": "Consumer Discretionary"
+    },
+    {
+      "isin": "JP3435000009",
+      "name": "TOYOTA MOTOR CORP",
+      "weight": 2.1,
+      "country": "Japan",
+      "industry": "Consumer Discretionary"
+    },
+    {
+      "isin": "DE0005190003",
+      "name": "SAP SE",
+      "weight": 1.5,
+      "country": "Germany",
+      "industry": "Technology"
+    }
+  ]
+}
