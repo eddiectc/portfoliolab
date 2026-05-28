@@ -27,47 +27,68 @@ type holdingsResp struct {
 	Tables []struct {
 		Values []struct {
 			Header struct {
-				Value string `json:"value"`
+				Value     string  `json:"value"`
+				SortValue interface{} `json:"sortValue"`
 			} `json:"header"`
 			Column0 struct {
-				Value string `json:"value"`
+				Value     string  `json:"value"`
+				SortValue interface{} `json:"sortValue"`
 			} `json:"column_0"`
 			Column1 struct {
-				Value string `json:"value"`
+				Value     string  `json:"value"`
+				SortValue float64 `json:"sortValue"`
 			} `json:"column_1"`
+			Column2 struct {
+				Value     string  `json:"value"`
+				SortValue float64 `json:"sortValue"`
+			} `json:"column_2"`
 			Column3 struct {
-				Value string `json:"value"`
+				Value     string  `json:"value"`
+				SortValue interface{} `json:"sortValue"`
 			} `json:"column_3"`
 			Column4 struct {
-				Value string `json:"value"`
+				Value     string  `json:"value"`
+				SortValue interface{} `json:"sortValue"`
 			} `json:"column_4"`
+			Column5 struct {
+				Value     string  `json:"value"`
+				SortValue interface{} `json:"sortValue"`
+			} `json:"column_5"`
 		} `json:"values"`
 	} `json:"tables"`
 }
 
 type performanceChartResp struct {
 	AsOfDate string `json:"asOfDate"`
-	ChartData []struct {
-		Timestamp string          `json:"timestamp"`
-		Value     decimal.Decimal `json:"value"`
-	} `json:"chartData"`
+	Values   [][]interface{} `json:"values"`
 }
 
 // ParseFundInfo extracts basic identity data.
-func ParseFundInfo(data string, symbol string) (*extractor.FundInfo, error) {
+func ParseFundInfo(data string, slug string) (*extractor.FundInfo, error) {
 	var resp pdpSettingsResp
 	if err := json.Unmarshal([]byte(data), &resp); err != nil {
 		return nil, fmt.Errorf("unmarshal pdpSettings: %w", err)
 	}
 
+	name := resp.InternalId
+	if name == "" {
+		// Fallback: extract name from slug (e.g. "IE00BMFKG444-nasdaq-100-ucits-etf-1c" -> "Nasdaq 100 Ucits Etf 1c")
+		parts := strings.Split(slug, "-")
+		if len(parts) > 1 {
+			name = strings.Join(parts[1:], " ")
+			// Simple title case
+			name = strings.Title(strings.ToLower(name))
+		}
+	}
+
 	return &extractor.FundInfo{
-		Symbol: symbol,
-		Name:   resp.InternalId, // Using internal ID as name if dedicated name field is missing
+		Symbol: slug,
+		Name:   name,
 	}, nil
 }
 
 // ParseFundProfile extracts metadata and TER.
-func ParseFundProfile(data string) (*extractor.FundProfile, error) {
+func ParseFundProfile(data string, aum float64) (*extractor.FundProfile, error) {
 	var resp pdpSettingsResp
 	if err := json.Unmarshal([]byte(data), &resp); err != nil {
 		return nil, fmt.Errorf("unmarshal pdpSettings: %w", err)
@@ -87,24 +108,26 @@ func ParseFundProfile(data string) (*extractor.FundProfile, error) {
 	return &extractor.FundProfile{
 		Family:             resp.FundFamily,
 		LegalType:          resp.LegalType,
+		TotalNetAssets:     aum,
 		AnnualExpenseRatio: ter,
 	}, nil
 }
 
 // ParseHoldings extracts all security holdings and performs aggregations.
-func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocation, []extractor.SectorWeighting, error) {
+func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocation, []extractor.SectorWeighting, float64, error) {
 	var resp holdingsResp
 	if err := json.Unmarshal([]byte(data), &resp); err != nil {
-		return nil, nil, nil, fmt.Errorf("unmarshal holdings: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("unmarshal holdings: %w", err)
 	}
 
 	if len(resp.Tables) == 0 || len(resp.Tables[0].Values) == 0 {
-		return nil, nil, nil, fmt.Errorf("holdings list is empty")
+		return nil, nil, nil, 0, fmt.Errorf("holdings list is empty")
 	}
 
 	var holdings []extractor.Holding
 	countryMap := make(map[string]float64)
 	sectorMap := make(map[string]float64)
+	var totalAUM float64
 
 	for _, v := range resp.Tables[0].Values {
 		weight, err := parsePercent(v.Column1.Value)
@@ -122,6 +145,7 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 
 		countryMap[v.Column3.Value] += weight * 100
 		sectorMap[v.Column4.Value] += weight * 100
+		totalAUM += v.Column2.SortValue
 	}
 
 	var countries []extractor.CountryAllocation
@@ -134,7 +158,7 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 		sectors = append(sectors, extractor.SectorWeighting{Sector: s, Percent: w})
 	}
 
-	return holdings, countries, sectors, nil
+	return holdings, countries, sectors, totalAUM, nil
 }
 
 // ParseNavHistory extracts time series data.
@@ -145,10 +169,38 @@ func ParseNavHistory(data string) ([]extractor.NavPoint, error) {
 	}
 
 	var navs []extractor.NavPoint
-	for _, p := range resp.ChartData {
+	for _, row := range resp.Values {
+		if len(row) < 2 {
+			continue
+		}
+
+		// row[0] is the timestamp (float64)
+		tsFloat, ok := row[0].(float64)
+		if !ok {
+			continue
+		}
+		timestamp := time.UnixMilli(int64(tsFloat))
+
+		// row[1] is the data array [ [nav, nav, 0], [index, index, 0] ]
+		series, ok := row[1].([]interface{})
+		if !ok || len(series) < 1 {
+			continue
+		}
+
+		// The first series is typically the NAV
+		navData, ok := series[0].([]interface{})
+		if !ok || len(navData) < 1 {
+			continue
+		}
+
+		navVal, ok := navData[0].(float64)
+		if !ok {
+			continue
+		}
+
 		navs = append(navs, extractor.NavPoint{
-			Date: p.Timestamp,
-			NAV:  p.Value,
+			Date: timestamp.Format(time.RFC3339),
+			NAV:  decimal.MustNew(int64(navVal*1000000), 6),
 		})
 	}
 
