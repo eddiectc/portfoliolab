@@ -1,0 +1,1323 @@
+{
+  "data": {
+    "asOfDate": {
+      "value": "2026-04-30",
+      "display": "30/04/2026"
+    },
+    "commonEndDates": [
+      {
+        "value": "2026-04-30",
+        "display": "30/04/2026"
+      },
+      {
+        "value": "2026-03-31",
+        "display": "31/03/2026"
+      },
+      {
+        "value": "2026-02-28",
+        "display": "28/02/2026"
+      },
+      {
+        "value": "2026-01-31",
+        "display": "31/01/2026"
+      },
+      {
+        "value": "2025-12-31",
+        "display": "31/12/2025"
+      },
+      {
+        "value": "2025-11-30",
+        "display": "30/11/2025"
+      }
+    ],
+    "isoCountryCode": "GB",
+    "currencyCode": "USD",
+    "blends": [
+      {
+        "modelType": "portfolio",
+        "periods": [
+          {
+            "startDate": null,
+            "hasFixedIncome": false,
+            "hasEquity": true,
+            "endDate": null,
+            "constituents": [
+              {
+                "identifier": 1600,
+                "weight": 1.0,
+                "constituentType": "portfolio"
+              }
+            ]
+          }
+        ],
+        "name": null,
+        "isDirty": null,
+        "isIndexMode": null,
+        "inceptionDate": null,
+        "modelFees": null,
+        "slug": null,
+        "modelId": null
+      }
+    ],
+    "portfolioBenchmarks": [
+      {
+        "portfolioNumber": 1600,
+        "benchmarkSlugs": [
+          "index,110,net-div,N"
+        ]
+      }
+    ],
+    "lensGroups": [
+      {
+        "data": {
+          "name": "Summary",
+          "slug": "summary",
+          "comparativeSelectionGroups": [],
+          "lenses": [
+            {
+              "data": {
+                "name": "Fund Facts",
+                "slug": "fundFacts",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "name": null,
+                      "fundFacts": {
+                        "marketingName": "Global Core Equity UCITS ETF (Acc.)",
+                        "identifier": {
+                          "slug": "isin",
+                          "name": "ISIN",
+                          "value": "IE000EGGFVG6"
+                        },
+                        "benchmarks": [
+                          "MSCI World Index (net div.)"
+                        ],
+                        "assetClass": "Equity",
+                        "isEtf": true,
+                        "isDfaEtf": false,
+                        "isDfaDualAccess": false,
+                        "isDfaUcitsEtf": true,
+                        "fundAum": {
+                          "date": {
+                            "value": "2026-05-29",
+                            "display": "29/05/2026"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "aum": {
+                            "value": 1483669606.1,
+                            "display": "1.5B"
+                          }
+                        },
+                        "inceptionDate": {
+                          "value": "2025-11-12",
+                          "display": "12/11/2025"
+                        },
+                        "turnover": {
+                          "name": "Annual Turnover",
+                          "slug": "turnover",
+                          "value": {
+                            "value": 0,
+                            "display": "0.00%"
+                          },
+                          "startDate": {
+                            "value": "2024-12-01",
+                            "display": "01/12/2024"
+                          },
+                          "endDate": {
+                            "value": "2025-11-30",
+                            "display": "30/11/2025"
+                          }
+                        }
+                      },
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": []
+              }
+            },
+            {
+              "data": {
+                "name": "Fund Prices",
+                "slug": "fundPrices",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "fundPrices": {
+                        "asOfDate": {
+                          "value": "2026-05-29",
+                          "display": "29/05/2026"
+                        },
+                        "priceDates": [
+                          {
+                            "value": "2026-05-29",
+                            "display": "29/05/2026"
+                          }
+                        ],
+                        "prices": [
+                          {
+                            "portfolioNumber": 1600,
+                            "dfaCurrencyCode": "USD",
+                            "date": {
+                              "value": "2026-05-29",
+                              "display": "29/05/2026"
+                            },
+                            "totalSharesOutstanding": 52351570.0,
+                            "nav": {
+                              "value": 28.3405,
+                              "display": "28.3405"
+                            },
+                            "applicationPrice": null,
+                            "redemptionPrice": null,
+                            "marketPrice": null
+                          }
+                        ]
+                      },
+                      "name": null,
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": []
+              }
+            },
+            {
+              "data": {
+                "name": "Asset Allocation",
+                "slug": "charsMixedAssetClassWithEquityRegionAllocation",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "name": null,
+                      "allocations": [
+                        {
+                          "name": "UK Equity",
+                          "slug": "united-kingdom",
+                          "weight": {
+                            "value": 0.03665705774354537,
+                            "display": "3.67%"
+                          },
+                          "assetClassName": "Equity"
+                        },
+                        {
+                          "name": "International Equity",
+                          "slug": "developed-ex-uk",
+                          "weight": {
+                            "value": 0.9633429422564548,
+                            "display": "96.33%"
+                          },
+                          "assetClassName": "Equity"
+                        },
+                        {
+                          "name": "Emerging Equity",
+                          "slug": "emerging-market",
+                          "weight": {
+                            "value": 0.0,
+                            "display": "0.00%"
+                          },
+                          "assetClassName": "Equity"
+                        },
+                        {
+                          "name": "Other Equity",
+                          "slug": "other-equity",
+                          "weight": {
+                            "value": 0.0,
+                            "display": "0.00%"
+                          },
+                          "assetClassName": "Equity"
+                        },
+                        {
+                          "name": "Fixed Income",
+                          "weight": {
+                            "value": 0.0,
+                            "display": "0.00%"
+                          },
+                          "subCategories": [
+                            {
+                              "name": "Global Bonds",
+                              "weight": {
+                                "value": 0.0,
+                                "display": "0.00%"
+                              }
+                            },
+                            {
+                              "name": "Income Risk Management",
+                              "weight": {
+                                "value": 0.0,
+                                "display": "0.00%"
+                              }
+                            }
+                          ],
+                          "slug": "fixed-income",
+                          "assetClassName": "Fixed Income"
+                        },
+                        {
+                          "name": "Cash",
+                          "weight": {
+                            "value": 0.0,
+                            "display": "0.00%"
+                          },
+                          "subCategories": [],
+                          "slug": "cash",
+                          "assetClassName": "Cash"
+                        },
+                        {
+                          "name": "Other",
+                          "weight": {
+                            "value": 0.0,
+                            "display": "0.00%"
+                          },
+                          "subCategories": [],
+                          "slug": "other",
+                          "assetClassName": "Other"
+                        }
+                      ],
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": [],
+                "orderedCategories": [
+                  {
+                    "name": "UK Equity",
+                    "slug": "united-kingdom"
+                  },
+                  {
+                    "name": "International Equity",
+                    "slug": "developed-ex-uk"
+                  },
+                  {
+                    "name": "Emerging Equity",
+                    "slug": "emerging-market"
+                  },
+                  {
+                    "name": "Other Equity",
+                    "slug": "other-equity"
+                  },
+                  {
+                    "name": "Fixed Income",
+                    "slug": "fixed-income"
+                  },
+                  {
+                    "name": "Cash",
+                    "slug": "cash"
+                  },
+                  {
+                    "name": "Other",
+                    "slug": "other"
+                  }
+                ]
+              }
+            },
+            {
+              "data": {
+                "name": "Weighted Average Fees and Expenses",
+                "slug": "fees",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "fees": {
+                        "asOfDate": {
+                          "value": "2026-05-29",
+                          "display": "29/05/2026"
+                        },
+                        "fees": [
+                          {
+                            "slug": "management-fee",
+                            "typeSlug": "constituent",
+                            "name": "Annual Management Charge",
+                            "value": {
+                              "value": 0.0022,
+                              "display": "0.22%"
+                            },
+                            "sortOrder": 1
+                          },
+                          {
+                            "slug": "net-exp-ratio",
+                            "typeSlug": "constituent",
+                            "name": "Ongoing Charges Figure (UCITS)",
+                            "value": {
+                              "value": 0.0026,
+                              "display": "0.26%"
+                            },
+                            "sortOrder": 2
+                          }
+                        ],
+                        "disclosures": [
+                          {
+                            "portfolioNumbers": [
+                              1600
+                            ],
+                            "disclosure": "The ongoing charges figure shown here is an estimate of the charges as there is insufficient historical data. The Ongoing Charges Figure consists of the Annual Management Charge and other running costs associated with operating the product. It excludes portfolio transaction costs."
+                          }
+                        ]
+                      },
+                      "name": null,
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": []
+              }
+            },
+            {
+              "data": {
+                "name": "UCITS ETF Exchange Listing",
+                "slug": "ucits-etf-exchange-listing",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "name": null,
+                      "listings": [
+                        {
+                          "slug": "listing-72-gbp",
+                          "name": "LONDON STOCK EXCHANGE",
+                          "isoCurrencyCode": "GBP",
+                          "identifiers": [
+                            {
+                              "slug": "sedol",
+                              "name": "SEDOL",
+                              "value": "BVYC2G8"
+                            },
+                            {
+                              "slug": "ticker",
+                              "name": "Ticker",
+                              "value": "DPGC"
+                            }
+                          ],
+                          "listingDate": {
+                            "value": "2025-11-14",
+                            "display": "14/11/2025"
+                          },
+                          "closeDate": null
+                        },
+                        {
+                          "slug": "listing-72-usd",
+                          "name": "LONDON STOCK EXCHANGE",
+                          "isoCurrencyCode": "USD",
+                          "identifiers": [
+                            {
+                              "slug": "sedol",
+                              "name": "SEDOL",
+                              "value": "BVK1J24"
+                            },
+                            {
+                              "slug": "ticker",
+                              "name": "Ticker",
+                              "value": "DDGC"
+                            },
+                            {
+                              "slug": "dfa-id",
+                              "name": "DFA ID",
+                              "value": "EP055D9A3F"
+                            }
+                          ],
+                          "listingDate": {
+                            "value": "2025-11-14",
+                            "display": "14/11/2025"
+                          },
+                          "closeDate": null
+                        },
+                        {
+                          "slug": "listing-73-eur",
+                          "name": "XETRA",
+                          "isoCurrencyCode": "EUR",
+                          "identifiers": [
+                            {
+                              "slug": "sedol",
+                              "name": "SEDOL",
+                              "value": "BSSF8Y2"
+                            },
+                            {
+                              "slug": "ticker",
+                              "name": "Ticker",
+                              "value": "DEGC"
+                            }
+                          ],
+                          "listingDate": {
+                            "value": "2025-11-14",
+                            "display": "14/11/2025"
+                          },
+                          "closeDate": null
+                        }
+                      ],
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": []
+              }
+            },
+            {
+              "data": {
+                "name": "Daily ETF Top Holdings",
+                "slug": "charsEtfTopHoldingsDaily",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-05-28",
+                  "display": "28/05/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "topHoldings": [
+                        {
+                          "name": "NVIDIA CORP",
+                          "weight": {
+                            "value": 0.0379643541,
+                            "display": "3.80%"
+                          },
+                          "marketValue": {
+                            "value": 55797556.0,
+                            "display": "55,797,556.00"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "MICROSOFTCORP",
+                          "weight": {
+                            "value": 0.0345441895,
+                            "display": "3.45%"
+                          },
+                          "marketValue": {
+                            "value": 50770818.96,
+                            "display": "50,770,818.96"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "APPLE INC",
+                          "weight": {
+                            "value": 0.0342738469,
+                            "display": "3.43%"
+                          },
+                          "marketValue": {
+                            "value": 50373486.9,
+                            "display": "50,373,486.90"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "AMAZON.COMINC",
+                          "weight": {
+                            "value": 0.0248896444,
+                            "display": "2.49%"
+                          },
+                          "marketValue": {
+                            "value": 36581192.0,
+                            "display": "36,581,192.00"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "META PLATFORMS INC CLASS A",
+                          "weight": {
+                            "value": 0.0143156171,
+                            "display": "1.43%"
+                          },
+                          "marketValue": {
+                            "value": 21040169.51,
+                            "display": "21,040,169.51"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "BROADCOM INC",
+                          "weight": {
+                            "value": 0.0118485784,
+                            "display": "1.18%"
+                          },
+                          "marketValue": {
+                            "value": 17414275.34,
+                            "display": "17,414,275.34"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "ALPHABET INC CL A",
+                          "weight": {
+                            "value": 0.0077721515,
+                            "display": "0.78%"
+                          },
+                          "marketValue": {
+                            "value": 11423006.4,
+                            "display": "11,423,006.40"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "MICRON TECHNOLOGY INC",
+                          "weight": {
+                            "value": 0.0072606766,
+                            "display": "0.73%"
+                          },
+                          "marketValue": {
+                            "value": 10671273.6,
+                            "display": "10,671,273.60"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "ELI LILLY+ CO",
+                          "weight": {
+                            "value": 0.0067374837,
+                            "display": "0.67%"
+                          },
+                          "marketValue": {
+                            "value": 9902318.4,
+                            "display": "9,902,318.40"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        },
+                        {
+                          "name": "ALPHABET INC CL C",
+                          "weight": {
+                            "value": 0.0061940068,
+                            "display": "0.62%"
+                          },
+                          "marketValue": {
+                            "value": 9103551.24,
+                            "display": "9,103,551.24"
+                          },
+                          "dfaCurrencyCode": "USD",
+                          "isoCurrencyCode": "USD"
+                        }
+                      ],
+                      "name": null,
+                      "totalWeightTop": 0.185800549,
+                      "etf_ticker": "DDGC",
+                      "date": {
+                        "value": "2026-05-28",
+                        "display": "28/05/2026"
+                      },
+                      "fullHoldingsCsvUrl": "https://tools-blob.dimensional.com/etf/20260528/IE000EGGFVG6.csv",
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "name": "Equity",
+          "slug": "equity",
+          "comparativeSelectionGroups": [],
+          "lenses": [
+            {
+              "data": {
+                "name": "Characteristics",
+                "slug": "charsEquityBlended",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "chars": [
+                        {
+                          "slug": "number-of-issuers",
+                          "name": "Number of Companies",
+                          "value": {
+                            "value": 7041,
+                            "display": "7,041"
+                          },
+                          "dfaCurrencyCode": null
+                        },
+                        {
+                          "slug": "weighted-average-total-market-capitalization-mm",
+                          "name": "Weighted Average Total Market Capitalisation (millions)",
+                          "value": {
+                            "value": 684591.058008398,
+                            "display": "684,591"
+                          },
+                          "dfaCurrencyCode": "USD"
+                        },
+                        {
+                          "slug": "aggregate-price-to-book-value-no-negatives",
+                          "name": "Aggregate Price-To-Book",
+                          "value": {
+                            "value": 2.923560786230959,
+                            "display": "2.92"
+                          },
+                          "dfaCurrencyCode": null
+                        },
+                        {
+                          "slug": "weighted-average-profitability",
+                          "name": "Weighted Average Profitability",
+                          "value": {
+                            "value": 0.45133864925975764,
+                            "display": "0.45"
+                          },
+                          "dfaCurrencyCode": null
+                        }
+                      ],
+                      "name": null,
+                      "hide": false,
+                      "benchmarks": [
+                        {
+                          "chars": [
+                            {
+                              "slug": "number-of-issuers",
+                              "name": "Number of Companies",
+                              "value": {
+                                "value": 1296,
+                                "display": "1,296"
+                              },
+                              "dfaCurrencyCode": null
+                            },
+                            {
+                              "slug": "weighted-average-total-market-capitalization-mm",
+                              "name": "Weighted Average Total Market Capitalisation (millions)",
+                              "value": {
+                                "value": 1083638.8860559622,
+                                "display": "1,083,639"
+                              },
+                              "dfaCurrencyCode": "USD"
+                            },
+                            {
+                              "slug": "aggregate-price-to-book-value-no-negatives",
+                              "name": "Aggregate Price-To-Book",
+                              "value": {
+                                "value": 3.8995776430438673,
+                                "display": "3.90"
+                              },
+                              "dfaCurrencyCode": null
+                            },
+                            {
+                              "slug": "weighted-average-profitability",
+                              "name": "Weighted Average Profitability",
+                              "value": {
+                                "value": 0.4754817275647386,
+                                "display": "0.48"
+                              },
+                              "dfaCurrencyCode": null
+                            }
+                          ],
+                          "name": "MSCI World Index (net div.)",
+                          "slug": "index,110,net-div,N",
+                          "hide": false
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": []
+              }
+            },
+            {
+              "data": {
+                "name": "Equity Allocation by Sector",
+                "slug": "charsEquityAllocationByGics",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "name": null,
+                      "allocations": [
+                        {
+                          "name": "Communication Services",
+                          "weight": {
+                            "value": 0.061279117683475284,
+                            "display": "6.13%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Consumer Discretionary",
+                          "weight": {
+                            "value": 0.10234027470717057,
+                            "display": "10.23%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Consumer Staples",
+                          "weight": {
+                            "value": 0.05744761178978729,
+                            "display": "5.74%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Energy",
+                          "weight": {
+                            "value": 0.05767033175454796,
+                            "display": "5.77%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Financials",
+                          "weight": {
+                            "value": 0.16182916286513463,
+                            "display": "16.18%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Health Care",
+                          "weight": {
+                            "value": 0.08602191528967695,
+                            "display": "8.60%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Industrials",
+                          "weight": {
+                            "value": 0.1462025934810157,
+                            "display": "14.62%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Information Technology",
+                          "weight": {
+                            "value": 0.2159250600243086,
+                            "display": "21.59%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Materials",
+                          "weight": {
+                            "value": 0.0572473942606656,
+                            "display": "5.72%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Real Estate",
+                          "weight": {
+                            "value": 0.006353389169733129,
+                            "display": "0.64%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "REITs",
+                          "weight": {
+                            "value": 0.019621743636295055,
+                            "display": "1.96%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Utilities",
+                          "weight": {
+                            "value": 0.028052947101644195,
+                            "display": "2.81%"
+                          },
+                          "characteristicTypes": null
+                        },
+                        {
+                          "name": "Other",
+                          "weight": {
+                            "value": 0.000008458236544437621,
+                            "display": "<0.01%"
+                          },
+                          "characteristicTypes": null
+                        }
+                      ],
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": [],
+                "orderedCategories": [
+                  {
+                    "name": "Communication Services"
+                  },
+                  {
+                    "name": "Consumer Discretionary"
+                  },
+                  {
+                    "name": "Consumer Staples"
+                  },
+                  {
+                    "name": "Energy"
+                  },
+                  {
+                    "name": "Financials"
+                  },
+                  {
+                    "name": "Health Care"
+                  },
+                  {
+                    "name": "Industrials"
+                  },
+                  {
+                    "name": "Information Technology"
+                  },
+                  {
+                    "name": "Materials"
+                  },
+                  {
+                    "name": "Real Estate"
+                  },
+                  {
+                    "name": "REITs"
+                  },
+                  {
+                    "name": "Utilities"
+                  },
+                  {
+                    "name": "Other"
+                  }
+                ]
+              }
+            },
+            {
+              "data": {
+                "name": "Equity Allocation by Country",
+                "slug": "charsEquityAllocationByCountryByRegionDevelopedEmerging",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "name": null,
+                      "allocations": [
+                        {
+                          "name": "Developed",
+                          "slug": "developed",
+                          "weight": {
+                            "value": 0.9999999999999992,
+                            "display": "100.00%"
+                          },
+                          "characteristicTypes": null,
+                          "subCategories": [
+                            {
+                              "name": "United States",
+                              "isoCountryCode": "US",
+                              "dfaCountryCode": "NA",
+                              "weight": {
+                                "value": 0.7031153345359613,
+                                "display": "70.31%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Japan",
+                              "isoCountryCode": "JP",
+                              "dfaCountryCode": "FJ",
+                              "weight": {
+                                "value": 0.06676909885983007,
+                                "display": "6.68%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Canada",
+                              "isoCountryCode": "CA",
+                              "dfaCountryCode": "NC",
+                              "weight": {
+                                "value": 0.039121303911679894,
+                                "display": "3.91%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "United Kingdom",
+                              "isoCountryCode": "GB",
+                              "dfaCountryCode": "EX",
+                              "weight": {
+                                "value": 0.03665705774354537,
+                                "display": "3.67%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Germany",
+                              "isoCountryCode": "DE",
+                              "dfaCountryCode": "ED",
+                              "weight": {
+                                "value": 0.022086706915243094,
+                                "display": "2.21%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "France",
+                              "isoCountryCode": "FR",
+                              "dfaCountryCode": "EF",
+                              "weight": {
+                                "value": 0.021888179217753555,
+                                "display": "2.19%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Switzerland",
+                              "isoCountryCode": "CH",
+                              "dfaCountryCode": "ES",
+                              "weight": {
+                                "value": 0.021795880061137814,
+                                "display": "2.18%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Australia",
+                              "isoCountryCode": "AU",
+                              "dfaCountryCode": "AA",
+                              "weight": {
+                                "value": 0.01929793200849019,
+                                "display": "1.93%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Netherlands",
+                              "isoCountryCode": "NL",
+                              "dfaCountryCode": "EN",
+                              "weight": {
+                                "value": 0.01110792044611669,
+                                "display": "1.11%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Italy",
+                              "isoCountryCode": "IT",
+                              "dfaCountryCode": "EI",
+                              "weight": {
+                                "value": 0.009123593141419532,
+                                "display": "0.91%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Spain",
+                              "isoCountryCode": "ES",
+                              "dfaCountryCode": "EE",
+                              "weight": {
+                                "value": 0.008493780453636704,
+                                "display": "0.85%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Sweden",
+                              "isoCountryCode": "SE",
+                              "dfaCountryCode": "SS",
+                              "weight": {
+                                "value": 0.008349197342108934,
+                                "display": "0.83%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Hong Kong",
+                              "isoCountryCode": "HK",
+                              "dfaCountryCode": "FH",
+                              "weight": {
+                                "value": 0.004595096975490408,
+                                "display": "0.46%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Denmark",
+                              "isoCountryCode": "DK",
+                              "dfaCountryCode": "SD",
+                              "weight": {
+                                "value": 0.00455990521790304,
+                                "display": "0.46%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Finland",
+                              "isoCountryCode": "FI",
+                              "dfaCountryCode": "SF",
+                              "weight": {
+                                "value": 0.004054636470735959,
+                                "display": "0.41%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Singapore",
+                              "isoCountryCode": "SG",
+                              "dfaCountryCode": "FM",
+                              "weight": {
+                                "value": 0.00392936777019732,
+                                "display": "0.39%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Israel",
+                              "isoCountryCode": "IL",
+                              "dfaCountryCode": "FZ",
+                              "weight": {
+                                "value": 0.0037795172058795934,
+                                "display": "0.38%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Belgium",
+                              "isoCountryCode": "BE",
+                              "dfaCountryCode": "EB",
+                              "weight": {
+                                "value": 0.0032091863996709805,
+                                "display": "0.32%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Norway",
+                              "isoCountryCode": "NO",
+                              "dfaCountryCode": "SN",
+                              "weight": {
+                                "value": 0.0029301044343177924,
+                                "display": "0.29%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Austria",
+                              "isoCountryCode": "AT",
+                              "dfaCountryCode": "EA",
+                              "weight": {
+                                "value": 0.001680851947810771,
+                                "display": "0.17%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Ireland",
+                              "isoCountryCode": "IE",
+                              "dfaCountryCode": "EZ",
+                              "weight": {
+                                "value": 0.0015083745240742096,
+                                "display": "0.15%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "Portugal",
+                              "isoCountryCode": "PT",
+                              "dfaCountryCode": "EP",
+                              "weight": {
+                                "value": 0.0010902215714269877,
+                                "display": "0.11%"
+                              },
+                              "characteristicTypes": null
+                            },
+                            {
+                              "name": "New Zealand",
+                              "isoCountryCode": "NZ",
+                              "dfaCountryCode": "AN",
+                              "weight": {
+                                "value": 0.0008567528455725079,
+                                "display": "0.09%"
+                              },
+                              "characteristicTypes": null
+                            }
+                          ]
+                        },
+                        {
+                          "name": "Emerging",
+                          "slug": "emerging-market",
+                          "weight": {
+                            "value": 0,
+                            "display": "0.00%"
+                          },
+                          "characteristicTypes": null,
+                          "subCategories": []
+                        },
+                        {
+                          "name": "Other",
+                          "slug": "other",
+                          "weight": {
+                            "value": 0,
+                            "display": "0.00%"
+                          },
+                          "characteristicTypes": null,
+                          "subCategories": []
+                        }
+                      ],
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": [],
+                "orderedCategories": {
+                  "developed": [
+                    {
+                      "name": "United States"
+                    },
+                    {
+                      "name": "Japan"
+                    },
+                    {
+                      "name": "Canada"
+                    },
+                    {
+                      "name": "United Kingdom"
+                    },
+                    {
+                      "name": "Germany"
+                    },
+                    {
+                      "name": "France"
+                    },
+                    {
+                      "name": "Switzerland"
+                    },
+                    {
+                      "name": "Australia"
+                    },
+                    {
+                      "name": "Netherlands"
+                    },
+                    {
+                      "name": "Italy"
+                    },
+                    {
+                      "name": "Spain"
+                    },
+                    {
+                      "name": "Sweden"
+                    },
+                    {
+                      "name": "Hong Kong"
+                    },
+                    {
+                      "name": "Denmark"
+                    },
+                    {
+                      "name": "Finland"
+                    },
+                    {
+                      "name": "Singapore"
+                    },
+                    {
+                      "name": "Israel"
+                    },
+                    {
+                      "name": "Belgium"
+                    },
+                    {
+                      "name": "Norway"
+                    },
+                    {
+                      "name": "Austria"
+                    },
+                    {
+                      "name": "Ireland"
+                    },
+                    {
+                      "name": "Portugal"
+                    },
+                    {
+                      "name": "New Zealand"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "name": "Distributions",
+          "slug": "distributions",
+          "comparativeSelectionGroups": [],
+          "lenses": [
+            {
+              "data": {
+                "name": "Distributions",
+                "slug": "distributions",
+                "hide": false,
+                "asOfDate": {
+                  "value": "2026-04-30",
+                  "display": "30/04/2026"
+                },
+                "blends": [
+                  {
+                    "data": {
+                      "distributions": {
+                        "asOfDate": {
+                          "value": "2026-05-29",
+                          "display": "29/05/2026"
+                        },
+                        "dfaCurrencyCode": null,
+                        "marketingName": null,
+                        "distributions": []
+                      },
+                      "name": null,
+                      "hide": false
+                    }
+                  }
+                ],
+                "comparativeBlendGroups": [],
+                "comparativeBenchmarkBlends": []
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
