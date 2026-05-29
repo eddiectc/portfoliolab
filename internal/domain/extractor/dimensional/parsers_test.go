@@ -2,8 +2,8 @@ package dimensional
 
 import (
 	"testing"
-	"time"
 
+	"github.com/govalues/decimal"
 	"github.com/stretchr/testify/assert"
 )
 

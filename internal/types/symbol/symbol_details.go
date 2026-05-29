@@ -1,6 +1,8 @@
 package symbol
 
-import "time"
+import (
+	"time"
+)
 
 // SymbolDetails holds cached metadata about a symbol fetched from a market
 // data provider. Generic fields (name, exchange) are populated for all symbols.

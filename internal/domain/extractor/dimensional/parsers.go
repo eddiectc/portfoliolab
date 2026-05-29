@@ -20,17 +20,17 @@ type FundDetailResponse struct {
 		} `json:"asOfDate"`
 		LensGroups []struct {
 			Data struct {
-				Slug string `json:"slug"`
-				Lenses []struct {
+				Slug    string `json:"slug"`
+				Lenses  []struct {
 					Data struct {
-						Name string `json:"name"`
-						Slug string `json:"slug"`
-						Blends []struct {
+						Name    string `json:"name"`
+						Slug    string `json:"slug"`
+						Blends  []struct {
 							Data struct {
 								FundFacts struct {
 									MarketingName string `json:"marketingName"`
 									Benchmarks    []string `json:"benchmarks"`
-									FundAum struct {
+									FundAum       struct {
 										Aum struct {
 											Value float64 `json:"value"`
 										} `json:"aum"`

@@ -82,7 +82,7 @@ func (s *Service) WithMarketDataRepo(repo MarketDataRepository) *Service {
 // If the symbol has a data_source_url configured and an extractor dispatcher
 // is available, it routes through the extractor instead of Yahoo Finance.
 func (s *Service) FetchAndStore(ctx context.Context, internalSymbol, marketDataSymbol string) error {
-	details, navHistory, err := s.fetchDetails(ctx, internalSymbol, marketDataSymbol)
+	details, navHistory, source, err := s.fetchDetails(ctx, internalSymbol, marketDataSymbol)
 	if err != nil {
 		return fmt.Errorf("fetch symbol details for %s: %w", internalSymbol, err)
 	}
@@ -94,7 +94,7 @@ func (s *Service) FetchAndStore(ctx context.Context, internalSymbol, marketDataS
 
 	// Store NAV history (if any and market data repo available).
 	if len(navHistory) > 0 && s.marketDataRepo != nil {
-		if err := s.storeNavHistory(ctx, internalSymbol, details.Currency, navHistory); err != nil {
+		if err := s.storeNavHistory(ctx, internalSymbol, details.Currency, navHistory, source); err != nil {
 			return fmt.Errorf("store NAV history for %s: %w", internalSymbol, err)
 		}
 	}
@@ -105,7 +105,7 @@ func (s *Service) FetchAndStore(ctx context.Context, internalSymbol, marketDataS
 // fetchDetails fetches symbol details either through the extractor dispatcher
 // (when a data_source_url is configured) or through Yahoo Finance (default).
 // Returns the details, any NAV history points, and an error.
-func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSymbol string) (*symbol.SymbolDetails, []extractor.NavPoint, error) {
+func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSymbol string) (*symbol.SymbolDetails, []extractor.NavPoint, string, error) {
 	// Check if there's a data_source_url configured for this symbol.
 	sourceURL := ""
 	if s.dataSourceURLRepo != nil {
@@ -119,23 +119,23 @@ func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSy
 	if sourceURL != "" && s.dispatcher != nil {
 		result, err := s.dispatcher.Dispatch(ctx, sourceURL)
 		if err != nil {
-			return nil, nil, fmt.Errorf("extract from %s: %w", sourceURL, err)
+			return nil, nil, "", fmt.Errorf("extract from %s: %w", sourceURL, err)
 		}
 		details := extractResultToSymbolDetails(result, internalSymbol)
-		return details, result.NavHistory, nil
+		return details, result.NavHistory, result.Source, nil
 	}
 
 	// Default: Yahoo Finance.
 	details, err := s.fetcher.FetchSymbolDetails(ctx, marketDataSymbol)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	details.InternalSymbol = internalSymbol
-	return details, nil, nil
+	return details, nil, "yahoo", nil
 }
 
 // storeNavHistory stores NAV data points in the market_data table.
-func (s *Service) storeNavHistory(ctx context.Context, internalSymbol, currency string, navPoints []extractor.NavPoint) error {
+func (s *Service) storeNavHistory(ctx context.Context, internalSymbol, currency string, navPoints []extractor.NavPoint, source string) error {
 	now := time.Now()
 	for _, np := range navPoints {
 		md := &market.MarketData{
@@ -143,7 +143,7 @@ func (s *Service) storeNavHistory(ctx context.Context, internalSymbol, currency 
 			Price:     np.NAV,
 			Currency:  currency,
 			DataType:  "nav",
-			Source:    "wisdomtree",
+			Source:    source,
 			Date:      np.Date,
 			FetchedAt: now,
 		}
