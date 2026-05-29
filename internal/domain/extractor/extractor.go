@@ -14,6 +14,9 @@ import (
 // The extractor is responsible for populating all fields; if any section
 // fails to parse, the entire extraction is rejected (atomic — no partial data).
 type ExtractResult struct {
+	// Source is the identifier of the extractor that produced this result.
+	Source string
+
 	// AsOfDate is the provider's "as of" date for the extracted data,
 	// distinct from when the system fetched it.
 	AsOfDate time.Time
@@ -223,6 +226,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, sourceURL string) (*ExtractRe
 	if err != nil {
 		return nil, fmt.Errorf("extract from %q (%s): %w", sourceURL, extractor.Name(), err)
 	}
+
+	result.Source = extractor.Name()
 
 	return result, nil
 }

@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/govalues/decimal"
 )
 
 func loadTestData(t *testing.T, filename string) string {
@@ -21,10 +19,11 @@ func loadTestData(t *testing.T, filename string) string {
 }
 
 func TestParseFundInfo(t *testing.T) {
-	data := loadTestData(t, "pdpSettings.json")
+	settingsData := loadTestData(t, "pdpSettings.json")
+	metaData := loadTestData(t, "pdpMetaTags.json")
 	symbol := "DE000A2X47S0"
 	
-	info, err := ParseFundInfo(data, symbol)
+	info, err := ParseFundInfo(settingsData, metaData, symbol)
 	if err != nil {
 		t.Fatalf("ParseFundInfo failed: %v", err)
 	}
@@ -38,9 +37,10 @@ func TestParseFundInfo(t *testing.T) {
 }
 
 func TestParseFundProfile(t *testing.T) {
-	data := loadTestData(t, "pdpSettings.json")
+	settingsData := loadTestData(t, "pdpSettings.json")
+	metaData := loadTestData(t, "pdpMetaTags.json")
 	
-	profile, err := ParseFundProfile(data)
+	profile, err := ParseFundProfile(settingsData, metaData)
 	if err != nil {
 		t.Fatalf("ParseFundProfile failed: %v", err)
 	}
@@ -99,23 +99,6 @@ func TestParseHoldings(t *testing.T) {
 	expectedTech := 7.5 + 6.8
 	if techWeight != expectedTech {
 		t.Errorf("expected Tech weight %f, got %f", expectedTech, techWeight)
-	}
-}
-
-func TestParseNavHistory(t *testing.T) {
-	data := loadTestData(t, "performancechart.json")
-	
-	navs, err := ParseNavHistory(data)
-	if err != nil {
-		t.Fatalf("ParseNavHistory failed: %v", err)
-	}
-
-	if len(navs) != 3 {
-		t.Errorf("expected 3 nav points, got %d", len(navs))
-	}
-
-	if !navs[0].NAV.Equal(decimal.MustParse("100.50")) {
-		t.Errorf("expected first NAV 100.50, got %s", navs[0].NAV.String())
 	}
 }
 

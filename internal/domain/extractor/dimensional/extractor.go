@@ -54,10 +54,19 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 	isin = strings.ToUpper(isin)
 
-	// 2. Map ISIN to portfolioNumber using the Fund Center Registry API
-	portfolioNumber, asOfDate, err := e.getPortfolioNumberAndDate(ctx, isin)
+	// 2. Map ISIN to portfolioNumber and fetch NAV history using the Fund Center Registry API
+	portfolioNumber, navHistory, err := e.getPortfolioNumberAndNavHistory(ctx, isin)
 	if err != nil {
 		return nil, fmt.Errorf("map ISIN to portfolio number: %w", err)
+	}
+
+	// The reference date is the date of the most recent NAV point.
+	if len(navHistory) == 0 {
+		return nil, fmt.Errorf("no NAV history found for ISIN %s", isin)
+	}
+	asOfDate, err := time.Parse("2006-01-02", navHistory[0].Date)
+	if err != nil {
+		return nil, fmt.Errorf("parse as-of date from nav history: %w", err)
 	}
 
 	// 3. Fetch detailed fund data via POST request
@@ -69,7 +78,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 
 	// 4. Parse the detailed data
-	fundInfo, fundProfile, sectors, countries, nav, csvURL, err := ParseFundDetail(detailJSON)
+	fundInfo, fundProfile, sectors, countries, _, csvURL, err := ParseFundDetail(detailJSON)
 	if err != nil {
 		return nil, fmt.Errorf("parse fund detail: %w", err)
 	}
@@ -91,14 +100,6 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("parse holdings: %w", err)
 	}
 
-	// 6. Construct NAV history (using the single NAV point for now, or could be extended)
-	navHistory := []extractor.NavPoint{
-		{
-			Date: asOfDate.Format("2006-01-02"),
-			NAV:  decimal.MustParse(fmt.Sprintf("%.4f", nav)),
-		},
-	}
-
 	return &extractor.ExtractResult{
 		AsOfDate:          asOfDate,
 		FundInfo:          fundInfo,
@@ -110,13 +111,13 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}, nil
 }
 
-func (e *Extractor) getPortfolioNumberAndDate(ctx context.Context, isin string) (int, time.Time, error) {
+func (e *Extractor) getPortfolioNumberAndNavHistory(ctx context.Context, isin string) (int, []extractor.NavPoint, error) {
 	url := "https://etf.dimensional.com/public/v2/fundcenter?allowMorningstarFixedIncome=true"
 	headers := map[string]string{"x-selected-country": "GB"}
 
 	resp, err := e.client.Fetch(url, headers)
 	if err != nil {
-		return 0, time.Time{}, err
+		return 0, nil, err
 	}
 
 	var data struct {
@@ -142,28 +143,45 @@ func (e *Extractor) getPortfolioNumberAndDate(ctx context.Context, isin string) 
 	}
 
 	if err := json.NewDecoder(strings.NewReader(resp)).Decode(&data); err != nil {
-		return 0, time.Time{}, fmt.Errorf("decode fund center: %w", err)
+		return 0, nil, fmt.Errorf("decode fund center: %w", err)
 	}
 
 	for _, p := range data.Data.Portfolios {
 		for _, id := range p.Meta.Identifiers {
 			if id.Slug == "isin" && strings.ToUpper(id.Value) == isin {
-				// Find the most recent date that has a non-null NAV.
+				var navHistory []extractor.NavPoint
 				for _, price := range p.Prices {
 					if price.Nav.Value != nil {
-						t, err := time.Parse("2006-01-02", price.Date.Value)
-						if err != nil {
-							return 0, time.Time{}, fmt.Errorf("parse price date %q: %w", price.Date.Value, err)
+						// Convert interface{} NAV to float64 safely
+						var navVal float64
+						switch v := price.Nav.Value.(type) {
+						case float64:
+							navVal = v
+						case float32:
+							navVal = float64(v)
+						case int:
+							navVal = float64(v)
+						default:
+							continue
 						}
-						return p.PortfolioNumber, t, nil
+
+						navHistory = append(navHistory, extractor.NavPoint{
+							Date: price.Date.Value,
+							NAV:  decimal.MustParse(fmt.Sprintf("%.4f", navVal)),
+						})
 					}
 				}
-				return 0, time.Time{}, fmt.Errorf("no price entries with valid NAV found for ISIN %s", isin)
+
+				if len(navHistory) == 0 {
+					return 0, nil, fmt.Errorf("no price entries with valid NAV found for ISIN %s", isin)
+				}
+
+				return p.PortfolioNumber, navHistory, nil
 			}
 		}
 	}
 
-	return 0, time.Time{}, fmt.Errorf("ISIN %s not found in fund center", isin)
+	return 0, nil, fmt.Errorf("ISIN %s not found in fund center", isin)
 }
 
 // SetClient sets the HTTP client for fetching pages.

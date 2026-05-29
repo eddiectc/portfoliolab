@@ -42,43 +42,17 @@ func TestExtractor_Extract_Success(t *testing.T) {
 					"meta": {
 						"identifiers": [ { "slug": "isin", "value": "%s" } ]
 					},
-					"prices": [ { "date": { "value": "2026-05-28" }, "nav": { "value": 28.34 } } ]
+					"prices": [ 
+						{ "date": { "value": "2026-05-28" }, "nav": { "value": 28.34 } },
+						{ "date": { "value": "2026-05-27" }, "nav": { "value": 28.20 } }
+					]
 				}
 			]
 		}
 	}`, isin)
 
 	// Detail API response (direct subset of funddetail.json)
-	detailJSON := `{
-		"data": {
-			"lensGroups": [
-				{
-					"data": {
-						"lenses": [
-							{
-								"data": {
-									"slug": "fundFacts",
-									"blends": [ { "data": { "fundFacts": { "marketingName": "Global Core Equity UCITS ETF (Acc.)", "fundAum": { "aum": { "value": 1483669606.1 } }, "inceptionDate": { "value": "2025-11-12" } } } ]
-								}
-							},
-							{
-								"data": {
-									"slug": "fundPrices",
-									"blends": [ { "data": { "fundPrices": { "prices": [ { "nav": { "value": 28.3405 } } ] } } } ]
-								}
-							},
-							{
-								"data": {
-									"slug": "charsEtfTopHoldingsDaily",
-									"blends": [ { "data": { "fullHoldingsCsvUrl": "https://tools-blob.dimensional.com/etf/20260528/IE000EGGFVG6.csv" } } ]
-								}
-							}
-						]
-					}
-				}
-			]
-		}
-	}`
+	detailJSON := `{"data":{"lensGroups":[{"data":{"lenses":[{"data":{"slug":"fundFacts","blends":[{"data":{"fundFacts":{"marketingName":"Global Core Equity UCITS ETF (Acc.)","fundAum":{"aum":{"value":1483669606.1}},"inceptionDate":{"value":"2025-11-12"}}}}]}},{"data":{"slug":"fundPrices","blends":[{"data":{"fundPrices":{"prices":[{"nav":{"value":28.3405}}]}}]}},{"data":{"slug":"charsEtfTopHoldingsDaily","blends":[{"data":{"fullHoldingsCsvUrl":"https://tools-blob.dimensional.com/etf/20260528/IE000EGGFVG6.csv"}}]}}]}}]}}`
 
 	// CSV content
 	csvContent := "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL,Apple Inc,0.05,5000000\n"
@@ -109,6 +83,8 @@ func TestExtractor_Extract_Success(t *testing.T) {
 	assert.Equal(t, asOfDate, result.AsOfDate)
 	assert.Equal(t, isin, result.FundInfo.Symbol)
 	assert.Equal(t, "Global Core Equity UCITS ETF (Acc.)", result.FundInfo.Name)
+	assert.Len(t, result.NavHistory, 2)
+	assert.Equal(t, "2026-05-28", result.NavHistory[0].Date)
 	assert.Len(t, result.Holdings, 1)
 	assert.Equal(t, "AAPL", result.Holdings[0].Symbol)
 }
