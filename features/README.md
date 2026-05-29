@@ -33,4 +33,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f019 | Model Portfolio | done | f003, f009, f011, f018 |
 | f020 | Portfolio Comparison | done | f019, f009, f010, f011, f012, f015 |
 | f021 | WisdomTree Scraper | done | f015, f011 |
-| f022 | DWS Scraper | in-progress | f021 |
+| f022 | DWS Scraper | done | f021 |
