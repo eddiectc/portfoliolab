@@ -1,6 +1,7 @@
 package imgp
 
 import (
+	"encoding/base64"
 	"fmt"
 	"regexp"
 	"sync"
@@ -94,7 +95,14 @@ func (c *Client) FetchPDF(url string) ([]byte, error) {
 		return nil, fmt.Errorf("fetch pdf %s: HTTP %d", url, resp.Status)
 	}
 
-	return []byte(resp.Body), nil
+	// CycleTLS returns PDF bodies as base64-encoded strings (see DecompressBody
+	// for application/pdf content type). Decode back to raw bytes.
+	pdfBytes, err := base64.StdEncoding.DecodeString(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("decode pdf base64: %w", err)
+	}
+
+	return pdfBytes, nil
 }
 
 // factsheetENPattern matches the English factsheet PDF link in the fund page HTML.
