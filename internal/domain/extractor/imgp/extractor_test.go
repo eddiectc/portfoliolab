@@ -233,26 +233,7 @@ func TestExtractor_Extract_ContextCancelled(t *testing.T) {
 	if err != context.Canceled {
 		t.Errorf("expected context.Canceled, got %v", err)
 	}
-}
-
-func TestExtractor_Extract_ContextTimeoutBeforeFetch(t *testing.T) {
-	// Context timeout before any fetch — the initial select catches this
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately, simulating a timeout before fetch
-
-	e := NewExtractor()
-	mock := newMockClient()
-	mock.setupPageFetch("html", nil)
-	e.SetClient(mock.Client)
-
-	_, err := e.Extract(ctx, "https://www.imgp.com/fund/LU2951555585")
-	if err == nil {
-		t.Fatal("expected error for cancelled context")
-	}
-	if err != context.Canceled {
-		t.Errorf("expected context.Canceled, got %v", err)
-	}
-	// Verify no fetch was made
+	// Verify no fetch was made — the initial select catches cancellation before any I/O
 	if mock.pageCalls != 0 {
 		t.Error("page should not have been fetched when context is cancelled")
 	}

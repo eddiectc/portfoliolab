@@ -365,7 +365,7 @@ func TestParseFundProfile(t *testing.T) {
 <tr><td class="key">Legal Form</td><td>ICAV</td></tr>
 </table>`,
 			wantAUM:       60368055,
-			wantTER:       0.40,
+			wantTER:       0.0040,
 			wantFamily:    "WisdomTree Issuer ICAV",
 			wantLegalType: "ICAV",
 		},
@@ -386,7 +386,7 @@ func TestParseFundProfile(t *testing.T) {
 								Fund Umbrella
 							</td><td>Test Fund</td></tr>
 </table>`,
-			wantTER:  0.50,
+			wantTER:  0.0050,
 			wantFamily: "Test Fund",
 		},
 		{

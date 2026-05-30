@@ -49,9 +49,9 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 - [x] Create `internal/domain/extractor/imgp/parsers.go` with:
   - `ParseFundFacts(pdfText) (*extractor.FundProfile, error)` — AUM, inception date, ISIN, share class name, management fees, ongoing charges
   - `ParseRiskMeasures(pdfText) (*extractor.RiskMeasures, error)` — volatility, Sharpe ratio, information ratio, beta, correlation, tracking error
-  - `ParseAssetClassAllocation(pdfText) ([]extractor.AssetClassEntry, error)` — equities, bonds, gold, oil (can be negative, don't sum to 100%)
-  - `ParseEquityDerivativesByRegion(pdfText) ([]extractor.RegionDerivativeEntry, error)` — North America, Europe, Asia, Emerging Countries (sum to ~100%, can be negative)
-  - `ParseCurrencyDerivativesAllocation(pdfText) ([]extractor.CurrencyDerivativeEntry, error)` — USD, EUR, JPY, etc. (sum to ~100%, can be negative)
+  - `ParseAssetClassAllocation(pdfText) ([]extractor.AssetClassEntry, error)` — equities, bonds, gold, oil (can be negative, don't sum to 100%); sorted by percentage descending (largest first, negatives last)
+  - `ParseEquityDerivativesByRegion(pdfText) ([]extractor.RegionDerivativeEntry, error)` — North America, Europe, Asia, Emerging Countries (sum to ~100%, can be negative); sorted by percentage descending (largest first, negatives last)
+  - `ParseCurrencyDerivativesAllocation(pdfText) ([]extractor.CurrencyDerivativeEntry, error)` — USD, EUR, JPY, etc. (sum to ~100%, can be negative); sorted by percentage descending (largest first, negatives last)
   - `ParseReferenceDate(pdfText) (time.Time, error)` — "as of" date from factsheet header
 - [x] Create `internal/domain/extractor/imgp/parsers_test.go` — table-driven tests using the sample PDF text
 - [x] Extract text from the sample PDF (`features/f024_imgp-scraper/samples/LU2951555585_FACTSHEETS_EN.pdf`) and save as a test fixture in `testdata/`

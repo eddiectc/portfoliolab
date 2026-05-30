@@ -47,9 +47,11 @@ func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 	}
 
 	// TER: <td class="key">TER</td> ... <td>...</td>
+	// Value is a percentage string (e.g. "0.40%"); parseTableValue strips "%" and returns the raw number.
+	// AnnualExpenseRatio convention is a fraction (0.004 for 0.4%), so divide by 100.
 	ter, err := parseTableValue(html, `<td class="key">TER</td>`)
 	if err == nil {
-		profile.AnnualExpenseRatio = ter
+		profile.AnnualExpenseRatio = ter / 100
 	}
 
 	// Inception Date: <td class="key">Inception Date</td> ... <td>...</td>
