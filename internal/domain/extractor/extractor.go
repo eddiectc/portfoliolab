@@ -82,6 +82,9 @@ type FundProfile struct {
 	AnnualExpenseRatio     float64
 	AnnualHoldingsTurnover float64
 	InceptionDate          time.Time
+	Isin                   string  // ISIN code (e.g. "LU2951555585")
+	ShareClassName         string  // share class name (e.g. "R USD UCITS ETF")
+	OngoingCharges         float64 // ongoing charges ratio percentage (e.g. 0.75)
 }
 
 // Holding is a single security holding with weight percentage.
@@ -141,6 +144,32 @@ type RiskMeasures struct {
 	Beta           float64 // beta relative to benchmark
 	Correlation    float64 // correlation with benchmark
 	TrackingError  float64 // tracking error percentage
+	FieldsPresent  RiskFieldsMask // bitmask of which fields were actually parsed
+}
+
+// RiskFieldsMask tracks which RiskMeasures fields were populated by the parser.
+// A zero value means the field was not present in the source data (distinct from
+// the field being genuinely zero).
+type RiskFieldsMask uint8
+
+const (
+	RiskFieldVolatility   RiskFieldsMask = 1 << iota
+	RiskFieldSharpeRatio
+	RiskFieldInfoRatio
+	RiskFieldBeta
+	RiskFieldCorrelation
+	RiskFieldTrackingError
+)
+
+// HasField reports whether the given risk field was present in the source data.
+func (rm *RiskMeasures) HasField(field RiskFieldsMask) bool {
+	return rm.FieldsPresent&field != 0
+}
+
+// AllFieldsPresent reports whether all six risk fields were parsed.
+func (rm *RiskMeasures) AllFieldsPresent() bool {
+	return rm.FieldsPresent == (RiskFieldVolatility | RiskFieldSharpeRatio |
+		RiskFieldInfoRatio | RiskFieldBeta | RiskFieldCorrelation | RiskFieldTrackingError)
 }
 
 // AssetClassEntry is a single asset class allocation entry.

@@ -67,6 +67,9 @@ type FundProfile struct {
 	AnnualExpenseRatio     float64
 	AnnualHoldingsTurnover float64
 	InceptionDate          time.Time
+	Isin                   string  // ISIN code (e.g. "LU2951555585")
+	ShareClassName         string  // share class name (e.g. "R USD UCITS ETF")
+	OngoingCharges         float64 // ongoing charges ratio percentage (e.g. 0.75)
 }
 
 // EquityValuation represents aggregate valuation ratios of an ETF's equity holdings.
@@ -107,7 +110,20 @@ type RiskMeasures struct {
 	Beta          float64 // beta relative to benchmark
 	Correlation   float64 // correlation with benchmark
 	TrackingError float64 // tracking error percentage
+	FieldsPresent SymbolRiskFieldsMask // bitmask of which fields were actually parsed
 }
+
+// SymbolRiskFieldsMask tracks which RiskMeasures fields were populated.
+type SymbolRiskFieldsMask uint8
+
+const (
+	SymbolRiskFieldVolatility   SymbolRiskFieldsMask = 1 << iota
+	SymbolRiskFieldSharpeRatio
+	SymbolRiskFieldInfoRatio
+	SymbolRiskFieldBeta
+	SymbolRiskFieldCorrelation
+	SymbolRiskFieldTrackingError
+)
 
 // AssetClassEntry is a single asset class allocation entry.
 // Percent can be negative (short positions) and entries do not sum to 100%.

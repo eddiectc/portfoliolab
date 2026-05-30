@@ -22,7 +22,7 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 1 (data extraction)
 **Description:** Add a PDF text extraction library and define the Go types for iMGP-specific data that don't fit existing extractor types.
 
-- [ ] Add `github.com/ledongthuc/pdf` dependency (pure Go, MIT license, text extraction from PDFs) — deferred to Task 3; `go mod tidy` strips unused deps
+- [x] Add `github.com/ledongthuc/pdf` dependency (pure Go, MIT license, text extraction from PDFs) — stabilized in Task 3 via `go mod tidy`
 - [x] Extend `extractor.ExtractResult` with new fields: `RiskMeasures`, `AssetClassAllocation`, `EquityDerivativesByRegion`, `CurrencyDerivativesAllocation`
 - [x] Add corresponding types to `extractor` package: `RiskMeasures` struct (volatility, Sharpe, info ratio, beta, correlation, tracking error), `AssetClassEntry`, `RegionDerivativeEntry`, `CurrencyDerivativeEntry`
 - [x] Add corresponding types to `symbol` package: `RiskMeasures`, `AssetClassEntry`, `RegionDerivativeEntry`, `CurrencyDerivativeEntry`
@@ -46,16 +46,16 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 1 (data extraction)
 **Description:** Parse structured data from the factsheet PDF text. Each parser extracts one section.
 
-- [ ] Create `internal/domain/extractor/imgp/parsers.go` with:
-  - `ParseFundFacts(pdfText) (*extractor.FundProfile, *extractor.FundInfo, error)` — AUM, inception date, ISIN, share class name, management fees, ongoing charges
+- [x] Create `internal/domain/extractor/imgp/parsers.go` with:
+  - `ParseFundFacts(pdfText) (*extractor.FundProfile, error)` — AUM, inception date, ISIN, share class name, management fees, ongoing charges
   - `ParseRiskMeasures(pdfText) (*extractor.RiskMeasures, error)` — volatility, Sharpe ratio, information ratio, beta, correlation, tracking error
-  - `ParseAssetClassAllocation(pdfText) ([]extractor.AssetClassEntry, error)` — equities, bonds, gold, oil, cash & others (can be negative, don't sum to 100%)
+  - `ParseAssetClassAllocation(pdfText) ([]extractor.AssetClassEntry, error)` — equities, bonds, gold, oil (can be negative, don't sum to 100%)
   - `ParseEquityDerivativesByRegion(pdfText) ([]extractor.RegionDerivativeEntry, error)` — North America, Europe, Asia, Emerging Countries (sum to ~100%, can be negative)
   - `ParseCurrencyDerivativesAllocation(pdfText) ([]extractor.CurrencyDerivativeEntry, error)` — USD, EUR, JPY, etc. (sum to ~100%, can be negative)
   - `ParseReferenceDate(pdfText) (time.Time, error)` — "as of" date from factsheet header
-- [ ] Create `internal/domain/extractor/imgp/parsers_test.go` — table-driven tests using the sample PDF text
-- [ ] Extract text from the sample PDF (`features/f024_imgp-scraper/samples/LU2951555585_FACTSHEETS_EN.pdf`) and save as a test fixture in `testdata/`
-- [ ] Each parser returns `nil, nil` for optional sections not present; returns explicit error for required sections (Fund Facts, Reference Date)
+- [x] Create `internal/domain/extractor/imgp/parsers_test.go` — table-driven tests using the sample PDF text
+- [x] Extract text from the sample PDF (`features/f024_imgp-scraper/samples/LU2951555585_FACTSHEETS_EN.pdf`) and save as a test fixture in `testdata/`
+- [x] Each parser returns `nil, nil` for optional sections not present; returns explicit error for required sections (Fund Facts, Reference Date)
 
 **Verification:** All parsers extract correct values from the sample PDF fixture; optional section absence returns `nil, nil`; missing required section returns error.
 
