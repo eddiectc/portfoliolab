@@ -3,7 +3,7 @@
 **Feature ID**: f023
 **Name**: dimensional-scraper
 **Date**: 2026-05-29
-**Status**: Draft
+**Status**: Done
 
 ## Problem
 

@@ -100,6 +100,10 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("parse holdings: %w", err)
 	}
 
+	if len(holdings) == 0 {
+		return nil, fmt.Errorf("holdings list is empty for ISIN %s — extraction failed (atomic)", isin)
+	}
+
 	return &extractor.ExtractResult{
 		AsOfDate:          asOfDate,
 		FundInfo:          fundInfo,

@@ -1,0 +1,21 @@
+{
+  "data": {
+    "portfolios": [
+      {
+        "portfolioNumber": 1600,
+        "meta": {
+          "identifiers": [
+            { "slug": "isin", "value": "IE000EGGFVG6" },
+            { "slug": "ticker", "value": "DGRC" },
+            { "slug": "sedol", "value": "BG1L5N7" }
+          ]
+        },
+        "prices": [
+          { "date": { "value": "2026-05-28" }, "nav": { "value": 28.34 } },
+          { "date": { "value": "2026-05-27" }, "nav": { "value": 28.20 } },
+          { "date": { "value": "2026-05-26" }, "nav": { "value": 28.15 } }
+        ]
+      }
+    ]
+  }
+}

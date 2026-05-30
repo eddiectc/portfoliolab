@@ -17,7 +17,6 @@ const userAgentChrome129 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKi
 
 // fetchFunc is the function signature for fetching page content.
 type fetchFunc func(url string) (string, error)
-type bypassFunc func() error
 
 // ClientAPI defines the interface for fetching Dimensional fund data.
 type ClientAPI interface {

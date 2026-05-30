@@ -3,7 +3,10 @@ package dimensional
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -166,16 +169,18 @@ func ParseHoldingsCSV(csvContent string) ([]extractor.Holding, error) {
 	for {
 		record, err := reader.Read()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if _, ok := err.(*csv.ParseError); ok {
+				slog.Warn("skipping malformed CSV row in holdings", "error", err)
 				continue
 			}
 			return nil, fmt.Errorf("read holdings record: %w", err)
 		}
 
 		if len(record) < 6 {
+			slog.Warn("skipping short CSV row in holdings", "fields", len(record))
 			continue
 		}
 
@@ -189,6 +194,7 @@ func ParseHoldingsCSV(csvContent string) ([]extractor.Holding, error) {
 
 		weight, err := parseNumber(weightStr)
 		if err != nil {
+			slog.Warn("skipping CSV row with unparseable weight", "name", name, "weight", weightStr)
 			continue
 		}
 

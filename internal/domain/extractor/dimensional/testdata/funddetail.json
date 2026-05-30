@@ -1,0 +1,117 @@
+{
+  "data": {
+    "lensGroups": [
+      {
+        "data": {
+          "lenses": [
+            {
+              "data": {
+                "slug": "fundFacts",
+                "blends": [
+                  {
+                    "data": {
+                      "fundFacts": {
+                        "marketingName": "Global Core Equity UCITS ETF (Acc.)",
+                        "benchmarks": ["MSCI World Index"],
+                        "fundAum": { "aum": { "value": 1483669606.1 } },
+                        "inceptionDate": { "value": "2025-11-12" }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "data": {
+                "slug": "fundPrices",
+                "blends": [
+                  {
+                    "data": {
+                      "fundPrices": {
+                        "prices": [ { "nav": { "value": 28.3405 } } ]
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "data": {
+                "slug": "fees",
+                "blends": [
+                  {
+                    "data": {
+                      "fees": {
+                        "fees": [
+                          { "slug": "net-exp-ratio", "value": { "value": 0.0026 } }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "data": {
+                "slug": "charsEquityAllocationByGics",
+                "blends": [
+                  {
+                    "data": {
+                      "allocations": [
+                        { "name": "Information Technology", "weight": { "value": 0.2159250600243086 } },
+                        { "name": "Financials", "weight": { "value": 0.143210 } },
+                        { "name": "Health Care", "weight": { "value": 0.128745 } }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "data": {
+                "slug": "charsEquityAllocationByCountryByRegionDevelopedEmerging",
+                "blends": [
+                  {
+                    "data": {
+                      "allocations": [
+                        {
+                          "name": "Developed",
+                          "weight": { "value": 0.92 },
+                          "subCategories": [
+                            { "name": "United States", "weight": { "value": 0.7031153345359613 } },
+                            { "name": "United Kingdom", "weight": { "value": 0.0512 } },
+                            { "name": "Japan", "weight": { "value": 0.0487 } }
+                          ]
+                        },
+                        {
+                          "name": "Emerging",
+                          "weight": { "value": 0.08 },
+                          "subCategories": [
+                            { "name": "China", "weight": { "value": 0.0354 } },
+                            { "name": "India", "weight": { "value": 0.0189 } }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "data": {
+                "slug": "charsEtfTopHoldingsDaily",
+                "blends": [
+                  {
+                    "data": {
+                      "fullHoldingsCsvUrl": "https://tools-blob.dimensional.com/etf/20260528/IE000EGGFVG6.csv"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
