@@ -12,6 +12,9 @@ import (
 var realPDFText string
 
 func TestParseFundFacts_Real(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipped in short mode")
+	}
 	profile, err := ParseFundFacts(realPDFText)
 	if err != nil {
 		t.Fatalf("ParseFundFacts failed: %v", err)
@@ -30,6 +33,9 @@ func TestParseFundFacts_Real(t *testing.T) {
 }
 
 func TestParseRiskMeasures_Real(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipped in short mode")
+	}
 	risk, err := ParseRiskMeasures(realPDFText)
 	if err != nil {
 		t.Fatalf("ParseRiskMeasures failed: %v", err)
@@ -53,6 +59,9 @@ func TestParseRiskMeasures_Real(t *testing.T) {
 }
 
 func TestParseAssetClassAllocation_Real(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipped in short mode")
+	}
 	alloc, err := ParseAssetClassAllocation(realPDFText)
 	if err != nil {
 		t.Fatalf("ParseAssetClassAllocation failed: %v", err)
@@ -67,6 +76,9 @@ func TestParseAssetClassAllocation_Real(t *testing.T) {
 }
 
 func TestParseEquityDerivativesByRegion_Real(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipped in short mode")
+	}
 	derivs, err := ParseEquityDerivativesByRegion(realPDFText)
 	if err != nil {
 		t.Fatalf("ParseEquityDerivativesByRegion failed: %v", err)
@@ -81,6 +93,9 @@ func TestParseEquityDerivativesByRegion_Real(t *testing.T) {
 }
 
 func TestParseCurrencyDerivativesAllocation_Real(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipped in short mode")
+	}
 	alloc, err := ParseCurrencyDerivativesAllocation(realPDFText)
 	if err != nil {
 		// This fund has a data quality issue: 10 labels but 9 percentages.
@@ -97,6 +112,9 @@ func TestParseCurrencyDerivativesAllocation_Real(t *testing.T) {
 }
 
 func TestParseReferenceDate_Real(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipped in short mode")
+	}
 	date, err := ParseReferenceDate(realPDFText)
 	if err != nil {
 		t.Fatalf("ParseReferenceDate failed: %v", err)
