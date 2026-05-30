@@ -198,9 +198,13 @@ func setupTestDB(t *testing.T) *sql.DB {
 			equity_valuation      TEXT,
 			geographic_allocations TEXT,
 			market_cap_breakdown  TEXT,
-			themes                TEXT,
-			extractor_as_of_date  TEXT,
-			fetched_at            TEXT    NOT NULL DEFAULT (datetime('now')),
+			themes                      TEXT,
+			risk_measures             TEXT,
+			asset_class_allocation    TEXT,
+			equity_derivatives_by_region TEXT,
+			currency_derivatives_allocation TEXT,
+			extractor_as_of_date      TEXT,
+			fetched_at                TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at            TEXT    NOT NULL DEFAULT (datetime('now')),
 			updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
 		);

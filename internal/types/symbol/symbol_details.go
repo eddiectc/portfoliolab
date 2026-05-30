@@ -125,6 +125,18 @@ const (
 	SymbolRiskFieldTrackingError
 )
 
+// HasField reports whether the given risk field was present in the source data.
+func (rm *RiskMeasures) HasField(field SymbolRiskFieldsMask) bool {
+	return rm.FieldsPresent&field != 0
+}
+
+// AllFieldsPresent reports whether all six risk fields were parsed.
+func (rm *RiskMeasures) AllFieldsPresent() bool {
+	return rm.FieldsPresent == (SymbolRiskFieldVolatility | SymbolRiskFieldSharpeRatio |
+		SymbolRiskFieldInfoRatio | SymbolRiskFieldBeta | SymbolRiskFieldCorrelation |
+		SymbolRiskFieldTrackingError)
+}
+
 // AssetClassEntry is a single asset class allocation entry.
 // Percent can be negative (short positions) and entries do not sum to 100%.
 type AssetClassEntry struct {
