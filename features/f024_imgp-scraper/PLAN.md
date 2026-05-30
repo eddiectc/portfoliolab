@@ -22,7 +22,7 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 1 (data extraction)
 **Description:** Add a PDF text extraction library and define the Go types for iMGP-specific data that don't fit existing extractor types.
 
-- [x] Add `github.com/ledongthuc/pdf` dependency (pure Go, MIT license, text extraction from PDFs)
+- [ ] Add `github.com/ledongthuc/pdf` dependency (pure Go, MIT license, text extraction from PDFs) — deferred to Task 3; `go mod tidy` strips unused deps
 - [x] Extend `extractor.ExtractResult` with new fields: `RiskMeasures`, `AssetClassAllocation`, `EquityDerivativesByRegion`, `CurrencyDerivativesAllocation`
 - [x] Add corresponding types to `extractor` package: `RiskMeasures` struct (volatility, Sharpe, info ratio, beta, correlation, tracking error), `AssetClassEntry`, `RegionDerivativeEntry`, `CurrencyDerivativeEntry`
 - [x] Add corresponding types to `symbol` package: `RiskMeasures`, `AssetClassEntry`, `RegionDerivativeEntry`, `CurrencyDerivativeEntry`

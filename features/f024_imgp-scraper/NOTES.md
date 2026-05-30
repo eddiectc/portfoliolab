@@ -6,7 +6,7 @@
 - 2026-05-30: Types are duplicated between `extractor` and `symbol` packages (identical field names/structure), following the existing pattern (`FundProfile`, `MarketCapBreakdown`). Task 6 service mapping will be straightforward field-by-field.
 
 ## Deviations from Plan
-- None yet.
+- Task 1: `github.com/ledongthuc/pdf` is in go.mod but marked `// indirect` since no code imports it yet. `go mod tidy` will strip it. The dependency will be stabilized when Task 3 adds the first import in `parsers.go`. PLAN.md checkbox for this sub-item is left unchecked until then.
 
 ## Future Improvements
 - None yet.
