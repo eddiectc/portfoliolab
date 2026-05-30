@@ -19,6 +19,7 @@
 - Task 3: Risk measures for the sample fund (LU2951555585) only has Volatility (9.16%) and Sharpe Ratio (2.52) populated; InfoRatio, Beta, Correlation, and TrackingError are absent because the fund is too new (< 1 year). The parser handles this gracefully — `FieldsPresent` bitmask tracks which fields were actually parsed.
 - Task 3: `RiskMeasures` struct gained a `FieldsPresent` field (not in original spec). Added after silent fallback audit revealed consumers couldn't distinguish zero from missing.
 - Task 3: `extractShareClass` return type changed from `string` to `(string, error)` (not in original spec). Added after silent fallback audit.
+- Task 4: Optional section parser errors are silently discarded (not returned). The chart parsers (asset class, equity derivatives, currency derivatives) return partial data + error on label/percentage mismatch. The extractor accepts the partial data and discards the error, since these are optional sections. This matches the plan's atomicity rule: only Fund Facts + Reference Date are required.
 
 ## Future Improvements
 - None yet.
