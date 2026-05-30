@@ -34,11 +34,11 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 2 (dispatcher integration)
 **Description:** Create the URL matcher and HTTP client for iMGP, following the WisdomTree/DWS pattern.
 
-- [ ] Create `internal/domain/extractor/imgp/matcher.go` — matches `*.imgp.com` domains
-- [ ] Create `internal/domain/extractor/imgp/matcher_test.go` — table-driven tests for matching/non-matching URLs
-- [ ] Create `internal/domain/extractor/imgp/client.go` — HTTP client with CycleTLS (same pattern as WisdomTree), rate limiting (1s min delay), and two methods: `FetchPage(url) (string, error)` for HTML and `FetchPDF(url) ([]byte, error)` for PDF bytes
-- [ ] Create `internal/domain/extractor/imgp/client_test.go` — tests with mock fetch function
-- [ ] Implement `extractPDFURL(html) (string, error)` helper that finds the factsheet PDF download link in the fund page HTML
+- [x] Create `internal/domain/extractor/imgp/matcher.go` — matches `*.imgp.com` domains
+- [x] Create `internal/domain/extractor/imgp/matcher_test.go` — table-driven tests for matching/non-matching URLs
+- [x] Create `internal/domain/extractor/imgp/client.go` — HTTP client with CycleTLS (same pattern as WisdomTree), rate limiting (1s min delay), and two methods: `FetchPage(url) (string, error)` for HTML and `FetchPDF(url) ([]byte, error)` for PDF bytes
+- [x] Create `internal/domain/extractor/imgp/client_test.go` — tests with mock fetch function
+- [x] Implement `extractPDFURL(html) (string, error)` helper that finds the factsheet PDF download link in the fund page HTML
 
 **Verification:** Matcher correctly identifies iMGP URLs; client fetches HTML and PDF with mock; `extractPDFURL` finds the PDF link from sample HTML.
 
