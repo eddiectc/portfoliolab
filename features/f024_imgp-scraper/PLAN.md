@@ -63,11 +63,11 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 1 + Story 2
 **Description:** Wire the client and parsers into the Extractor interface, implementing atomic extraction.
 
-- [ ] Create `internal/domain/extractor/imgp/extractor.go` implementing `extractor.Extractor` + `extractor.URLMatcher`
-- [ ] `Extract(ctx, sourceURL)` flow: fetch HTML page → extract PDF URL → download PDF → extract text → parse all sections → return `ExtractResult` or error
-- [ ] Atomicity: if Fund Facts or Reference Date parsing fails, return error (no partial data). Optional sections (risk, asset class, derivatives) returning nil is acceptable.
-- [ ] Create `internal/domain/extractor/imgp/extractor_test.go` — tests with mock client (success path, fund facts failure, reference date failure, optional section absence)
-- [ ] Context cancellation test
+- [x] Create `internal/domain/extractor/imgp/extractor.go` implementing `extractor.Extractor` + `extractor.URLMatcher`
+- [x] `Extract(ctx, sourceURL)` flow: fetch HTML page → extract PDF URL → download PDF → extract text → parse all sections → return `ExtractResult` or error
+- [x] Atomicity: if Fund Facts or Reference Date parsing fails, return error (no partial data). Optional sections (risk, asset class, derivatives) returning nil is acceptable.
+- [x] Create `internal/domain/extractor/imgp/extractor_test.go` — tests with mock client (success path, fund facts failure, reference date failure, optional section absence)
+- [x] Context cancellation test
 
 **Verification:** Extractor returns complete `ExtractResult` with mock data; fails atomically on required section errors; succeeds with partial optional sections.
 
