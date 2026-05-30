@@ -276,30 +276,37 @@ func TestParseEquityDerivativesByRegion(t *testing.T) {
 		t.Fatal("expected non-empty equity derivatives by region")
 	}
 
-	// Debug: print what we got
-	for _, e := range entries {
-		t.Logf("  %s: %.1f%%", e.Region, e.Percent)
-	}
-
 	// Expected values from the PDF:
-	// Cash & Others: 0%, Asia ex-Japan: 0.2%, Japan: 0.3%, Europe ex-EMU: 0.5%,
+	// Cash & Others: 0%, Asia ex Japan: 0.2%, Japan: 0.3%, Europe ex-EMU: 0.5%,
 	// EMU: 0.6%, North America: 2.9%, Emerging Countries: 15.8%
-	// Note: label names may vary slightly depending on how multi-line tokens are joined
-
-	// At minimum, verify we have the right number of entries and percentages match
-	if len(entries) < 7 {
-		t.Errorf("expected at least 7 region entries, got %d", len(entries))
+	expected := map[string]float64{
+		"Cash & Others":        0.0,
+		"Asia ex Japan":        0.2,
+		"Japan":                0.3,
+		"Europe ex-EMU":        0.5,
+		"EMU":                  0.6,
+		"North America":        2.9,
+		"Emerging Countries": 15.8,
 	}
 
-	// Check that percentages are roughly in the right range
-	// (we may not match labels perfectly on first pass)
-	totalPct := 0.0
-	for _, e := range entries {
-		totalPct += e.Percent
+	if len(entries) != len(expected) {
+		t.Fatalf("expected %d region entries, got %d", len(expected), len(entries))
 	}
-	// Total should be close to ~20.5% (sum of all percentages)
-	if totalPct < 19 || totalPct > 22 {
-		t.Errorf("total percentage = %.1f, expected ~20.5", totalPct)
+
+	for _, entry := range entries {
+		want, ok := expected[entry.Region]
+		if !ok {
+			t.Errorf("unexpected region: %q", entry.Region)
+			continue
+		}
+		if entry.Percent != want {
+			t.Errorf("%s: percent = %.1f, want %.1f", entry.Region, entry.Percent, want)
+		}
+		delete(expected, entry.Region)
+	}
+
+	for k := range expected {
+		t.Errorf("missing region: %q", k)
 	}
 }
 
@@ -629,6 +636,74 @@ func TestExtractPercent(t *testing.T) {
 				t.Errorf("extractPercent() = %.2f, want %.2f", got, tt.want)
 			}
 		})
+	}
+}
+
+// --- extractInceptionDate ---
+
+func TestExtractInceptionDate(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string // "2006-01-02" format
+	}{
+		{"standard dd/mm/yyyy", "Inception Date of theShare Class 07/03/2025", "2025-03-07"},
+		{"with extra spacing", "Inception Date  of the Share Class 15/12/2023", "2023-12-15"},
+		{"dash separator", "Inception Date 15-12-2023", "2023-12-15"},
+		{"two-digit year", "Inception Date 07/03/25", "2025-03-07"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := extractInceptionDate(tt.input)
+			if err != nil {
+				t.Fatalf("extractInceptionDate(%q): %v", tt.input, err)
+			}
+			if got.Format("2006-01-02") != tt.want {
+				t.Errorf("extractInceptionDate(%q) = %s, want %s", tt.input, got.Format("2006-01-02"), tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractInceptionDate_Missing(t *testing.T) {
+	_, err := extractInceptionDate("no inception date here")
+	if err == nil {
+		t.Error("expected error for missing inception date")
+	}
+}
+
+// --- extractShareClass ---
+
+func TestExtractShareClass(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"standard with Classification delimiter", "Share Class R USD UCITS ETF Classification SFDR 6", "R USD UCITS ETF"},
+		{"with Cut-off delimiter", "Share Class A EUR Cut-off Time TD 12:00", "A EUR"},
+		{"with SRRI delimiter", "Share Class I USD UCITS ETF SRRI 5/7", "I USD UCITS ETF"},
+
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := extractShareClass(tt.input)
+			if err != nil {
+				t.Fatalf("extractShareClass(%q): %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Errorf("extractShareClass(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractShareClass_Missing(t *testing.T) {
+	_, err := extractShareClass("no share class here")
+	if err == nil {
+		t.Error("expected error for missing share class")
 	}
 }
 
