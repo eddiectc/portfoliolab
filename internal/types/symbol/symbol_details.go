@@ -18,14 +18,18 @@ type SymbolDetails struct {
 	Sector         string // primary sector for individual stocks (e.g. "Technology")
 
 	// ETF-specific fields (JSON in DB, deserialized here)
-	TopHoldings           []TopHolding
-	SectorWeightings      []SectorWeighting
-	AggregatePositions    *AggregatePositions
-	FundProfile           *FundProfile
-	EquityValuation       *EquityValuation
-	GeographicAllocations []GeographicAllocation
-	MarketCapBreakdown    *MarketCapBreakdown
-	Themes                []ThemeBreakdown
+	TopHoldings                 []TopHolding
+	SectorWeightings            []SectorWeighting
+	AggregatePositions          *AggregatePositions
+	FundProfile                 *FundProfile
+	EquityValuation             *EquityValuation
+	GeographicAllocations       []GeographicAllocation
+	MarketCapBreakdown          *MarketCapBreakdown
+	Themes                      []ThemeBreakdown
+	RiskMeasures                *RiskMeasures
+	AssetClassAllocation        []AssetClassEntry
+	EquityDerivativesByRegion   []RegionDerivativeEntry
+	CurrencyDerivativesAllocation []CurrencyDerivativeEntry
 
 	// Metadata
 	ExtractorAsOfDate time.Time // provider's "as of" date; zero when from Yahoo
@@ -93,6 +97,37 @@ type MarketCapBreakdown struct {
 type ThemeBreakdown struct {
 	Name    string
 	Percent float64 // 0-100 percentage
+}
+
+// RiskMeasures contains risk metrics from fund factsheets.
+type RiskMeasures struct {
+	Volatility    float64 // annualized volatility percentage
+	SharpeRatio   float64 // Sharpe ratio
+	InfoRatio     float64 // information ratio
+	Beta          float64 // beta relative to benchmark
+	Correlation   float64 // correlation with benchmark
+	TrackingError float64 // tracking error percentage
+}
+
+// AssetClassEntry is a single asset class allocation entry.
+// Percent can be negative (short positions) and entries do not sum to 100%.
+type AssetClassEntry struct {
+	AssetClass string  // e.g. "Equities", "Bonds", "Gold", "Oil", "Cash"
+	Percent    float64 // exposure relative to AUM, can be negative
+}
+
+// RegionDerivativeEntry is a single regional derivative exposure entry.
+// Values sum to ~100% but individual values can be negative.
+type RegionDerivativeEntry struct {
+	Region  string  // e.g. "North America", "Europe", "Asia", "Emerging Countries"
+	Percent float64 // composition within equity sleeve, can be negative
+}
+
+// CurrencyDerivativeEntry is a single currency derivative exposure entry.
+// Values sum to ~100% but individual values can be negative.
+type CurrencyDerivativeEntry struct {
+	Currency string  // e.g. "USD", "EUR", "JPY"
+	Percent  float64 // composition within currency sleeve, can be negative
 }
 
 // StaleSymbol represents a symbol whose details need refreshing.

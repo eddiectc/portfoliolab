@@ -47,6 +47,25 @@ type ExtractResult struct {
 
 	// Characteristics is the fund characteristics data (P/E, P/B, etc.).
 	Characteristics *FundCharacteristics
+
+	// RiskMeasures contains risk metrics (volatility, Sharpe, beta, etc.).
+	// Optional — may be nil for funds that don't publish risk data.
+	RiskMeasures *RiskMeasures
+
+	// AssetClassAllocation is the exposure by asset class relative to AUM.
+	// Values can be negative (short positions) and do not sum to 100%.
+	// Optional — may be nil.
+	AssetClassAllocation []AssetClassEntry
+
+	// EquityDerivativesByRegion is the composition within the equity sleeve.
+	// Values sum to ~100% but individual values can be negative.
+	// Optional — may be nil.
+	EquityDerivativesByRegion []RegionDerivativeEntry
+
+	// CurrencyDerivativesAllocation is the composition within the currency sleeve.
+	// Values sum to ~100% but individual values can be negative.
+	// Optional — may be nil.
+	CurrencyDerivativesAllocation []CurrencyDerivativeEntry
 }
 
 // FundInfo contains basic fund identity from the provider.
@@ -112,6 +131,37 @@ type FundCharacteristics struct {
 	PriceToCashflow          float64
 	PriceToSales             float64
 	DividendYield            float64
+}
+
+// RiskMeasures contains risk metrics from fund factsheets.
+type RiskMeasures struct {
+	Volatility     float64 // annualized volatility percentage
+	SharpeRatio    float64 // Sharpe ratio
+	InfoRatio      float64 // information ratio
+	Beta           float64 // beta relative to benchmark
+	Correlation    float64 // correlation with benchmark
+	TrackingError  float64 // tracking error percentage
+}
+
+// AssetClassEntry is a single asset class allocation entry.
+// Percent can be negative (short positions) and entries do not sum to 100%.
+type AssetClassEntry struct {
+	AssetClass string // e.g. "Equities", "Bonds", "Gold", "Oil", "Cash"
+	Percent    float64 // exposure relative to AUM, can be negative
+}
+
+// RegionDerivativeEntry is a single regional derivative exposure entry.
+// Values sum to ~100% but individual values can be negative.
+type RegionDerivativeEntry struct {
+	Region  string  // e.g. "North America", "Europe", "Asia", "Emerging Countries"
+	Percent float64 // composition within equity sleeve, can be negative
+}
+
+// CurrencyDerivativeEntry is a single currency derivative exposure entry.
+// Values sum to ~100% but individual values can be negative.
+type CurrencyDerivativeEntry struct {
+	Currency string  // e.g. "USD", "EUR", "JPY"
+	Percent  float64 // composition within currency sleeve, can be negative
 }
 
 // Extractor extracts data from a specific provider's web pages.
