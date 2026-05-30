@@ -124,10 +124,14 @@ CREATE TABLE symbol_details (
     fund_profile        TEXT,
     equity_valuation    TEXT,
     geographic_allocations TEXT,
-    market_cap_breakdown   TEXT,
-    themes                 TEXT,
-    extractor_as_of_date   TEXT,
-    fetched_at             TEXT    NOT NULL DEFAULT (datetime('now')),
+    market_cap_breakdown         TEXT,
+    themes                       TEXT,
+    risk_measures                TEXT DEFAULT NULL,
+    asset_class_allocation       TEXT DEFAULT NULL,
+    equity_derivatives_by_region TEXT DEFAULT NULL,
+    currency_derivatives_allocation TEXT DEFAULT NULL,
+    extractor_as_of_date         TEXT,
+    fetched_at                   TEXT    NOT NULL DEFAULT (datetime('now')),
     created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
 );

@@ -101,26 +101,30 @@ type Position struct {
 }
 
 type SymbolDetail struct {
-	ID                    int64          `db:"id"`
-	InternalSymbol        string         `db:"internal_symbol"`
-	ShortName             sql.NullString `db:"short_name"`
-	LongName              sql.NullString `db:"long_name"`
-	Exchange              sql.NullString `db:"exchange"`
-	Currency              sql.NullString `db:"currency"`
-	QuoteType             sql.NullString `db:"quote_type"`
-	Sector                sql.NullString `db:"sector"`
-	TopHoldings           sql.NullString `db:"top_holdings"`
-	SectorWeightings      sql.NullString `db:"sector_weightings"`
-	AggregatePositions    sql.NullString `db:"aggregate_positions"`
-	FundProfile           sql.NullString `db:"fund_profile"`
-	EquityValuation       sql.NullString `db:"equity_valuation"`
-	GeographicAllocations sql.NullString `db:"geographic_allocations"`
-	MarketCapBreakdown    sql.NullString `db:"market_cap_breakdown"`
-	Themes                sql.NullString `db:"themes"`
-	ExtractorAsOfDate     sql.NullString `db:"extractor_as_of_date"`
-	FetchedAt             string         `db:"fetched_at"`
-	CreatedAt             string         `db:"created_at"`
-	UpdatedAt             string         `db:"updated_at"`
+	ID                            int64          `db:"id"`
+	InternalSymbol                string         `db:"internal_symbol"`
+	ShortName                     sql.NullString `db:"short_name"`
+	LongName                      sql.NullString `db:"long_name"`
+	Exchange                      sql.NullString `db:"exchange"`
+	Currency                      sql.NullString `db:"currency"`
+	QuoteType                     sql.NullString `db:"quote_type"`
+	Sector                        sql.NullString `db:"sector"`
+	TopHoldings                   sql.NullString `db:"top_holdings"`
+	SectorWeightings              sql.NullString `db:"sector_weightings"`
+	AggregatePositions            sql.NullString `db:"aggregate_positions"`
+	FundProfile                   sql.NullString `db:"fund_profile"`
+	EquityValuation               sql.NullString `db:"equity_valuation"`
+	GeographicAllocations         sql.NullString `db:"geographic_allocations"`
+	MarketCapBreakdown            sql.NullString `db:"market_cap_breakdown"`
+	Themes                        sql.NullString `db:"themes"`
+	RiskMeasures                  sql.NullString `db:"risk_measures"`
+	AssetClassAllocation          sql.NullString `db:"asset_class_allocation"`
+	EquityDerivativesByRegion     sql.NullString `db:"equity_derivatives_by_region"`
+	CurrencyDerivativesAllocation sql.NullString `db:"currency_derivatives_allocation"`
+	ExtractorAsOfDate             sql.NullString `db:"extractor_as_of_date"`
+	FetchedAt                     string         `db:"fetched_at"`
+	CreatedAt                     string         `db:"created_at"`
+	UpdatedAt                     string         `db:"updated_at"`
 }
 
 type SymbolMapping struct {
