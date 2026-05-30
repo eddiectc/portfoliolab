@@ -1,8 +1,11 @@
 package imgp
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +16,7 @@ import (
 
 // ExtractPDFText extracts plain text from a PDF byte slice.
 func ExtractPDFText(pdfBytes []byte) (string, error) {
-	reader, err := pdf.NewReader(strings.NewReader(string(pdfBytes)), int64(len(pdfBytes)))
+	reader, err := pdf.NewReader(bytes.NewReader(pdfBytes), int64(len(pdfBytes)))
 	if err != nil {
 		return "", fmt.Errorf("open PDF: %w", err)
 	}
@@ -169,24 +172,15 @@ func ParseAssetClassAllocation(pdfText string) ([]extractor.AssetClassEntry, err
 		return nil, nil // optional section — no data
 	}
 
-	// Pair labels with percentages — if counts mismatch, pair what we can
-	// and return an error so the consumer knows data is incomplete.
-	minLen := len(labels)
-	if len(percentages) < minLen {
-		minLen = len(percentages)
-	}
-
-	var entries []extractor.AssetClassEntry
-	for i := 0; i < minLen; i++ {
-		entries = append(entries, extractor.AssetClassEntry{
-			AssetClass: labels[i],
-			Percent:    percentages[i],
-		})
+	pairs := pairAlignAndSort(labels, percentages)
+	entries := make([]extractor.AssetClassEntry, len(pairs))
+	for i, p := range pairs {
+		entries[i] = extractor.AssetClassEntry{AssetClass: p.label, Percent: p.pct}
 	}
 
 	if len(labels) != len(percentages) {
 		return entries, fmt.Errorf("asset class allocation: label/percentage count mismatch (%d labels, %d percentages) — paired %d entries",
-			len(labels), len(percentages), minLen)
+			len(labels), len(percentages), len(entries))
 	}
 
 	return entries, nil
@@ -211,24 +205,15 @@ func ParseEquityDerivativesByRegion(pdfText string) ([]extractor.RegionDerivativ
 		return nil, nil // optional section — no data
 	}
 
-	// Pair labels with percentages — if counts mismatch, pair what we can
-	// and return an error so the consumer knows data is incomplete.
-	minLen := len(labels)
-	if len(percentages) < minLen {
-		minLen = len(percentages)
-	}
-
-	var entries []extractor.RegionDerivativeEntry
-	for i := 0; i < minLen; i++ {
-		entries = append(entries, extractor.RegionDerivativeEntry{
-			Region:  labels[i],
-			Percent: percentages[i],
-		})
+	pairs := pairAlignAndSort(labels, percentages)
+	entries := make([]extractor.RegionDerivativeEntry, len(pairs))
+	for i, p := range pairs {
+		entries[i] = extractor.RegionDerivativeEntry{Region: p.label, Percent: p.pct}
 	}
 
 	if len(labels) != len(percentages) {
 		return entries, fmt.Errorf("equity derivatives by region: label/percentage count mismatch (%d labels, %d percentages) — paired %d entries",
-			len(labels), len(percentages), minLen)
+			len(labels), len(percentages), len(entries))
 	}
 
 	return entries, nil
@@ -238,8 +223,8 @@ func ParseEquityDerivativesByRegion(pdfText string) ([]extractor.RegionDerivativ
 // Returns nil, nil if the section is not present.
 func ParseCurrencyDerivativesAllocation(pdfText string) ([]extractor.CurrencyDerivativeEntry, error) {
 	// "Currency Derivatives Allocation" section
-	// Labels: JPY, SEK, AUD, CHF, GBP, Other, DM FX, USD, EM FX, EUR
-	// These are single-word labels, simpler to parse
+	// Labels: JPY, SEK, AUD, CHF, GBP, Other DM FX, USD, EM FX, EUR
+	// Note: "Other DM FX" may be split across two lines by PDF text extraction
 
 	section := extractSection(pdfText, "Currency Derivatives Allocation")
 	if section == "" {
@@ -251,27 +236,50 @@ func ParseCurrencyDerivativesAllocation(pdfText string) ([]extractor.CurrencyDer
 		return nil, nil // optional section — no data
 	}
 
-	// Pair labels with percentages — if counts mismatch, pair what we can
-	// and return an error so the consumer knows data is incomplete.
-	minLen := len(labels)
-	if len(percentages) < minLen {
-		minLen = len(percentages)
-	}
+	// Post-process: merge "Other" + "DM FX" into "Other DM FX" if they appear
+	// consecutively (PDF text extraction splits multi-word labels across lines).
+	labels, percentages = mergeSplitLabels(labels, percentages)
 
-	var entries []extractor.CurrencyDerivativeEntry
-	for i := 0; i < minLen; i++ {
-		entries = append(entries, extractor.CurrencyDerivativeEntry{
-			Currency: labels[i],
-			Percent:  percentages[i],
-		})
+	pairs := pairAlignAndSort(labels, percentages)
+	entries := make([]extractor.CurrencyDerivativeEntry, len(pairs))
+	for i, p := range pairs {
+		entries[i] = extractor.CurrencyDerivativeEntry{Currency: p.label, Percent: p.pct}
 	}
 
 	if len(labels) != len(percentages) {
 		return entries, fmt.Errorf("currency derivatives allocation: label/percentage count mismatch (%d labels, %d percentages) — paired %d entries",
-			len(labels), len(percentages), minLen)
+			len(labels), len(percentages), len(entries))
 	}
 
 	return entries, nil
+}
+
+// mergeSplitLabels merges consecutive labels that form a known compound label
+// (e.g. "Other" + "DM FX" → "Other DM FX"). This reduces label count by 1
+// while keeping percentage count unchanged, fixing PDF extraction artefacts
+// where multi-word chart labels are split across lines but share one percentage.
+func mergeSplitLabels(labels []string, percentages []float64) ([]string, []float64) {
+	// Known split patterns: [label1, label2] → merged
+	splits := map[string]map[string]string{
+		"Other": {"DM FX": "Other DM FX"},
+	}
+
+	mergedLabels := make([]string, 0, len(labels))
+
+	for i := 0; i < len(labels); i++ {
+		if i+1 < len(labels) {
+			if mergeMap, ok := splits[labels[i]]; ok {
+				if merged, ok := mergeMap[labels[i+1]]; ok {
+					mergedLabels = append(mergedLabels, merged)
+					i++ // skip next label
+					continue
+				}
+			}
+		}
+		mergedLabels = append(mergedLabels, labels[i])
+	}
+
+	return mergedLabels, percentages
 }
 
 // ParseReferenceDate extracts the "as of" date from the factsheet header.
@@ -524,6 +532,35 @@ const (
 func isNumber(s string) bool {
 	_, err := strconv.ParseFloat(s, 64)
 	return err == nil
+}
+
+// pairAlignAndSort creates entries from labels and float64 percentages,
+// pairing sequentially from the start (dropping extra labels at the end when
+// counts mismatch), and sorting by absolute percentage descending (biggest first).
+// When the PDF extraction drops a percentage (e.g. "0%" misread as axis value),
+// sequential pairing preserves correct label→value mapping for the matched entries.
+func pairAlignAndSort(labels []string, percentages []float64) []struct{ label string; pct float64 } {
+	minLen := len(labels)
+	if len(percentages) < minLen {
+		minLen = len(percentages)
+	}
+
+	type pair struct{ label string; pct float64 }
+	pairs := make([]pair, minLen)
+
+	for i := 0; i < minLen; i++ {
+		pairs[i] = pair{labels[i], percentages[i]}
+	}
+
+	sort.Slice(pairs, func(i, j int) bool {
+		return math.Abs(pairs[i].pct) > math.Abs(pairs[j].pct)
+	})
+
+	result := make([]struct{ label string; pct float64 }, len(pairs))
+	for i, p := range pairs {
+		result[i] = struct{ label string; pct float64 }{label: p.label, pct: p.pct}
+	}
+	return result
 }
 
 // extractRegionLabelsAndPercentages handles multi-line region labels

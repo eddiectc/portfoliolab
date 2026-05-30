@@ -1,6 +1,7 @@
 package imgp
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -355,8 +356,7 @@ func TestParseCurrencyDerivativesAllocation(t *testing.T) {
 
 	entries, err := ParseCurrencyDerivativesAllocation(pdfText)
 	if err != nil {
-		// Fixture has 10 labels but only 9 percentages — expected partial data
-		t.Logf("ParseCurrencyDerivativesAllocation: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(entries) == 0 {
 		t.Fatal("expected non-empty currency derivatives allocation")
@@ -367,28 +367,44 @@ func TestParseCurrencyDerivativesAllocation(t *testing.T) {
 		t.Logf("  %s: %.1f%%", e.Currency, e.Percent)
 	}
 
-	// Expected values from the PDF:
-	// JPY: -89.4%, SEK: 0%, AUD: 0.1%, CHF: 0.1%, GBP: 0.2%,
-	// Other: 3%, DM FX: 4.8%, USD: 12.8%, EM FX: 68.3%, EUR: (missing or 0)
-	// Note: the PDF has 10 labels but only 9 percentages
+	// Expected values from the PDF (sorted by absolute value, descending):
+	// JPY: -89.4%, EUR: 68.3%, EM FX: 12.8%, USD: 4.8%, Other DM FX: 3%,
+	// GBP: 0.2%, AUD: 0.1%, CHF: 0.1%, SEK: 0%
+	// Note: "Other" + "DM FX" merged into "Other DM FX" by post-processing
 
-	// Verify we have the large values
+	// Verify entries are sorted by absolute value descending
+	for i := 1; i < len(entries); i++ {
+		if math.Abs(entries[i].Percent) > math.Abs(entries[i-1].Percent) {
+			t.Errorf("entries not sorted: %s (%.1f%%) before %s (%.1f%%)",
+				entries[i-1].Currency, entries[i-1].Percent,
+				entries[i].Currency, entries[i].Percent)
+		}
+	}
+
+	// Verify key values
 	foundJPY := false
-	foundUSD := false
+	foundEUR := false
+	foundOtherDMFX := false
 	for _, e := range entries {
 		if strings.EqualFold(e.Currency, "JPY") && e.Percent == -89.4 {
 			foundJPY = true
 		}
-		if strings.EqualFold(e.Currency, "USD") && e.Percent == 12.8 {
-			foundUSD = true
+		if strings.EqualFold(e.Currency, "EUR") && e.Percent == 68.3 {
+			foundEUR = true
+		}
+		if strings.EqualFold(e.Currency, "Other DM FX") && e.Percent == 3.0 {
+			foundOtherDMFX = true
 		}
 	}
 
 	if !foundJPY {
 		t.Error("expected JPY at -89.4%")
 	}
-	if !foundUSD {
-		t.Error("expected USD at 12.8%")
+	if !foundEUR {
+		t.Error("expected EUR at 68.3%")
+	}
+	if !foundOtherDMFX {
+		t.Error("expected Other DM FX at 3.0%")
 	}
 }
 
