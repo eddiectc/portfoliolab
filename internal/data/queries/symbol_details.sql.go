@@ -11,7 +11,7 @@ import (
 )
 
 const getSymbolDetailsByInternalSymbol = `-- name: GetSymbolDetailsByInternalSymbol :one
-SELECT id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, market_cap_breakdown, themes, extractor_as_of_date, fetched_at, created_at, updated_at FROM symbol_details WHERE internal_symbol = ?
+SELECT id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, market_cap_breakdown, themes, risk_measures, asset_class_allocation, equity_derivatives_by_region, currency_derivatives_allocation, extractor_as_of_date, fetched_at, created_at, updated_at FROM symbol_details WHERE internal_symbol = ?
 `
 
 func (q *Queries) GetSymbolDetailsByInternalSymbol(ctx context.Context, db DBTX, internalSymbol string) (SymbolDetail, error) {
@@ -34,6 +34,10 @@ func (q *Queries) GetSymbolDetailsByInternalSymbol(ctx context.Context, db DBTX,
 		&i.GeographicAllocations,
 		&i.MarketCapBreakdown,
 		&i.Themes,
+		&i.RiskMeasures,
+		&i.AssetClassAllocation,
+		&i.EquityDerivativesByRegion,
+		&i.CurrencyDerivativesAllocation,
 		&i.ExtractorAsOfDate,
 		&i.FetchedAt,
 		&i.CreatedAt,
@@ -46,8 +50,10 @@ const insertSymbolDetails = `-- name: InsertSymbolDetails :one
 INSERT INTO symbol_details (
     internal_symbol, short_name, long_name, exchange, currency, quote_type,
     sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation,
-    geographic_allocations, market_cap_breakdown, themes, extractor_as_of_date, fetched_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    geographic_allocations, market_cap_breakdown, themes,
+    risk_measures, asset_class_allocation, equity_derivatives_by_region, currency_derivatives_allocation,
+    extractor_as_of_date, fetched_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(internal_symbol) DO UPDATE SET
     short_name = excluded.short_name,
     long_name = excluded.long_name,
@@ -63,31 +69,39 @@ ON CONFLICT(internal_symbol) DO UPDATE SET
     geographic_allocations = excluded.geographic_allocations,
     market_cap_breakdown = excluded.market_cap_breakdown,
     themes = excluded.themes,
+    risk_measures = excluded.risk_measures,
+    asset_class_allocation = excluded.asset_class_allocation,
+    equity_derivatives_by_region = excluded.equity_derivatives_by_region,
+    currency_derivatives_allocation = excluded.currency_derivatives_allocation,
     extractor_as_of_date = excluded.extractor_as_of_date,
     fetched_at = excluded.fetched_at,
     updated_at = excluded.updated_at
-RETURNING id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, market_cap_breakdown, themes, extractor_as_of_date, fetched_at, created_at, updated_at
+RETURNING id, internal_symbol, short_name, long_name, exchange, currency, quote_type, sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation, geographic_allocations, market_cap_breakdown, themes, risk_measures, asset_class_allocation, equity_derivatives_by_region, currency_derivatives_allocation, extractor_as_of_date, fetched_at, created_at, updated_at
 `
 
 type InsertSymbolDetailsParams struct {
-	InternalSymbol        string         `db:"internal_symbol"`
-	ShortName             sql.NullString `db:"short_name"`
-	LongName              sql.NullString `db:"long_name"`
-	Exchange              sql.NullString `db:"exchange"`
-	Currency              sql.NullString `db:"currency"`
-	QuoteType             sql.NullString `db:"quote_type"`
-	Sector                sql.NullString `db:"sector"`
-	TopHoldings           sql.NullString `db:"top_holdings"`
-	SectorWeightings      sql.NullString `db:"sector_weightings"`
-	AggregatePositions    sql.NullString `db:"aggregate_positions"`
-	FundProfile           sql.NullString `db:"fund_profile"`
-	EquityValuation       sql.NullString `db:"equity_valuation"`
-	GeographicAllocations sql.NullString `db:"geographic_allocations"`
-	MarketCapBreakdown    sql.NullString `db:"market_cap_breakdown"`
-	Themes                sql.NullString `db:"themes"`
-	ExtractorAsOfDate     sql.NullString `db:"extractor_as_of_date"`
-	FetchedAt             string         `db:"fetched_at"`
-	UpdatedAt             string         `db:"updated_at"`
+	InternalSymbol                string         `db:"internal_symbol"`
+	ShortName                     sql.NullString `db:"short_name"`
+	LongName                      sql.NullString `db:"long_name"`
+	Exchange                      sql.NullString `db:"exchange"`
+	Currency                      sql.NullString `db:"currency"`
+	QuoteType                     sql.NullString `db:"quote_type"`
+	Sector                        sql.NullString `db:"sector"`
+	TopHoldings                   sql.NullString `db:"top_holdings"`
+	SectorWeightings              sql.NullString `db:"sector_weightings"`
+	AggregatePositions            sql.NullString `db:"aggregate_positions"`
+	FundProfile                   sql.NullString `db:"fund_profile"`
+	EquityValuation               sql.NullString `db:"equity_valuation"`
+	GeographicAllocations         sql.NullString `db:"geographic_allocations"`
+	MarketCapBreakdown            sql.NullString `db:"market_cap_breakdown"`
+	Themes                        sql.NullString `db:"themes"`
+	RiskMeasures                  sql.NullString `db:"risk_measures"`
+	AssetClassAllocation          sql.NullString `db:"asset_class_allocation"`
+	EquityDerivativesByRegion     sql.NullString `db:"equity_derivatives_by_region"`
+	CurrencyDerivativesAllocation sql.NullString `db:"currency_derivatives_allocation"`
+	ExtractorAsOfDate             sql.NullString `db:"extractor_as_of_date"`
+	FetchedAt                     string         `db:"fetched_at"`
+	UpdatedAt                     string         `db:"updated_at"`
 }
 
 func (q *Queries) InsertSymbolDetails(ctx context.Context, db DBTX, arg InsertSymbolDetailsParams) (SymbolDetail, error) {
@@ -107,6 +121,10 @@ func (q *Queries) InsertSymbolDetails(ctx context.Context, db DBTX, arg InsertSy
 		arg.GeographicAllocations,
 		arg.MarketCapBreakdown,
 		arg.Themes,
+		arg.RiskMeasures,
+		arg.AssetClassAllocation,
+		arg.EquityDerivativesByRegion,
+		arg.CurrencyDerivativesAllocation,
 		arg.ExtractorAsOfDate,
 		arg.FetchedAt,
 		arg.UpdatedAt,
@@ -129,6 +147,10 @@ func (q *Queries) InsertSymbolDetails(ctx context.Context, db DBTX, arg InsertSy
 		&i.GeographicAllocations,
 		&i.MarketCapBreakdown,
 		&i.Themes,
+		&i.RiskMeasures,
+		&i.AssetClassAllocation,
+		&i.EquityDerivativesByRegion,
+		&i.CurrencyDerivativesAllocation,
 		&i.ExtractorAsOfDate,
 		&i.FetchedAt,
 		&i.CreatedAt,
