@@ -953,6 +953,72 @@ func TestToDisplayDetails_ExtractorData_FullHoldings(t *testing.T) {
 	}
 }
 
+func TestToDisplayDetails_FundProfile_WithIMGPSpecificFields(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "LU2951555585",
+		FundProfile: &symbol.FundProfile{
+			Family:             "iMGP",
+			LegalType:          "UCITS",
+			TotalNetAssets:     500e6,
+			AnnualExpenseRatio: 0.002,
+			InceptionDate:      time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC),
+			Isin:               "LU2951555585",
+			ShareClassName:     "R USD UCITS ETF",
+			OngoingCharges:     0.75,
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.FundProfile == nil {
+		t.Fatal("expected FundProfile to be set")
+	}
+
+	if dd.FundProfile.NetAssets != "500.00M" {
+		t.Errorf("expected NetAssets '500.00M', got %q", dd.FundProfile.NetAssets)
+	}
+	if dd.FundProfile.InceptionDate != "2023-06-15" {
+		t.Errorf("expected InceptionDate '2023-06-15', got %q", dd.FundProfile.InceptionDate)
+	}
+	if dd.FundProfile.Isin != "LU2951555585" {
+		t.Errorf("expected Isin 'LU2951555585', got %q", dd.FundProfile.Isin)
+	}
+	if dd.FundProfile.ShareClassName != "R USD UCITS ETF" {
+		t.Errorf("expected ShareClassName 'R USD UCITS ETF', got %q", dd.FundProfile.ShareClassName)
+	}
+	if dd.FundProfile.OngoingCharges != "0.75%" {
+		t.Errorf("expected OngoingCharges '0.75%%', got %q", dd.FundProfile.OngoingCharges)
+	}
+}
+
+func TestToDisplayDetails_FundProfile_WithoutIMGPSpecificFields(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		FundProfile: &symbol.FundProfile{
+			Family:             "Vanguard",
+			TotalNetAssets:     1e11,
+			AnnualExpenseRatio: 0.0003,
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.FundProfile == nil {
+		t.Fatal("expected FundProfile to be set")
+	}
+
+	// iMGP-specific fields should be empty strings (not displayed in template)
+	if dd.FundProfile.Isin != "" {
+		t.Errorf("expected empty Isin, got %q", dd.FundProfile.Isin)
+	}
+	if dd.FundProfile.ShareClassName != "" {
+		t.Errorf("expected empty ShareClassName, got %q", dd.FundProfile.ShareClassName)
+	}
+	if dd.FundProfile.OngoingCharges != "" {
+		t.Errorf("expected empty OngoingCharges, got %q", dd.FundProfile.OngoingCharges)
+	}
+}
+
 func TestToDisplayDetails_YahooData_LimitedHoldings(t *testing.T) {
 	// Generate 15 holdings
 	holdings := make([]symbol.TopHolding, 15)

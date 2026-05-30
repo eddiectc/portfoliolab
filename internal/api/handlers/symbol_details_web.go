@@ -43,12 +43,15 @@ type displayAggregatePositions struct {
 
 // displayFundProfile is a template-friendly fund profile with pre-formatted values.
 type displayFundProfile struct {
-	Family        string
-	LegalType     string
-	NetAssets     string // e.g. "1,234.56B"
-	ExpenseRatio  string // e.g. "0.03%"
-	Turnover      string // e.g. "35%"
-	InceptionDate string // e.g. "2018-03-15"
+	Family         string
+	LegalType      string
+	NetAssets      string // e.g. "1,234.56B"
+	ExpenseRatio   string // e.g. "0.03%"
+	Turnover       string // e.g. "35%"
+	InceptionDate  string // e.g. "2018-03-15"
+	Isin           string // e.g. "LU2951555585"
+	ShareClassName string // e.g. "R USD UCITS ETF"
+	OngoingCharges string // e.g. "0.75%"
 }
 
 // displayGeographicAllocation is a template-friendly geographic allocation with pre-formatted percentage.
@@ -135,25 +138,25 @@ type symbolDetailsPageData struct {
 // symbolDetailsDisplay is a template-friendly version of symbol.SymbolDetails
 // with pre-formatted values.
 type symbolDetailsDisplay struct {
-	InternalSymbol        string
-	ShortName             string
-	LongName              string
-	Exchange              string
-	Currency              string
-	QuoteType             string
-	TopHoldings           []displayHolding
-	SectorWeightings      []displaySector
-	AggregatePositions    *displayAggregatePositions
-	FundProfile           *displayFundProfile
-	GeographicAllocations []displayGeographicAllocation
-	MarketCapBreakdown    *displayMarketCapBreakdown
-	EquityValuation       *displayEquityValuation
-	Themes                      []displayTheme
-	RiskMeasures                *displayRiskMeasures
-	AssetClassAllocation        []displayAssetClassEntry
-	EquityDerivativesByRegion   []displayRegionDerivativeEntry
+	InternalSymbol                string
+	ShortName                     string
+	LongName                      string
+	Exchange                      string
+	Currency                      string
+	QuoteType                     string
+	TopHoldings                   []displayHolding
+	SectorWeightings              []displaySector
+	AggregatePositions            *displayAggregatePositions
+	FundProfile                   *displayFundProfile
+	GeographicAllocations         []displayGeographicAllocation
+	MarketCapBreakdown            *displayMarketCapBreakdown
+	EquityValuation               *displayEquityValuation
+	Themes                        []displayTheme
+	RiskMeasures                  *displayRiskMeasures
+	AssetClassAllocation          []displayAssetClassEntry
+	EquityDerivativesByRegion     []displayRegionDerivativeEntry
 	CurrencyDerivativesAllocation []displayCurrencyDerivativeEntry
-	ExtractorAsOfDate           string // formatted "as of" date; empty when from Yahoo
+	ExtractorAsOfDate             string // formatted "as of" date; empty when from Yahoo
 }
 
 // navHistorySource provides access to cached NAV history and stock price data.
@@ -319,14 +322,19 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 	// Fund profile
 	if details.FundProfile != nil {
 		displayProfile := &displayFundProfile{
-			Family:       details.FundProfile.Family,
-			LegalType:    details.FundProfile.LegalType,
-			NetAssets:    formatLargeNumber(details.FundProfile.TotalNetAssets),
-			ExpenseRatio: fmt.Sprintf("%.2f%%", details.FundProfile.AnnualExpenseRatio*100),
-			Turnover:     fmt.Sprintf("%.0f%%", details.FundProfile.AnnualHoldingsTurnover*100),
+			Family:         details.FundProfile.Family,
+			LegalType:      details.FundProfile.LegalType,
+			NetAssets:      formatLargeNumber(details.FundProfile.TotalNetAssets),
+			ExpenseRatio:   fmt.Sprintf("%.2f%%", details.FundProfile.AnnualExpenseRatio*100),
+			Turnover:       fmt.Sprintf("%.0f%%", details.FundProfile.AnnualHoldingsTurnover*100),
+			Isin:           details.FundProfile.Isin,
+			ShareClassName: details.FundProfile.ShareClassName,
 		}
 		if !details.FundProfile.InceptionDate.IsZero() {
 			displayProfile.InceptionDate = details.FundProfile.InceptionDate.Format("2006-01-02")
+		}
+		if details.FundProfile.OngoingCharges > 0 {
+			displayProfile.OngoingCharges = fmt.Sprintf("%.2f%%", details.FundProfile.OngoingCharges)
 		}
 		dd.FundProfile = displayProfile
 	}
@@ -420,7 +428,6 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 		}
 		dd.RiskMeasures = displayRM
 	}
-
 
 	// Asset class allocation
 	if len(details.AssetClassAllocation) > 0 {
