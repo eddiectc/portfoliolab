@@ -3,7 +3,6 @@ package imgp
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -553,7 +552,7 @@ func pairAlignAndSort(labels []string, percentages []float64) []struct{ label st
 	}
 
 	sort.Slice(pairs, func(i, j int) bool {
-		return math.Abs(pairs[i].pct) > math.Abs(pairs[j].pct)
+		return pairs[i].pct > pairs[j].pct
 	})
 
 	result := make([]struct{ label string; pct float64 }, len(pairs))

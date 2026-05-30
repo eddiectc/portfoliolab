@@ -1,7 +1,6 @@
 package imgp
 
 import (
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -372,9 +371,9 @@ func TestParseCurrencyDerivativesAllocation(t *testing.T) {
 	// GBP: 0.2%, AUD: 0.1%, CHF: 0.1%, SEK: 0%
 	// Note: "Other" + "DM FX" merged into "Other DM FX" by post-processing
 
-	// Verify entries are sorted by absolute value descending
+	// Verify entries are sorted by value descending (positives first, negatives last)
 	for i := 1; i < len(entries); i++ {
-		if math.Abs(entries[i].Percent) > math.Abs(entries[i-1].Percent) {
+		if entries[i].Percent > entries[i-1].Percent {
 			t.Errorf("entries not sorted: %s (%.1f%%) before %s (%.1f%%)",
 				entries[i-1].Currency, entries[i-1].Percent,
 				entries[i].Currency, entries[i].Percent)
