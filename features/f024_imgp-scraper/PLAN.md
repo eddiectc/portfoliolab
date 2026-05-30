@@ -75,15 +75,15 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 1 (data storage)
 **Description:** Add new columns to `symbol_details` for iMGP-specific data.
 
-- [ ] Create `migrations/023_add_imgp_columns.sql` with:
+- [x] Create `migrations/023_add_imgp_columns.sql` with:
   - `risk_measures TEXT DEFAULT NULL`
   - `asset_class_allocation TEXT DEFAULT NULL`
   - `equity_derivatives_by_region TEXT DEFAULT NULL`
   - `currency_derivatives_allocation TEXT DEFAULT NULL`
-- [ ] Update `internal/data/queries/schema.sql` to include new columns
-- [ ] Update `internal/data/queries/symbol_details.sql` to include new columns in INSERT and SELECT
-- [ ] Run `sqlc generate` to regenerate types and queries
-- [ ] Update `symbol_details.sql.go` — verify generated code includes new fields
+- [x] Update `internal/data/queries/schema.sql` to include new columns
+- [x] Update `internal/data/queries/symbol_details.sql` to include new columns in INSERT and SELECT
+- [x] Run `sqlc generate` to regenerate types and queries
+- [x] Update `symbol_details.sql.go` — verify generated code includes new fields
 
 **Verification:** `goose sqlite3 data/portfoliolab.db up` succeeds; `sqlc generate` succeeds; generated types include new columns.
 
@@ -91,11 +91,11 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 1 (data persistence)
 **Description:** Update the repository and service to handle new data types.
 
-- [ ] Update `symbol_details_repo.go` `toSymbolDetail()` to deserialize new JSON columns into `symbol.SymbolDetails`
-- [ ] Update `symbol_details_repo.go` `Upsert()` to serialize new fields via `toSQLNullJSON`
-- [ ] Update `symbols/service.go` `extractResultToSymbolDetails()` to map new `ExtractResult` fields to `symbol.SymbolDetails`
-- [ ] Update `symbol_details_repo_test.go` with tests for new fields (serialization round-trip)
-- [ ] Update `symbols/service_test.go` if needed for the mapping
+- [x] Update `symbol_details_repo.go` `toSymbolDetail()` to deserialize new JSON columns into `symbol.SymbolDetails`
+- [x] Update `symbol_details_repo.go` `Upsert()` to serialize new fields via `toSQLNullJSON`
+- [x] Update `symbols/service.go` `extractResultToSymbolDetails()` to map new `ExtractResult` fields to `symbol.SymbolDetails`
+- [x] Update `symbol_details_repo_test.go` with tests for new fields (serialization round-trip)
+- [x] Update `symbols/service_test.go` if needed for the mapping
 
 **Verification:** Repository round-trips new fields correctly; service maps ExtractResult to SymbolDetails for new types.
 

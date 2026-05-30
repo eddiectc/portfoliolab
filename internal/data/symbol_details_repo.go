@@ -86,6 +86,26 @@ func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*symb
 			return nil, fmt.Errorf("parse themes for %s: %w", sd.InternalSymbol, err)
 		}
 	}
+	if sd.RiskMeasures.Valid {
+		if err := json.Unmarshal([]byte(sd.RiskMeasures.String), &details.RiskMeasures); err != nil {
+			return nil, fmt.Errorf("parse risk_measures for %s: %w", sd.InternalSymbol, err)
+		}
+	}
+	if sd.AssetClassAllocation.Valid {
+		if err := json.Unmarshal([]byte(sd.AssetClassAllocation.String), &details.AssetClassAllocation); err != nil {
+			return nil, fmt.Errorf("parse asset_class_allocation for %s: %w", sd.InternalSymbol, err)
+		}
+	}
+	if sd.EquityDerivativesByRegion.Valid {
+		if err := json.Unmarshal([]byte(sd.EquityDerivativesByRegion.String), &details.EquityDerivativesByRegion); err != nil {
+			return nil, fmt.Errorf("parse equity_derivatives_by_region for %s: %w", sd.InternalSymbol, err)
+		}
+	}
+	if sd.CurrencyDerivativesAllocation.Valid {
+		if err := json.Unmarshal([]byte(sd.CurrencyDerivativesAllocation.String), &details.CurrencyDerivativesAllocation); err != nil {
+			return nil, fmt.Errorf("parse currency_derivatives_allocation for %s: %w", sd.InternalSymbol, err)
+		}
+	}
 	if sd.ExtractorAsOfDate.Valid {
 		asOf, err := parseTime(sd.ExtractorAsOfDate.String)
 		if err != nil {
@@ -151,15 +171,19 @@ func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.Sy
 		Currency:              toSQLNullString(details.Currency),
 		QuoteType:             toSQLNullString(details.QuoteType),
 		Sector:                toSQLNullString(details.Sector),
-		TopHoldings:           toSQLNullJSON(details.TopHoldings),
-		SectorWeightings:      toSQLNullJSON(details.SectorWeightings),
-		AggregatePositions:    toSQLNullJSON(details.AggregatePositions),
-		FundProfile:           toSQLNullJSON(details.FundProfile),
-		EquityValuation:       toSQLNullJSON(details.EquityValuation),
-		GeographicAllocations: toSQLNullJSON(details.GeographicAllocations),
-		MarketCapBreakdown:    toSQLNullJSON(details.MarketCapBreakdown),
-		Themes:                toSQLNullJSON(details.Themes),
-		ExtractorAsOfDate:     toSQLNullTime(details.ExtractorAsOfDate),
+		TopHoldings:                 toSQLNullJSON(details.TopHoldings),
+		SectorWeightings:            toSQLNullJSON(details.SectorWeightings),
+		AggregatePositions:          toSQLNullJSON(details.AggregatePositions),
+		FundProfile:                 toSQLNullJSON(details.FundProfile),
+		EquityValuation:             toSQLNullJSON(details.EquityValuation),
+		GeographicAllocations:       toSQLNullJSON(details.GeographicAllocations),
+		MarketCapBreakdown:          toSQLNullJSON(details.MarketCapBreakdown),
+		Themes:                      toSQLNullJSON(details.Themes),
+		RiskMeasures:                toSQLNullJSON(details.RiskMeasures),
+		AssetClassAllocation:        toSQLNullJSON(details.AssetClassAllocation),
+		EquityDerivativesByRegion:   toSQLNullJSON(details.EquityDerivativesByRegion),
+		CurrencyDerivativesAllocation: toSQLNullJSON(details.CurrencyDerivativesAllocation),
+		ExtractorAsOfDate:           toSQLNullTime(details.ExtractorAsOfDate),
 		FetchedAt:             details.FetchedAt.Format(time.RFC3339),
 		UpdatedAt:             now.Format(time.RFC3339),
 	})
