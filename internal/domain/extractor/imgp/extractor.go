@@ -3,6 +3,7 @@ package imgp
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -91,13 +92,25 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	// These sections may have data quality issues (e.g. label/percentage mismatch)
 	// that the parser reports as errors while still returning paired data.
 	// We accept the partial data and log the warning.
-	risk, _ := ParseRiskMeasures(pdfText)
+	risk, err := ParseRiskMeasures(pdfText)
+	if err != nil {
+		slog.Warn("imgp: parsing risk measures", "error", err)
+	}
 
-	assetClass, _ := ParseAssetClassAllocation(pdfText)
+	assetClass, err := ParseAssetClassAllocation(pdfText)
+	if err != nil {
+		slog.Warn("imgp: parsing asset class allocation", "error", err)
+	}
 
-	equityRegions, _ := ParseEquityDerivativesByRegion(pdfText)
+	equityRegions, err := ParseEquityDerivativesByRegion(pdfText)
+	if err != nil {
+		slog.Warn("imgp: parsing equity derivatives by region", "error", err)
+	}
 
-	currencyAlloc, _ := ParseCurrencyDerivativesAllocation(pdfText)
+	currencyAlloc, err := ParseCurrencyDerivativesAllocation(pdfText)
+	if err != nil {
+		slog.Warn("imgp: parsing currency derivatives allocation", "error", err)
+	}
 
 	return &extractor.ExtractResult{
 		AsOfDate:                    refDate,
