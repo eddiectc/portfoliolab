@@ -850,6 +850,170 @@ func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
 	}
 }
 
+func TestService_extractResultToSymbolDetails_IMGPFIELDS(t *testing.T) {
+	asOfDate := time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC)
+	result := &extractor.ExtractResult{
+		AsOfDate: asOfDate,
+		FundInfo: &extractor.FundInfo{
+			Symbol: "LU2951555585",
+			Name:   "iMGP Multi Asset Fund",
+		},
+		FundProfile: &extractor.FundProfile{
+			Family:             "iM Global Partner",
+			LegalType:          "Undertaking for Collective Investment",
+			TotalNetAssets:     52400000,
+			AnnualExpenseRatio: 0.015,
+			InceptionDate:      time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+			Isin:               "LU2951555585",
+			ShareClassName:     "R USD UCITS ETF",
+			OngoingCharges:     1.5,
+		},
+		RiskMeasures: &extractor.RiskMeasures{
+			Volatility:    9.16,
+			SharpeRatio:   2.52,
+			FieldsPresent: extractor.RiskFieldVolatility | extractor.RiskFieldSharpeRatio,
+		},
+		AssetClassAllocation: []extractor.AssetClassEntry{
+			{AssetClass: "Equities", Percent: 85.2},
+			{AssetClass: "Bonds", Percent: 5.3},
+			{AssetClass: "Gold", Percent: -2.1},
+			{AssetClass: "Cash", Percent: 11.6},
+		},
+		EquityDerivativesByRegion: []extractor.RegionDerivativeEntry{
+			{Region: "North America", Percent: 52.3},
+			{Region: "Europe", Percent: 31.7},
+			{Region: "Asia", Percent: 12.0},
+			{Region: "Emerging Countries", Percent: 4.0},
+		},
+		CurrencyDerivativesAllocation: []extractor.CurrencyDerivativeEntry{
+			{Currency: "USD", Percent: 65.0},
+			{Currency: "EUR", Percent: 20.0},
+			{Currency: "JPY", Percent: 15.0},
+		},
+	}
+
+	details := extractResultToSymbolDetails(result, "IMGPFUND")
+
+	// FundProfile — new iMGP fields
+	if details.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if details.FundProfile.Isin != "LU2951555585" {
+		t.Errorf("expected Isin LU2951555585, got %q", details.FundProfile.Isin)
+	}
+	if details.FundProfile.ShareClassName != "R USD UCITS ETF" {
+		t.Errorf("expected ShareClassName 'R USD UCITS ETF', got %q", details.FundProfile.ShareClassName)
+	}
+	if details.FundProfile.OngoingCharges != 1.5 {
+		t.Errorf("expected OngoingCharges 1.5, got %f", details.FundProfile.OngoingCharges)
+	}
+
+	// RiskMeasures
+	if details.RiskMeasures == nil {
+		t.Fatal("expected non-nil RiskMeasures")
+	}
+	if details.RiskMeasures.Volatility != 9.16 {
+		t.Errorf("expected Volatility 9.16, got %f", details.RiskMeasures.Volatility)
+	}
+	if details.RiskMeasures.SharpeRatio != 2.52 {
+		t.Errorf("expected SharpeRatio 2.52, got %f", details.RiskMeasures.SharpeRatio)
+	}
+	if details.RiskMeasures.InfoRatio != 0 {
+		t.Errorf("expected InfoRatio 0 (not present), got %f", details.RiskMeasures.InfoRatio)
+	}
+	expectedMask := symbol.SymbolRiskFieldVolatility | symbol.SymbolRiskFieldSharpeRatio
+	if details.RiskMeasures.FieldsPresent != expectedMask {
+		t.Errorf("expected FieldsPresent %v, got %v", expectedMask, details.RiskMeasures.FieldsPresent)
+	}
+	// Verify HasField helper works
+	if !details.RiskMeasures.HasField(symbol.SymbolRiskFieldVolatility) {
+		t.Error("expected HasField(Volatility) = true")
+	}
+	if details.RiskMeasures.HasField(symbol.SymbolRiskFieldInfoRatio) {
+		t.Error("expected HasField(InfoRatio) = false")
+	}
+	if details.RiskMeasures.AllFieldsPresent() {
+		t.Error("expected AllFieldsPresent() = false (only 2 fields present)")
+	}
+
+	// AssetClassAllocation
+	if len(details.AssetClassAllocation) != 4 {
+		t.Fatalf("expected 4 asset class entries, got %d", len(details.AssetClassAllocation))
+	}
+	if details.AssetClassAllocation[0].AssetClass != "Equities" || details.AssetClassAllocation[0].Percent != 85.2 {
+		t.Errorf("expected Equities 85.2, got %s %f", details.AssetClassAllocation[0].AssetClass, details.AssetClassAllocation[0].Percent)
+	}
+	if details.AssetClassAllocation[2].AssetClass != "Gold" || details.AssetClassAllocation[2].Percent != -2.1 {
+		t.Errorf("expected Gold -2.1, got %s %f", details.AssetClassAllocation[2].AssetClass, details.AssetClassAllocation[2].Percent)
+	}
+
+	// EquityDerivativesByRegion
+	if len(details.EquityDerivativesByRegion) != 4 {
+		t.Fatalf("expected 4 region entries, got %d", len(details.EquityDerivativesByRegion))
+	}
+	if details.EquityDerivativesByRegion[0].Region != "North America" {
+		t.Errorf("expected North America, got %q", details.EquityDerivativesByRegion[0].Region)
+	}
+	if details.EquityDerivativesByRegion[3].Region != "Emerging Countries" {
+		t.Errorf("expected Emerging Countries, got %q", details.EquityDerivativesByRegion[3].Region)
+	}
+
+	// CurrencyDerivativesAllocation
+	if len(details.CurrencyDerivativesAllocation) != 3 {
+		t.Fatalf("expected 3 currency entries, got %d", len(details.CurrencyDerivativesAllocation))
+	}
+	if details.CurrencyDerivativesAllocation[0].Currency != "USD" {
+		t.Errorf("expected USD, got %q", details.CurrencyDerivativesAllocation[0].Currency)
+	}
+	if details.CurrencyDerivativesAllocation[2].Currency != "JPY" {
+		t.Errorf("expected JPY, got %q", details.CurrencyDerivativesAllocation[2].Currency)
+	}
+
+	// ExtractorAsOfDate
+	if details.ExtractorAsOfDate.IsZero() {
+		t.Error("expected non-zero ExtractorAsOfDate")
+	}
+	if !details.ExtractorAsOfDate.Equal(asOfDate) {
+		t.Errorf("expected ExtractorAsOfDate %v, got %v", asOfDate, details.ExtractorAsOfDate)
+	}
+}
+
+func TestService_extractResultToSymbolDetails_IMGPOptionalFieldsAbsent(t *testing.T) {
+	// Only required fields (FundProfile + AsOfDate), no optional sections
+	result := &extractor.ExtractResult{
+		AsOfDate: time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC),
+		FundInfo: &extractor.FundInfo{Name: "iMGP Fund"},
+		FundProfile: &extractor.FundProfile{
+			Family:         "iM Global Partner",
+			TotalNetAssets: 10000000,
+			Isin:           "LU1234567890",
+		},
+		// RiskMeasures, AssetClassAllocation, etc. all nil
+	}
+
+	details := extractResultToSymbolDetails(result, "IMGPFUND")
+
+	if details.RiskMeasures != nil {
+		t.Error("expected nil RiskMeasures")
+	}
+	if len(details.AssetClassAllocation) != 0 {
+		t.Errorf("expected empty AssetClassAllocation, got %d", len(details.AssetClassAllocation))
+	}
+	if len(details.EquityDerivativesByRegion) != 0 {
+		t.Errorf("expected empty EquityDerivativesByRegion, got %d", len(details.EquityDerivativesByRegion))
+	}
+	if len(details.CurrencyDerivativesAllocation) != 0 {
+		t.Errorf("expected empty CurrencyDerivativesAllocation, got %d", len(details.CurrencyDerivativesAllocation))
+	}
+	// FundProfile should still be populated
+	if details.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if details.FundProfile.Isin != "LU1234567890" {
+		t.Errorf("expected Isin LU1234567890, got %q", details.FundProfile.Isin)
+	}
+}
+
 func TestService_extractResultToSymbolDetails_EmptyResult(t *testing.T) {
 	result := &extractor.ExtractResult{}
 
