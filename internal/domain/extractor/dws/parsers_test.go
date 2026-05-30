@@ -31,8 +31,8 @@ func TestParseFundInfo(t *testing.T) {
 	if info.Symbol != symbol {
 		t.Errorf("expected symbol %s, got %s", symbol, info.Symbol)
 	}
-	if info.Name != "DE000A2X47S0" {
-		t.Errorf("expected name DE000A2X47S0, got %s", info.Name)
+	if info.Name != "Xtrackers Artificial Intelligence UCITS ETF" {
+		t.Errorf("expected name 'Xtrackers Artificial Intelligence UCITS ETF', got %s", info.Name)
 	}
 }
 

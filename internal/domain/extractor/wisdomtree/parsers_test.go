@@ -1,11 +1,9 @@
 package wisdomtree
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/govalues/decimal"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
