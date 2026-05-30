@@ -15,6 +15,7 @@
 
 ## Deviations from Plan
 - Task 1: `github.com/ledongthuc/pdf` dependency stabilized in Task 3 via `go mod tidy` (was deferred from Task 1).
+- Task 6: **Silent fallback caught** — `extractResultToSymbolDetails` was missing the `Isin`, `ShareClassName`, and `OngoingCharges` fields on `FundProfile`. These fields were added to both `extractor.FundProfile` and `symbol.FundProfile` in Task 1, but the service mapping was never updated. Data parsed by the iMGP extractor would have been silently dropped. Fixed.
 - Task 3: `ParseFundFacts` returns `(*extractor.FundProfile, error)` instead of `(*extractor.FundProfile, *extractor.FundInfo, error)` as originally planned — FundInfo is not in the PDF.
 - Task 3: Risk measures for the sample fund (LU2951555585) only has Volatility (9.16%) and Sharpe Ratio (2.52) populated; InfoRatio, Beta, Correlation, and TrackingError are absent because the fund is too new (< 1 year). The parser handles this gracefully — `FieldsPresent` bitmask tracks which fields were actually parsed.
 - Task 3: `RiskMeasures` struct gained a `FieldsPresent` field (not in original spec). Added after silent fallback audit revealed consumers couldn't distinguish zero from missing.

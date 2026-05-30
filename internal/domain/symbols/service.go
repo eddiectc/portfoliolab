@@ -278,6 +278,9 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			AnnualExpenseRatio:     result.FundProfile.AnnualExpenseRatio,
 			AnnualHoldingsTurnover: result.FundProfile.AnnualHoldingsTurnover,
 			InceptionDate:          result.FundProfile.InceptionDate,
+			Isin:                   result.FundProfile.Isin,
+			ShareClassName:         result.FundProfile.ShareClassName,
+			OngoingCharges:         result.FundProfile.OngoingCharges,
 		}
 	}
 
@@ -310,6 +313,52 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			details.Themes[i] = symbol.ThemeBreakdown{
 				Name:    th.Name,
 				Percent: th.Percent,
+			}
+		}
+	}
+
+	// Risk measures.
+	if result.RiskMeasures != nil {
+		details.RiskMeasures = &symbol.RiskMeasures{
+			Volatility:    result.RiskMeasures.Volatility,
+			SharpeRatio:   result.RiskMeasures.SharpeRatio,
+			InfoRatio:     result.RiskMeasures.InfoRatio,
+			Beta:          result.RiskMeasures.Beta,
+			Correlation:   result.RiskMeasures.Correlation,
+			TrackingError: result.RiskMeasures.TrackingError,
+			FieldsPresent: symbol.SymbolRiskFieldsMask(result.RiskMeasures.FieldsPresent),
+		}
+	}
+
+	// Asset class allocation.
+	if len(result.AssetClassAllocation) > 0 {
+		details.AssetClassAllocation = make([]symbol.AssetClassEntry, len(result.AssetClassAllocation))
+		for i, ac := range result.AssetClassAllocation {
+			details.AssetClassAllocation[i] = symbol.AssetClassEntry{
+				AssetClass: ac.AssetClass,
+				Percent:    ac.Percent,
+			}
+		}
+	}
+
+	// Equity derivatives by region.
+	if len(result.EquityDerivativesByRegion) > 0 {
+		details.EquityDerivativesByRegion = make([]symbol.RegionDerivativeEntry, len(result.EquityDerivativesByRegion))
+		for i, rd := range result.EquityDerivativesByRegion {
+			details.EquityDerivativesByRegion[i] = symbol.RegionDerivativeEntry{
+				Region:  rd.Region,
+				Percent: rd.Percent,
+			}
+		}
+	}
+
+	// Currency derivatives allocation.
+	if len(result.CurrencyDerivativesAllocation) > 0 {
+		details.CurrencyDerivativesAllocation = make([]symbol.CurrencyDerivativeEntry, len(result.CurrencyDerivativesAllocation))
+		for i, cd := range result.CurrencyDerivativesAllocation {
+			details.CurrencyDerivativesAllocation[i] = symbol.CurrencyDerivativeEntry{
+				Currency: cd.Currency,
+				Percent:  cd.Percent,
 			}
 		}
 	}

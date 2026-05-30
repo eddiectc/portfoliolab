@@ -49,6 +49,10 @@ func setupSymbolDetailsDB(t *testing.T) *sql.DB {
 			geographic_allocations   TEXT,
 			market_cap_breakdown     TEXT,
 			themes                   TEXT,
+			risk_measures            TEXT,
+			asset_class_allocation   TEXT,
+			equity_derivatives_by_region TEXT,
+			currency_derivatives_allocation TEXT,
 			extractor_as_of_date     TEXT,
 			fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -824,4 +828,266 @@ func TestSymbolDetailsRepository_Themes_NilStoredAsNull(t *testing.T) {
 // isErrNotFound checks if the error is ErrNotFound.
 func isErrNotFound(err error) bool {
 	return err == ErrNotFound
+}
+
+func TestSymbolDetailsRepository_RiskMeasures_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "IMGPFUND",
+		ShortName:      "iMGP Fund",
+		RiskMeasures: &symbol.RiskMeasures{
+			Volatility:    9.16,
+			SharpeRatio:   2.52,
+			InfoRatio:     0.35,
+			Beta:          0.82,
+			Correlation:   0.91,
+			TrackingError: 3.45,
+			FieldsPresent: symbol.SymbolRiskFieldVolatility | symbol.SymbolRiskFieldSharpeRatio | symbol.SymbolRiskFieldInfoRatio | symbol.SymbolRiskFieldBeta | symbol.SymbolRiskFieldCorrelation | symbol.SymbolRiskFieldTrackingError,
+		},
+		FetchedAt: time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "IMGPFUND")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.RiskMeasures == nil {
+		t.Fatal("expected non-nil RiskMeasures")
+	}
+	if got.RiskMeasures.Volatility != 9.16 {
+		t.Errorf("expected Volatility 9.16, got %f", got.RiskMeasures.Volatility)
+	}
+	if got.RiskMeasures.SharpeRatio != 2.52 {
+		t.Errorf("expected SharpeRatio 2.52, got %f", got.RiskMeasures.SharpeRatio)
+	}
+	if got.RiskMeasures.InfoRatio != 0.35 {
+		t.Errorf("expected InfoRatio 0.35, got %f", got.RiskMeasures.InfoRatio)
+	}
+	if got.RiskMeasures.Beta != 0.82 {
+		t.Errorf("expected Beta 0.82, got %f", got.RiskMeasures.Beta)
+	}
+	if got.RiskMeasures.Correlation != 0.91 {
+		t.Errorf("expected Correlation 0.91, got %f", got.RiskMeasures.Correlation)
+	}
+	if got.RiskMeasures.TrackingError != 3.45 {
+		t.Errorf("expected TrackingError 3.45, got %f", got.RiskMeasures.TrackingError)
+	}
+	expectedMask := symbol.SymbolRiskFieldVolatility | symbol.SymbolRiskFieldSharpeRatio | symbol.SymbolRiskFieldInfoRatio | symbol.SymbolRiskFieldBeta | symbol.SymbolRiskFieldCorrelation | symbol.SymbolRiskFieldTrackingError
+	if got.RiskMeasures.FieldsPresent != expectedMask {
+		t.Errorf("expected FieldsPresent %v, got %v", expectedMask, got.RiskMeasures.FieldsPresent)
+	}
+}
+
+func TestSymbolDetailsRepository_RiskMeasures_NilStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		ShortName:      "Vanguard S&P 500",
+		RiskMeasures:   nil,
+		FetchedAt:      time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.RiskMeasures != nil {
+		t.Errorf("expected nil RiskMeasures, got %+v", got.RiskMeasures)
+	}
+}
+
+func TestSymbolDetailsRepository_AssetClassAllocation_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "IMGPFUND",
+		ShortName:      "iMGP Fund",
+		AssetClassAllocation: []symbol.AssetClassEntry{
+			{AssetClass: "Equities", Percent: 85.2},
+			{AssetClass: "Bonds", Percent: 5.3},
+			{AssetClass: "Gold", Percent: -2.1},
+			{AssetClass: "Cash", Percent: 11.6},
+		},
+		FetchedAt: time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "IMGPFUND")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if len(got.AssetClassAllocation) != 4 {
+		t.Fatalf("expected 4 asset class entries, got %d", len(got.AssetClassAllocation))
+	}
+	if got.AssetClassAllocation[0].AssetClass != "Equities" || got.AssetClassAllocation[0].Percent != 85.2 {
+		t.Errorf("expected Equities 85.2, got %s %f", got.AssetClassAllocation[0].AssetClass, got.AssetClassAllocation[0].Percent)
+	}
+	if got.AssetClassAllocation[2].AssetClass != "Gold" || got.AssetClassAllocation[2].Percent != -2.1 {
+		t.Errorf("expected Gold -2.1, got %s %f", got.AssetClassAllocation[2].AssetClass, got.AssetClassAllocation[2].Percent)
+	}
+}
+
+func TestSymbolDetailsRepository_AssetClassAllocation_NilStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol:         "VOO",
+		ShortName:              "Vanguard S&P 500",
+		AssetClassAllocation:   nil,
+		FetchedAt:              time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.AssetClassAllocation != nil {
+		t.Errorf("expected nil AssetClassAllocation, got %+v", got.AssetClassAllocation)
+	}
+}
+
+func TestSymbolDetailsRepository_EquityDerivativesByRegion_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "IMGPFUND",
+		ShortName:      "iMGP Fund",
+		EquityDerivativesByRegion: []symbol.RegionDerivativeEntry{
+			{Region: "North America", Percent: 52.3},
+			{Region: "Europe", Percent: 31.7},
+			{Region: "Asia", Percent: 12.0},
+			{Region: "Emerging Countries", Percent: 4.0},
+		},
+		FetchedAt: time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "IMGPFUND")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if len(got.EquityDerivativesByRegion) != 4 {
+		t.Fatalf("expected 4 region entries, got %d", len(got.EquityDerivativesByRegion))
+	}
+	if got.EquityDerivativesByRegion[0].Region != "North America" || got.EquityDerivativesByRegion[0].Percent != 52.3 {
+		t.Errorf("expected North America 52.3, got %s %f", got.EquityDerivativesByRegion[0].Region, got.EquityDerivativesByRegion[0].Percent)
+	}
+	if got.EquityDerivativesByRegion[3].Region != "Emerging Countries" || got.EquityDerivativesByRegion[3].Percent != 4.0 {
+		t.Errorf("expected Emerging Countries 4.0, got %s %f", got.EquityDerivativesByRegion[3].Region, got.EquityDerivativesByRegion[3].Percent)
+	}
+}
+
+func TestSymbolDetailsRepository_EquityDerivativesByRegion_NilStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol:            "VOO",
+		ShortName:                 "Vanguard S&P 500",
+		EquityDerivativesByRegion: nil,
+		FetchedAt:                 time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.EquityDerivativesByRegion != nil {
+		t.Errorf("expected nil EquityDerivativesByRegion, got %+v", got.EquityDerivativesByRegion)
+	}
+}
+
+func TestSymbolDetailsRepository_CurrencyDerivativesAllocation_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "IMGPFUND",
+		ShortName:      "iMGP Fund",
+		CurrencyDerivativesAllocation: []symbol.CurrencyDerivativeEntry{
+			{Currency: "USD", Percent: 65.0},
+			{Currency: "EUR", Percent: 20.0},
+			{Currency: "JPY", Percent: 15.0},
+		},
+		FetchedAt: time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "IMGPFUND")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if len(got.CurrencyDerivativesAllocation) != 3 {
+		t.Fatalf("expected 3 currency entries, got %d", len(got.CurrencyDerivativesAllocation))
+	}
+	if got.CurrencyDerivativesAllocation[0].Currency != "USD" || got.CurrencyDerivativesAllocation[0].Percent != 65.0 {
+		t.Errorf("expected USD 65.0, got %s %f", got.CurrencyDerivativesAllocation[0].Currency, got.CurrencyDerivativesAllocation[0].Percent)
+	}
+	if got.CurrencyDerivativesAllocation[2].Currency != "JPY" || got.CurrencyDerivativesAllocation[2].Percent != 15.0 {
+		t.Errorf("expected JPY 15.0, got %s %f", got.CurrencyDerivativesAllocation[2].Currency, got.CurrencyDerivativesAllocation[2].Percent)
+	}
+}
+
+func TestSymbolDetailsRepository_CurrencyDerivativesAllocation_NilStoredAsNull(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol:                "VOO",
+		ShortName:                     "Vanguard S&P 500",
+		CurrencyDerivativesAllocation: nil,
+		FetchedAt:                     time.Now(),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+	if got.CurrencyDerivativesAllocation != nil {
+		t.Errorf("expected nil CurrencyDerivativesAllocation, got %+v", got.CurrencyDerivativesAllocation)
+	}
 }
