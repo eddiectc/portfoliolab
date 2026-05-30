@@ -47,6 +47,7 @@
 - Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
 - Document all rounding rules and edge cases in code comments
 - **Trade suggestions need price resolution for unheld symbols** — when computing rebalancing or trade suggestions, symbols in the target allocation may not yet be held. The interface (e.g., `PositionSource`) must expose a price lookup method (e.g., `GetMarketPrice`) independent of position enrichment.
+- **Presence indicator for optional numeric fields** — when a struct contains optional `float64` fields that can be genuinely zero, add a presence indicator so consumers can distinguish "field = 0" from "field absent in source". Use a bitmask type (e.g., `type RiskFieldsMask uint8` with `1 << iota` constants) and provide `HasField(mask) bool` and `AllFieldsPresent() bool` helpers. Duplicate the mask type in both the `extractor` and `symbol` packages, following the existing type duplication pattern. See `RiskMeasures` / `RiskFieldsMask` in `extractor/extractor.go` and `symbol/symbol_details.go` for the reference implementation.
 
 ## Database (SQLite)
 - Use `sqlc` for type-safe queries — write SQL, generate Go

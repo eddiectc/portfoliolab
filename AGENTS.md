@@ -111,3 +111,16 @@ When storing data with a new filterable field (e.g., a new `data_type`, `source`
 2. **Repository methods** — confirm the repo returns the new data type to callers
 3. **Service layer** — verify consumers handle the new data type (no silent drops)
 4. **Tests** — add a test case with the new value exercising the full path (repo → service → output)
+
+### Cross-Layer Field Mapping Audit
+
+When adding new fields to shared types (e.g., `extractor.FundProfile`, `symbol.FundProfile`), every mapping layer must be audited before declaring the task done. A field added to the type definition is not enough — it must flow through all layers:
+
+1. **Type definition** — field added to both `extractor` and `symbol` package types
+2. **Parser** — field populated from source data
+3. **Service mapping** (`extractResultToSymbolDetails`) — field mapped from `ExtractResult` to `SymbolDetails`
+4. **Repository serialization** — field serialized in `toSQLNullJSON` and deserialized in `toSymbolDetail()`
+5. **Web display** — field included in `toDisplayDetails()` and rendered in template
+6. **Tests** — repo round-trip test covers the new field; integration test exercises the full path
+
+**Rule of thumb**: After adding a field to a shared type, grep for every other field in the same struct and verify the new field appears in the same locations (mapping functions, serialization, display). If it doesn't, it will be silently dropped.
