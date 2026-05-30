@@ -8,6 +8,9 @@
 ## Deviations from Plan
 - Task 1: `github.com/ledongthuc/pdf` is in go.mod but marked `// indirect` since no code imports it yet. `go mod tidy` will strip it. The dependency will be stabilized when Task 3 adds the first import in `parsers.go`. PLAN.md checkbox for this sub-item is left unchecked until then.
 
+## Decisions
+- 2026-05-30: `extractPDFURL` uses HTML parsing only (regex on `href="...FACTSHEETS_EN.pdf"`) — no URL construction fallback. If the factsheet link is absent from the page HTML, extraction fails explicitly. Verified against live page `https://www.imgp.com/fund/LU2951555585`.
+
 ## Future Improvements
 - None yet.
 
