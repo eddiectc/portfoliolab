@@ -63,6 +63,34 @@ type displayTheme struct {
 	Percent string // e.g. "25.50%"
 }
 
+// displayRiskMeasures is a template-friendly risk measures with pre-formatted values.
+type displayRiskMeasures struct {
+	Volatility    string // e.g. "9.16%" or "—"
+	SharpeRatio   string // e.g. "2.52" or "—"
+	InfoRatio     string // e.g. "0.35" or "—"
+	Beta          string // e.g. "0.85" or "—"
+	Correlation   string // e.g. "0.92" or "—"
+	TrackingError string // e.g. "3.45%" or "—"
+}
+
+// displayAssetClassEntry is a template-friendly asset class allocation entry.
+type displayAssetClassEntry struct {
+	AssetClass string
+	Percent    string // e.g. "-5.20%"
+}
+
+// displayRegionDerivativeEntry is a template-friendly regional derivative exposure entry.
+type displayRegionDerivativeEntry struct {
+	Region  string
+	Percent string // e.g. "45.20%"
+}
+
+// displayCurrencyDerivativeEntry is a template-friendly currency derivative exposure entry.
+type displayCurrencyDerivativeEntry struct {
+	Currency string
+	Percent  string // e.g. "-3.50%"
+}
+
 // displayMarketCapBreakdown is a template-friendly market cap breakdown.
 type displayMarketCapBreakdown struct {
 	Total string // e.g. "450.00B"
@@ -120,8 +148,12 @@ type symbolDetailsDisplay struct {
 	GeographicAllocations []displayGeographicAllocation
 	MarketCapBreakdown    *displayMarketCapBreakdown
 	EquityValuation       *displayEquityValuation
-	Themes                []displayTheme
-	ExtractorAsOfDate     string // formatted "as of" date; empty when from Yahoo
+	Themes                      []displayTheme
+	RiskMeasures                *displayRiskMeasures
+	AssetClassAllocation        []displayAssetClassEntry
+	EquityDerivativesByRegion   []displayRegionDerivativeEntry
+	CurrencyDerivativesAllocation []displayCurrencyDerivativeEntry
+	ExtractorAsOfDate           string // formatted "as of" date; empty when from Yahoo
 }
 
 // navHistorySource provides access to cached NAV history and stock price data.
@@ -348,6 +380,74 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 			dd.Themes = append(dd.Themes, displayTheme{
 				Name:    th.Name,
 				Percent: fmt.Sprintf("%.2f%%", th.Percent),
+			})
+		}
+	}
+
+	// Risk measures
+	if details.RiskMeasures != nil && details.RiskMeasures.FieldsPresent != 0 {
+		rm := details.RiskMeasures
+		displayRM := &displayRiskMeasures{}
+		if rm.HasField(symbol.SymbolRiskFieldVolatility) {
+			displayRM.Volatility = fmt.Sprintf("%.2f%%", rm.Volatility)
+		} else {
+			displayRM.Volatility = "—"
+		}
+		if rm.HasField(symbol.SymbolRiskFieldSharpeRatio) {
+			displayRM.SharpeRatio = fmt.Sprintf("%.2f", rm.SharpeRatio)
+		} else {
+			displayRM.SharpeRatio = "—"
+		}
+		if rm.HasField(symbol.SymbolRiskFieldInfoRatio) {
+			displayRM.InfoRatio = fmt.Sprintf("%.2f", rm.InfoRatio)
+		} else {
+			displayRM.InfoRatio = "—"
+		}
+		if rm.HasField(symbol.SymbolRiskFieldBeta) {
+			displayRM.Beta = fmt.Sprintf("%.2f", rm.Beta)
+		} else {
+			displayRM.Beta = "—"
+		}
+		if rm.HasField(symbol.SymbolRiskFieldCorrelation) {
+			displayRM.Correlation = fmt.Sprintf("%.2f", rm.Correlation)
+		} else {
+			displayRM.Correlation = "—"
+		}
+		if rm.HasField(symbol.SymbolRiskFieldTrackingError) {
+			displayRM.TrackingError = fmt.Sprintf("%.2f%%", rm.TrackingError)
+		} else {
+			displayRM.TrackingError = "—"
+		}
+		dd.RiskMeasures = displayRM
+	}
+
+
+	// Asset class allocation
+	if len(details.AssetClassAllocation) > 0 {
+		for _, ac := range details.AssetClassAllocation {
+			dd.AssetClassAllocation = append(dd.AssetClassAllocation, displayAssetClassEntry{
+				AssetClass: ac.AssetClass,
+				Percent:    fmt.Sprintf("%.2f%%", ac.Percent),
+			})
+		}
+	}
+
+	// Equity derivatives by region
+	if len(details.EquityDerivativesByRegion) > 0 {
+		for _, rd := range details.EquityDerivativesByRegion {
+			dd.EquityDerivativesByRegion = append(dd.EquityDerivativesByRegion, displayRegionDerivativeEntry{
+				Region:  rd.Region,
+				Percent: fmt.Sprintf("%.2f%%", rd.Percent),
+			})
+		}
+	}
+
+	// Currency derivatives allocation
+	if len(details.CurrencyDerivativesAllocation) > 0 {
+		for _, cd := range details.CurrencyDerivativesAllocation {
+			dd.CurrencyDerivativesAllocation = append(dd.CurrencyDerivativesAllocation, displayCurrencyDerivativeEntry{
+				Currency: cd.Currency,
+				Percent:  fmt.Sprintf("%.2f%%", cd.Percent),
 			})
 		}
 	}

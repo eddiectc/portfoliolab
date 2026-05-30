@@ -308,6 +308,132 @@
 </div>
 {{end}}
 
+{{if .Details.RiskMeasures}}
+<div class="card">
+    <div class="card-header">
+        <h2>Risk Measures</h2>
+    </div>
+    {{if .Details.ExtractorAsOfDate}}
+    <div class="card-body" style="padding-top: 0.5rem; padding-bottom: 0.25rem;">
+        <span class="text-muted" style="font-size: 0.85em;">As of {{.Details.ExtractorAsOfDate}}</span>
+    </div>
+    {{end}}
+    <table class="table table-details">
+        <tr>
+            <th>Volatility</th>
+            <td>{{.Details.RiskMeasures.Volatility}}</td>
+        </tr>
+        <tr>
+            <th>Sharpe Ratio</th>
+            <td>{{.Details.RiskMeasures.SharpeRatio}}</td>
+        </tr>
+        <tr>
+            <th>Information Ratio</th>
+            <td>{{.Details.RiskMeasures.InfoRatio}}</td>
+        </tr>
+        <tr>
+            <th>Beta</th>
+            <td>{{.Details.RiskMeasures.Beta}}</td>
+        </tr>
+        <tr>
+            <th>Correlation</th>
+            <td>{{.Details.RiskMeasures.Correlation}}</td>
+        </tr>
+        <tr>
+            <th>Tracking Error</th>
+            <td>{{.Details.RiskMeasures.TrackingError}}</td>
+        </tr>
+    </table>
+</div>
+{{end}}
+
+{{if .Details.AssetClassAllocation}}
+<div class="card">
+    <div class="card-header">
+        <h2>Asset Class Allocation</h2>
+    </div>
+    {{if .Details.ExtractorAsOfDate}}
+    <div class="card-body" style="padding-top: 0.5rem; padding-bottom: 0.25rem;">
+        <span class="text-muted" style="font-size: 0.85em;">As of {{.Details.ExtractorAsOfDate}}</span>
+    </div>
+    {{end}}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Asset Class</th>
+                <th class="text-right">Allocation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Details.AssetClassAllocation}}
+            <tr>
+                <td>{{.AssetClass}}</td>
+                <td class="text-right">{{.Percent}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{if .Details.EquityDerivativesByRegion}}
+<div class="card">
+    <div class="card-header">
+        <h2>Equity Derivatives by Region</h2>
+    </div>
+    {{if .Details.ExtractorAsOfDate}}
+    <div class="card-body" style="padding-top: 0.5rem; padding-bottom: 0.25rem;">
+        <span class="text-muted" style="font-size: 0.85em;">As of {{.Details.ExtractorAsOfDate}}</span>
+    </div>
+    {{end}}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Region</th>
+                <th class="text-right">Allocation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Details.EquityDerivativesByRegion}}
+            <tr>
+                <td>{{.Region}}</td>
+                <td class="text-right">{{.Percent}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{if .Details.CurrencyDerivativesAllocation}}
+<div class="card">
+    <div class="card-header">
+        <h2>Currency Derivatives Allocation</h2>
+    </div>
+    {{if .Details.ExtractorAsOfDate}}
+    <div class="card-body" style="padding-top: 0.5rem; padding-bottom: 0.25rem;">
+        <span class="text-muted" style="font-size: 0.85em;">As of {{.Details.ExtractorAsOfDate}}</span>
+    </div>
+    {{end}}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Currency</th>
+                <th class="text-right">Allocation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Details.CurrencyDerivativesAllocation}}
+            <tr>
+                <td>{{.Currency}}</td>
+                <td class="text-right">{{.Percent}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
 {{if .Details.GeographicAllocations}}
 {{if gt (len .Details.GeographicAllocations) 1}}
 <div class="card">

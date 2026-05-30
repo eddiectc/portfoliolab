@@ -983,3 +983,369 @@ func TestToDisplayDetails_YahooData_LimitedHoldings(t *testing.T) {
 		t.Errorf("expected empty ExtractorAsOfDate for Yahoo data, got %q", dd.ExtractorAsOfDate)
 	}
 }
+
+// --- Risk measures display tests ---
+
+func TestToDisplayDetails_RiskMeasures_PartialFields(t *testing.T) {
+	// Simulates a new fund with only Volatility and Sharpe Ratio populated
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "LU2951555585",
+		RiskMeasures: &symbol.RiskMeasures{
+			Volatility:    9.16,
+			SharpeRatio:   2.52,
+			FieldsPresent: symbol.SymbolRiskFieldVolatility | symbol.SymbolRiskFieldSharpeRatio,
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.RiskMeasures == nil {
+		t.Fatal("expected RiskMeasures to be set")
+	}
+
+	if dd.RiskMeasures.Volatility != "9.16%" {
+		t.Errorf("expected Volatility '9.16%%', got %q", dd.RiskMeasures.Volatility)
+	}
+	if dd.RiskMeasures.SharpeRatio != "2.52" {
+		t.Errorf("expected SharpeRatio '2.52', got %q", dd.RiskMeasures.SharpeRatio)
+	}
+	// Absent fields should show em-dash
+	if dd.RiskMeasures.InfoRatio != "—" {
+		t.Errorf("expected InfoRatio '—', got %q", dd.RiskMeasures.InfoRatio)
+	}
+	if dd.RiskMeasures.Beta != "—" {
+		t.Errorf("expected Beta '—', got %q", dd.RiskMeasures.Beta)
+	}
+	if dd.RiskMeasures.Correlation != "—" {
+		t.Errorf("expected Correlation '—', got %q", dd.RiskMeasures.Correlation)
+	}
+	if dd.RiskMeasures.TrackingError != "—" {
+		t.Errorf("expected TrackingError '—', got %q", dd.RiskMeasures.TrackingError)
+	}
+}
+
+func TestToDisplayDetails_RiskMeasures_AllFields(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "WMGT",
+		RiskMeasures: &symbol.RiskMeasures{
+			Volatility:    14.50,
+			SharpeRatio:   0.85,
+			InfoRatio:     0.35,
+			Beta:          1.12,
+			Correlation:   0.92,
+			TrackingError: 3.45,
+			FieldsPresent: symbol.SymbolRiskFieldVolatility | symbol.SymbolRiskFieldSharpeRatio |
+				symbol.SymbolRiskFieldInfoRatio | symbol.SymbolRiskFieldBeta |
+				symbol.SymbolRiskFieldCorrelation | symbol.SymbolRiskFieldTrackingError,
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.RiskMeasures == nil {
+		t.Fatal("expected RiskMeasures to be set")
+	}
+
+	if dd.RiskMeasures.Volatility != "14.50%" {
+		t.Errorf("expected Volatility '14.50%%', got %q", dd.RiskMeasures.Volatility)
+	}
+	if dd.RiskMeasures.SharpeRatio != "0.85" {
+		t.Errorf("expected SharpeRatio '0.85', got %q", dd.RiskMeasures.SharpeRatio)
+	}
+	if dd.RiskMeasures.InfoRatio != "0.35" {
+		t.Errorf("expected InfoRatio '0.35', got %q", dd.RiskMeasures.InfoRatio)
+	}
+	if dd.RiskMeasures.Beta != "1.12" {
+		t.Errorf("expected Beta '1.12', got %q", dd.RiskMeasures.Beta)
+	}
+	if dd.RiskMeasures.Correlation != "0.92" {
+		t.Errorf("expected Correlation '0.92', got %q", dd.RiskMeasures.Correlation)
+	}
+	if dd.RiskMeasures.TrackingError != "3.45%" {
+		t.Errorf("expected TrackingError '3.45%%', got %q", dd.RiskMeasures.TrackingError)
+	}
+}
+
+func TestToDisplayDetails_RiskMeasures_NoFieldsPresent(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "TEST",
+		RiskMeasures: &symbol.RiskMeasures{
+			FieldsPresent: 0, // non-nil but no fields populated
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.RiskMeasures != nil {
+		t.Error("expected RiskMeasures to be nil when no fields are present")
+	}
+}
+
+func TestToDisplayDetails_RiskMeasures_Nil(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "TEST",
+		RiskMeasures:   nil,
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.RiskMeasures != nil {
+		t.Error("expected RiskMeasures to be nil when source is nil")
+	}
+}
+
+// --- Asset class allocation display tests ---
+
+func TestToDisplayDetails_AssetClassAllocation(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "TEST",
+		AssetClassAllocation: []symbol.AssetClassEntry{
+			{AssetClass: "Equities", Percent: 85.50},
+			{AssetClass: "Bonds", Percent: 5.20},
+			{AssetClass: "Gold", Percent: -3.50},
+			{AssetClass: "Oil", Percent: -2.20},
+			{AssetClass: "Cash", Percent: 15.00},
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if len(dd.AssetClassAllocation) != 5 {
+		t.Fatalf("expected 5 asset class entries, got %d", len(dd.AssetClassAllocation))
+	}
+
+	if dd.AssetClassAllocation[0].AssetClass != "Equities" {
+		t.Errorf("expected 'Equities', got %q", dd.AssetClassAllocation[0].AssetClass)
+	}
+	if dd.AssetClassAllocation[0].Percent != "85.50%" {
+		t.Errorf("expected '85.50%%', got %q", dd.AssetClassAllocation[0].Percent)
+	}
+	// Negative value
+	if dd.AssetClassAllocation[2].Percent != "-3.50%" {
+		t.Errorf("expected '-3.50%%' for Gold, got %q", dd.AssetClassAllocation[2].Percent)
+	}
+}
+
+func TestToDisplayDetails_AssetClassAllocation_Empty(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol:       "TEST",
+		AssetClassAllocation: []symbol.AssetClassEntry{},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if len(dd.AssetClassAllocation) != 0 {
+		t.Errorf("expected 0 asset class entries, got %d", len(dd.AssetClassAllocation))
+	}
+}
+
+// --- Equity derivatives by region display tests ---
+
+func TestToDisplayDetails_EquityDerivativesByRegion(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "TEST",
+		EquityDerivativesByRegion: []symbol.RegionDerivativeEntry{
+			{Region: "North America", Percent: 45.20},
+			{Region: "Europe", Percent: 35.80},
+			{Region: "Asia", Percent: 15.00},
+			{Region: "Emerging Countries", Percent: -6.00},
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if len(dd.EquityDerivativesByRegion) != 4 {
+		t.Fatalf("expected 4 region entries, got %d", len(dd.EquityDerivativesByRegion))
+	}
+
+	if dd.EquityDerivativesByRegion[0].Region != "North America" {
+		t.Errorf("expected 'North America', got %q", dd.EquityDerivativesByRegion[0].Region)
+	}
+	if dd.EquityDerivativesByRegion[0].Percent != "45.20%" {
+		t.Errorf("expected '45.20%%', got %q", dd.EquityDerivativesByRegion[0].Percent)
+	}
+	// Negative value
+	if dd.EquityDerivativesByRegion[3].Percent != "-6.00%" {
+		t.Errorf("expected '-6.00%%', got %q", dd.EquityDerivativesByRegion[3].Percent)
+	}
+}
+
+// --- Currency derivatives allocation display tests ---
+
+func TestToDisplayDetails_CurrencyDerivativesAllocation(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "TEST",
+		CurrencyDerivativesAllocation: []symbol.CurrencyDerivativeEntry{
+			{Currency: "USD", Percent: 50.00},
+			{Currency: "EUR", Percent: 30.00},
+			{Currency: "JPY", Percent: -5.00},
+			{Currency: "GBP", Percent: 25.00},
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if len(dd.CurrencyDerivativesAllocation) != 4 {
+		t.Fatalf("expected 4 currency entries, got %d", len(dd.CurrencyDerivativesAllocation))
+	}
+
+	if dd.CurrencyDerivativesAllocation[0].Currency != "USD" {
+		t.Errorf("expected 'USD', got %q", dd.CurrencyDerivativesAllocation[0].Currency)
+	}
+	if dd.CurrencyDerivativesAllocation[0].Percent != "50.00%" {
+		t.Errorf("expected '50.00%%', got %q", dd.CurrencyDerivativesAllocation[0].Percent)
+	}
+	// Negative value
+	if dd.CurrencyDerivativesAllocation[2].Percent != "-5.00%" {
+		t.Errorf("expected '-5.00%%', got %q", dd.CurrencyDerivativesAllocation[2].Percent)
+	}
+}
+
+// --- Full page integration test for iMGP sections ---
+
+func TestDetailsHandleDetailsPage_IMGPSections(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "LU2951555585",
+		MarketDataSymbol: "LU2951555585.L",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["LU2951555585"] = 1
+
+	asOfDate := time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC)
+	detailsRepo.details["LU2951555585"] = &symbol.SymbolDetails{
+		InternalSymbol:    "LU2951555585",
+		ShortName:         "iMGP Fund",
+		LongName:          "iM Global Partner Fund",
+		Exchange:          "LUX",
+		Currency:          "EUR",
+		QuoteType:         "ETF",
+		ExtractorAsOfDate: asOfDate,
+		RiskMeasures: &symbol.RiskMeasures{
+			Volatility:    9.16,
+			SharpeRatio:   2.52,
+			FieldsPresent: symbol.SymbolRiskFieldVolatility | symbol.SymbolRiskFieldSharpeRatio,
+		},
+		AssetClassAllocation: []symbol.AssetClassEntry{
+			{AssetClass: "Equities", Percent: 85.50},
+			{AssetClass: "Bonds", Percent: 5.20},
+			{AssetClass: "Gold", Percent: -3.50},
+		},
+		EquityDerivativesByRegion: []symbol.RegionDerivativeEntry{
+			{Region: "North America", Percent: 45.20},
+			{Region: "Europe", Percent: 35.80},
+			{Region: "Asia", Percent: 19.00},
+		},
+		CurrencyDerivativesAllocation: []symbol.CurrencyDerivativeEntry{
+			{Currency: "USD", Percent: 50.00},
+			{Currency: "EUR", Percent: 30.00},
+			{Currency: "JPY", Percent: -5.00},
+		},
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	checkContains := func(label, text string) {
+		t.Helper()
+		if !strings.Contains(body, text) {
+			t.Errorf("page missing %s: %q", label, text)
+		}
+	}
+
+	// Risk Measures section
+	checkContains("risk measures header", "Risk Measures")
+	checkContains("volatility", "9.16%")
+	checkContains("sharpe ratio", "2.52")
+	// Absent fields (InfoRatio, Beta, Correlation, TrackingError) render as em-dash
+	// This is verified by the toDisplayDetails unit tests; here we check the section renders
+
+	// Asset Class Allocation section
+	checkContains("asset class header", "Asset Class Allocation")
+	checkContains("equities", "Equities")
+	checkContains("equities percent", "85.50%")
+	checkContains("gold negative", "-3.50%")
+
+	// Equity Derivatives by Region section
+	checkContains("equity derivatives header", "Equity Derivatives by Region")
+	checkContains("north america", "North America")
+	checkContains("na percent", "45.20%")
+	checkContains("europe", "Europe")
+	checkContains("asia", "Asia")
+
+	// Currency Derivatives Allocation section
+	checkContains("currency derivatives header", "Currency Derivatives Allocation")
+	checkContains("usd", "USD")
+	checkContains("usd percent", "50.00%")
+	checkContains("jpy negative", "-5.00%")
+
+	// As of date shown in sections
+	checkContains("as of date", "2026-05-22")
+}
+
+func TestDetailsHandleDetailsPage_IMGPSections_Absent(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "VOO",
+		MarketDataSymbol: "VOO",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["VOO"] = 1
+
+	// Standard Yahoo data — no iMGP-specific fields
+	detailsRepo.details["VOO"] = &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		ShortName:      "Vanguard S&P 500 ETF",
+		QuoteType:      "ETF",
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 7},
+		},
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// iMGP-specific sections should NOT appear
+	if strings.Contains(body, "Risk Measures") {
+		t.Error("should not show 'Risk Measures' section for non-iMGP data")
+	}
+	if strings.Contains(body, "Asset Class Allocation") {
+		t.Error("should not show 'Asset Class Allocation' section for non-iMGP data")
+	}
+	if strings.Contains(body, "Equity Derivatives by Region") {
+		t.Error("should not show 'Equity Derivatives by Region' section for non-iMGP data")
+	}
+	if strings.Contains(body, "Currency Derivatives Allocation") {
+		t.Error("should not show 'Currency Derivatives Allocation' section for non-iMGP data")
+	}
+}
