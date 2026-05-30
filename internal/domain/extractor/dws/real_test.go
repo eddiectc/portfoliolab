@@ -6,6 +6,9 @@ import (
 )
 
 func TestRealExtractor(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live API test in short mode")
+	}
 	ext := NewExtractor()
 
 	// Use a set of known DWS slugs to verify live extraction.
@@ -13,10 +16,6 @@ func TestRealExtractor(t *testing.T) {
 		name string
 		slug string
 	}{
-		{
-			name: "Xtrackers Artificial Intelligence ETF",
-			slug: "IE00BGVCHY27-artificial-intelligence-ucits-etf",
-		},
 		{
 			name: "Xtrackers S&P 500 ETF",
 			slug: "LU0290358497-sp-500-ucits-etf",

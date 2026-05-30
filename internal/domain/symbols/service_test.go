@@ -285,8 +285,8 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 				PriceToBook:              4.2,
 			},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: 45.20},
-				{Date: "2024-01-16", NAV: 45.50},
+				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
+				{Date: "2024-01-16", NAV: decimal.MustNew(4550, 2)},
 			},
 		},
 	}
@@ -459,9 +459,9 @@ func TestService_FetchAndStore_NAVHistoryStored(t *testing.T) {
 		result: &extractor.ExtractResult{
 			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: 45.20},
-				{Date: "2024-01-16", NAV: 45.50},
-				{Date: "2024-01-17", NAV: 46.00},
+				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
+				{Date: "2024-01-16", NAV: decimal.MustNew(4550, 2)},
+				{Date: "2024-01-17", NAV: decimal.MustNew(4600, 2)},
 			},
 		},
 	}
@@ -515,7 +515,7 @@ func TestService_FetchAndStore_NAVHistoryNotStored_WhenNoMarketDataRepo(t *testi
 		result: &extractor.ExtractResult{
 			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: 45.20},
+				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
 			},
 		},
 	}
@@ -574,7 +574,7 @@ func TestService_FetchAndStore_NAVHistoryStoreFails(t *testing.T) {
 		result: &extractor.ExtractResult{
 			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: 45.20},
+				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
 			},
 		},
 	}
@@ -1043,11 +1043,11 @@ func TestService_storeNavHistory_DecimalConversion(t *testing.T) {
 	svc.WithMarketDataRepo(marketDataRepo)
 
 	navPoints := []extractor.NavPoint{
-		{Date: "2024-01-15", NAV: 45.20},
-		{Date: "2024-01-16", NAV: 100.005},
+		{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
+		{Date: "2024-01-16", NAV: decimal.MustNew(100005, 3)},
 	}
 
-	err := svc.storeNavHistory(context.Background(), "WMGG.L", "GBP", navPoints)
+	err := svc.storeNavHistory(context.Background(), "WMGG.L", "GBP", navPoints, "wisdomtree")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

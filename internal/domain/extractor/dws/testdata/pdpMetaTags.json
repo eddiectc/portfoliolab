@@ -1,0 +1,17 @@
+{
+  "pdpResult": {
+    "pageFrame": {
+      "productHeader": {
+        "texts": {
+          "title": "Xtrackers Artificial Intelligence UCITS ETF"
+        },
+        "tableValues": [
+          {"key": "isin", "value": "DE000A2X47S0"},
+          {"key": "wkn", "value": "A2X47S0"},
+          {"key": "totalNetAssets", "value": "1500000000"},
+          {"key": "inceptionDate", "value": "2020-03-31"}
+        ]
+      }
+    }
+  }
+}
