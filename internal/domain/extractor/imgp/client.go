@@ -25,13 +25,13 @@ type fetchPDFFunc func(url string) ([]byte, error)
 
 // Client fetches iMGP pages and PDFs with browser-grade TLS fingerprinting.
 type Client struct {
-	cycleTLS   cycletls.CycleTLS
-	mu         sync.Mutex
-	lastReq    time.Time
-	minDelay   time.Duration
-	timeout    int
-	fetch      fetchFunc   // overridden in tests
-	fetchPDF   fetchPDFFunc // overridden in tests
+	cycleTLS cycletls.CycleTLS
+	mu       sync.Mutex
+	lastReq  time.Time
+	minDelay time.Duration
+	timeout  int
+	fetch    fetchFunc    // overridden in tests
+	fetchPDF fetchPDFFunc // overridden in tests
 }
 
 // NewClient creates a new iMGP HTTP client with CycleTLS and rate limiting.

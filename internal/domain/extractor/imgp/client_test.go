@@ -8,11 +8,11 @@ import (
 
 func TestClient_FetchPage(t *testing.T) {
 	tests := []struct {
-		name       string
-		url        string
-		mockResp   string
-		mockErr    error
-		wantErr    bool
+		name     string
+		url      string
+		mockResp string
+		mockErr  error
+		wantErr  bool
 	}{
 		{
 			name:     "successful fetch",
@@ -58,11 +58,11 @@ func TestClient_FetchPage(t *testing.T) {
 
 func TestClient_FetchPDF(t *testing.T) {
 	tests := []struct {
-		name       string
-		url        string
-		mockResp   []byte
-		mockErr    error
-		wantErr    bool
+		name     string
+		url      string
+		mockResp []byte
+		mockErr  error
+		wantErr  bool
 	}{
 		{
 			name:     "successful fetch",
@@ -151,15 +151,15 @@ func TestExtractPDFURL(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "html contains factsheet link with single quotes",
-			html: `<a href='https://www.imgp.com/uploads/factsheets/IE00B_FACTSHEETS_EN.pdf'>`,
+			name:    "html contains factsheet link with single quotes",
+			html:    `<a href='https://www.imgp.com/uploads/factsheets/IE00B_FACTSHEETS_EN.pdf'>`,
 			pageURL: "https://www.imgp.com/fund/IE00B",
 			wantURL: "https://www.imgp.com/uploads/factsheets/IE00B_FACTSHEETS_EN.pdf",
 			wantErr: false,
 		},
 		{
-			name: "case insensitive factsheet match",
-			html: `<a href="https://www.imgp.com/uploads/factsheets/LU2951555585_factsheets_en.pdf">`,
+			name:    "case insensitive factsheet match",
+			html:    `<a href="https://www.imgp.com/uploads/factsheets/LU2951555585_factsheets_en.pdf">`,
 			pageURL: "https://www.imgp.com/fund/LU2951555585",
 			wantURL: "https://www.imgp.com/uploads/factsheets/LU2951555585_factsheets_en.pdf",
 			wantErr: false,
