@@ -103,16 +103,16 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 3 (web UI)
 **Description:** Add new display sections to the symbol details template and handler.
 
-- [ ] Add display types to `symbol_details_web.go`: `displayRiskMeasures`, `displayAssetClassEntry`, `displayRegionDerivativeEntry`, `displayCurrencyDerivativeEntry`
-- [ ] Add corresponding fields to `symbolDetailsDisplay` struct
-- [ ] Update `toDisplayDetails()` to populate new fields from `symbol.SymbolDetails`
-- [ ] Update `templates/symbol_details/view.html` with new card sections:
+- [x] Add display types to `symbol_details_web.go`: `displayRiskMeasures`, `displayAssetClassEntry`, `displayRegionDerivativeEntry`, `displayCurrencyDerivativeEntry`
+- [x] Add corresponding fields to `symbolDetailsDisplay` struct
+- [x] Update `toDisplayDetails()` to populate new fields from `symbol.SymbolDetails`
+- [x] Update `templates/symbol_details/view.html` with new card sections:
   - **Risk Measures** — table with volatility, Sharpe ratio, info ratio, beta, correlation, tracking error; shows reference date
   - **Asset Class Allocation** — table (NOT pie chart) with asset class and percentage; values can be negative; shows reference date
   - **Equity Derivatives by Region** — table with region and percentage; shows reference date
   - **Currency Derivatives Allocation** — table with currency and percentage; shows reference date
-- [ ] Each section renders only when data is present (non-nil/non-empty)
-- [ ] Update `symbol_details_web_test.go` with tests for new display formatting
+- [x] Each section renders only when data is present (non-nil/non-empty)
+- [x] Update `symbol_details_web_test.go` with tests for new display formatting
 
 **Verification:** Template renders new sections with test data; negative values display correctly; reference date shown per section.
 
