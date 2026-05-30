@@ -244,6 +244,24 @@
             <td>{{.Details.FundProfile.InceptionDate}}</td>
         </tr>
         {{end}}
+        {{if .Details.FundProfile.Isin}}
+        <tr>
+            <th>ISIN</th>
+            <td>{{.Details.FundProfile.Isin}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.ShareClassName}}
+        <tr>
+            <th>Share Class</th>
+            <td>{{.Details.FundProfile.ShareClassName}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.OngoingCharges}}
+        <tr>
+            <th>Ongoing Charges</th>
+            <td>{{.Details.FundProfile.OngoingCharges}}</td>
+        </tr>
+        {{end}}
     </table>
 </div>
 {{end}}
