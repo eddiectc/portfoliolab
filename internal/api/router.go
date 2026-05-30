@@ -20,6 +20,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dimensional"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dws"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/imgp"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
@@ -79,6 +80,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	extractorReg.Register(wisdomtree.NewExtractor())
 	extractorReg.Register(dws.NewExtractor())
 	extractorReg.Register(dimensional.NewExtractor())
+	extractorReg.Register(imgp.NewExtractor())
 	extractorDispatcher := extractor.NewDispatcher(extractorReg)
 
 	// Static files
