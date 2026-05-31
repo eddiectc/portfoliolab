@@ -44,6 +44,21 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 - **Tests**: 42 tests total — `TestURLMatcher_Match` (11 cases), `TestParseFundIdentity` (5 cases), `TestParseFundProfile` (3 cases), `TestParseHoldings` (5 cases), `TestParseSectorAllocation` (3 cases), `TestParseCountryAllocation` (3 cases), `TestParseFundCharacteristics` (3 cases), `TestParseNavHistory` (4 cases), `TestExtractSlug` (6 cases), `TestExtractor_Extract` (8 cases including Phase 1/2 failure, empty holdings, context cancellation, HTTP error).
 - All existing extractor tests still pass.
 
+## Task 4 Completion (2026-05-31)
+
+- Updated `extractResultToSymbolDetails` in `symbols/service.go` to map all new Vanguard-specific fields:
+  - Holdings: `SecurityType`, `CouponRate`, `FinalMaturity`, `AsOfDate`
+  - Sectors: `Date`
+  - Countries: `RegionName`, `RegionCode`, `Date`
+  - Equity valuation: `MedianMarketCap`, `ForwardROE`, `ForwardEPSGrowth`, `RevenueRatio`
+  - Bond characteristics: conditional mapping using `HasCharacteristic(AverageCoupon)` bitmask check — only populated when bond fields are present
+- Added 3 new unit tests:
+  - `TestService_extractResultToSymbolDetails_VanguardFields` — full Vanguard-style result with all new fields (equity + bond holdings, sectors with dates, countries with regions)
+  - `TestService_extractResultToSymbolDetails_BondFundCharacteristics` — bond fund with only bond characteristics (equity fields zero, bond fields populated)
+  - `TestService_extractResultToSymbolDetails_EmptyHoldings` — empty holdings input maps to nil slice
+- All 30 tests in symbols package pass; all domain/types tests pass.
+- **Cross-layer audit**: Repo layer uses `json.Marshal` on whole structs — all new fields automatically serialized, no field-by-field mapping gaps. Web display layer (`toDisplayDetails` + template) drops all 16 new fields — intentional, covered by Task 6.
+
 ## Test Fund
 
 - **VWRL** (Vanguard FTSE All-World UCITS ETF USD Distributing)

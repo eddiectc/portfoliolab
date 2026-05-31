@@ -1014,6 +1014,194 @@ func TestService_extractResultToSymbolDetails_IMGPOptionalFieldsAbsent(t *testin
 	}
 }
 
+func TestService_extractResultToSymbolDetails_VanguardFields(t *testing.T) {
+	couponRate := 3.25
+	finalMaturity := "2035-06-15"
+	asOfDate := time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)
+	result := &extractor.ExtractResult{
+		AsOfDate: asOfDate,
+		FundInfo: &extractor.FundInfo{
+			Symbol: "VWRL.L",
+			Name:   "Vanguard FTSE All-World UCITS ETF",
+		},
+		Holdings: []extractor.Holding{
+			{
+				Symbol:        "AAPL",
+				Name:          "Apple Inc",
+				Percent:       0.5,
+				SecurityType:  "Common Stock",
+				CouponRate:    nil,
+				FinalMaturity: nil,
+				AsOfDate:      "2024-12-31",
+			},
+			{
+				Symbol:        "US-10Y",
+				Name:          "US Treasury 10Y",
+				Percent:       0.3,
+				SecurityType:  "Government Bond",
+				CouponRate:    &couponRate,
+				FinalMaturity: &finalMaturity,
+				AsOfDate:      "2024-12-31",
+			},
+		},
+		Sectors: []extractor.SectorWeighting{
+			{Sector: "technology", Percent: 25.5, Date: "2024-12-31"},
+			{Sector: "financials", Percent: 15.2, Date: "2024-12-31"},
+		},
+		CountryAllocation: []extractor.CountryAllocation{
+			{Country: "United States", Percent: 60.0, RegionName: "Developed Markets", RegionCode: "DEV", Date: "2024-12-31"},
+			{Country: "China", Percent: 5.0, RegionName: "Emerging Markets", RegionCode: "EM", Date: "2024-12-31"},
+		},
+		Characteristics: &extractor.FundCharacteristics{
+			PriceToEarnings:          20.5,
+			EstimatedPriceToEarnings: 18.0,
+			PriceToBook:              3.5,
+			MedianMarketCap:          150.0,
+			ForwardROE:               15.2,
+			ForwardEPSGrowth:         10.5,
+			RevenueRatio:             1.08,
+			FieldsPresent:            extractor.CharacteristicPriceToEarnings |
+				extractor.CharacteristicMedianMarketCap |
+				extractor.CharacteristicForwardROE |
+				extractor.CharacteristicForwardEPSGrowth |
+				extractor.CharacteristicRevenueRatio,
+		},
+	}
+
+	details := extractResultToSymbolDetails(result, "VWRL.L")
+
+	// Holdings — new fields
+	if len(details.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(details.TopHoldings))
+	}
+	if details.TopHoldings[0].SecurityType != "Common Stock" {
+		t.Errorf("expected SecurityType 'Common Stock', got %q", details.TopHoldings[0].SecurityType)
+	}
+	if details.TopHoldings[0].CouponRate != nil {
+		t.Errorf("expected nil CouponRate for stock, got %v", *details.TopHoldings[0].CouponRate)
+	}
+	if details.TopHoldings[0].FinalMaturity != nil {
+		t.Errorf("expected nil FinalMaturity for stock, got %v", *details.TopHoldings[0].FinalMaturity)
+	}
+	if details.TopHoldings[0].AsOfDate != "2024-12-31" {
+		t.Errorf("expected AsOfDate '2024-12-31', got %q", details.TopHoldings[0].AsOfDate)
+	}
+	if details.TopHoldings[1].SecurityType != "Government Bond" {
+		t.Errorf("expected SecurityType 'Government Bond', got %q", details.TopHoldings[1].SecurityType)
+	}
+	if details.TopHoldings[1].CouponRate == nil || *details.TopHoldings[1].CouponRate != 3.25 {
+		t.Errorf("expected CouponRate 3.25, got %v", details.TopHoldings[1].CouponRate)
+	}
+	if details.TopHoldings[1].FinalMaturity == nil || *details.TopHoldings[1].FinalMaturity != "2035-06-15" {
+		t.Errorf("expected FinalMaturity '2035-06-15', got %v", details.TopHoldings[1].FinalMaturity)
+	}
+
+	// Sectors — Date field
+	if details.SectorWeightings[0].Date != "2024-12-31" {
+		t.Errorf("expected sector Date '2024-12-31', got %q", details.SectorWeightings[0].Date)
+	}
+	if details.SectorWeightings[1].Sector != "financials" || details.SectorWeightings[1].Percent != 15.2 {
+		t.Errorf("expected second sector financials 15.2, got %s %f", details.SectorWeightings[1].Sector, details.SectorWeightings[1].Percent)
+	}
+
+	// Countries — RegionName, RegionCode, Date
+	if details.GeographicAllocations[0].RegionName != "Developed Markets" {
+		t.Errorf("expected RegionName 'Developed Markets', got %q", details.GeographicAllocations[0].RegionName)
+	}
+	if details.GeographicAllocations[0].RegionCode != "DEV" {
+		t.Errorf("expected RegionCode 'DEV', got %q", details.GeographicAllocations[0].RegionCode)
+	}
+	if details.GeographicAllocations[0].Date != "2024-12-31" {
+		t.Errorf("expected Date '2024-12-31', got %q", details.GeographicAllocations[0].Date)
+	}
+	if details.GeographicAllocations[1].RegionName != "Emerging Markets" {
+		t.Errorf("expected RegionName 'Emerging Markets', got %q", details.GeographicAllocations[1].RegionName)
+	}
+
+	// Equity valuation — new fields
+	if details.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if details.EquityValuation.MedianMarketCap != 150.0 {
+		t.Errorf("expected MedianMarketCap 150.0, got %f", details.EquityValuation.MedianMarketCap)
+	}
+	if details.EquityValuation.ForwardROE != 15.2 {
+		t.Errorf("expected ForwardROE 15.2, got %f", details.EquityValuation.ForwardROE)
+	}
+	if details.EquityValuation.ForwardEPSGrowth != 10.5 {
+		t.Errorf("expected ForwardEPSGrowth 10.5, got %f", details.EquityValuation.ForwardEPSGrowth)
+	}
+	if details.EquityValuation.RevenueRatio != 1.08 {
+		t.Errorf("expected RevenueRatio 1.08, got %f", details.EquityValuation.RevenueRatio)
+	}
+
+	// Bond characteristics — nil for equity fund (no bond fields set)
+	if details.BondCharacteristics != nil {
+		t.Error("expected nil BondCharacteristics for equity fund")
+	}
+}
+
+func TestService_extractResultToSymbolDetails_BondFundCharacteristics(t *testing.T) {
+	result := &extractor.ExtractResult{
+		AsOfDate: time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC),
+		FundInfo: &extractor.FundInfo{
+			Symbol: "VAGT.L",
+			Name:   "Vanguard Aggregate Bond UCITS ETF",
+		},
+		Characteristics: &extractor.FundCharacteristics{
+			AverageCoupon:   3.5,
+			AverageMaturity: 8.2,
+			AverageQuality:  7.5,
+			AverageDuration: 6.1,
+			FieldsPresent:   extractor.CharacteristicAverageCoupon |
+				extractor.CharacteristicAverageMaturity |
+				extractor.CharacteristicAverageQuality |
+				extractor.CharacteristicAverageDuration,
+		},
+	}
+
+	details := extractResultToSymbolDetails(result, "VAGT.L")
+
+	// Equity valuation — should still be created (zero values)
+	if details.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if details.EquityValuation.PriceToEarnings != 0 {
+		t.Errorf("expected P/E 0, got %f", details.EquityValuation.PriceToEarnings)
+	}
+
+	// Bond characteristics — populated
+	if details.BondCharacteristics == nil {
+		t.Fatal("expected non-nil BondCharacteristics for bond fund")
+	}
+	if details.BondCharacteristics.AverageCoupon != 3.5 {
+		t.Errorf("expected AverageCoupon 3.5, got %f", details.BondCharacteristics.AverageCoupon)
+	}
+	if details.BondCharacteristics.AverageMaturity != 8.2 {
+		t.Errorf("expected AverageMaturity 8.2, got %f", details.BondCharacteristics.AverageMaturity)
+	}
+	if details.BondCharacteristics.AverageQuality != 7.5 {
+		t.Errorf("expected AverageQuality 7.5, got %f", details.BondCharacteristics.AverageQuality)
+	}
+	if details.BondCharacteristics.AverageDuration != 6.1 {
+		t.Errorf("expected AverageDuration 6.1, got %f", details.BondCharacteristics.AverageDuration)
+	}
+}
+
+func TestService_extractResultToSymbolDetails_EmptyHoldings(t *testing.T) {
+	result := &extractor.ExtractResult{
+		FundInfo: &extractor.FundInfo{Name: "Empty Fund"},
+		Holdings: []extractor.Holding{},
+	}
+
+	details := extractResultToSymbolDetails(result, "EMPTY")
+
+	// Empty holdings should map to nil slice (not created by the if len > 0 guard)
+	if details.TopHoldings != nil {
+		t.Errorf("expected nil TopHoldings for empty input, got %d items", len(details.TopHoldings))
+	}
+}
+
 func TestService_extractResultToSymbolDetails_EmptyResult(t *testing.T) {
 	result := &extractor.ExtractResult{}
 

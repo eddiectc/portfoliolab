@@ -128,15 +128,15 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Update the `extractResultToSymbolDetails` function in `symbols/service.go` to map the new Vanguard-specific fields. The existing routing logic (dispatcher → extractor) already works — no changes needed there. Only the field mapping requires updates.
 
-- [ ] Update sector mapping: include `Date` field when mapping `extractor.SectorWeighting` → `symbol.SectorWeighting`
-- [ ] Update country mapping: include `RegionName`, `RegionCode` when mapping `extractor.CountryAllocation` → `symbol.GeographicAllocation`
-- [ ] Update equity valuation mapping: include new fields (`MedianMarketCap`, `ForwardROE`, `ForwardEPSGrowth`, `RevenueRatio`) when mapping `extractor.FundCharacteristics` → `symbol.EquityValuation`
-- [ ] Add bond characteristics mapping: map bond-specific fields from `extractor.FundCharacteristics` → new `symbol.BondCharacteristics`
-- [ ] Update holdings mapping: include `SecurityType`, `CouponRate`, `FinalMaturity`, `AsOfDate` when mapping `extractor.Holding` → `symbol.TopHolding`
-- [ ] NAV history flows through existing path (`result.NavHistory` → `storeNavHistory` → `market_data` table) — no changes needed
-- [ ] Write unit tests: extractResultToSymbolDetails correctly maps all new fields (table-driven with Vanguard-specific ExtractResult)
-- [ ] Write unit tests: bond fund characteristics map correctly (equity fields null, bond fields populated)
-- [ ] Write unit tests: empty holdings map to empty slice (not nil)
+- [x] Update sector mapping: include `Date` field when mapping `extractor.SectorWeighting` → `symbol.SectorWeighting`
+- [x] Update country mapping: include `RegionName`, `RegionCode` when mapping `extractor.CountryAllocation` → `symbol.GeographicAllocation`
+- [x] Update equity valuation mapping: include new fields (`MedianMarketCap`, `ForwardROE`, `ForwardEPSGrowth`, `RevenueRatio`) when mapping `extractor.FundCharacteristics` → `symbol.EquityValuation`
+- [x] Add bond characteristics mapping: map bond-specific fields from `extractor.FundCharacteristics` → new `symbol.BondCharacteristics`
+- [x] Update holdings mapping: include `SecurityType`, `CouponRate`, `FinalMaturity`, `AsOfDate` when mapping `extractor.Holding` → `symbol.TopHolding`
+- [x] NAV history flows through existing path (`result.NavHistory` → `storeNavHistory` → `market_data` table) — no changes needed
+- [x] Write unit tests: extractResultToSymbolDetails correctly maps all new fields (table-driven with Vanguard-specific ExtractResult)
+- [x] Write unit tests: bond fund characteristics map correctly (equity fields null, bond fields populated)
+- [x] Write unit tests: empty holdings map to empty slice (not nil)
 
 **Verification:** All new fields flow from ExtractResult through to SymbolDetails; existing field mapping unchanged; NAV flows through existing path.
 
