@@ -12,8 +12,16 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 2. **GraphQL as primary data source**: Holdings (paginated), sector/country allocation (with benchmark), and fund characteristics.
 3. **Holdings pagination**: 1500 items per page, `lastItemKey` is a JSON string. Tested with 4070 holdings (3 pages).
 4. **All-or-nothing**: If any query fails, the entire extraction fails. Partial data is not persisted.
-5. **Benchmark comparison**: Sector and country allocations include benchmark percentages alongside fund percentages.
+5. **Benchmark comparison excluded from types**: The spec (Stories 3-4) requires `benchmarkPercent` on sector allocation and `benchmarkMktPercent` on country allocation. These fields were deliberately excluded from the type definitions — the Vanguard GraphQL API returns benchmark data, but storing it alongside fund data in the same struct adds complexity without clear display benefit. If needed later, benchmark data can be stored separately or added as optional fields.
 6. **Fund characteristics**: Both equity-specific (P/E, P/B, market cap) and bond-specific (coupon, maturity, duration) codes available. Null for non-applicable types.
+7. **Market price history excluded**: The spec (Story 5) requires market prices per exchange listing alongside NAV. The plan explicitly excludes this — market/historical prices continue to come from Yahoo Finance. NAV data flows through the existing `market_data` path with `data_type='nav'`.
+
+## Task 1 Review (2026-05-31)
+
+- **gofmt**: Both `extractor/extractor.go` and `symbol/symbol_details.go` had struct field alignment issues. Fixed with `gofmt -w`.
+- **Tests**: Added JSON round-trip tests for all new Vanguard-specific types: `Holding` (with nil/non-nil pointer fields), `SectorWeighting` (with Date), `CountryAllocation` (with RegionName/RegionCode/Date), `FundCharacteristics` (equity-only, bond-only, zero), `TopHolding`, `GeographicAllocation`, `EquityValuation`, `BondCharacteristics`.
+- **Benchmark fields**: Deliberately excluded from types (see design decision #5 above).
+- **Market price history**: Deliberately excluded from types (see design decision #7 above).
 
 ## Test Fund
 

@@ -18,17 +18,18 @@ type SymbolDetails struct {
 	Sector         string // primary sector for individual stocks (e.g. "Technology")
 
 	// ETF-specific fields (JSON in DB, deserialized here)
-	TopHoldings                 []TopHolding
-	SectorWeightings            []SectorWeighting
-	AggregatePositions          *AggregatePositions
-	FundProfile                 *FundProfile
-	EquityValuation             *EquityValuation
-	GeographicAllocations       []GeographicAllocation
-	MarketCapBreakdown          *MarketCapBreakdown
-	Themes                      []ThemeBreakdown
-	RiskMeasures                *RiskMeasures
-	AssetClassAllocation        []AssetClassEntry
-	EquityDerivativesByRegion   []RegionDerivativeEntry
+	TopHoldings                   []TopHolding
+	SectorWeightings              []SectorWeighting
+	AggregatePositions            *AggregatePositions
+	FundProfile                   *FundProfile
+	EquityValuation               *EquityValuation
+	BondCharacteristics           *BondCharacteristics
+	GeographicAllocations         []GeographicAllocation
+	MarketCapBreakdown            *MarketCapBreakdown
+	Themes                        []ThemeBreakdown
+	RiskMeasures                  *RiskMeasures
+	AssetClassAllocation          []AssetClassEntry
+	EquityDerivativesByRegion     []RegionDerivativeEntry
 	CurrencyDerivativesAllocation []CurrencyDerivativeEntry
 
 	// Metadata
@@ -38,15 +39,20 @@ type SymbolDetails struct {
 
 // TopHolding represents a single holding in an ETF's portfolio.
 type TopHolding struct {
-	Symbol  string
-	Name    string
-	Percent float64 // 0-100 percentage, e.g. 1.399 = 1.399% (not 0-1 fraction)
+	Symbol        string
+	Name          string
+	Percent       float64  // 0-100 percentage, e.g. 1.399 = 1.399% (not 0-1 fraction)
+	SecurityType  string   // e.g. "Common Stock", "Corporate Bond" (Vanguard)
+	CouponRate    *float64 // bond holdings only (Vanguard)
+	FinalMaturity *string  // bond holdings only (Vanguard)
+	AsOfDate      string   // effective date of the holdings data (Vanguard)
 }
 
 // SectorWeighting represents the allocation to a single sector.
 type SectorWeighting struct {
 	Sector  string  // e.g. "technology", "financial_services"
 	Percent float64 // 0-100 percentage, e.g. 25.5 = 25.5% (not 0-1 fraction)
+	Date    string  // per-section "as of" date from the provider (Vanguard)
 }
 
 // AggregatePositions represents the broad asset class breakdown of an ETF.
@@ -80,12 +86,29 @@ type EquityValuation struct {
 	PriceToCashflow          float64
 	PriceToSales             float64
 	DividendYield            float64
+	// Equity-specific fields (Vanguard)
+	MedianMarketCap  float64 // median market cap of holdings
+	ForwardROE       float64 // forward 5-year return on equity
+	ForwardEPSGrowth float64 // forward 5-year EPS growth
+	RevenueRatio     float64 // revenue / revenue prior year
+}
+
+// BondCharacteristics represents bond-specific fund metrics.
+// Nil for equity funds; populated for bond funds (Vanguard).
+type BondCharacteristics struct {
+	AverageCoupon   float64 // average coupon rate
+	AverageMaturity float64 // average maturity in years
+	AverageQuality  float64 // average quality rating
+	AverageDuration float64 // average duration
 }
 
 // GeographicAllocation represents a country/region exposure entry.
 type GeographicAllocation struct {
-	Country string
-	Percent float64 // 0-100 percentage, e.g. 45.2 = 45.2% (not 0-1 fraction)
+	Country    string
+	Percent    float64 // 0-100 percentage, e.g. 45.2 = 45.2% (not 0-1 fraction)
+	RegionName string  // region grouping (e.g. "Developed Markets") (Vanguard)
+	RegionCode string  // region code (Vanguard)
+	Date       string  // per-section "as of" date from the provider (Vanguard)
 }
 
 // MarketCapBreakdown contains market capitalization distribution.
@@ -104,12 +127,12 @@ type ThemeBreakdown struct {
 
 // RiskMeasures contains risk metrics from fund factsheets.
 type RiskMeasures struct {
-	Volatility    float64 // annualized volatility percentage
-	SharpeRatio   float64 // Sharpe ratio
-	InfoRatio     float64 // information ratio
-	Beta          float64 // beta relative to benchmark
-	Correlation   float64 // correlation with benchmark
-	TrackingError float64 // tracking error percentage
+	Volatility    float64              // annualized volatility percentage
+	SharpeRatio   float64              // Sharpe ratio
+	InfoRatio     float64              // information ratio
+	Beta          float64              // beta relative to benchmark
+	Correlation   float64              // correlation with benchmark
+	TrackingError float64              // tracking error percentage
 	FieldsPresent SymbolRiskFieldsMask // bitmask of which fields were actually parsed
 }
 
@@ -117,7 +140,7 @@ type RiskMeasures struct {
 type SymbolRiskFieldsMask uint8
 
 const (
-	SymbolRiskFieldVolatility   SymbolRiskFieldsMask = 1 << iota
+	SymbolRiskFieldVolatility SymbolRiskFieldsMask = 1 << iota
 	SymbolRiskFieldSharpeRatio
 	SymbolRiskFieldInfoRatio
 	SymbolRiskFieldBeta

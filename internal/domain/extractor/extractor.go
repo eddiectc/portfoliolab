@@ -89,9 +89,13 @@ type FundProfile struct {
 
 // Holding is a single security holding with weight percentage.
 type Holding struct {
-	Symbol  string
-	Name    string
-	Percent float64
+	Symbol        string
+	Name          string
+	Percent       float64
+	SecurityType  string   // e.g. "Common Stock", "Corporate Bond" (Vanguard)
+	CouponRate    *float64 // bond holdings only (Vanguard)
+	FinalMaturity *string  // bond holdings only (Vanguard)
+	AsOfDate      string   // effective date of the holdings data (Vanguard)
 }
 
 // NavPoint is a single NAV data point.
@@ -110,12 +114,16 @@ type Theme struct {
 type SectorWeighting struct {
 	Sector  string
 	Percent float64
+	Date    string // per-section "as of" date from the provider (Vanguard)
 }
 
 // CountryAllocation is a geographic allocation entry.
 type CountryAllocation struct {
-	Country string
-	Percent float64
+	Country    string
+	Percent    float64
+	RegionName string // region grouping (e.g. "Developed Markets") (Vanguard)
+	RegionCode string // region code (Vanguard)
+	Date       string // per-section "as of" date from the provider (Vanguard)
 }
 
 // MarketCapBreakdown contains market capitalization distribution.
@@ -134,17 +142,27 @@ type FundCharacteristics struct {
 	PriceToCashflow          float64
 	PriceToSales             float64
 	DividendYield            float64
+	// Equity-specific fields (Vanguard)
+	MedianMarketCap  float64 // median market cap of holdings
+	ForwardROE       float64 // forward 5-year return on equity
+	ForwardEPSGrowth float64 // forward 5-year EPS growth
+	RevenueRatio     float64 // revenue / revenue prior year
+	// Bond-specific fields (Vanguard)
+	AverageCoupon   float64 // average coupon rate
+	AverageMaturity float64 // average maturity in years
+	AverageQuality  float64 // average quality rating
+	AverageDuration float64 // average duration
 }
 
 // RiskMeasures contains risk metrics from fund factsheets.
 type RiskMeasures struct {
-	Volatility     float64 // annualized volatility percentage
-	SharpeRatio    float64 // Sharpe ratio
-	InfoRatio      float64 // information ratio
-	Beta           float64 // beta relative to benchmark
-	Correlation    float64 // correlation with benchmark
-	TrackingError  float64 // tracking error percentage
-	FieldsPresent  RiskFieldsMask // bitmask of which fields were actually parsed
+	Volatility    float64        // annualized volatility percentage
+	SharpeRatio   float64        // Sharpe ratio
+	InfoRatio     float64        // information ratio
+	Beta          float64        // beta relative to benchmark
+	Correlation   float64        // correlation with benchmark
+	TrackingError float64        // tracking error percentage
+	FieldsPresent RiskFieldsMask // bitmask of which fields were actually parsed
 }
 
 // RiskFieldsMask tracks which RiskMeasures fields were populated by the parser.
@@ -153,7 +171,7 @@ type RiskMeasures struct {
 type RiskFieldsMask uint8
 
 const (
-	RiskFieldVolatility   RiskFieldsMask = 1 << iota
+	RiskFieldVolatility RiskFieldsMask = 1 << iota
 	RiskFieldSharpeRatio
 	RiskFieldInfoRatio
 	RiskFieldBeta
@@ -175,7 +193,7 @@ func (rm *RiskMeasures) AllFieldsPresent() bool {
 // AssetClassEntry is a single asset class allocation entry.
 // Percent can be negative (short positions) and entries do not sum to 100%.
 type AssetClassEntry struct {
-	AssetClass string // e.g. "Equities", "Bonds", "Gold", "Oil", "Cash"
+	AssetClass string  // e.g. "Equities", "Bonds", "Gold", "Oil", "Cash"
 	Percent    float64 // exposure relative to AUM, can be negative
 }
 
