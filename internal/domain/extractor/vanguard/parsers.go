@@ -419,8 +419,16 @@ func ParseCountryAllocation(data []byte) ([]extractor.CountryAllocation, string,
 
 	date := allocations[0].Date
 
+	// Filter to FTCTYATPCS (FTSE Country of Risk) only.
+	// The response also includes MSCTYATPCS (Market of Domicile) — duplicate countries
+	// with slightly different weights — and SASTTYPPC (region subtotals) with no countryCode.
+	const ftseCountryOfRisk = "FTCTYATPCS"
+
 	var result []extractor.CountryAllocation
 	for _, a := range allocations {
+		if a.HoldingStatCode != ftseCountryOfRisk {
+			continue
+		}
 		result = append(result, extractor.CountryAllocation{
 			Country:    a.CountryName,
 			Percent:    a.FundMktPct,

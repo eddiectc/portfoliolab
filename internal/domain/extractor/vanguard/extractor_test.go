@@ -106,6 +106,7 @@ func TestExtractor_Extract(t *testing.T) {
 						"benchmarkMktPercent": 58.0,
 						"regionCode":          "NA",
 						"regionName":          "North America",
+						"holdingStatCode":     "FTCTYATPCS",
 					},
 				},
 			},
