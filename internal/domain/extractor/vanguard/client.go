@@ -66,11 +66,16 @@ func (c *Client) FetchREST(slug string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	respBody, readErr := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch REST %s: HTTP %d", url, resp.StatusCode)
+		return nil, fmt.Errorf("fetch REST %s: HTTP %d %s: %s", url, resp.StatusCode, resp.Status, string(respBody))
 	}
 
-	return io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("read response body: %w", readErr)
+	}
+	return respBody, nil
 }
 
 // FetchGraphQL sends a GraphQL POST request and returns the raw JSON response.
@@ -98,11 +103,16 @@ func (c *Client) FetchGraphQL(operationName string, variables map[string]interfa
 	}
 	defer resp.Body.Close()
 
+	respBody, readErr := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch GraphQL: HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("fetch GraphQL: HTTP %d %s: %s", resp.StatusCode, resp.Status, string(respBody))
 	}
 
-	return io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("read response body: %w", readErr)
+	}
+	return respBody, nil
 }
 
 // FetchGraphQLPage sends a paginated GraphQL request with a delay for pagination.
