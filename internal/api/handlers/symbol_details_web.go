@@ -20,15 +20,20 @@ import (
 
 // displayHolding is a template-friendly holding with pre-formatted percentage.
 type displayHolding struct {
-	Symbol  string
-	Name    string
-	Percent string // e.g. "1.40%"
+	Symbol        string
+	Name          string
+	Percent       string // e.g. "1.40%"
+	SecurityType  string // e.g. "Common Stock", "Corporate Bond"
+	CouponRate    string // e.g. "3.50%" or ""
+	FinalMaturity string // e.g. "2030" or ""
+	AsOfDate      string // effective date of the holdings data
 }
 
 // displaySector is a template-friendly sector weighting with pre-formatted percentage.
 type displaySector struct {
 	Sector  string
 	Percent string // e.g. "25.50%"
+	Date    string // per-section "as of" date
 }
 
 // displayAggregatePositions is a template-friendly aggregate positions with pre-formatted percentages.
@@ -60,8 +65,11 @@ type displayFundProfile struct {
 
 // displayGeographicAllocation is a template-friendly geographic allocation with pre-formatted percentage.
 type displayGeographicAllocation struct {
-	Country string
-	Percent string // e.g. "45.20%"
+	Country    string
+	Percent    string // e.g. "45.20%"
+	RegionName string // e.g. "Developed Markets"
+	RegionCode string
+	Date       string // per-section "as of" date
 }
 
 // displayTheme is a template-friendly theme breakdown with pre-formatted percentage.
@@ -114,6 +122,18 @@ type displayEquityValuation struct {
 	PriceToCashflow          string // e.g. "8.30"
 	PriceToSales             string // e.g. "3.10"
 	DividendYield            string // e.g. "1.50%"
+	MedianMarketCap          string // e.g. "450.00B" or "—"
+	ForwardROE               string // e.g. "18.50%" or "—"
+	ForwardEPSGrowth         string // e.g. "12.30%" or "—"
+	RevenueRatio             string // e.g. "1.05" or "—"
+}
+
+// displayBondCharacteristics is a template-friendly bond characteristics section.
+type displayBondCharacteristics struct {
+	AverageCoupon   string // e.g. "3.50%" or "—"
+	AverageMaturity string // e.g. "7.50" (years) or "—"
+	AverageQuality  string // e.g. "7.20" or "—"
+	AverageDuration string // e.g. "6.80" (years) or "—"
 }
 
 // navPriceChartDataPoint is a single data point for the NAV vs Price chart.
@@ -155,6 +175,7 @@ type symbolDetailsDisplay struct {
 	GeographicAllocations         []displayGeographicAllocation
 	MarketCapBreakdown            *displayMarketCapBreakdown
 	EquityValuation               *displayEquityValuation
+	BondCharacteristics           *displayBondCharacteristics
 	Themes                        []displayTheme
 	RiskMeasures                  *displayRiskMeasures
 	AssetClassAllocation          []displayAssetClassEntry
@@ -291,11 +312,24 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 
 	// Holdings — always include all; template shows top 10 with expand link
 	for _, h := range details.TopHoldings {
-		dd.TopHoldings = append(dd.TopHoldings, displayHolding{
+		dh := displayHolding{
 			Symbol:  h.Symbol,
 			Name:    h.Name,
 			Percent: fmt.Sprintf("%.2f%%", h.Percent),
-		})
+		}
+		if h.SecurityType != "" {
+			dh.SecurityType = h.SecurityType
+		}
+		if h.CouponRate != nil {
+			dh.CouponRate = fmt.Sprintf("%.2f%%", *h.CouponRate)
+		}
+		if h.FinalMaturity != nil {
+			dh.FinalMaturity = *h.FinalMaturity
+		}
+		if h.AsOfDate != "" {
+			dh.AsOfDate = h.AsOfDate
+		}
+		dd.TopHoldings = append(dd.TopHoldings, dh)
 	}
 
 	// Sector weightings (sorted desc)
@@ -308,6 +342,7 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 		dd.SectorWeightings = append(dd.SectorWeightings, displaySector{
 			Sector:  s.Sector,
 			Percent: fmt.Sprintf("%.2f%%", s.Percent),
+			Date:    s.Date,
 		})
 	}
 
@@ -356,8 +391,11 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 		})
 		for _, g := range sorted {
 			dd.GeographicAllocations = append(dd.GeographicAllocations, displayGeographicAllocation{
-				Country: g.Country,
-				Percent: fmt.Sprintf("%.2f%%", g.Percent),
+				Country:    g.Country,
+				Percent:    fmt.Sprintf("%.2f%%", g.Percent),
+				RegionName: g.RegionName,
+				RegionCode: g.RegionCode,
+				Date:       g.Date,
 			})
 		}
 	}
@@ -382,6 +420,21 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 			PriceToCashflow:          formatFloat(ev.PriceToCashflow),
 			PriceToSales:             formatFloat(ev.PriceToSales),
 			DividendYield:            fmt.Sprintf("%.2f%%", ev.DividendYield),
+			MedianMarketCap:          formatLargeNumber(ev.MedianMarketCap),
+			ForwardROE:               formatFloatPercent(ev.ForwardROE),
+			ForwardEPSGrowth:         formatFloatPercent(ev.ForwardEPSGrowth),
+			RevenueRatio:             formatFloat(ev.RevenueRatio),
+		}
+	}
+
+	// Bond characteristics (conditional — nil for equity funds)
+	if details.BondCharacteristics != nil {
+		bc := details.BondCharacteristics
+		dd.BondCharacteristics = &displayBondCharacteristics{
+			AverageCoupon:   formatFloatPercent(bc.AverageCoupon),
+			AverageMaturity: formatFloat(bc.AverageMaturity),
+			AverageQuality:  formatFloat(bc.AverageQuality),
+			AverageDuration: formatFloat(bc.AverageDuration),
 		}
 	}
 
@@ -489,7 +542,11 @@ func formatFetchedAt(t time.Time) string {
 }
 
 // formatLargeNumber formats a large float64 value with suffix (e.g. "1,234.56B").
+// Returns "—" for zero (no data available).
 func formatLargeNumber(val float64) string {
+	if val == 0 {
+		return "—"
+	}
 	if val >= 1e12 {
 		return fmt.Sprintf("%.2fT", val/1e12)
 	}
@@ -508,6 +565,15 @@ func formatFloat(val float64) string {
 		return "—"
 	}
 	return fmt.Sprintf("%.2f", val)
+}
+
+// formatFloatPercent formats a float64 as a percentage with 2 decimal places,
+// showing "—" for zero.
+func formatFloatPercent(val float64) string {
+	if val == 0 {
+		return "—"
+	}
+	return fmt.Sprintf("%.2f%%", val)
 }
 
 // navPriceChartData is the JSON structure for the ECharts NAV vs Price chart.

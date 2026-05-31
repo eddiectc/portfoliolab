@@ -1415,3 +1415,316 @@ func TestDetailsHandleDetailsPage_IMGPSections_Absent(t *testing.T) {
 		t.Error("should not show 'Currency Derivatives Allocation' section for non-iMGP data")
 	}
 }
+
+// --- Vanguard-specific display tests ---
+
+func TestDetailsHandleDetailsPage_VanguardFields(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _, navSource := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "VWRL",
+		MarketDataSymbol: "VWRL",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["VWRL"] = 1
+
+	couponRate := 3.50
+	finalMaturity := "2030"
+	asOfDate := time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC)
+	detailsRepo.details["VWRL"] = &symbol.SymbolDetails{
+		InternalSymbol:    "VWRL",
+		ShortName:         "Vanguard FTSE All-World UCITS ETF",
+		LongName:          "Vanguard FTSE All-World UCITS ETF USD Distributing",
+		Exchange:          "LSE",
+		Currency:          "USD",
+		QuoteType:         "ETF",
+		ExtractorAsOfDate: asOfDate,
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 3.8, SecurityType: "Common Stock", AsOfDate: "2026-05-21"},
+			{Symbol: "MSFT", Name: "Microsoft Corp.", Percent: 3.5, SecurityType: "Common Stock", AsOfDate: "2026-05-21"},
+			{Symbol: "BND1", Name: "US Treasury Bond", Percent: 1.2, SecurityType: "Government Bond", CouponRate: &couponRate, FinalMaturity: &finalMaturity, AsOfDate: "2026-05-21"},
+		},
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "technology", Percent: 25.5, Date: "2026-05-22"},
+			{Sector: "financials", Percent: 13.2, Date: "2026-05-22"},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 60.0, RegionName: "Developed Markets", RegionCode: "DM", Date: "2026-05-22"},
+			{Country: "United Kingdom", Percent: 5.0, RegionName: "Developed Markets", RegionCode: "DM", Date: "2026-05-22"},
+			{Country: "China", Percent: 4.0, RegionName: "Emerging Markets", RegionCode: "EM", Date: "2026-05-22"},
+		},
+		EquityValuation: &symbol.EquityValuation{
+			PriceToEarnings:          18.5,
+			EstimatedPriceToEarnings: 15.0,
+			PriceToBook:              3.2,
+			PriceToCashflow:          10.5,
+			PriceToSales:             2.8,
+			DividendYield:            1.8,
+			MedianMarketCap:          450e9,
+			ForwardROE:               18.5,
+			ForwardEPSGrowth:         12.3,
+			RevenueRatio:             1.05,
+		},
+		BondCharacteristics: &symbol.BondCharacteristics{
+			AverageCoupon:   3.50,
+			AverageMaturity: 7.50,
+			AverageQuality:  7.20,
+			AverageDuration: 6.80,
+		},
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	// NAV history for chart
+	price1, _ := decimal.NewFromFloat64(10.50)
+	price2, _ := decimal.NewFromFloat64(10.75)
+	navSource.navPrices = []market.HistoricalPrice{
+		{Date: time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC), Close: price1, Currency: "USD"},
+		{Date: time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC), Close: price2, Currency: "USD"},
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	checkContains := func(label, text string) {
+		t.Helper()
+		if !strings.Contains(body, text) {
+			t.Errorf("page missing %s: %q", label, text)
+		}
+	}
+	checkNotContains := func(label, text string) {
+		t.Helper()
+		if strings.Contains(body, text) {
+			t.Errorf("page should not contain %s: %q", label, text)
+		}
+	}
+
+	// Holdings: new columns (Type, Coupon, Maturity)
+	checkContains("holdings type header", "<th>Type</th>")
+	checkContains("holdings coupon header", "<th class=\"text-right\">Coupon</th>")
+	checkContains("holdings maturity header", "<th class=\"text-right\">Maturity</th>")
+	checkContains("equity security type", "Common Stock")
+	checkContains("bond security type", "Government Bond")
+	checkContains("coupon rate", "3.50%")
+	checkContains("final maturity", "2030")
+	checkContains("holdings as of date", "As of 2026-05-21")
+
+	// Sector weightings: per-section date
+	checkContains("sector as of date", "As of 2026-05-22")
+	checkContains("sector technology", "technology")
+
+	// Country allocation: region column + per-section date
+	checkContains("country allocation header", "Country Allocation")
+	checkContains("region header", "<th>Region</th>")
+	checkContains("developed markets region", "Developed Markets")
+	checkContains("emerging markets region", "Emerging Markets")
+	checkContains("country as of date", "As of 2026-05-22")
+
+	// Fund characteristics: expanded equity fields
+	checkContains("fund characteristics header", "Fund Characteristics")
+	checkContains("median market cap", "Median Market Cap")
+	checkContains("median market cap value", "450.00B")
+	checkContains("forward roe", "Forward ROE")
+	checkContains("forward roe value", "18.50%")
+	checkContains("forward eps growth", "Forward EPS Growth")
+	checkContains("forward eps growth value", "12.30%")
+	checkContains("revenue ratio", "Revenue / Prior Year")
+	checkContains("revenue ratio value", "1.05")
+
+	// Bond characteristics section (conditional — present because data exists)
+	checkContains("bond characteristics header", "Bond Characteristics")
+	checkContains("average coupon", "Average Coupon")
+	checkContains("average coupon value", "3.50%")
+	checkContains("average maturity", "Average Maturity (years)")
+	checkContains("average maturity value", "7.50")
+	checkContains("average quality", "Average Quality")
+	checkContains("average quality value", "7.20")
+	checkContains("average duration", "Average Duration (years)")
+	checkContains("average duration value", "6.80")
+
+	// NAV chart
+	checkContains("chart container", "nav-price-chart")
+
+	// Backward compat: existing fields still work
+	checkContains("pe ratio", "18.50")
+	checkContains("pb ratio", "3.20")
+	checkContains("dividend yield", "1.80%")
+
+	// Should NOT show em-dash for equity holdings' bond fields
+	checkNotContains("apple coupon dash", "<td class=\"text-right\">—</td>"+"<td class=\"text-right\">3.80%</td>")
+}
+
+func TestToDisplayDetails_VanguardFields(t *testing.T) {
+	couponRate := 3.50
+	finalMaturity := "2030"
+	asOfDate := time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC)
+	details := &symbol.SymbolDetails{
+		InternalSymbol:    "VWRL",
+		ExtractorAsOfDate: asOfDate,
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 3.8, SecurityType: "Common Stock", AsOfDate: "2026-05-21"},
+			{Symbol: "BND1", Name: "US Treasury", Percent: 1.2, SecurityType: "Government Bond", CouponRate: &couponRate, FinalMaturity: &finalMaturity, AsOfDate: "2026-05-21"},
+		},
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "technology", Percent: 25.5, Date: "2026-05-22"},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 60.0, RegionName: "Developed Markets", RegionCode: "DM", Date: "2026-05-22"},
+		},
+		EquityValuation: &symbol.EquityValuation{
+			PriceToEarnings:  18.5,
+			MedianMarketCap:  450e9,
+			ForwardROE:       18.5,
+			ForwardEPSGrowth: 12.3,
+			RevenueRatio:     1.05,
+		},
+		BondCharacteristics: &symbol.BondCharacteristics{
+			AverageCoupon:   3.50,
+			AverageMaturity: 7.50,
+			AverageQuality:  7.20,
+			AverageDuration: 6.80,
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	// Holdings: new fields mapped
+	if len(dd.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(dd.TopHoldings))
+	}
+	if dd.TopHoldings[0].SecurityType != "Common Stock" {
+		t.Errorf("expected SecurityType 'Common Stock', got %q", dd.TopHoldings[0].SecurityType)
+	}
+	if dd.TopHoldings[0].AsOfDate != "2026-05-21" {
+		t.Errorf("expected AsOfDate '2026-05-21', got %q", dd.TopHoldings[0].AsOfDate)
+	}
+	if dd.TopHoldings[0].CouponRate != "" {
+		t.Errorf("expected empty CouponRate for equity, got %q", dd.TopHoldings[0].CouponRate)
+	}
+	if dd.TopHoldings[1].CouponRate != "3.50%" {
+		t.Errorf("expected CouponRate '3.50%%', got %q", dd.TopHoldings[1].CouponRate)
+	}
+	if dd.TopHoldings[1].FinalMaturity != "2030" {
+		t.Errorf("expected FinalMaturity '2030', got %q", dd.TopHoldings[1].FinalMaturity)
+	}
+
+	// Sectors: Date mapped
+	if len(dd.SectorWeightings) != 1 {
+		t.Fatalf("expected 1 sector, got %d", len(dd.SectorWeightings))
+	}
+	if dd.SectorWeightings[0].Date != "2026-05-22" {
+		t.Errorf("expected Date '2026-05-22', got %q", dd.SectorWeightings[0].Date)
+	}
+
+	// Geographic: Region + Date mapped
+	if len(dd.GeographicAllocations) != 1 {
+		t.Fatalf("expected 1 geo allocation, got %d", len(dd.GeographicAllocations))
+	}
+	if dd.GeographicAllocations[0].RegionName != "Developed Markets" {
+		t.Errorf("expected RegionName 'Developed Markets', got %q", dd.GeographicAllocations[0].RegionName)
+	}
+	if dd.GeographicAllocations[0].RegionCode != "DM" {
+		t.Errorf("expected RegionCode 'DM', got %q", dd.GeographicAllocations[0].RegionCode)
+	}
+	if dd.GeographicAllocations[0].Date != "2026-05-22" {
+		t.Errorf("expected Date '2026-05-22', got %q", dd.GeographicAllocations[0].Date)
+	}
+
+	// Equity valuation: new fields
+	if dd.EquityValuation == nil {
+		t.Fatal("expected EquityValuation to be set")
+	}
+	if dd.EquityValuation.MedianMarketCap != "450.00B" {
+		t.Errorf("expected MedianMarketCap '450.00B', got %q", dd.EquityValuation.MedianMarketCap)
+	}
+	if dd.EquityValuation.ForwardROE != "18.50%" {
+		t.Errorf("expected ForwardROE '18.50%%', got %q", dd.EquityValuation.ForwardROE)
+	}
+	if dd.EquityValuation.ForwardEPSGrowth != "12.30%" {
+		t.Errorf("expected ForwardEPSGrowth '12.30%%', got %q", dd.EquityValuation.ForwardEPSGrowth)
+	}
+	if dd.EquityValuation.RevenueRatio != "1.05" {
+		t.Errorf("expected RevenueRatio '1.05', got %q", dd.EquityValuation.RevenueRatio)
+	}
+
+	// Bond characteristics
+	if dd.BondCharacteristics == nil {
+		t.Fatal("expected BondCharacteristics to be set")
+	}
+	if dd.BondCharacteristics.AverageCoupon != "3.50%" {
+		t.Errorf("expected AverageCoupon '3.50%%', got %q", dd.BondCharacteristics.AverageCoupon)
+	}
+	if dd.BondCharacteristics.AverageMaturity != "7.50" {
+		t.Errorf("expected AverageMaturity '7.50', got %q", dd.BondCharacteristics.AverageMaturity)
+	}
+	if dd.BondCharacteristics.AverageQuality != "7.20" {
+		t.Errorf("expected AverageQuality '7.20', got %q", dd.BondCharacteristics.AverageQuality)
+	}
+	if dd.BondCharacteristics.AverageDuration != "6.80" {
+		t.Errorf("expected AverageDuration '6.80', got %q", dd.BondCharacteristics.AverageDuration)
+	}
+}
+
+func TestToDisplayDetails_BondCharacteristics_Nil(t *testing.T) {
+	// Equity fund — no bond characteristics
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		EquityValuation: &symbol.EquityValuation{
+			PriceToEarnings: 15.0,
+		},
+		BondCharacteristics: nil,
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.BondCharacteristics != nil {
+		t.Error("expected BondCharacteristics to be nil for equity fund")
+	}
+}
+
+func TestToDisplayDetails_EquityValuation_ZeroNewFields(t *testing.T) {
+	// Existing extractor data without new Vanguard-specific fields
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "WMGT",
+		EquityValuation: &symbol.EquityValuation{
+			PriceToEarnings: 14.5,
+			PriceToBook:     2.3,
+			// New fields are zero
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.EquityValuation == nil {
+		t.Fatal("expected EquityValuation to be set")
+	}
+	// Zero values render as em-dash
+	if dd.EquityValuation.MedianMarketCap != "—" {
+		t.Errorf("expected MedianMarketCap '—' for zero, got %q", dd.EquityValuation.MedianMarketCap)
+	}
+	if dd.EquityValuation.ForwardROE != "—" {
+		t.Errorf("expected ForwardROE '—' for zero, got %q", dd.EquityValuation.ForwardROE)
+	}
+	if dd.EquityValuation.ForwardEPSGrowth != "—" {
+		t.Errorf("expected ForwardEPSGrowth '—' for zero, got %q", dd.EquityValuation.ForwardEPSGrowth)
+	}
+	if dd.EquityValuation.RevenueRatio != "—" {
+		t.Errorf("expected RevenueRatio '—' for zero, got %q", dd.EquityValuation.RevenueRatio)
+	}
+	// Existing fields still work
+	if dd.EquityValuation.PriceToEarnings != "14.50" {
+		t.Errorf("expected PriceToEarnings '14.50', got %q", dd.EquityValuation.PriceToEarnings)
+	}
+}
