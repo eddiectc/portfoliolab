@@ -240,9 +240,13 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 		details.TopHoldings = make([]symbol.TopHolding, len(result.Holdings))
 		for i, h := range result.Holdings {
 			details.TopHoldings[i] = symbol.TopHolding{
-				Symbol:  h.Symbol,
-				Name:    h.Name,
-				Percent: h.Percent,
+				Symbol:        h.Symbol,
+				Name:          h.Name,
+				Percent:       h.Percent,
+				SecurityType:  h.SecurityType,
+				CouponRate:    h.CouponRate,
+				FinalMaturity: h.FinalMaturity,
+				AsOfDate:      h.AsOfDate,
 			}
 		}
 	}
@@ -254,6 +258,7 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			details.SectorWeightings[i] = symbol.SectorWeighting{
 				Sector:  sw.Sector,
 				Percent: sw.Percent,
+				Date:    sw.Date,
 			}
 		}
 	}
@@ -263,8 +268,11 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 		details.GeographicAllocations = make([]symbol.GeographicAllocation, len(result.CountryAllocation))
 		for i, ca := range result.CountryAllocation {
 			details.GeographicAllocations[i] = symbol.GeographicAllocation{
-				Country: ca.Country,
-				Percent: ca.Percent,
+				Country:    ca.Country,
+				Percent:    ca.Percent,
+				RegionName: ca.RegionName,
+				RegionCode: ca.RegionCode,
+				Date:       ca.Date,
 			}
 		}
 	}
@@ -297,6 +305,20 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			PriceToCashflow:          result.Characteristics.PriceToCashflow,
 			PriceToSales:             result.Characteristics.PriceToSales,
 			DividendYield:            result.Characteristics.DividendYield,
+			MedianMarketCap:          result.Characteristics.MedianMarketCap,
+			ForwardROE:               result.Characteristics.ForwardROE,
+			ForwardEPSGrowth:         result.Characteristics.ForwardEPSGrowth,
+			RevenueRatio:             result.Characteristics.RevenueRatio,
+		}
+
+		// Bond characteristics from characteristics (conditional — only if bond fields present).
+		if result.Characteristics.HasCharacteristic(extractor.CharacteristicAverageCoupon) {
+			details.BondCharacteristics = &symbol.BondCharacteristics{
+				AverageCoupon:   result.Characteristics.AverageCoupon,
+				AverageMaturity: result.Characteristics.AverageMaturity,
+				AverageQuality:  result.Characteristics.AverageQuality,
+				AverageDuration: result.Characteristics.AverageDuration,
+			}
 		}
 	}
 
