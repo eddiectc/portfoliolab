@@ -266,7 +266,10 @@ func (h *SymbolDetailsWebHandler) HandleDetailsPage(w http.ResponseWriter, r *ht
 		// On error, HasQuote stays false — page still renders with cached data
 	}
 
-	// Fetch NAV history and stock prices for the chart
+	// Fetch NAV history and stock prices for the NAV vs Price chart.
+	// sm.MarketDataSymbol is exchange-specific (e.g. "VWRL.L" for LSE),
+	// so the stock prices automatically match the symbol's exchange and currency.
+	// NAV history is keyed by InternalSymbol and shared across all listings.
 	if h.navSource != nil && data.HasDetails {
 		ctx := r.Context()
 		navPrices, err := h.navSource.GetNavHistoryBySymbol(ctx, sm.InternalSymbol)

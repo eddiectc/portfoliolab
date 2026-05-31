@@ -175,14 +175,14 @@ Yahoo Finance data for Vanguard ETFs and mutual funds is often incomplete or lac
   When I view the symbol details page,
   Then I see the following sections (in addition to existing Overview and Fund Profile):
   - **Fund Characteristics** — P/E, P/B, median market cap, ROE, EPS growth, and bond-specific metrics where applicable, with benchmark comparison and "as of" date.
-  - **Full Holdings** — all securities with weights (not limited to top 10), with "as of" date.
+  - **Top 10 Holdings** — all securities with weights (expandable beyond top 10), with "as of" date.
   - **Sector Allocation** — ICB 12-sector breakdown with fund vs benchmark percentages, with "as of" date.
-  - **Country Allocation** — country/region exposure with fund vs benchmark percentages, grouped by region, with "as of" date.
+  - **Country Allocation** — country/region exposure with fund vs benchmark percentages, with "as of" date.
   - **NAV vs Price Chart** — NAV history and market price history plotted together; multiple exchange listings are shown as separate series; the two series may have non-overlapping date ranges and are displayed as-is without interpolation.
 
 - Given the existing symbol details page already shows Top 10 Holdings, Sector Weightings, Fund Profile, and Geographic Allocation from Yahoo,
   When Vanguard extractor data is present,
-  Then the Vanguard sections replace/augment the Yahoo sections (e.g. "Full Holdings" replaces "Top 10 Holdings", "Country Allocation" replaces "Geographic Allocation").
+  Then the Vanguard sections replace/augment the Yahoo sections (e.g. "Country Allocation" replaces "Geographic Allocation").
 
 - Given extractor data includes an "as of" date (the date embedded in Vanguard's data, **not** the date the system fetched it),
   When I view the symbol details page,
