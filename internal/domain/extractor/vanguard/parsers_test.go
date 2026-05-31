@@ -442,6 +442,7 @@ func TestParseCountryAllocation(t *testing.T) {
 								"benchmarkMktPercent": 58.0,
 								"regionCode":          "NA",
 								"regionName":          "North America",
+								"holdingStatCode":     "FTCTYATPCS",
 							},
 							map[string]interface{}{
 								"portId":              "9505",
@@ -452,6 +453,7 @@ func TestParseCountryAllocation(t *testing.T) {
 								"benchmarkMktPercent": 5.0,
 								"regionCode":          "EU",
 								"regionName":          "Europe",
+								"holdingStatCode":     "FTCTYATPCS",
 							},
 						},
 					},
@@ -486,6 +488,70 @@ func TestParseCountryAllocation(t *testing.T) {
 				},
 			}),
 			wantCount: 0,
+		},
+		{
+			name: "filters out MSCTYATPCS and region subtotals",
+			json: buildJSONResponse(map[string]interface{}{
+				"funds": []interface{}{
+					map[string]interface{}{
+						"marketAllocation": []interface{}{
+							// FTCTYATPCS — kept
+							map[string]interface{}{
+								"portId":          "9505",
+								"date":            "2026-04-30",
+								"countryCode":     "US",
+								"countryName":     "United States",
+								"fundMktPercent":  61.57,
+								"regionCode":      "NA",
+								"regionName":      "North America",
+								"holdingStatCode": "FTCTYATPCS",
+							},
+							// MSCTYATPCS (Market of Domicile) — filtered out
+							map[string]interface{}{
+								"portId":          "9505",
+								"date":            "2026-04-30",
+								"countryCode":     "US",
+								"countryName":     "United States",
+								"fundMktPercent":  61.50,
+								"regionCode":      "NA",
+								"regionName":      "North America",
+								"holdingStatCode": "MSCTYATPCS",
+							},
+							// SASTTYPPC (region subtotal) — filtered out
+							map[string]interface{}{
+								"portId":          "9505",
+								"date":            "2026-04-30",
+								"countryCode":     nil,
+								"countryName":     nil,
+								"fundMktPercent":  64.64,
+								"regionCode":      "NA",
+								"regionName":      "North America",
+								"holdingStatCode": "SASTTYPPC",
+							},
+							// Another FTCTYATPCS — kept
+							map[string]interface{}{
+								"portId":          "9505",
+								"date":            "2026-04-30",
+								"countryCode":     "DE",
+								"countryName":     "Germany",
+								"fundMktPercent":  1.93,
+								"regionCode":      "EU",
+								"regionName":      "Europe",
+								"holdingStatCode": "FTCTYATPCS",
+							},
+						},
+					},
+				},
+			}),
+			wantCount: 2,
+			checkFirst: func(t *testing.T, c extractor.CountryAllocation) {
+				if c.Country != "United States" {
+					t.Errorf("Country: got %q, want %q", c.Country, "United States")
+				}
+				if c.Percent != 61.57 {
+					t.Errorf("Percent: got %f, want 61.57", c.Percent)
+				}
+			},
 		},
 		{
 			name:        "no funds data",

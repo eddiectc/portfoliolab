@@ -72,7 +72,15 @@ Returns 12 ICB sectors with fund vs benchmark percentages. Classification: "ICB 
 }
 ```
 
-Returns 107 countries with fund vs benchmark percentages, grouped by region (Emerging Markets, Europe, North America, Pacific, etc.). Classification: "FTSE Country of Risk".
+Returns ~107 entries including three categories distinguished by `holdingStatCode`:
+
+| Code | Count | Meaning | Usage |
+|---|---|---|---|
+| `FTCTYATPCS` | ~50 | FTSE Country of Risk (where investment earns revenue) | **Primary** — use this for country allocation display |
+| `MSCTYATPCS` | ~51 | Market of Domicile (country of incorporation) | Filter out — duplicates countries with different weights |
+| `SASTTYPPC` | ~6 | Region subtotals (no countryCode, no countryName) | Filter out — aggregate of countries in region |
+
+Only `FTCTYATPCS` entries should be displayed. The others cause duplicate countries (e.g. "United States" appearing twice with slightly different weights) and region subtotal rows.
 
 ### FundCharacteristicsQuery
 
