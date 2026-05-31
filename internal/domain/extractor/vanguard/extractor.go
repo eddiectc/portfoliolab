@@ -215,10 +215,10 @@ func checkHasMore(data []byte) (bool, string, error) {
 		return false, "", fmt.Errorf("unmarshal holdings: %w", err)
 	}
 
-	if resp.BorHoldings.Holdings.LastItemKey == nil {
+	if len(resp.BorHoldings) == 0 || resp.BorHoldings[0].Holdings.LastItemKey == nil {
 		return false, "", nil
 	}
-	return true, *resp.BorHoldings.Holdings.LastItemKey, nil
+	return true, *resp.BorHoldings[0].Holdings.LastItemKey, nil
 }
 
 // SetClient sets the HTTP client for fetching data.

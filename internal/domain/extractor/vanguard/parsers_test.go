@@ -284,10 +284,12 @@ func TestParseHoldings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := map[string]interface{}{
-				"borHoldings": map[string]interface{}{
-					"holdings": map[string]interface{}{
-						"totalHoldings": len(tt.items),
-						"items":         tt.items,
+				"borHoldings": []map[string]interface{}{
+					{
+						"holdings": map[string]interface{}{
+							"totalHoldings": len(tt.items),
+							"items":         tt.items,
+						},
 					},
 				},
 			}
