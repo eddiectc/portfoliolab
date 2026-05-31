@@ -34,8 +34,8 @@ type restFundResponse struct {
 }
 
 type restFundData struct {
-	DistributionHistory []interface{} `json:"distributionHistory"`
-	AnnualNAVReturns    []interface{} `json:"annualNAVReturns"`
+	DistributionHistory interface{} `json:"distributionHistory"`
+	AnnualNAVReturns    interface{} `json:"annualNAVReturns"`
 }
 
 type restSibling struct {
