@@ -136,7 +136,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 - [x] NAV history flows through existing path (`result.NavHistory` → `storeNavHistory` → `market_data` table) — no changes needed
 - [x] Write unit tests: extractResultToSymbolDetails correctly maps all new fields (table-driven with Vanguard-specific ExtractResult)
 - [x] Write unit tests: bond fund characteristics map correctly (equity fields null, bond fields populated)
-- [x] Write unit tests: empty holdings map to empty slice (not nil)
+- [x] Write unit tests: empty holdings map to nil slice (consistent with codebase convention — all slice mappings use `len > 0` guards)
 
 **Verification:** All new fields flow from ExtractResult through to SymbolDetails; existing field mapping unchanged; NAV flows through existing path.
 
