@@ -190,12 +190,16 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Register the Vanguard extractor in the dispatcher and write integration tests covering the full stack.
 
-- [ ] Register `vanguard` extractor in `extractor/dispatcher.go` (add to extractors map)
-- [ ] Write integration test: full extraction pipeline (in-memory DB → dispatcher → vanguard extractor → service → repository → symbol details)
-- [ ] Write integration test: API endpoint `/api/symbols/details` returns Vanguard data correctly
-- [ ] Write integration test: web page `/symbol-details/<vanguard-fund>` renders correctly
-- [ ] Write integration test: NAV data stored in `market_data` with correct `source='vanguard'` and `data_type='nav'`
-- [ ] Update `features/README.md` to mark f025 as complete
+- [x] Register `vanguard` extractor in `internal/api/router.go` (added to extractor registry)
+- [x] Write integration test: full extraction pipeline (dispatcher routing, extractor registration, full stack round-trip)
+- [x] Write integration test: API endpoint `/api/symbols/{id}` returns Vanguard data with new fields (securityType, regionName, bondCharacteristics, expanded equity valuation)
+- [x] Write integration test: web page `/symbols/{id}/details` renders correctly with symbol name and data
+- [x] Write integration test: NAV data stored in `market_data` with correct `source='vanguard'` and `data_type='nav'`
+- [x] Write integration test: data source URL round-trip through stale query
+- [x] Write integration test: bond fund with only BondCharacteristics (equity_valuation NULL)
+- [x] Write integration test: equity fund with only EquityValuation (bond_characteristics NULL)
+- [x] Update `features/README.md` to mark f025 as complete
+- [x] Add `BondCharacteristics` to `SymbolDetailsResponse` API handler (was missing from response struct)
 
 **Verification:** Vanguard extractor registered and functional; full stack integration tests pass; existing extractors unaffected.
 

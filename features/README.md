@@ -36,4 +36,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f022 | DWS Scraper | done | f021 |
 | f023 | Dimensional Scraper | done | f015, f011 |
 | f024 | iMGP Scraper | done | f021 |
-| f025 | Vanguard Scraper | draft | f021 |
+| f025 | Vanguard Scraper | done | f021 |

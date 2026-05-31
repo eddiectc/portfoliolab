@@ -93,3 +93,7 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 - **Tests added**: `TestDetailsHandleDetailsPage_VanguardFields` (full page integration with all new fields), `TestToDisplayDetails_VanguardFields` (display mapping for all new fields), `TestToDisplayDetails_BondCharacteristics_Nil` (equity fund — bond section absent), `TestToDisplayDetails_EquityValuation_ZeroNewFields` (backward compat — zero new fields render as em-dash).
 - **All tests pass** (full project suite, including integration tests).
 - **Template cleanup (2026-05-31)**: Removed 3 redundant `{{if}}` guards in the template — the outer `{{if .Details.X}}` already guaranteed non-empty slices, making inner `{{if index .Details.X 0}}` checks unnecessary.
+
+## Post-Completion Fix (2026-05-31)
+
+- **EquityValuation conditional mapping**: `extractResultToSymbolDetails` was creating `EquityValuation` unconditionally whenever `Characteristics != nil`, even for pure bond funds where all equity fields are zero. This resulted in an empty `{"PriceToEarnings":0,...}` object in the API response for bond funds, inconsistent with `BondCharacteristics` which was already conditional (nil for equity funds). Fixed: `EquityValuation` is now gated on `HasCharacteristic(CharacteristicPriceToEarnings)`, symmetric to the `BondCharacteristics` gate on `HasCharacteristic(CharacteristicAverageCoupon)`. Updated 3 unit tests to set `FieldsPresent` bitmask and expect `nil` `EquityValuation` for bond funds.

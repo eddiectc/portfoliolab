@@ -301,8 +301,8 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 		}
 	}
 
-	// Equity valuation from characteristics.
-	if result.Characteristics != nil {
+	// Equity valuation from characteristics (conditional — only if equity fields present).
+	if result.Characteristics != nil && result.Characteristics.HasCharacteristic(extractor.CharacteristicPriceToEarnings) {
 		details.EquityValuation = &symbol.EquityValuation{
 			PriceToEarnings:          result.Characteristics.PriceToEarnings,
 			EstimatedPriceToEarnings: result.Characteristics.EstimatedPriceToEarnings,
@@ -315,15 +315,15 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			ForwardEPSGrowth:         result.Characteristics.ForwardEPSGrowth,
 			RevenueRatio:             result.Characteristics.RevenueRatio,
 		}
+	}
 
-		// Bond characteristics from characteristics (conditional — only if bond fields present).
-		if result.Characteristics.HasCharacteristic(extractor.CharacteristicAverageCoupon) {
-			details.BondCharacteristics = &symbol.BondCharacteristics{
-				AverageCoupon:   result.Characteristics.AverageCoupon,
-				AverageMaturity: result.Characteristics.AverageMaturity,
-				AverageQuality:  result.Characteristics.AverageQuality,
-				AverageDuration: result.Characteristics.AverageDuration,
-			}
+	// Bond characteristics from characteristics (conditional — only if bond fields present).
+	if result.Characteristics != nil && result.Characteristics.HasCharacteristic(extractor.CharacteristicAverageCoupon) {
+		details.BondCharacteristics = &symbol.BondCharacteristics{
+			AverageCoupon:   result.Characteristics.AverageCoupon,
+			AverageMaturity: result.Characteristics.AverageMaturity,
+			AverageQuality:  result.Characteristics.AverageQuality,
+			AverageDuration: result.Characteristics.AverageDuration,
 		}
 	}
 
