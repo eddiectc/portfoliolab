@@ -23,7 +23,7 @@ func TestRiskMeasures_JSONSerialization(t *testing.T) {
 		},
 		{
 			name: "zero values",
-			rm: &RiskMeasures{},
+			rm:   &RiskMeasures{},
 		},
 		{
 			name: "negative ratios",
@@ -226,6 +226,324 @@ func TestCurrencyDerivativeEntry_JSONSerialization(t *testing.T) {
 					t.Errorf("[%d] Percent: got %f, want %f", i, decoded[i].Percent, want.Percent)
 				}
 			}
+		})
+	}
+}
+
+func TestTopHolding_JSONSerialization(t *testing.T) {
+	couponRate := 3.5
+	finalMaturity := "2032-06-15"
+
+	cases := []struct {
+		name    string
+		holding TopHolding
+		check   func(t *testing.T, decoded TopHolding)
+	}{
+		{
+			name: "equity holding with security type",
+			holding: TopHolding{
+				Symbol:       "AAPL",
+				Name:         "Apple Inc.",
+				Percent:      1.399,
+				SecurityType: "Common Stock",
+				AsOfDate:     "2026-03-31",
+			},
+			check: func(t *testing.T, decoded TopHolding) {
+				if decoded.SecurityType != "Common Stock" {
+					t.Errorf("SecurityType: got %q, want %q", decoded.SecurityType, "Common Stock")
+				}
+				if decoded.AsOfDate != "2026-03-31" {
+					t.Errorf("AsOfDate: got %q, want %q", decoded.AsOfDate, "2026-03-31")
+				}
+				if decoded.CouponRate != nil {
+					t.Errorf("CouponRate: got %v, want nil", decoded.CouponRate)
+				}
+				if decoded.FinalMaturity != nil {
+					t.Errorf("FinalMaturity: got %v, want nil", decoded.FinalMaturity)
+				}
+			},
+		},
+		{
+			name: "bond holding with coupon and maturity",
+			holding: TopHolding{
+				Symbol:        "US912828Z123",
+				Name:          "US Treasury Note",
+				Percent:       0.5,
+				SecurityType:  "Government Bond",
+				CouponRate:    &couponRate,
+				FinalMaturity: &finalMaturity,
+				AsOfDate:      "2026-03-31",
+			},
+			check: func(t *testing.T, decoded TopHolding) {
+				if decoded.CouponRate == nil {
+					t.Fatal("CouponRate is nil")
+				} else if *decoded.CouponRate != 3.5 {
+					t.Errorf("CouponRate: got %v, want 3.5", *decoded.CouponRate)
+				}
+				if decoded.FinalMaturity == nil {
+					t.Fatal("FinalMaturity is nil")
+				} else if *decoded.FinalMaturity != "2032-06-15" {
+					t.Errorf("FinalMaturity: got %q, want %q", *decoded.FinalMaturity, "2032-06-15")
+				}
+			},
+		},
+		{
+			name: "minimal holding (backward compat)",
+			holding: TopHolding{
+				Symbol:  "TEST",
+				Name:    "Test",
+				Percent: 0.1,
+			},
+			check: func(t *testing.T, decoded TopHolding) {
+				if decoded.SecurityType != "" {
+					t.Errorf("SecurityType: got %q, want empty", decoded.SecurityType)
+				}
+				if decoded.CouponRate != nil {
+					t.Error("CouponRate: want nil")
+				}
+				if decoded.FinalMaturity != nil {
+					t.Error("FinalMaturity: want nil")
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(tc.holding)
+			if err != nil {
+				t.Fatalf("marshal error: %v", err)
+			}
+			var decoded TopHolding
+			if err := json.Unmarshal(data, &decoded); err != nil {
+				t.Fatalf("unmarshal error: %v", err)
+			}
+			tc.check(t, decoded)
+		})
+	}
+}
+
+func TestSectorWeighting_JSONSerialization(t *testing.T) {
+	cases := []struct {
+		name  string
+		sw    SectorWeighting
+		check func(t *testing.T, decoded SectorWeighting)
+	}{
+		{
+			name: "with date",
+			sw: SectorWeighting{
+				Sector:  "Technology",
+				Percent: 25.5,
+				Date:    "2026-03-31",
+			},
+			check: func(t *testing.T, decoded SectorWeighting) {
+				if decoded.Date != "2026-03-31" {
+					t.Errorf("Date: got %q, want %q", decoded.Date, "2026-03-31")
+				}
+			},
+		},
+		{
+			name: "without date (backward compat)",
+			sw: SectorWeighting{
+				Sector:  "Financials",
+				Percent: 15.0,
+			},
+			check: func(t *testing.T, decoded SectorWeighting) {
+				if decoded.Date != "" {
+					t.Errorf("Date: got %q, want empty", decoded.Date)
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(tc.sw)
+			if err != nil {
+				t.Fatalf("marshal error: %v", err)
+			}
+			var decoded SectorWeighting
+			if err := json.Unmarshal(data, &decoded); err != nil {
+				t.Fatalf("unmarshal error: %v", err)
+			}
+			tc.check(t, decoded)
+		})
+	}
+}
+
+func TestGeographicAllocation_JSONSerialization(t *testing.T) {
+	cases := []struct {
+		name  string
+		ga    GeographicAllocation
+		check func(t *testing.T, decoded GeographicAllocation)
+	}{
+		{
+			name: "with region and date",
+			ga: GeographicAllocation{
+				Country:    "United States",
+				Percent:    60.5,
+				RegionName: "Developed Markets",
+				RegionCode: "DM",
+				Date:       "2026-03-31",
+			},
+			check: func(t *testing.T, decoded GeographicAllocation) {
+				if decoded.RegionName != "Developed Markets" {
+					t.Errorf("RegionName: got %q, want %q", decoded.RegionName, "Developed Markets")
+				}
+				if decoded.RegionCode != "DM" {
+					t.Errorf("RegionCode: got %q, want %q", decoded.RegionCode, "DM")
+				}
+				if decoded.Date != "2026-03-31" {
+					t.Errorf("Date: got %q, want %q", decoded.Date, "2026-03-31")
+				}
+			},
+		},
+		{
+			name: "without region or date (backward compat)",
+			ga: GeographicAllocation{
+				Country: "Japan",
+				Percent: 5.0,
+			},
+			check: func(t *testing.T, decoded GeographicAllocation) {
+				if decoded.RegionName != "" {
+					t.Errorf("RegionName: got %q, want empty", decoded.RegionName)
+				}
+				if decoded.RegionCode != "" {
+					t.Errorf("RegionCode: got %q, want empty", decoded.RegionCode)
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(tc.ga)
+			if err != nil {
+				t.Fatalf("marshal error: %v", err)
+			}
+			var decoded GeographicAllocation
+			if err := json.Unmarshal(data, &decoded); err != nil {
+				t.Fatalf("unmarshal error: %v", err)
+			}
+			tc.check(t, decoded)
+		})
+	}
+}
+
+func TestEquityValuation_JSONSerialization(t *testing.T) {
+	cases := []struct {
+		name  string
+		ev    EquityValuation
+		check func(t *testing.T, decoded EquityValuation)
+	}{
+		{
+			name: "with new fields",
+			ev: EquityValuation{
+				PriceToEarnings:  18.5,
+				PriceToBook:      3.2,
+				MedianMarketCap:  500.0,
+				ForwardROE:       15.3,
+				ForwardEPSGrowth: 8.7,
+				RevenueRatio:     1.05,
+			},
+			check: func(t *testing.T, decoded EquityValuation) {
+				if decoded.MedianMarketCap != 500.0 {
+					t.Errorf("MedianMarketCap: got %f, want 500.0", decoded.MedianMarketCap)
+				}
+				if decoded.ForwardROE != 15.3 {
+					t.Errorf("ForwardROE: got %f, want 15.3", decoded.ForwardROE)
+				}
+				if decoded.ForwardEPSGrowth != 8.7 {
+					t.Errorf("ForwardEPSGrowth: got %f, want 8.7", decoded.ForwardEPSGrowth)
+				}
+				if decoded.RevenueRatio != 1.05 {
+					t.Errorf("RevenueRatio: got %f, want 1.05", decoded.RevenueRatio)
+				}
+			},
+		},
+		{
+			name: "without new fields (backward compat)",
+			ev: EquityValuation{
+				PriceToEarnings: 15.0,
+				PriceToBook:     2.5,
+			},
+			check: func(t *testing.T, decoded EquityValuation) {
+				if decoded.MedianMarketCap != 0 {
+					t.Errorf("MedianMarketCap: got %f, want 0", decoded.MedianMarketCap)
+				}
+				if decoded.ForwardROE != 0 {
+					t.Errorf("ForwardROE: got %f, want 0", decoded.ForwardROE)
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(tc.ev)
+			if err != nil {
+				t.Fatalf("marshal error: %v", err)
+			}
+			var decoded EquityValuation
+			if err := json.Unmarshal(data, &decoded); err != nil {
+				t.Fatalf("unmarshal error: %v", err)
+			}
+			tc.check(t, decoded)
+		})
+	}
+}
+
+func TestBondCharacteristics_JSONSerialization(t *testing.T) {
+	cases := []struct {
+		name  string
+		bc    BondCharacteristics
+		check func(t *testing.T, decoded BondCharacteristics)
+	}{
+		{
+			name: "typical bond characteristics",
+			bc: BondCharacteristics{
+				AverageCoupon:   3.25,
+				AverageMaturity: 7.5,
+				AverageQuality:  7.8,
+				AverageDuration: 6.2,
+			},
+			check: func(t *testing.T, decoded BondCharacteristics) {
+				if decoded.AverageCoupon != 3.25 {
+					t.Errorf("AverageCoupon: got %f, want 3.25", decoded.AverageCoupon)
+				}
+				if decoded.AverageMaturity != 7.5 {
+					t.Errorf("AverageMaturity: got %f, want 7.5", decoded.AverageMaturity)
+				}
+				if decoded.AverageQuality != 7.8 {
+					t.Errorf("AverageQuality: got %f, want 7.8", decoded.AverageQuality)
+				}
+				if decoded.AverageDuration != 6.2 {
+					t.Errorf("AverageDuration: got %f, want 6.2", decoded.AverageDuration)
+				}
+			},
+		},
+		{
+			name: "zero values",
+			bc:   BondCharacteristics{},
+			check: func(t *testing.T, decoded BondCharacteristics) {
+				if decoded.AverageCoupon != 0 {
+					t.Errorf("all fields should be zero")
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(tc.bc)
+			if err != nil {
+				t.Fatalf("marshal error: %v", err)
+			}
+			var decoded BondCharacteristics
+			if err := json.Unmarshal(data, &decoded); err != nil {
+				t.Fatalf("unmarshal error: %v", err)
+			}
+			tc.check(t, decoded)
 		})
 	}
 }
