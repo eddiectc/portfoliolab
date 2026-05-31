@@ -1068,6 +1068,241 @@ func TestSymbolDetailsRepository_CurrencyDerivativesAllocation_RoundTrip(t *test
 	}
 }
 
+func TestSymbolDetailsRepository_VanguardFields_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	couponRate := 3.25
+	finalMaturity := "2035-06-15"
+
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VWRL.L",
+		ShortName:      "Vanguard FTSE All-World",
+		LongName:       "Vanguard FTSE All-World UCITS ETF USD Distributing",
+		Exchange:       "LSE",
+		Currency:       "GBP",
+		QuoteType:      "ETF",
+		FetchedAt:      time.Now(),
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 3.8, SecurityType: "Common Stock", AsOfDate: "2024-03-29"},
+			{Symbol: "US09200A99", Name: "US Treasury Note 2.5%", Percent: 0.5, SecurityType: "Government Bond", CouponRate: &couponRate, FinalMaturity: &finalMaturity, AsOfDate: "2024-03-29"},
+		},
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "technology", Percent: 22.5, Date: "2024-03-29"},
+			{Sector: "financial_services", Percent: 15.3, Date: "2024-03-29"},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 58.2, RegionName: "North America", RegionCode: "NA", Date: "2024-03-29"},
+			{Country: "United Kingdom", Percent: 4.1, RegionName: "Europe", RegionCode: "EU", Date: "2024-03-29"},
+			{Country: "China", Percent: 3.0, RegionName: "Asia Pacific", RegionCode: "AP", Date: "2024-03-29"},
+		},
+		EquityValuation: &symbol.EquityValuation{
+			PriceToEarnings:      21.5,
+			PriceToBook:          4.2,
+			MedianMarketCap:      1850.0,
+			ForwardROE:           18.3,
+			ForwardEPSGrowth:     12.1,
+			RevenueRatio:         1.05,
+		},
+		BondCharacteristics: &symbol.BondCharacteristics{
+			AverageCoupon:   3.15,
+			AverageMaturity: 7.5,
+			AverageQuality:  6.8,
+			AverageDuration: 6.2,
+		},
+		ExtractorAsOfDate: time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "VWRL.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+
+	// Verify holdings with new fields
+	if len(got.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(got.TopHoldings))
+	}
+	if got.TopHoldings[0].SecurityType != "Common Stock" {
+		t.Errorf("expected SecurityType 'Common Stock', got %q", got.TopHoldings[0].SecurityType)
+	}
+	if got.TopHoldings[0].AsOfDate != "2024-03-29" {
+		t.Errorf("expected AsOfDate '2024-03-29', got %q", got.TopHoldings[0].AsOfDate)
+	}
+	if got.TopHoldings[1].SecurityType != "Government Bond" {
+		t.Errorf("expected SecurityType 'Government Bond', got %q", got.TopHoldings[1].SecurityType)
+	}
+	if got.TopHoldings[1].CouponRate == nil || *got.TopHoldings[1].CouponRate != 3.25 {
+		t.Errorf("expected CouponRate 3.25, got %v", got.TopHoldings[1].CouponRate)
+	}
+	if got.TopHoldings[1].FinalMaturity == nil || *got.TopHoldings[1].FinalMaturity != "2035-06-15" {
+		t.Errorf("expected FinalMaturity '2035-06-15', got %v", got.TopHoldings[1].FinalMaturity)
+	}
+
+	// Verify sectors with Date
+	if len(got.SectorWeightings) != 2 {
+		t.Fatalf("expected 2 sectors, got %d", len(got.SectorWeightings))
+	}
+	if got.SectorWeightings[0].Date != "2024-03-29" {
+		t.Errorf("expected sector Date '2024-03-29', got %q", got.SectorWeightings[0].Date)
+	}
+
+	// Verify countries with region fields
+	if len(got.GeographicAllocations) != 3 {
+		t.Fatalf("expected 3 countries, got %d", len(got.GeographicAllocations))
+	}
+	if got.GeographicAllocations[0].RegionName != "North America" {
+		t.Errorf("expected RegionName 'North America', got %q", got.GeographicAllocations[0].RegionName)
+	}
+	if got.GeographicAllocations[0].RegionCode != "NA" {
+		t.Errorf("expected RegionCode 'NA', got %q", got.GeographicAllocations[0].RegionCode)
+	}
+	if got.GeographicAllocations[0].Date != "2024-03-29" {
+		t.Errorf("expected Date '2024-03-29', got %q", got.GeographicAllocations[0].Date)
+	}
+
+	// Verify expanded equity valuation
+	if got.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if got.EquityValuation.MedianMarketCap != 1850.0 {
+		t.Errorf("expected MedianMarketCap 1850.0, got %f", got.EquityValuation.MedianMarketCap)
+	}
+	if got.EquityValuation.ForwardROE != 18.3 {
+		t.Errorf("expected ForwardROE 18.3, got %f", got.EquityValuation.ForwardROE)
+	}
+	if got.EquityValuation.ForwardEPSGrowth != 12.1 {
+		t.Errorf("expected ForwardEPSGrowth 12.1, got %f", got.EquityValuation.ForwardEPSGrowth)
+	}
+	if got.EquityValuation.RevenueRatio != 1.05 {
+		t.Errorf("expected RevenueRatio 1.05, got %f", got.EquityValuation.RevenueRatio)
+	}
+
+	// Verify bond characteristics
+	if got.BondCharacteristics == nil {
+		t.Fatal("expected non-nil BondCharacteristics")
+	}
+	if got.BondCharacteristics.AverageCoupon != 3.15 {
+		t.Errorf("expected AverageCoupon 3.15, got %f", got.BondCharacteristics.AverageCoupon)
+	}
+	if got.BondCharacteristics.AverageMaturity != 7.5 {
+		t.Errorf("expected AverageMaturity 7.5, got %f", got.BondCharacteristics.AverageMaturity)
+	}
+	if got.BondCharacteristics.AverageQuality != 6.8 {
+		t.Errorf("expected AverageQuality 6.8, got %f", got.BondCharacteristics.AverageQuality)
+	}
+	if got.BondCharacteristics.AverageDuration != 6.2 {
+		t.Errorf("expected AverageDuration 6.2, got %f", got.BondCharacteristics.AverageDuration)
+	}
+
+	// Verify ExtractorAsOfDate
+	if got.ExtractorAsOfDate.IsZero() {
+		t.Error("expected non-zero ExtractorAsOfDate")
+	}
+}
+
+func TestSymbolDetailsRepository_BackwardCompatibility_WisdomTreeData(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	// Simulate old WisdomTree-style JSON (without new Vanguard fields)
+	// Uses PascalCase keys — Go's default json.Marshal behavior (no explicit tags)
+	oldHoldings := `[{"Symbol":"BE","Name":"Bloom Energy Corp","Percent":1.4},{"Symbol":"TSLA","Name":"Tesla Inc","Percent":2.5}]`
+	oldSectors := `[{"Sector":"technology","Percent":21.2},{"Sector":"industrials","Percent":36.4}]`
+	oldCountries := `[{"Country":"United States","Percent":45.2},{"Country":"Japan","Percent":8.1}]`
+	oldEquityVal := `{"PriceToEarnings":0.035,"PriceToBook":0.274}`
+
+	// Insert raw JSON directly (simulating old data already in DB)
+	_, err := db.Exec(`
+		INSERT INTO symbol_details (internal_symbol, short_name, quote_type, top_holdings, sector_weightings, geographic_allocations, equity_valuation, fetched_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, datetime('now'))
+	`, "WMGG.L", "WisdomTree Megatrends", "ETF", oldHoldings, oldSectors, oldCountries, oldEquityVal)
+	if err != nil {
+		t.Fatalf("insert old data: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+
+	// Verify old fields still deserialize correctly
+	if got.ShortName != "WisdomTree Megatrends" {
+		t.Errorf("expected ShortName 'WisdomTree Megatrends', got %q", got.ShortName)
+	}
+	if got.QuoteType != "ETF" {
+		t.Errorf("expected QuoteType 'ETF', got %q", got.QuoteType)
+	}
+
+	// Holdings: old fields present, new fields empty/nil
+	if len(got.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(got.TopHoldings))
+	}
+	if got.TopHoldings[0].Symbol != "BE" {
+		t.Errorf("expected Symbol 'BE', got %q", got.TopHoldings[0].Symbol)
+	}
+	if got.TopHoldings[0].Percent != 1.4 {
+		t.Errorf("expected Percent 1.4, got %f", got.TopHoldings[0].Percent)
+	}
+	if got.TopHoldings[0].SecurityType != "" {
+		t.Errorf("expected empty SecurityType (backward compat), got %q", got.TopHoldings[0].SecurityType)
+	}
+	if got.TopHoldings[0].CouponRate != nil {
+		t.Errorf("expected nil CouponRate (backward compat), got %v", got.TopHoldings[0].CouponRate)
+	}
+
+	// Sectors: old fields present, Date empty
+	if len(got.SectorWeightings) != 2 {
+		t.Fatalf("expected 2 sectors, got %d", len(got.SectorWeightings))
+	}
+	if got.SectorWeightings[0].Sector != "technology" {
+		t.Errorf("expected Sector 'technology', got %q", got.SectorWeightings[0].Sector)
+	}
+	if got.SectorWeightings[0].Percent != 21.2 {
+		t.Errorf("expected Percent 21.2, got %f", got.SectorWeightings[0].Percent)
+	}
+	if got.SectorWeightings[0].Date != "" {
+		t.Errorf("expected empty Date (backward compat), got %q", got.SectorWeightings[0].Date)
+	}
+
+	// Countries: old fields present, region fields empty
+	if len(got.GeographicAllocations) != 2 {
+		t.Fatalf("expected 2 countries, got %d", len(got.GeographicAllocations))
+	}
+	if got.GeographicAllocations[0].Country != "United States" {
+		t.Errorf("expected Country 'United States', got %q", got.GeographicAllocations[0].Country)
+	}
+	if got.GeographicAllocations[0].Percent != 45.2 {
+		t.Errorf("expected Percent 45.2, got %f", got.GeographicAllocations[0].Percent)
+	}
+	if got.GeographicAllocations[0].RegionName != "" {
+		t.Errorf("expected empty RegionName (backward compat), got %q", got.GeographicAllocations[0].RegionName)
+	}
+	if got.GeographicAllocations[0].RegionCode != "" {
+		t.Errorf("expected empty RegionCode (backward compat), got %q", got.GeographicAllocations[0].RegionCode)
+	}
+
+	// EquityValuation: old fields present, new fields zero
+	if got.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if got.EquityValuation.PriceToEarnings != 0.035 {
+		t.Errorf("expected PriceToEarnings 0.035, got %f", got.EquityValuation.PriceToEarnings)
+	}
+	if got.EquityValuation.MedianMarketCap != 0 {
+		t.Errorf("expected zero MedianMarketCap (backward compat), got %f", got.EquityValuation.MedianMarketCap)
+	}
+
+	// BondCharacteristics: not set in old data
+	if got.BondCharacteristics != nil {
+		t.Errorf("expected nil BondCharacteristics (backward compat), got %+v", got.BondCharacteristics)
+	}
+}
+
 func TestSymbolDetailsRepository_CurrencyDerivativesAllocation_NilStoredAsNull(t *testing.T) {
 	db := setupSymbolDetailsDB(t)
 	repo := NewSymbolDetailsRepository(db)

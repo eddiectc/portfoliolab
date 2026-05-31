@@ -151,47 +151,103 @@ func toSQLNullTime(t time.Time) sql.NullString {
 
 // toSQLNullJSON marshals a value to JSON and returns sql.NullString.
 // Returns empty (invalid) NullString if input is nil/empty.
-func toSQLNullJSON(v interface{}) sql.NullString {
+// Returns an error if json.Marshal fails.
+func toSQLNullJSON(v interface{}) (sql.NullString, error) {
 	if v == nil {
-		return sql.NullString{}
+		return sql.NullString{}, nil
 	}
 	b, err := json.Marshal(v)
 	if err != nil {
-		return sql.NullString{}
+		return sql.NullString{}, err
 	}
 	if len(b) == 0 || string(b) == "null" {
-		return sql.NullString{}
+		return sql.NullString{}, nil
 	}
-	return sql.NullString{String: string(b), Valid: true}
+	return sql.NullString{String: string(b), Valid: true}, nil
 }
 
 // Upsert inserts or updates symbol details for a symbol.
 func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.SymbolDetails) error {
 	now := time.Now()
-	_, err := r.q.InsertSymbolDetails(ctx, r.db, queries.InsertSymbolDetailsParams{
-		InternalSymbol:        details.InternalSymbol,
-		ShortName:             toSQLNullString(details.ShortName),
-		LongName:              toSQLNullString(details.LongName),
-		Exchange:              toSQLNullString(details.Exchange),
-		Currency:              toSQLNullString(details.Currency),
-		QuoteType:             toSQLNullString(details.QuoteType),
-		Sector:                toSQLNullString(details.Sector),
-		TopHoldings:                 toSQLNullJSON(details.TopHoldings),
-		SectorWeightings:            toSQLNullJSON(details.SectorWeightings),
-		AggregatePositions:          toSQLNullJSON(details.AggregatePositions),
-		FundProfile:                 toSQLNullJSON(details.FundProfile),
-		EquityValuation:             toSQLNullJSON(details.EquityValuation),
-		GeographicAllocations:       toSQLNullJSON(details.GeographicAllocations),
-		MarketCapBreakdown:          toSQLNullJSON(details.MarketCapBreakdown),
-		Themes:                      toSQLNullJSON(details.Themes),
-		RiskMeasures:                toSQLNullJSON(details.RiskMeasures),
-		AssetClassAllocation:        toSQLNullJSON(details.AssetClassAllocation),
-		EquityDerivativesByRegion:   toSQLNullJSON(details.EquityDerivativesByRegion),
-		CurrencyDerivativesAllocation: toSQLNullJSON(details.CurrencyDerivativesAllocation),
-		BondCharacteristics:           toSQLNullJSON(details.BondCharacteristics),
-		ExtractorAsOfDate:             toSQLNullTime(details.ExtractorAsOfDate),
-		FetchedAt:             details.FetchedAt.Format(time.RFC3339),
-		UpdatedAt:             now.Format(time.RFC3339),
+
+	// Marshal JSON fields — fail early with named field on error
+	topHoldings, err := toSQLNullJSON(details.TopHoldings)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal top_holdings: %w", details.InternalSymbol, err)
+	}
+	sectorWeightings, err := toSQLNullJSON(details.SectorWeightings)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal sector_weightings: %w", details.InternalSymbol, err)
+	}
+	aggregatePositions, err := toSQLNullJSON(details.AggregatePositions)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal aggregate_positions: %w", details.InternalSymbol, err)
+	}
+	fundProfile, err := toSQLNullJSON(details.FundProfile)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal fund_profile: %w", details.InternalSymbol, err)
+	}
+	equityValuation, err := toSQLNullJSON(details.EquityValuation)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal equity_valuation: %w", details.InternalSymbol, err)
+	}
+	geographicAllocations, err := toSQLNullJSON(details.GeographicAllocations)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal geographic_allocations: %w", details.InternalSymbol, err)
+	}
+	marketCapBreakdown, err := toSQLNullJSON(details.MarketCapBreakdown)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal market_cap_breakdown: %w", details.InternalSymbol, err)
+	}
+	themes, err := toSQLNullJSON(details.Themes)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal themes: %w", details.InternalSymbol, err)
+	}
+	riskMeasures, err := toSQLNullJSON(details.RiskMeasures)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal risk_measures: %w", details.InternalSymbol, err)
+	}
+	assetClassAllocation, err := toSQLNullJSON(details.AssetClassAllocation)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal asset_class_allocation: %w", details.InternalSymbol, err)
+	}
+	equityDerivativesByRegion, err := toSQLNullJSON(details.EquityDerivativesByRegion)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal equity_derivatives_by_region: %w", details.InternalSymbol, err)
+	}
+	currencyDerivativesAllocation, err := toSQLNullJSON(details.CurrencyDerivativesAllocation)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal currency_derivatives_allocation: %w", details.InternalSymbol, err)
+	}
+	bondCharacteristics, err := toSQLNullJSON(details.BondCharacteristics)
+	if err != nil {
+		return fmt.Errorf("upsert symbol details for %s: marshal bond_characteristics: %w", details.InternalSymbol, err)
+	}
+
+	_, err = r.q.InsertSymbolDetails(ctx, r.db, queries.InsertSymbolDetailsParams{
+		InternalSymbol:              details.InternalSymbol,
+		ShortName:                   toSQLNullString(details.ShortName),
+		LongName:                    toSQLNullString(details.LongName),
+		Exchange:                    toSQLNullString(details.Exchange),
+		Currency:                    toSQLNullString(details.Currency),
+		QuoteType:                   toSQLNullString(details.QuoteType),
+		Sector:                      toSQLNullString(details.Sector),
+		TopHoldings:                 topHoldings,
+		SectorWeightings:            sectorWeightings,
+		AggregatePositions:          aggregatePositions,
+		FundProfile:                 fundProfile,
+		EquityValuation:             equityValuation,
+		GeographicAllocations:       geographicAllocations,
+		MarketCapBreakdown:          marketCapBreakdown,
+		Themes:                      themes,
+		RiskMeasures:                riskMeasures,
+		AssetClassAllocation:        assetClassAllocation,
+		EquityDerivativesByRegion:   equityDerivativesByRegion,
+		CurrencyDerivativesAllocation: currencyDerivativesAllocation,
+		BondCharacteristics:         bondCharacteristics,
+		ExtractorAsOfDate:           toSQLNullTime(details.ExtractorAsOfDate),
+		FetchedAt:                   details.FetchedAt.Format(time.RFC3339),
+		UpdatedAt:                   now.Format(time.RFC3339),
 	})
 	if err != nil {
 		return fmt.Errorf("upsert symbol details for %s: %w", details.InternalSymbol, err)
