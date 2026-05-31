@@ -85,6 +85,10 @@ type FundProfile struct {
 	Isin                   string  // ISIN code (e.g. "LU2951555585")
 	ShareClassName         string  // share class name (e.g. "R USD UCITS ETF")
 	OngoingCharges         float64 // ongoing charges ratio percentage (e.g. 0.75)
+	Benchmark              string  // benchmark index name (e.g. "FTSE All-World Index")
+	AssetClassification    string  // asset class (e.g. "Equity", "Fixed Income")
+	DistributionStrategy   string  // distribution strategy (e.g. "INCM", "ACUM")
+	MarketRegionFocus      string  // market region focus (e.g. "Global", "Europe")
 }
 
 // Holding is a single security holding with weight percentage.
@@ -152,6 +156,38 @@ type FundCharacteristics struct {
 	AverageMaturity float64 // average maturity in years
 	AverageQuality  float64 // average quality rating
 	AverageDuration float64 // average duration
+	// FieldsPresent tracks which fields were actually populated by the parser.
+	// A zero value means the field was not present in the source data (distinct
+	// from the field being genuinely zero).
+	FieldsPresent CharacteristicsFieldsMask
+}
+
+// CharacteristicsFieldsMask tracks which FundCharacteristics fields were
+// populated by the parser. A zero value means the field was not present
+// in the source data (distinct from the field being genuinely zero).
+type CharacteristicsFieldsMask uint16
+
+const (
+	CharacteristicPriceToEarnings CharacteristicsFieldsMask = 1 << iota
+	CharacteristicEstimatedPriceToEarnings
+	CharacteristicPriceToBook
+	CharacteristicPriceToCashflow
+	CharacteristicPriceToSales
+	CharacteristicDividendYield
+	CharacteristicMedianMarketCap
+	CharacteristicForwardROE
+	CharacteristicForwardEPSGrowth
+	CharacteristicRevenueRatio
+	CharacteristicAverageCoupon
+	CharacteristicAverageMaturity
+	CharacteristicAverageQuality
+	CharacteristicAverageDuration
+)
+
+// HasCharacteristic reports whether the given characteristic field was
+// present in the source data.
+func (fc *FundCharacteristics) HasCharacteristic(field CharacteristicsFieldsMask) bool {
+	return fc.FieldsPresent&field != 0
 }
 
 // RiskMeasures contains risk metrics from fund factsheets.

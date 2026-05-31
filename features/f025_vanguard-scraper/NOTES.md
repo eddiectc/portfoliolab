@@ -12,7 +12,7 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 2. **GraphQL as primary data source**: Holdings (paginated), sector/country allocation (with benchmark), and fund characteristics.
 3. **Holdings pagination**: 1500 items per page, `lastItemKey` is a JSON string. Tested with 4070 holdings (3 pages).
 4. **All-or-nothing**: If any query fails, the entire extraction fails. Partial data is not persisted.
-5. **Benchmark comparison excluded from types**: The spec (Stories 3-4) requires `benchmarkPercent` on sector allocation and `benchmarkMktPercent` on country allocation. These fields were deliberately excluded from the type definitions — the Vanguard GraphQL API returns benchmark data, but storing it alongside fund data in the same struct adds complexity without clear display benefit. If needed later, benchmark data can be stored separately or added as optional fields.
+5. **Benchmark comparison excluded from types**: The spec (Stories 3-4) requires `benchmarkPercent` on sector allocation and `benchmarkMktPercent` on country allocation. These fields are parsed from the API response but deliberately excluded from the type definitions. The benchmark data is available in the GraphQL response but storing it alongside fund data adds complexity without clear display benefit. The decision is to keep fund and benchmark data separate. If benchmark comparison display is needed later, it can be added as a separate feature.
 6. **Fund characteristics**: Both equity-specific (P/E, P/B, market cap) and bond-specific (coupon, maturity, duration) codes available. Null for non-applicable types.
 7. **Market price history excluded**: The spec (Story 5) requires market prices per exchange listing alongside NAV. The plan explicitly excludes this — market/historical prices continue to come from Yahoo Finance. NAV data flows through the existing `market_data` path with `data_type='nav'`.
 
@@ -33,6 +33,16 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 - Updated `symbol_details_repo_test.go`: added `bond_characteristics` column to in-memory test schema
 - All unit tests pass; integration test `TestSymbolDetails_CreateAndEnrich` is a pre-existing flaky race condition (async goroutine)
 - Fixed: `tests/integration/portfolio_test.go:setupTestDB()` was missing the `bond_characteristics` column in its inline schema (causing 3 integration test failures). Added column. Removed fragile `goose_db_version` table from inline schema — integration tests don't run goose migrations, so the version marker was just dead code waiting to drift.
+
+## Task 3 Completion (2026-05-31)
+
+- Created `internal/domain/extractor/vanguard/` package with 4 source files + 3 test files
+- **client.go**: Standard `http.Client` (no CycleTLS — Vanguard has no Cloudflare). REST GET + GraphQL POST with rate limiting (1s between major queries, 500ms between pagination pages). Injectable fetch functions for testing.
+- **matcher.go**: Matches `vanguardinvestor.co.uk` domain patterns.
+- **parsers.go**: 8 parser functions covering REST Phase 1 (fund identity + profile) and GraphQL Phase 2 (holdings, sectors, countries, characteristics, NAV). GraphQL query strings defined as constants.
+- **extractor.go**: Two-phase extraction with atomic failure. Holdings pagination loop handles `lastItemKey` JSON string. All GraphQL queries use `portId` resolved from Phase 1.
+- **Tests**: 42 tests total — `TestURLMatcher_Match` (11 cases), `TestParseFundIdentity` (5 cases), `TestParseFundProfile` (3 cases), `TestParseHoldings` (5 cases), `TestParseSectorAllocation` (3 cases), `TestParseCountryAllocation` (3 cases), `TestParseFundCharacteristics` (3 cases), `TestParseNavHistory` (4 cases), `TestExtractSlug` (6 cases), `TestExtractor_Extract` (8 cases including Phase 1/2 failure, empty holdings, context cancellation, HTTP error).
+- All existing extractor tests still pass.
 
 ## Test Fund
 
