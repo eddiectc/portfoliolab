@@ -115,6 +115,12 @@ func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSy
 		}
 	}
 
+	// Always fetch Yahoo for Exchange/Currency (source of truth for both).
+	yahooDetails, err := s.fetcher.FetchSymbolDetails(ctx, marketDataSymbol)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("fetch Yahoo details for %s: %w", marketDataSymbol, err)
+	}
+
 	// Route through extractor if URL is configured and dispatcher available.
 	if sourceURL != "" && s.dispatcher != nil {
 		result, err := s.dispatcher.Dispatch(ctx, sourceURL)
@@ -122,16 +128,15 @@ func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSy
 			return nil, nil, "", fmt.Errorf("extract from %s: %w", sourceURL, err)
 		}
 		details := extractResultToSymbolDetails(result, internalSymbol)
+		// Exchange/Currency always from Yahoo, never from extractor.
+		details.Exchange = yahooDetails.Exchange
+		details.Currency = yahooDetails.Currency
 		return details, result.NavHistory, result.Source, nil
 	}
 
 	// Default: Yahoo Finance.
-	details, err := s.fetcher.FetchSymbolDetails(ctx, marketDataSymbol)
-	if err != nil {
-		return nil, nil, "", err
-	}
-	details.InternalSymbol = internalSymbol
-	return details, nil, "yahoo", nil
+	yahooDetails.InternalSymbol = internalSymbol
+	return yahooDetails, nil, "yahoo", nil
 }
 
 // storeNavHistory stores NAV data points in the market_data table.

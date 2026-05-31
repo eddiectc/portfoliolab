@@ -248,7 +248,13 @@ func TestService_FetchAndStore_PartialData(t *testing.T) {
 // --- Extractor Routing Tests ---
 
 func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
-	svc, repo, _ := newTestService()
+	svc, repo, fetcher := newTestService()
+
+	// Yahoo provides Exchange/Currency (source of truth)
+	fetcher.details = &symbol.SymbolDetails{
+		Exchange: "LSE",
+		Currency: "USD",
+	}
 
 	// Set up extractor with WisdomTree-style data
 	reg := extractor.NewRegistry()
@@ -350,6 +356,13 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 	} else if !details.ExtractorAsOfDate.Equal(time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC)) {
 		t.Errorf("expected ExtractorAsOfDate 2024-03-29, got %v", details.ExtractorAsOfDate)
 	}
+	// Exchange/Currency always from Yahoo, never from extractor.
+	if details.Exchange != "LSE" {
+		t.Errorf("expected Exchange 'LSE' (from Yahoo), got %q", details.Exchange)
+	}
+	if details.Currency != "USD" {
+		t.Errorf("expected Currency 'USD' (from Yahoo), got %q", details.Currency)
+	}
 }
 
 func TestService_FetchAndStore_UsesYahoo_WhenNoURL(t *testing.T) {
@@ -388,7 +401,13 @@ func TestService_FetchAndStore_UsesYahoo_WhenNoURL(t *testing.T) {
 }
 
 func TestService_FetchAndStore_RoutesToExtractor_WhenDispatcherSet(t *testing.T) {
-	svc, repo, _ := newTestService()
+	svc, repo, fetcher := newTestService()
+
+	// Yahoo provides Exchange/Currency
+	fetcher.details = &symbol.SymbolDetails{
+		Exchange: "LSE",
+		Currency: "USD",
+	}
 
 	reg := extractor.NewRegistry()
 	mockExt := &mockExtractor{
@@ -419,7 +438,13 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenDispatcherSet(t *testing.T)
 }
 
 func TestService_FetchAndStore_ExtractorError_NotPersisted(t *testing.T) {
-	svc, repo, _ := newTestService()
+	svc, repo, fetcher := newTestService()
+
+	// Yahoo succeeds but extractor fails
+	fetcher.details = &symbol.SymbolDetails{
+		Exchange: "LSE",
+		Currency: "USD",
+	}
 
 	reg := extractor.NewRegistry()
 	mockExt := &mockExtractor{
@@ -451,7 +476,13 @@ func TestService_FetchAndStore_ExtractorError_NotPersisted(t *testing.T) {
 // --- NAV History Tests ---
 
 func TestService_FetchAndStore_NAVHistoryStored(t *testing.T) {
-	svc, _, _ := newTestService()
+	svc, _, fetcher := newTestService()
+
+	// Yahoo provides Exchange/Currency
+	fetcher.details = &symbol.SymbolDetails{
+		Exchange: "LSE",
+		Currency: "USD",
+	}
 
 	reg := extractor.NewRegistry()
 	mockExt := &mockExtractor{
@@ -507,7 +538,13 @@ func TestService_FetchAndStore_NAVHistoryStored(t *testing.T) {
 }
 
 func TestService_FetchAndStore_NAVHistoryNotStored_WhenNoMarketDataRepo(t *testing.T) {
-	svc, repo, _ := newTestService()
+	svc, repo, fetcher := newTestService()
+
+	// Yahoo provides Exchange/Currency
+	fetcher.details = &symbol.SymbolDetails{
+		Exchange: "LSE",
+		Currency: "USD",
+	}
 
 	reg := extractor.NewRegistry()
 	mockExt := &mockExtractor{
@@ -566,7 +603,13 @@ func TestService_FetchAndStore_NAVHistoryNotStored_WhenYahooRoute(t *testing.T) 
 }
 
 func TestService_FetchAndStore_NAVHistoryStoreFails(t *testing.T) {
-	svc, _, _ := newTestService()
+	svc, _, fetcher := newTestService()
+
+	// Yahoo provides Exchange/Currency
+	fetcher.details = &symbol.SymbolDetails{
+		Exchange: "LSE",
+		Currency: "USD",
+	}
 
 	reg := extractor.NewRegistry()
 	mockExt := &mockExtractor{
