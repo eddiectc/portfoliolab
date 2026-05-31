@@ -52,7 +52,7 @@ type graphqlRoot struct {
 
 // holdingsResponse is the HoldingDetailsQuery response.
 type holdingsResponse struct {
-	BorHoldings struct {
+	BorHoldings []struct {
 		Holdings struct {
 			TotalHoldings int     `json:"totalHoldings"`
 			LastItemKey   *string `json:"lastItemKey"`
@@ -299,7 +299,10 @@ func ParseHoldings(data []byte) ([]extractor.Holding, string, error) {
 		return nil, "", fmt.Errorf("unmarshal holdings: %w", err)
 	}
 
-	items := resp.BorHoldings.Holdings.Items
+	if len(resp.BorHoldings) == 0 {
+		return []extractor.Holding{}, "", nil
+	}
+	items := resp.BorHoldings[0].Holdings.Items
 	if len(items) == 0 {
 		// Empty holdings — check if effectiveDate is present
 		// If no items at all, we can't determine effectiveDate

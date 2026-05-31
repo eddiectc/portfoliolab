@@ -51,24 +51,26 @@ func TestExtractor_Extract(t *testing.T) {
 
 	// GraphQL responses
 	holdingsData := map[string]interface{}{
-		"borHoldings": map[string]interface{}{
-			"holdings": map[string]interface{}{
-				"totalHoldings": 2,
-				"lastItemKey":   nil,
-				"items": []interface{}{
-					map[string]interface{}{
-						"effectiveDate":           "2026-04-30",
-						"marketValuePercentage":   1.399,
-						"issuerName":              "Apple Inc.",
-						"securityLongDescription": "Apple Inc. Common Stock",
-						"securityType":            "EQ.STOCK",
-					},
-					map[string]interface{}{
-						"effectiveDate":           "2026-04-30",
-						"marketValuePercentage":   0.5,
-						"issuerName":              "Microsoft Corp.",
-						"securityLongDescription": "Microsoft Corp. Common Stock",
-						"securityType":            "EQ.STOCK",
+		"borHoldings": []map[string]interface{}{
+			{
+				"holdings": map[string]interface{}{
+					"totalHoldings": 2,
+					"lastItemKey":   nil,
+					"items": []interface{}{
+						map[string]interface{}{
+							"effectiveDate":           "2026-04-30",
+							"marketValuePercentage":   1.399,
+							"issuerName":              "Apple Inc.",
+							"securityLongDescription": "Apple Inc. Common Stock",
+							"securityType":            "EQ.STOCK",
+						},
+						map[string]interface{}{
+							"effectiveDate":           "2026-04-30",
+							"marketValuePercentage":   0.5,
+							"issuerName":              "Microsoft Corp.",
+							"securityLongDescription": "Microsoft Corp. Common Stock",
+							"securityType":            "EQ.STOCK",
+						},
 					},
 				},
 			},
@@ -326,11 +328,13 @@ func TestExtractor_Extract_EmptyHoldings(t *testing.T) {
 
 	// Empty holdings with no effectiveDate
 	holdingsData := map[string]interface{}{
-		"borHoldings": map[string]interface{}{
-			"holdings": map[string]interface{}{
-				"totalHoldings": 0,
-				"lastItemKey":   nil,
-				"items":         []interface{}{},
+		"borHoldings": []map[string]interface{}{
+			{
+				"holdings": map[string]interface{}{
+					"totalHoldings": 0,
+					"lastItemKey":   nil,
+					"items":         []interface{}{},
+				},
 			},
 		},
 	}
