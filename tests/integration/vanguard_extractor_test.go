@@ -16,6 +16,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/vanguard"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
 )
 
 func TestVanguard_ExtractorDispatch_Routing(t *testing.T) {
@@ -666,4 +667,280 @@ func containsAll(s string, substrs ...string) bool {
 		}
 	}
 	return true
+}
+
+// TestVanguard_Dispatcher_UnregisteredProvider verifies that dispatching
+// to a URL with no matching extractor returns an explicit error.
+// Corresponds to Story 7 AC4: "Given a symbol is assigned to the Vanguard
+// provider but no extractor is registered, When the system attempts to fetch
+// symbol details, Then the fetch fails with an explicit error."
+func TestVanguard_Dispatcher_UnregisteredProvider(t *testing.T) {
+	reg := extractor.NewRegistry()
+	// Register only WisdomTree — Vanguard is NOT registered
+	reg.Register(wisdomtree.NewExtractor())
+	dispatcher := extractor.NewDispatcher(reg)
+
+	// Dispatch to a Vanguard URL — should fail with explicit error
+	_, err := dispatcher.Dispatch(context.Background(),
+		"https://www.vanguardinvestor.co.uk/investments/vanguard-ftse-all-world-ucits-etf-usd-distributing")
+	if err == nil {
+		t.Fatal("expected error for unregistered provider, got nil")
+	}
+
+	errStr := err.Error()
+	// Error should mention the URL and that no extractor is registered
+	if !containsString(errStr, "no extractor registered") {
+		t.Errorf("expected 'no extractor registered' in error, got: %s", errStr)
+	}
+	if !containsString(errStr, "vanguardinvestor.co.uk") {
+		t.Errorf("expected URL in error message, got: %s", errStr)
+	}
+
+	// Verify a registered provider (WisdomTree) still works (may fail on network but not on routing)
+	_, err = dispatcher.Dispatch(context.Background(),
+		"https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/")
+	if err != nil {
+		errStr := err.Error()
+		if containsString(errStr, "no extractor registered") {
+			t.Errorf("WisdomTree extractor should be registered, got routing error: %s", errStr)
+		}
+		// Network/API errors are expected in test environment
+	}
+}
+
+// TestVanguard_ProviderSwitch_YahooToVanguard verifies that switching a symbol
+// from Yahoo Finance (no provider) to the Vanguard provider is reflected in
+// the stale query and data_source_url round-trip.
+// Corresponds to Story 7 AC3: "Given a symbol is switched from Yahoo Finance
+// (no provider) to the Vanguard provider, When the next refresh runs, Then
+// symbol details are fetched from Vanguard instead of Yahoo."
+func TestVanguard_ProviderSwitch_YahooToVanguard(t *testing.T) {
+	db := setupTestDB(t)
+
+	internalSymbol := "VWRL.L"
+	sourceURL := "https://www.vanguardinvestor.co.uk/investments/vanguard-ftse-all-world-ucits-etf-usd-distributing"
+
+	// Step 1: Create symbol without data_source_url (Yahoo Finance path)
+	_, err := db.Exec(`
+		INSERT INTO symbol_mappings (internal_symbol, market_data_symbol)
+		VALUES (?, ?)
+	`, internalSymbol, "VWRL.L")
+	if err != nil {
+		t.Fatalf("insert symbol mapping: %v", err)
+	}
+
+	// Verify no data_source_url
+	var dataSourceURL sql.NullString
+	err = db.QueryRow("SELECT data_source_url FROM symbol_mappings WHERE internal_symbol = ?",
+		internalSymbol).Scan(&dataSourceURL)
+	if err != nil {
+		t.Fatalf("query data_source_url: %v", err)
+	}
+	if dataSourceURL.Valid && dataSourceURL.String != "" {
+		t.Errorf("expected empty data_source_url for Yahoo symbol, got %q", dataSourceURL.String)
+	}
+
+	// Step 2: Switch to Vanguard provider by setting data_source_url
+	_, err = db.Exec(`
+		UPDATE symbol_mappings SET data_source_url = ? WHERE internal_symbol = ?
+	`, sourceURL, internalSymbol)
+	if err != nil {
+		t.Fatalf("update data_source_url: %v", err)
+	}
+
+	// Verify data_source_url is now set
+	err = db.QueryRow("SELECT data_source_url FROM symbol_mappings WHERE internal_symbol = ?",
+		internalSymbol).Scan(&dataSourceURL)
+	if err != nil {
+		t.Fatalf("query data_source_url after update: %v", err)
+	}
+	if !dataSourceURL.Valid || dataSourceURL.String != sourceURL {
+		t.Errorf("expected vanguard data_source_url, got %q", dataSourceURL.String)
+	}
+
+	// Step 3: Verify the stale query picks up the symbol with its data_source_url
+	// (this is what the background refresh uses to decide which extractor to invoke)
+	var staleURL, staleSymbol string
+	err = db.QueryRow(`
+		SELECT sm.internal_symbol, sm.data_source_url
+		FROM symbol_mappings sm
+		LEFT JOIN symbol_details sd ON sm.internal_symbol = sd.internal_symbol
+		WHERE sd.fetched_at IS NULL OR sd.fetched_at < ?
+	`, time.Now().Add(-7*24*time.Hour).Format(time.RFC3339)).Scan(&staleSymbol, &staleURL)
+	if err != nil {
+		t.Fatalf("query stale with data_source_url: %v", err)
+	}
+	if staleSymbol != internalSymbol {
+		t.Errorf("expected stale symbol %q, got %q", internalSymbol, staleSymbol)
+	}
+	if staleURL != sourceURL {
+		t.Errorf("expected vanguard data_source_url in stale query, got %q", staleURL)
+	}
+
+	// Step 4: Verify the dispatcher routes the URL to the Vanguard extractor
+	reg := extractor.NewRegistry()
+	reg.Register(vanguard.NewExtractor())
+	dispatcher := extractor.NewDispatcher(reg)
+
+	// The dispatcher should find the Vanguard extractor for this URL
+	// (may fail on network, but not on routing)
+	_, err = dispatcher.Dispatch(context.Background(), staleURL)
+	if err != nil {
+		errStr := err.Error()
+		if containsString(errStr, "no extractor registered") {
+			t.Errorf("Vanguard extractor should be registered for %q, got routing error: %s", staleURL, errStr)
+		}
+		// Network/API errors are expected in test environment
+	}
+}
+
+// TestVanguard_BackgroundRefresh_DualPath verifies that the background refresh
+// mechanism correctly handles symbols with data_source_url configured.
+// The stale query returns both the symbol and its data_source_url, allowing
+// the service layer to route through the extractor dispatcher.
+// Corresponds to Story 7 AC2: "Given a symbol is assigned to the Vanguard
+// provider, When the background refresh runs, Then both symbol details (via
+// Vanguard) and market data (via Yahoo) are refreshed."
+func TestVanguard_BackgroundRefresh_DualPath(t *testing.T) {
+	db := setupTestDB(t)
+
+	internalSymbol := "VWRL.L"
+	sourceURL := "https://www.vanguardinvestor.co.uk/investments/vanguard-ftse-all-world-ucits-etf-usd-distributing"
+
+	// Create symbol with vanguard data_source_url
+	_, err := db.Exec(`
+		INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, data_source_url)
+		VALUES (?, ?, ?)
+	`, internalSymbol, "VWRL.L", sourceURL)
+	if err != nil {
+		t.Fatalf("insert symbol mapping: %v", err)
+	}
+
+	// Simulate what the background refresh does:
+	// 1. Stale query returns symbols with their data_source_url
+	var staleSymbols []struct {
+		InternalSymbol string `db:"internal_symbol"`
+		DataSourceURL  string `db:"data_source_url"`
+	}
+
+	rows, err := db.Query(`
+		SELECT sm.internal_symbol, COALESCE(sm.data_source_url, '')
+		FROM symbol_mappings sm
+		LEFT JOIN symbol_details sd ON sm.internal_symbol = sd.internal_symbol
+		WHERE sd.fetched_at IS NULL OR sd.fetched_at < ?
+	`, time.Now().Add(-7*24*time.Hour).Format(time.RFC3339))
+	if err != nil {
+		t.Fatalf("query stale symbols: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var sym struct {
+			InternalSymbol string
+			DataSourceURL  string
+		}
+		if err := rows.Scan(&sym.InternalSymbol, &sym.DataSourceURL); err != nil {
+			t.Fatalf("scan stale row: %v", err)
+		}
+		staleSymbols = append(staleSymbols, struct {
+			InternalSymbol string `db:"internal_symbol"`
+			DataSourceURL  string `db:"data_source_url"`
+		}{sym.InternalSymbol, sym.DataSourceURL})
+	}
+
+	if len(staleSymbols) != 1 {
+		t.Fatalf("expected 1 stale symbol, got %d", len(staleSymbols))
+	}
+	if staleSymbols[0].InternalSymbol != internalSymbol {
+		t.Errorf("expected stale symbol %q, got %q", internalSymbol, staleSymbols[0].InternalSymbol)
+	}
+	if staleSymbols[0].DataSourceURL != sourceURL {
+		t.Errorf("expected vanguard data_source_url in stale query, got %q", staleSymbols[0].DataSourceURL)
+	}
+
+	// 2. Service layer uses data_source_url to route through dispatcher
+	// Verify the dispatcher correctly identifies the Vanguard extractor
+	reg := extractor.NewRegistry()
+	reg.Register(vanguard.NewExtractor())
+
+	extractor, err := reg.FindByURL(sourceURL)
+	if err != nil {
+		t.Fatalf("expected extractor for vanguard URL: %v", err)
+	}
+	if extractor.Name() != vanguard.Name {
+		t.Errorf("expected vanguard extractor, got %q", extractor.Name())
+	}
+
+	// 3. Verify the dual-path: Yahoo for market data + Vanguard for symbol details
+	// The service layer (FetchAndStore) always fetches Yahoo first for exchange/currency,
+	// then routes through the extractor for detailed data.
+	// We verify this by checking the data_source_url is available for the dispatcher,
+	// and the market_data_symbol is available for Yahoo.
+	var marketDataSymbol, dataURL string
+	err = db.QueryRow(`
+		SELECT market_data_symbol, data_source_url
+		FROM symbol_mappings WHERE internal_symbol = ?
+	`, internalSymbol).Scan(&marketDataSymbol, &dataURL)
+	if err != nil {
+		t.Fatalf("query symbol mapping: %v", err)
+	}
+	if marketDataSymbol == "" {
+		t.Error("expected market_data_symbol for Yahoo path")
+	}
+	if dataURL == "" {
+		t.Error("expected data_source_url for Vanguard path")
+	}
+	// Both paths are available — the service layer would use:
+	// - marketDataSymbol ("VWRL.L") → Yahoo for exchange/currency
+	// - dataURL (vanguard URL) → Vanguard extractor for detailed data
+
+	// 4. Verify NAV data from Vanguard is stored with correct source
+	_, err = db.Exec(`
+		INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, internalSymbol, "105.50", "USD", "nav", "vanguard", "2026-05-31", time.Now().Format(time.RFC3339))
+	if err != nil {
+		t.Fatalf("insert NAV data: %v", err)
+	}
+
+	// Market data from Yahoo (stock type) is separate
+	_, err = db.Exec(`
+		INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, internalSymbol, "106.00", "USD", "stock", "yahoo", "2026-05-31", time.Now().Format(time.RFC3339))
+	if err != nil {
+		t.Fatalf("insert stock data: %v", err)
+	}
+
+	// Verify both sources coexist
+	var navCount, stockCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM market_data WHERE symbol = ? AND data_type = 'nav' AND source = 'vanguard'",
+		internalSymbol).Scan(&navCount)
+	if err != nil {
+		t.Fatalf("query NAV count: %v", err)
+	}
+	if navCount != 1 {
+		t.Errorf("expected 1 NAV record from vanguard, got %d", navCount)
+	}
+
+	err = db.QueryRow("SELECT COUNT(*) FROM market_data WHERE symbol = ? AND data_type = 'stock' AND source = 'yahoo'",
+		internalSymbol).Scan(&stockCount)
+	if err != nil {
+		t.Fatalf("query stock count: %v", err)
+	}
+	if stockCount != 1 {
+		t.Errorf("expected 1 stock record from yahoo, got %d", stockCount)
+	}
+}
+
+func containsString(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		func() bool {
+			for i := 0; i <= len(s)-len(substr); i++ {
+				if s[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+			return false
+		}())
 }

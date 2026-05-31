@@ -977,6 +977,7 @@ Embedded in `SymbolGetResponse.symbol_details`. Includes standard Yahoo fields (
   "geographic_allocations": [...],
   "fund_profile": {...},
   "equity_valuation": {...},
+  "bond_characteristics": {...},
   "market_cap_breakdown": {
     "total": 100.0,
     "large": 15.2,
@@ -994,6 +995,8 @@ Embedded in `SymbolGetResponse.symbol_details`. Includes standard Yahoo fields (
 
 > `market_cap_breakdown` — total market cap + large/mid/small cap split (extractor data only).  
 > `theme_breakdown` — theme allocation percentages (extractor data only).  
+> `equity_valuation` — equity-specific fund characteristics (P/E, P/B, market cap, ROE, etc.). Present for equity funds; omitted for bond funds.  
+> `bond_characteristics` — bond-specific fund characteristics (average coupon, maturity, quality, duration). Present for bond funds; omitted for equity funds.  
 > `extractor_as_of_date` — provider's reference date (not the fetch date). Present only when data comes from an extractor; omitted for Yahoo-sourced data.
 
 ### PreviewResponse (Symbol Mapping)
