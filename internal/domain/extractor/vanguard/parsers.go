@@ -108,6 +108,12 @@ type countryResponse struct {
 	} `json:"funds"`
 }
 
+// analyticsCode is a single code field from the polarisAnalyticsHistory response.
+// Each code returns {analyticValue: string, effectiveDate: string, __typename: string} or null.
+type analyticsCode struct {
+	AnalyticValue *string `json:"analyticValue"`
+}
+
 // characteristicsResponse is the FundCharacteristicsQuery response.
 type characteristicsResponse struct {
 	PolarisAnalyticsHistory []struct {
@@ -117,22 +123,34 @@ type characteristicsResponse struct {
 				Fund struct {
 					Items []struct {
 						Codes struct {
-							PERatio    *float64 `json:"PERATIO"`
-							PBRatio    *float64 `json:"PBRATIO"`
-							MktCapMedn *float64 `json:"MKTCAPMEDN"`
-							FRCS5YROE  *float64 `json:"FRC5YRROE"`
-							EPSFRC5YR  *float64 `json:"EPSFRC5YR"`
-							TRNVRRPTR  *float64 `json:"TRNVRRPTR"`
-							AVGCpn     *float64 `json:"AVGCPN"`
-							AVGWTDMTY  *float64 `json:"AVGWTDMTY"`
-							AVGQLYTFTO *float64 `json:"AVGQLYTFTO"`
-							AVGDURADJ  *float64 `json:"AVGDURADJ"`
+							PERatio    *analyticsCode `json:"PERATIO"`
+							PBRatio    *analyticsCode `json:"PBRATIO"`
+							MktCapMedn *analyticsCode `json:"MKTCAPMEDN"`
+							FRCS5YROE  *analyticsCode `json:"FRC5YRROE"`
+							EPSFRC5YR  *analyticsCode `json:"EPSFRC5YR"`
+							TRNVRRPTR  *analyticsCode `json:"TRNVRRPTR"`
+							AVGCpn     *analyticsCode `json:"AVGCPN"`
+							AVGWTDMTY  *analyticsCode `json:"AVGWTDMTY"`
+							AVGQLYTFTO *analyticsCode `json:"AVGQLYTFTO"`
+							AVGDURADJ  *analyticsCode `json:"AVGDURADJ"`
 						} `json:"codes"`
 					} `json:"items"`
 				} `json:"fund"`
 			} `json:"analytics"`
 		} `json:"monthly"`
 	} `json:"polarisAnalyticsHistory"`
+}
+
+// codeFloat extracts a float64 from an analyticsCode, or nil if the code/value is absent.
+func codeFloat(c *analyticsCode) *float64 {
+	if c == nil || c.AnalyticValue == nil {
+		return nil
+	}
+	v, err := strconv.ParseFloat(*c.AnalyticValue, 64)
+	if err != nil {
+		return nil
+	}
+	return &v
 }
 
 // navResponse is the PriceDetailsQuery response.
@@ -192,21 +210,27 @@ const characteristicsQuery = `query FundCharacteristicsQuery($portIds: [String!]
         fund(getLatest: true) {
           items {
             codes {
-              PBRATIO
-              PERATIO
-              AVGCPN
-              MKTCAPMEDN
-              FRC5YRROE
-              EPSFRC5YR
-              TRNVRRPTR
-              AVGWTDMTY
-              AVGQLYTFTO
-              AVGDURADJ
+              PBRATIO { analyticValue effectiveDate __typename }
+              PERATIO { analyticValue effectiveDate __typename }
+              AVGCPN { analyticValue effectiveDate __typename }
+              MKTCAPMEDN { analyticValue effectiveDate __typename }
+              FRC5YRROE { analyticValue effectiveDate __typename }
+              EPSFRC5YR { analyticValue effectiveDate __typename }
+              TRNVRRPTR { analyticValue effectiveDate __typename }
+              AVGWTDMTY { analyticValue effectiveDate __typename }
+              AVGQLYTFTO { analyticValue effectiveDate __typename }
+              AVGDURADJ { analyticValue effectiveDate __typename }
+              __typename
             }
+            __typename
           }
+          __typename
         }
+        __typename
       }
+      __typename
     }
+    __typename
   }
 }`
 
@@ -433,44 +457,44 @@ func ParseFundCharacteristics(data []byte) (*extractor.FundCharacteristics, erro
 	codes := analytics.Fund.Items[0].Codes
 	characteristics := &extractor.FundCharacteristics{}
 
-	if codes.PERatio != nil {
-		characteristics.PriceToEarnings = *codes.PERatio
+	if v := codeFloat(codes.PERatio); v != nil {
+		characteristics.PriceToEarnings = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicPriceToEarnings
 	}
-	if codes.PBRatio != nil {
-		characteristics.PriceToBook = *codes.PBRatio
+	if v := codeFloat(codes.PBRatio); v != nil {
+		characteristics.PriceToBook = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicPriceToBook
 	}
-	if codes.MktCapMedn != nil {
-		characteristics.MedianMarketCap = *codes.MktCapMedn
+	if v := codeFloat(codes.MktCapMedn); v != nil {
+		characteristics.MedianMarketCap = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicMedianMarketCap
 	}
-	if codes.FRCS5YROE != nil {
-		characteristics.ForwardROE = *codes.FRCS5YROE
+	if v := codeFloat(codes.FRCS5YROE); v != nil {
+		characteristics.ForwardROE = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicForwardROE
 	}
-	if codes.EPSFRC5YR != nil {
-		characteristics.ForwardEPSGrowth = *codes.EPSFRC5YR
+	if v := codeFloat(codes.EPSFRC5YR); v != nil {
+		characteristics.ForwardEPSGrowth = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicForwardEPSGrowth
 	}
-	if codes.TRNVRRPTR != nil {
-		characteristics.RevenueRatio = *codes.TRNVRRPTR
+	if v := codeFloat(codes.TRNVRRPTR); v != nil {
+		characteristics.RevenueRatio = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicRevenueRatio
 	}
-	if codes.AVGCpn != nil {
-		characteristics.AverageCoupon = *codes.AVGCpn
+	if v := codeFloat(codes.AVGCpn); v != nil {
+		characteristics.AverageCoupon = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicAverageCoupon
 	}
-	if codes.AVGWTDMTY != nil {
-		characteristics.AverageMaturity = *codes.AVGWTDMTY
+	if v := codeFloat(codes.AVGWTDMTY); v != nil {
+		characteristics.AverageMaturity = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicAverageMaturity
 	}
-	if codes.AVGQLYTFTO != nil {
-		characteristics.AverageQuality = *codes.AVGQLYTFTO
+	if v := codeFloat(codes.AVGQLYTFTO); v != nil {
+		characteristics.AverageQuality = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicAverageQuality
 	}
-	if codes.AVGDURADJ != nil {
-		characteristics.AverageDuration = *codes.AVGDURADJ
+	if v := codeFloat(codes.AVGDURADJ); v != nil {
+		characteristics.AverageDuration = *v
 		characteristics.FieldsPresent |= extractor.CharacteristicAverageDuration
 	}
 

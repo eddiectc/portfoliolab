@@ -541,12 +541,12 @@ func TestParseFundCharacteristics(t *testing.T) {
 									"items": []interface{}{
 										map[string]interface{}{
 											"codes": map[string]interface{}{
-												"PERATIO":    18.5,
-												"PBRATIO":    3.2,
-												"MKTCAPMEDN": 500.0,
-												"FRC5YRROE":  15.3,
-												"EPSFRC5YR":  8.7,
-												"TRNVRRPTR":  1.05,
+												"PERATIO":    map[string]interface{}{"analyticValue": "18.5"},
+												"PBRATIO":    map[string]interface{}{"analyticValue": "3.2"},
+												"MKTCAPMEDN": map[string]interface{}{"analyticValue": "500.0"},
+												"FRC5YRROE":  map[string]interface{}{"analyticValue": "15.3"},
+												"EPSFRC5YR":  map[string]interface{}{"analyticValue": "8.7"},
+												"TRNVRRPTR":  map[string]interface{}{"analyticValue": "1.05"},
 											},
 										},
 									},
@@ -592,10 +592,10 @@ func TestParseFundCharacteristics(t *testing.T) {
 									"items": []interface{}{
 										map[string]interface{}{
 											"codes": map[string]interface{}{
-												"AVGCPN":     3.25,
-												"AVGWTDMTY":  7.5,
-												"AVGQLYTFTO": 7.8,
-												"AVGDURADJ":  6.2,
+												"AVGCPN":     map[string]interface{}{"analyticValue": "3.25"},
+												"AVGWTDMTY":  map[string]interface{}{"analyticValue": "7.5"},
+												"AVGQLYTFTO": map[string]interface{}{"analyticValue": "7.8"},
+												"AVGDURADJ":  map[string]interface{}{"analyticValue": "6.2"},
 											},
 										},
 									},
