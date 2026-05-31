@@ -148,14 +148,14 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Update the symbol repository to serialize/deserialize the new fields. The existing JSON columns are flexible for extended fields on existing types. `bond_characteristics` uses the new column added in Task 2. The serialization functions must include all new fields.
 
-- [ ] Update `toSQLNullJSON` / JSON serialization for holdings: include `SecurityType`, `CouponRate`, `FinalMaturity`, `AsOfDate`
-- [ ] Update `toSQLNullJSON` / JSON serialization for sectors: include `Date`
-- [ ] Update `toSQLNullJSON` / JSON serialization for countries: include `RegionName`, `RegionCode`, `Date`
-- [ ] Update `toSQLNullJSON` / JSON serialization for equity valuation: include new fields
-- [ ] Add bond characteristics serialization/deserialization
-- [ ] Add characteristics date serialization/deserialization
-- [ ] Write integration test: repo round-trip for all new fields (Vanguard-style data inserted → retrieved → fields match)
-- [ ] Write integration test: backward compatibility — existing WisdomTree/DWS data still deserializes correctly (new fields are optional in JSON)
+- [x] Update `toSQLNullJSON` / JSON serialization for holdings: include `SecurityType`, `CouponRate`, `FinalMaturity`, `AsOfDate`
+- [x] Update `toSQLNullJSON` / JSON serialization for sectors: include `Date`
+- [x] Update `toSQLNullJSON` / JSON serialization for countries: include `RegionName`, `RegionCode`, `Date`
+- [x] Update `toSQLNullJSON` / JSON serialization for equity valuation: include new fields
+- [x] Add bond characteristics serialization/deserialization
+- [x] Add characteristics date serialization/deserialization
+- [x] Write integration test: repo round-trip for all new fields (Vanguard-style data inserted → retrieved → fields match)
+- [x] Write integration test: backward compatibility — existing WisdomTree/DWS data still deserializes correctly (new fields are optional in JSON)
 
 **Verification:** All new fields survive a full round-trip through the repository; existing data not affected.
 

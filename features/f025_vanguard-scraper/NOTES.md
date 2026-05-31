@@ -67,3 +67,10 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 - Holdings: 4070 items (3 pages)
 - Sectors: 12 (ICB standard)
 - Countries: 107 (FTSE Country of Risk)
+
+## Task 5 Completion (2026-05-31)
+
+- **Serialization approach confirmed**: The repo uses `json.Marshal(v)` / `json.Unmarshal()` on whole structs, so all new fields (SecurityType, CouponRate, FinalMaturity, AsOfDate, Date, RegionName, RegionCode, MedianMarketCap, ForwardROE, ForwardEPSGrowth, RevenueRatio, BondCharacteristics) automatically flow through without field-by-field mapping. No code changes needed in `toSQLNullJSON` or `toSymbolDetail`.
+- **BondCharacteristics** was already added to `Upsert` and `toSymbolDetail` in Task 2.
+- **Tests added**: `TestSymbolDetailsRepository_VanguardFields_RoundTrip` (full Vanguard-style data with all new fields — holdings with bond fields, sectors with Date, countries with regions, expanded equity valuation, bond characteristics) and `TestSymbolDetailsRepository_BackwardCompatibility_WisdomTreeData` (raw old-format JSON inserted directly into DB, verified it deserializes correctly with new fields empty/nil).
+- **All tests pass** (full project suite, including integration tests).
