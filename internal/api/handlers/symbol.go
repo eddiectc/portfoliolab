@@ -68,6 +68,7 @@ type SymbolDetailsResponse struct {
 	AggregatePositions    *symbol.AggregatePositions    `json:"aggregate_positions,omitempty"`
 	FundProfile           *symbol.FundProfile           `json:"fund_profile,omitempty"`
 	EquityValuation       *symbol.EquityValuation       `json:"equity_valuation,omitempty"`
+	BondCharacteristics   *symbol.BondCharacteristics   `json:"bond_characteristics,omitempty"`
 	GeographicAllocations []symbol.GeographicAllocation `json:"geographic_allocations,omitempty"`
 	MarketCapBreakdown    *symbol.MarketCapBreakdown    `json:"market_cap_breakdown,omitempty"`
 	ThemeBreakdown        []symbol.ThemeBreakdown       `json:"theme_breakdown,omitempty"`
@@ -310,6 +311,7 @@ func toSymbolDetailsResponse(details *symbol.SymbolDetails) *SymbolDetailsRespon
 		AggregatePositions:    details.AggregatePositions,
 		FundProfile:           details.FundProfile,
 		EquityValuation:       details.EquityValuation,
+		BondCharacteristics:   details.BondCharacteristics,
 		GeographicAllocations: allocs,
 		MarketCapBreakdown:    details.MarketCapBreakdown,
 		ThemeBreakdown:        details.Themes,

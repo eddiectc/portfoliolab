@@ -289,6 +289,7 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 				PriceToEarnings:          25.3,
 				EstimatedPriceToEarnings: 18.7,
 				PriceToBook:              4.2,
+				FieldsPresent:            extractor.CharacteristicPriceToEarnings | extractor.CharacteristicEstimatedPriceToEarnings | extractor.CharacteristicPriceToBook,
 			},
 			NavHistory: []extractor.NavPoint{
 				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
@@ -805,6 +806,7 @@ func TestService_extractResultToSymbolDetails_FullResult(t *testing.T) {
 			PriceToBook:              4.2,
 			PriceToCashflow:          18.0,
 			PriceToSales:             5.5,
+			FieldsPresent:            extractor.CharacteristicPriceToEarnings | extractor.CharacteristicEstimatedPriceToEarnings | extractor.CharacteristicPriceToBook | extractor.CharacteristicPriceToCashflow | extractor.CharacteristicPriceToSales,
 		},
 		MarketCap: &extractor.MarketCapBreakdown{
 			Total: 100,
@@ -1205,12 +1207,9 @@ func TestService_extractResultToSymbolDetails_BondFundCharacteristics(t *testing
 
 	details := extractResultToSymbolDetails(result, "VAGT.L")
 
-	// Equity valuation — should still be created (zero values)
-	if details.EquityValuation == nil {
-		t.Fatal("expected non-nil EquityValuation")
-	}
-	if details.EquityValuation.PriceToEarnings != 0 {
-		t.Errorf("expected P/E 0, got %f", details.EquityValuation.PriceToEarnings)
+	// Equity valuation — nil for bond fund (no equity fields present)
+	if details.EquityValuation != nil {
+		t.Errorf("expected nil EquityValuation for bond fund, got %+v", details.EquityValuation)
 	}
 
 	// Bond characteristics — populated
