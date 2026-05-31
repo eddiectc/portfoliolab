@@ -80,11 +80,13 @@ Returns 107 countries with fund vs benchmark percentages, grouped by region (Eme
 {
   "operationName": "FundCharacteristicsQuery",
   "variables": { "portIds": ["9505"] },
-  "query": "query FundCharacteristicsQuery($portIds: [String!]!) {\n  polarisAnalyticsHistory(portIds: $portIds) {\n    portId\n    monthly {\n      exposures { fund { items { codes { CSTOCK NBONDS TNACASH } } } }\n      yields { fund { items { codes { YLDWRST } } } benchmark { items { codes { NOMYIELD } } } }\n      analytics { fund(getLatest: true) { items { codes { PBRATIO PERATIO AVGCPN MKTCAPMEDN FRC5YRROE EPSFRC5YR TRNVRRPTR AVGWTDMTY AVGQLYTFTO AVGDURADJ } } }\n        benchmark(benchmarkTypes: [FBPC]) { items { codes { FRCHOLDING MKTCAPMEDN PERATIO PBRATIO FRC5YRROE EPSFRC5YR BMKNBONDS BMKCPN BMKWTDMTY BMKQLYTFTX BMKDURADJ } } }\n      }\n    }\n  }\n}"
+  "query": "query FundCharacteristicsQuery($portIds: [String!]!) {\n  polarisAnalyticsHistory(portIds: $portIds) {\n    portId\n    monthly {\n      analytics {\n        fund(getLatest: true) {\n          items {\n            codes {\n              PBRATIO { analyticValue effectiveDate __typename }\n              PERATIO { analyticValue effectiveDate __typename }\n              AVGCPN { analyticValue effectiveDate __typename }\n              MKTCAPMEDN { analyticValue effectiveDate __typename }\n              FRC5YRROE { analyticValue effectiveDate __typename }\n              EPSFRC5YR { analyticValue effectiveDate __typename }\n              TRNVRRPTR { analyticValue effectiveDate __typename }\n              AVGWTDMTY { analyticValue effectiveDate __typename }\n              AVGQLYTFTO { analyticValue effectiveDate __typename }\n              AVGDURADJ { analyticValue effectiveDate __typename }\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}"
 }
 ```
 
-Returns fund characteristics (P/E, P/B, market cap, ROE, EPS growth, etc.) with benchmark comparison. Equity-specific codes (PERATIO, PBRATIO, MKTCAPMEDN) and bond-specific codes (AVGCPN, AVGWTDMTY, AVGDURADJ) are both available — null values for non-applicable types.
+**Important**: Each code field must specify its sub-fields (`analyticValue`, `effectiveDate`, `__typename`). A bare code name (e.g. `PERATIO` without sub-fields) returns HTTP 500. The response wraps each code as `{analyticValue: string, effectiveDate: string, __typename: string}` or `null` for non-applicable types.
+
+Returns fund characteristics (P/E, P/B, market cap, ROE, EPS growth, etc.). Equity-specific codes (PERATIO, PBRATIO, MKTCAPMEDN) and bond-specific codes (AVGCPN, AVGWTDMTY, AVGDURADJ) are both available — null values for non-applicable types.
 
 ### PriceDetailsQuery
 
