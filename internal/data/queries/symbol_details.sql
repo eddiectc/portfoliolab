@@ -4,8 +4,8 @@ INSERT INTO symbol_details (
     sector, top_holdings, sector_weightings, aggregate_positions, fund_profile, equity_valuation,
     geographic_allocations, market_cap_breakdown, themes,
     risk_measures, asset_class_allocation, equity_derivatives_by_region, currency_derivatives_allocation,
-    extractor_as_of_date, fetched_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    bond_characteristics, extractor_as_of_date, fetched_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(internal_symbol) DO UPDATE SET
     short_name = excluded.short_name,
     long_name = excluded.long_name,
@@ -25,6 +25,7 @@ ON CONFLICT(internal_symbol) DO UPDATE SET
     asset_class_allocation = excluded.asset_class_allocation,
     equity_derivatives_by_region = excluded.equity_derivatives_by_region,
     currency_derivatives_allocation = excluded.currency_derivatives_allocation,
+    bond_characteristics = excluded.bond_characteristics,
     extractor_as_of_date = excluded.extractor_as_of_date,
     fetched_at = excluded.fetched_at,
     updated_at = excluded.updated_at

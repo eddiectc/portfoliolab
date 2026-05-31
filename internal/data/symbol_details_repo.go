@@ -106,6 +106,11 @@ func (r *SymbolDetailsRepository) toSymbolDetail(sd queries.SymbolDetail) (*symb
 			return nil, fmt.Errorf("parse currency_derivatives_allocation for %s: %w", sd.InternalSymbol, err)
 		}
 	}
+	if sd.BondCharacteristics.Valid {
+		if err := json.Unmarshal([]byte(sd.BondCharacteristics.String), &details.BondCharacteristics); err != nil {
+			return nil, fmt.Errorf("parse bond_characteristics for %s: %w", sd.InternalSymbol, err)
+		}
+	}
 	if sd.ExtractorAsOfDate.Valid {
 		asOf, err := parseTime(sd.ExtractorAsOfDate.String)
 		if err != nil {
@@ -183,7 +188,8 @@ func (r *SymbolDetailsRepository) Upsert(ctx context.Context, details *symbol.Sy
 		AssetClassAllocation:        toSQLNullJSON(details.AssetClassAllocation),
 		EquityDerivativesByRegion:   toSQLNullJSON(details.EquityDerivativesByRegion),
 		CurrencyDerivativesAllocation: toSQLNullJSON(details.CurrencyDerivativesAllocation),
-		ExtractorAsOfDate:           toSQLNullTime(details.ExtractorAsOfDate),
+		BondCharacteristics:           toSQLNullJSON(details.BondCharacteristics),
+		ExtractorAsOfDate:             toSQLNullTime(details.ExtractorAsOfDate),
 		FetchedAt:             details.FetchedAt.Format(time.RFC3339),
 		UpdatedAt:             now.Format(time.RFC3339),
 	})

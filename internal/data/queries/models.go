@@ -121,6 +121,7 @@ type SymbolDetail struct {
 	AssetClassAllocation          sql.NullString `db:"asset_class_allocation"`
 	EquityDerivativesByRegion     sql.NullString `db:"equity_derivatives_by_region"`
 	CurrencyDerivativesAllocation sql.NullString `db:"currency_derivatives_allocation"`
+	BondCharacteristics           sql.NullString `db:"bond_characteristics"`
 	ExtractorAsOfDate             sql.NullString `db:"extractor_as_of_date"`
 	FetchedAt                     string         `db:"fetched_at"`
 	CreatedAt                     string         `db:"created_at"`
