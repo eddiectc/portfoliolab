@@ -235,6 +235,23 @@ These dates are stored per section and displayed per section on the symbol detai
 - **Benchmark Comparison**: Sector and country allocations include benchmark percentages. Stored alongside fund percentages for comparison display.
 - **Multiple Exchange Listings**: ETFs may trade on multiple exchanges with different currency listings. All are extracted and displayed.
 
+## Implementation Decisions and Deviations
+
+The following decisions were made during implementation and deviate from the original spec. See NOTES.md for rationale.
+
+### Story 3: Benchmark comparison excluded from types
+
+The spec requires `benchmarkPercent` on sector allocation and `benchmarkMktPercent` on country allocation. These fields **are parsed** from the GraphQL response but **deliberately excluded from type definitions**. The benchmark data is available but storing it alongside fund data adds complexity without clear display benefit. The decision is to keep fund and benchmark data separate. If benchmark comparison display is needed later, it can be added as a separate feature.
+
+### Story 5: Market price history excluded
+
+The spec requires market prices per exchange listing alongside NAV. This is **excluded** — market/historical prices continue to come from Yahoo Finance. NAV data flows through the existing `market_data` path with `data_type='nav'`.
+
+### Story 8: Section naming and country allocation sort
+
+- **Holdings section header** is "Top 10 Holdings" (not "Full Holdings"). The section shows top 10 by default with an expand link to show all holdings. This is clearer for users — consistent regardless of data source (Yahoo or Vanguard).
+- **Country allocation** sorts by percent descending rather than grouped by region. A Region column is present for identification, but grouping adds visual complexity without clear benefit — the sort order highlights largest exposures.
+
 ## Non-Goals
 
 - **Not in scope**: Browser automation (chromedp/playwright). The public API approach is sufficient.
@@ -243,6 +260,7 @@ These dates are stored per section and displayed per section on the symbol detai
 - **Not in scope**: Official Vanguard API partnership — this uses the public-facing API of the UK investor website.
 - **Not in scope**: Real-time price data (market data continues to come from Yahoo Finance).
 - **Not in scope**: Performance/returns data beyond what the API provides (annual NAV returns).
+- **Not in scope**: Benchmark comparison display (benchmark % fields are parsed but not stored; see Implementation Decisions above).
 
 ## Constraints
 
