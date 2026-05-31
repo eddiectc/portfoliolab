@@ -281,6 +281,10 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			Isin:                   result.FundProfile.Isin,
 			ShareClassName:         result.FundProfile.ShareClassName,
 			OngoingCharges:         result.FundProfile.OngoingCharges,
+			Benchmark:              result.FundProfile.Benchmark,
+			AssetClassification:    result.FundProfile.AssetClassification,
+			DistributionStrategy:   result.FundProfile.DistributionStrategy,
+			MarketRegionFocus:      result.FundProfile.MarketRegionFocus,
 		}
 	}
 

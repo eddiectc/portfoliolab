@@ -43,15 +43,19 @@ type displayAggregatePositions struct {
 
 // displayFundProfile is a template-friendly fund profile with pre-formatted values.
 type displayFundProfile struct {
-	Family         string
-	LegalType      string
-	NetAssets      string // e.g. "1,234.56B"
-	ExpenseRatio   string // e.g. "0.03%"
-	Turnover       string // e.g. "35%"
-	InceptionDate  string // e.g. "2018-03-15"
-	Isin           string // e.g. "LU2951555585"
-	ShareClassName string // e.g. "R USD UCITS ETF"
-	OngoingCharges string // e.g. "0.75%"
+	Family               string
+	LegalType            string
+	NetAssets            string // e.g. "1,234.56B"
+	ExpenseRatio         string // e.g. "0.03%"
+	Turnover             string // e.g. "35%"
+	InceptionDate        string // e.g. "2018-03-15"
+	Isin                 string // e.g. "LU2951555585"
+	ShareClassName       string // e.g. "R USD UCITS ETF"
+	OngoingCharges       string // e.g. "0.75%"
+	Benchmark            string
+	AssetClassification  string
+	DistributionStrategy string
+	MarketRegionFocus    string
 }
 
 // displayGeographicAllocation is a template-friendly geographic allocation with pre-formatted percentage.
@@ -322,13 +326,17 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 	// Fund profile
 	if details.FundProfile != nil {
 		displayProfile := &displayFundProfile{
-			Family:         details.FundProfile.Family,
-			LegalType:      details.FundProfile.LegalType,
-			NetAssets:      formatLargeNumber(details.FundProfile.TotalNetAssets),
-			ExpenseRatio:   fmt.Sprintf("%.2f%%", details.FundProfile.AnnualExpenseRatio*100),
-			Turnover:       fmt.Sprintf("%.0f%%", details.FundProfile.AnnualHoldingsTurnover*100),
-			Isin:           details.FundProfile.Isin,
-			ShareClassName: details.FundProfile.ShareClassName,
+			Family:               details.FundProfile.Family,
+			LegalType:            details.FundProfile.LegalType,
+			NetAssets:            formatLargeNumber(details.FundProfile.TotalNetAssets),
+			ExpenseRatio:         fmt.Sprintf("%.2f%%", details.FundProfile.AnnualExpenseRatio*100),
+			Turnover:             fmt.Sprintf("%.0f%%", details.FundProfile.AnnualHoldingsTurnover*100),
+			Isin:                 details.FundProfile.Isin,
+			ShareClassName:       details.FundProfile.ShareClassName,
+			Benchmark:            details.FundProfile.Benchmark,
+			AssetClassification:  details.FundProfile.AssetClassification,
+			DistributionStrategy: details.FundProfile.DistributionStrategy,
+			MarketRegionFocus:    details.FundProfile.MarketRegionFocus,
 		}
 		if !details.FundProfile.InceptionDate.IsZero() {
 			displayProfile.InceptionDate = details.FundProfile.InceptionDate.Format("2006-01-02")

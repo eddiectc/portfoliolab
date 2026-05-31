@@ -76,6 +76,10 @@ type FundProfile struct {
 	Isin                   string  // ISIN code (e.g. "LU2951555585")
 	ShareClassName         string  // share class name (e.g. "R USD UCITS ETF")
 	OngoingCharges         float64 // ongoing charges ratio percentage (e.g. 0.75)
+	Benchmark              string  // benchmark index name
+	AssetClassification    string  // asset class (e.g. "Equity", "Fixed Income")
+	DistributionStrategy   string  // distribution strategy (e.g. "INCM", "ACUM")
+	MarketRegionFocus      string  // market region focus (e.g. "Global", "Europe")
 }
 
 // EquityValuation represents aggregate valuation ratios of an ETF's equity holdings.

@@ -83,19 +83,19 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 | 2 | Fund characteristics | `/gpx/graphql` | POST (GraphQL) |
 | 2 | NAV history | `/gpx/graphql` | POST (GraphQL) |
 
-- [ ] Create `internal/domain/extractor/vanguard/` package
-- [ ] Implement `client.go`: HTTP client with standard `http.Client`, 1-2s rate limiting between major queries, 0.5-1s between pagination pages, GraphQL POST support (`queryGraphQL(portId, operationName, variables, query) (string, error)`)
-- [ ] Implement `matcher.go`: `URLMatcher` matching `vanguardinvestor.co.uk` domain patterns
-- [ ] Implement `parsers.go` — Phase 1 (REST API):
+- [x] Create `internal/domain/extractor/vanguard/` package
+- [x] Implement `client.go`: HTTP client with standard `http.Client`, 1-2s rate limiting between major queries, 0.5-1s between pagination pages, GraphQL POST support (`queryGraphQL(portId, operationName, variables, query) (string, error)`)
+- [x] Implement `matcher.go`: `URLMatcher` matching `vanguardinvestor.co.uk` domain patterns
+- [x] Implement `parsers.go` — Phase 1 (REST API):
   - `ParseFundIdentity(json) (*FundIdentity, error)` — extracts name, ticker, sedol, portId, inceptionDate, ISIN, currencyCode from REST response; portId is required for Phase 2
   - `ParseFundProfile(json) (*extractor.FundProfile, error)` — extracts OCF (→ AnnualExpenseRatio), benchmark, managementType, assetClass, fundType, distributionStrategyType, region
-- [ ] Implement `parsers.go` — Phase 2 (GraphQL):
+- [x] Implement `parsers.go` — Phase 2 (GraphQL):
   - `ParseHoldings(json) ([]extractor.Holding, string, error)` — parses paginated holdings items (issuerName, securityLongDescription, marketValuePercentage, securityType, couponRate, finalMaturity); returns holdings + effectiveDate; handles pagination transparently
   - `ParseSectorAllocation(json) ([]extractor.SectorWeighting, string, error)` — parses sectorDiversification (sectorName, sectorCode, fundPercent, date); returns sectors + date
   - `ParseCountryAllocation(json) ([]extractor.CountryAllocation, string, error)` — parses marketAllocation (countryName, countryCode, fundMktPercent, regionName, regionCode, date); returns countries + date
   - `ParseFundCharacteristics(json) (*extractor.FundCharacteristics, error)` — parses polarisAnalyticsHistory analytics (PERATIO, PBRATIO, MKTCAPMEDN, FRC5YRROE, EPSFRC5YR, TRNVRRPTR, AVGCPN, AVGWTDMTY, AVGQLYTFTO, AVGDURADJ); handles both equity and bond fund types
   - `ParseNavHistory(json) ([]extractor.NavPoint, error)` — parses navPrices from pricingDetails (price, asOfDate, currencyCode); maps to existing `extractor.NavPoint` type
-- [ ] Implement `extractor.go`:
+- [x] Implement `extractor.go`:
   - `Extractor` struct with `*URLMatcher` and `*Client`
   - `Extract(ctx, sourceURL)` — two-phase extraction:
     1. Extract fund slug from source URL → REST API call → resolve portId + fund identity + profile
@@ -103,7 +103,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
     3. Atomic: if Phase 1 fails → entire extraction fails; if any Phase 2 query fails → entire extraction fails
   - `Name()` returns `"vanguard"`
   - `Match(rawURL)` delegates to URLMatcher
-- [ ] Write unit tests:
+- [x] Write unit tests:
   - `TestURLMatcher_Match` — vanguardinvestor.co.uk matches, other domains don't
   - `TestParseFundIdentity` — table-driven with sample JSON; validates portId, ticker, name extraction
   - `TestParseFundProfile` — validates OCF → AnnualExpenseRatio, benchmark, etc.
