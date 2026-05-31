@@ -203,6 +203,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			asset_class_allocation    TEXT,
 			equity_derivatives_by_region TEXT,
 			currency_derivatives_allocation TEXT,
+			bond_characteristics      TEXT,
 			extractor_as_of_date      TEXT,
 			fetched_at                TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at            TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -236,13 +237,6 @@ func setupTestDB(t *testing.T) *sql.DB {
 			updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 		);
 
-		CREATE TABLE IF NOT EXISTS goose_db_version (
-			id INTEGER PRIMARY KEY,
-			version_id INTEGER NOT NULL,
-			is_applied INTEGER NOT NULL DEFAULT 1,
-			tstamp TIMESTAMP DEFAULT (datetime('now'))
-		);
-		INSERT OR REPLACE INTO goose_db_version (version_id, is_applied) VALUES (21, 1);
 	`)
 	if err != nil {
 		t.Fatalf("run test migrations: %v", err)

@@ -53,6 +53,7 @@ func setupSymbolDetailsDB(t *testing.T) *sql.DB {
 			asset_class_allocation   TEXT,
 			equity_derivatives_by_region TEXT,
 			currency_derivatives_allocation TEXT,
+			bond_characteristics      TEXT,
 			extractor_as_of_date     TEXT,
 			fetched_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 			created_at          TEXT    NOT NULL DEFAULT (datetime('now')),

@@ -23,6 +23,17 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 - **Benchmark fields**: Deliberately excluded from types (see design decision #5 above).
 - **Market price history**: Deliberately excluded from types (see design decision #7 above).
 
+## Task 2 Completion (2026-05-31)
+
+- All existing JSON columns confirmed flexible (TEXT type) — no schema change needed for extended fields
+- `market_data.data_type` and `market_data.source` are free TEXT fields — `nav` + `vanguard` already supported
+- Created migration `024_add_bond_characteristics_to_symbol_details.sql`
+- Updated `schema.sql` (sqlc), `symbol_details.sql` (sqlc queries), ran `sqlc generate`
+- Updated `symbol_details_repo.go`: `Upsert` (serialization) and `toSymbolDetail` (deserialization) for `bond_characteristics`
+- Updated `symbol_details_repo_test.go`: added `bond_characteristics` column to in-memory test schema
+- All unit tests pass; integration test `TestSymbolDetails_CreateAndEnrich` is a pre-existing flaky race condition (async goroutine)
+- Fixed: `tests/integration/portfolio_test.go:setupTestDB()` was missing the `bond_characteristics` column in its inline schema (causing 3 integration test failures). Added column. Removed fragile `goose_db_version` table from inline schema — integration tests don't run goose migrations, so the version marker was just dead code waiting to drift.
+
 ## Test Fund
 
 - **VWRL** (Vanguard FTSE All-World UCITS ETF USD Distributing)

@@ -130,6 +130,7 @@ CREATE TABLE symbol_details (
     asset_class_allocation       TEXT DEFAULT NULL,
     equity_derivatives_by_region TEXT DEFAULT NULL,
     currency_derivatives_allocation TEXT DEFAULT NULL,
+    bond_characteristics            TEXT DEFAULT NULL,
     extractor_as_of_date         TEXT,
     fetched_at                   TEXT    NOT NULL DEFAULT (datetime('now')),
     created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
