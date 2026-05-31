@@ -55,7 +55,7 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 - Added 3 new unit tests:
   - `TestService_extractResultToSymbolDetails_VanguardFields` — full Vanguard-style result with all new fields (equity + bond holdings, sectors with dates, countries with regions)
   - `TestService_extractResultToSymbolDetails_BondFundCharacteristics` — bond fund with only bond characteristics (equity fields zero, bond fields populated)
-  - `TestService_extractResultToSymbolDetails_EmptyHoldings` — empty holdings input maps to nil slice
+  - `TestService_extractResultToSymbolDetails_EmptyHoldings` — empty holdings input maps to nil slice, consistent with codebase convention (all slice mappings use `len > 0` guards)
 - All 30 tests in symbols package pass; all domain/types tests pass.
 - **Cross-layer audit**: Repo layer uses `json.Marshal` on whole structs — all new fields automatically serialized, no field-by-field mapping gaps. Web display layer (`toDisplayDetails` + template) drops all 16 new fields — intentional, covered by Task 6.
 
