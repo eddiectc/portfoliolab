@@ -167,18 +167,18 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Update the web display to render the new data. Per-section dates displayed alongside their sections. Expanded characteristics include both equity and bond metrics. Holdings table shows security type and bond-specific columns. NAV chart uses existing price chart (NAV points flow through `market_data` as `data_type='nav'`).
 
-- [ ] Update `toDisplayDetails()` in web layer to include:
+- [x] Update `toDisplayDetails()` in web layer to include:
   - `BondCharacteristics` (conditional, only if non-nil)
   - New equity valuation fields
   - Region fields on country allocations
-- [ ] Update `symbol_details.html` template:
+- [x] Update `symbol_details.html` template:
   - Holdings table: add columns for SecurityType, CouponRate, FinalMaturity (bond columns only visible when relevant)
   - Sectors section: display per-section date
   - Countries section: display per-section date, add region grouping
   - Characteristics section: display expanded equity fields + conditional bond characteristics section
   - NAV chart: no changes needed (existing chart works with `data_type='nav'` via `market_data`)
-- [ ] Update CSS if needed for new columns/sections
-- [ ] Write integration test: Vanguard-style symbol details page renders with all new fields
+- [x] Update CSS if needed for new columns/sections
+- [x] Write integration test: Vanguard-style symbol details page renders with all new fields
 
 **Verification:** All new fields visible in web UI; per-section dates displayed; bond characteristics conditional; existing WisdomTree/DWS pages unchanged.
 

@@ -77,12 +77,22 @@
     <div class="card-header">
         <h2>Top 10 Holdings</h2>
     </div>
+    {{if index .Details.TopHoldings 0}}
+    {{if (index .Details.TopHoldings 0).AsOfDate}}
+    <div class="card-body" style="padding-top: 0.5rem; padding-bottom: 0.25rem;">
+        <span class="text-muted" style="font-size: 0.85em;">As of {{(index .Details.TopHoldings 0).AsOfDate}}</span>
+    </div>
+    {{end}}
+    {{end}}
     <table class="table">
         <thead>
             <tr>
                 <th>#</th>
                 <th>Symbol</th>
                 <th>Name</th>
+                <th>Type</th>
+                <th class="text-right">Coupon</th>
+                <th class="text-right">Maturity</th>
                 <th class="text-right">Allocation</th>
             </tr>
         </thead>
@@ -93,6 +103,9 @@
                 <td>{{add $i 1}}</td>
                 <td><strong>{{$h.Symbol}}</strong></td>
                 <td>{{$h.Name}}</td>
+                <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
+                <td class="text-right">{{if $h.CouponRate}}{{$h.CouponRate}}{{else}}—{{end}}</td>
+                <td class="text-right">{{if $h.FinalMaturity}}{{$h.FinalMaturity}}{{else}}—{{end}}</td>
                 <td class="text-right">{{$h.Percent}}</td>
             </tr>
             {{else}}
@@ -100,6 +113,9 @@
                 <td>{{add $i 1}}</td>
                 <td><strong>{{$h.Symbol}}</strong></td>
                 <td>{{$h.Name}}</td>
+                <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
+                <td class="text-right">{{if $h.CouponRate}}{{$h.CouponRate}}{{else}}—{{end}}</td>
+                <td class="text-right">{{if $h.FinalMaturity}}{{$h.FinalMaturity}}{{else}}—{{end}}</td>
                 <td class="text-right">{{$h.Percent}}</td>
             </tr>
             {{end}}
@@ -121,6 +137,11 @@
     <div class="card-header">
         <h2>Sector Weightings</h2>
     </div>
+    {{if (index .Details.SectorWeightings 0).Date}}
+    <div class="card-body" style="padding-top: 0.5rem; padding-bottom: 0.25rem;">
+        <span class="text-muted" style="font-size: 0.85em;">As of {{(index .Details.SectorWeightings 0).Date}}</span>
+    </div>
+    {{end}}
     <table class="table">
         <thead>
             <tr>
@@ -322,6 +343,48 @@
             <th>Dividend Yield</th>
             <td>{{.Details.EquityValuation.DividendYield}}</td>
         </tr>
+        <tr>
+            <th>Median Market Cap</th>
+            <td>{{.Details.EquityValuation.MedianMarketCap}}</td>
+        </tr>
+        <tr>
+            <th>Forward ROE</th>
+            <td>{{.Details.EquityValuation.ForwardROE}}</td>
+        </tr>
+        <tr>
+            <th>Forward EPS Growth</th>
+            <td>{{.Details.EquityValuation.ForwardEPSGrowth}}</td>
+        </tr>
+        <tr>
+            <th>Revenue / Prior Year</th>
+            <td>{{.Details.EquityValuation.RevenueRatio}}</td>
+        </tr>
+    </table>
+</div>
+{{end}}
+
+{{if .Details.BondCharacteristics}}
+<div class="card">
+    <div class="card-header">
+        <h2>Bond Characteristics</h2>
+    </div>
+    <table class="table table-details">
+        <tr>
+            <th>Average Coupon</th>
+            <td>{{.Details.BondCharacteristics.AverageCoupon}}</td>
+        </tr>
+        <tr>
+            <th>Average Maturity (years)</th>
+            <td>{{.Details.BondCharacteristics.AverageMaturity}}</td>
+        </tr>
+        <tr>
+            <th>Average Quality</th>
+            <td>{{.Details.BondCharacteristics.AverageQuality}}</td>
+        </tr>
+        <tr>
+            <th>Average Duration (years)</th>
+            <td>{{.Details.BondCharacteristics.AverageDuration}}</td>
+        </tr>
     </table>
 </div>
 {{end}}
@@ -458,10 +521,16 @@
     <div class="card-header">
         <h2>{{if .Details.ExtractorAsOfDate}}Country Allocation{{else}}Geographic Allocation{{end}}</h2>
     </div>
+    {{if (index .Details.GeographicAllocations 0).Date}}
+    <div class="card-body" style="padding-top: 0.5rem; padding-bottom: 0.25rem;">
+        <span class="text-muted" style="font-size: 0.85em;">As of {{(index .Details.GeographicAllocations 0).Date}}</span>
+    </div>
+    {{end}}
     <table class="table">
         <thead>
             <tr>
                 <th>Country</th>
+                <th>Region</th>
                 <th class="text-right">Weight</th>
             </tr>
         </thead>
@@ -469,6 +538,7 @@
             {{range .Details.GeographicAllocations}}
             <tr>
                 <td>{{.Country}}</td>
+                <td>{{if .RegionName}}{{.RegionName}}{{else}}—{{end}}</td>
                 <td class="text-right">{{.Percent}}</td>
             </tr>
             {{end}}

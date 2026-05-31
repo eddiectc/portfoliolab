@@ -74,3 +74,19 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 - **BondCharacteristics** was already added to `Upsert` and `toSymbolDetail` in Task 2.
 - **Tests added**: `TestSymbolDetailsRepository_VanguardFields_RoundTrip` (full Vanguard-style data with all new fields — holdings with bond fields, sectors with Date, countries with regions, expanded equity valuation, bond characteristics) and `TestSymbolDetailsRepository_BackwardCompatibility_WisdomTreeData` (raw old-format JSON inserted directly into DB, verified it deserializes correctly with new fields empty/nil).
 - **All tests pass** (full project suite, including integration tests).
+
+## Task 6 Completion (2026-05-31)
+
+- **Display types updated**: Added `SecurityType`, `CouponRate`, `FinalMaturity`, `AsOfDate` to `displayHolding`; `Date` to `displaySector`; `RegionName`, `RegionCode`, `Date` to `displayGeographicAllocation`; `MedianMarketCap`, `ForwardROE`, `ForwardEPSGrowth`, `RevenueRatio` to `displayEquityValuation`; new `displayBondCharacteristics` struct; `BondCharacteristics` to `symbolDetailsDisplay`.
+- **toDisplayDetails() updated**: Maps all new fields from symbol types to display types. Bond characteristics are conditional (nil for equity funds). New helper `formatFloatPercent` for percentage formatting with em-dash fallback.
+- **Template updated** (`symbol_details/view.html`):
+  - Holdings table: added Type, Coupon, Maturity columns; per-section AsOfDate display
+  - Sector Weightings: per-section date display
+  - Country Allocation: added Region column; per-section date display
+  - Fund Characteristics: added Median Market Cap, Forward ROE, Forward EPS Growth, Revenue / Prior Year rows
+  - Bond Characteristics: new conditional section (Average Coupon, Average Maturity, Average Quality, Average Duration)
+- **CSS**: No changes needed — existing `.table` styles handle new columns.
+- **`formatLargeNumber` updated**: Returns "—" for zero (no data available), consistent with `formatFloat`.
+- **Tests added**: `TestDetailsHandleDetailsPage_VanguardFields` (full page integration with all new fields), `TestToDisplayDetails_VanguardFields` (display mapping for all new fields), `TestToDisplayDetails_BondCharacteristics_Nil` (equity fund — bond section absent), `TestToDisplayDetails_EquityValuation_ZeroNewFields` (backward compat — zero new fields render as em-dash).
+- **All tests pass** (full project suite, including integration tests).
+- **Template cleanup (2026-05-31)**: Removed 3 redundant `{{if}}` guards in the template — the outer `{{if .Details.X}}` already guaranteed non-empty slices, making inner `{{if index .Details.X 0}}` checks unnecessary.
