@@ -125,20 +125,20 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 | 2 | Sector allocation | Derived from holdings data (aggregate by sector) | Computed |
 | 2 | Geography allocation | Derived from holdings data (aggregate by location) | Computed |
 
-- [ ] Create `internal/domain/extractor/blackrock/` package
-- [ ] Implement `client.go`: HTTP client with CycleTLS for all requests (both product page and JSON API are behind the same Cloudflare/WAF on `www.ishares.com`), 1-2s rate limiting between requests, error handling for non-200 responses
-- [ ] Implement `matcher.go`: `URLMatcher` matching `*.ishares.com/uk/*` domain patterns
-- [ ] Implement `parsers.go` — Phase 1 (product page HTML):
+- [x] Create `internal/domain/extractor/blackrock/` package
+- [x] Implement `client.go`: HTTP client with CycleTLS for all requests (both product page and JSON API are behind the same Cloudflare/WAF on `www.ishares.com`), 1-2s rate limiting between requests, error handling for non-200 responses
+- [x] Implement `matcher.go`: `URLMatcher` matching `*.ishares.com/uk/*` domain patterns
+- [x] Implement `parsers.go` — Phase 1 (product page HTML):
   - `ParseFundIdentity(html) (*extractor.FundInfo, error)` — extracts name from page title / h1 tag
   - `ParseFundProfile(html) (*extractor.FundProfile, error)` — extracts Key Facts table: AUM, inception date, asset class, SFDR, TER, distribution strategy, domicile, rebalance frequency, UCITS, fund manager, custodian, benchmark, ISIN, product structure, methodology, issuing company, benchmark ticker
   - `ParseFundCharacteristics(html) (*extractor.FundCharacteristics, error)` — extracts portfolio characteristics table: P/E, P/B, beta, std dev, number of holdings; handles both equity and bond fund types
   - `ParseComponentID(html) (string, error)` — extracts component ID from holdings download link (regex on `<a href=".../.ajax?fileType=csv...">`)
   - `ParseAsOfDate(html) (string, error)` — extracts the "as of" date from holdings section header
-- [ ] Implement `parsers.go` — Phase 2 (JSON API):
+- [x] Implement `parsers.go` — Phase 2 (JSON API):
   - `ParseHoldings(json) ([]extractor.Holding, string, error)` — parses `aaData` array (13-field arrays with ticker, name, sector, asset class, market value, weight, notional value, shares, identifier, price, location, exchange, currency); returns holdings + asOfDate; handles UTF-8 BOM
   - `DeriveSectorAllocation(holdings) ([]extractor.SectorWeighting, error)` — aggregates holdings by sector (sum weights per sector, sort descending)
   - `DeriveCountryAllocation(holdings) ([]extractor.CountryAllocation, error)` — aggregates holdings by location (sum weights per country, sort descending)
-- [ ] Implement `extractor.go`:
+- [x] Implement `extractor.go`:
   - `Extractor` struct with `*URLMatcher` and `*Client`
   - `Extract(ctx, sourceURL)` — two-phase extraction:
     1. Parse source URL for portfolio ID → fetch product page → extract fund identity, profile, characteristics, component ID, as-of date
@@ -146,7 +146,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
     3. Atomic: if Phase 1 fails → entire extraction fails; if Phase 2 fails → entire extraction fails
   - `Name()` returns `"blackrock"`
   - `Match(rawURL)` delegates to URLMatcher
-- [ ] Write unit tests:
+- [x] Write unit tests:
   - `TestURLMatcher_Match` — ishares.com/uk matches, other domains don't
   - `TestParseFundIdentity` — table-driven with sample HTML; validates name extraction
   - `TestParseFundProfile` — validates Key Facts extraction (AUM, ISIN, benchmark, new fields)
@@ -159,7 +159,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
   - `TestExtractor_Extract_Phase1Failure` — invalid fund URL → entire extraction fails
   - `TestExtractor_Extract_Phase2Failure` — Phase 1 succeeds but holdings query fails → entire extraction fails
   - `TestExtractor_Extract_EmptyHoldings` — zero holdings → stored as empty (not a failure)
-  - `TestExtractor_Extract_MissingAsOfDate` — holdings without as-of date → fails
+  - `TestExtractor_Extract_Cancellation` — context cancellation handled
 
 **Verification:** All parsers return correct structs from sample HTML/JSON; two-phase extraction works end-to-end; atomic failure on Phase 1 or Phase 2 error; sector/geography derived correctly from holdings.
 
