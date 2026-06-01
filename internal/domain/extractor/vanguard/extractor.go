@@ -14,17 +14,30 @@ import (
 // Name is the identifier for the Vanguard extractor.
 const Name = "vanguard"
 
+// DefaultNavHistoryDays is the default lookback period for NAV history (2 years).
+const DefaultNavHistoryDays = 730
+
 // Extractor extracts fund data from Vanguard UK investor pages.
 type Extractor struct {
-	matcher *URLMatcher
-	client  *Client
+	matcher       *URLMatcher
+	client        *Client
+	navHistoryDays int
 }
 
 // NewExtractor creates a new Vanguard extractor.
 func NewExtractor() *Extractor {
 	return &Extractor{
-		matcher: NewURLMatcher(),
-		client:  NewClient(),
+		matcher:       NewURLMatcher(),
+		client:        NewClient(),
+		navHistoryDays: DefaultNavHistoryDays,
+	}
+}
+
+// WithNavHistoryDays sets the lookback period for NAV history extraction.
+// A value of 730 (2 years) is the default.
+func WithNavHistoryDays(days int) func(*Extractor) {
+	return func(e *Extractor) {
+		e.navHistoryDays = days
 	}
 }
 
@@ -119,10 +132,12 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 
 	// NAV history
+	startDate := time.Now().AddDate(0, 0, -e.navHistoryDays).Format("2006-01-02")
+	endDate := time.Now().Format("2006-01-02")
 	navData, err := e.client.FetchGraphQL("PriceDetailsQuery", map[string]interface{}{
 		"portIds":   portIds,
-		"startDate": "2020-01-01",
-		"endDate":   time.Now().Format("2006-01-02"),
+		"startDate": startDate,
+		"endDate":   endDate,
 		"limit":     float64(0),
 	}, navQuery)
 	if err != nil {
