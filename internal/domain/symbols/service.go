@@ -245,13 +245,23 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 		details.TopHoldings = make([]symbol.TopHolding, len(result.Holdings))
 		for i, h := range result.Holdings {
 			details.TopHoldings[i] = symbol.TopHolding{
-				Symbol:        h.Symbol,
-				Name:          h.Name,
-				Percent:       h.Percent,
-				SecurityType:  h.SecurityType,
-				CouponRate:    h.CouponRate,
-				FinalMaturity: h.FinalMaturity,
-				AsOfDate:      h.AsOfDate,
+				Symbol:         h.Symbol,
+				Name:           h.Name,
+				Percent:        h.Percent,
+				SecurityType:   h.SecurityType,
+				CouponRate:     h.CouponRate,
+				FinalMaturity:  h.FinalMaturity,
+				AsOfDate:       h.AsOfDate,
+				Sector:         h.Sector,
+				AssetClass:     h.AssetClass,
+				MarketValue:    h.MarketValue,
+				NotionalValue:  h.NotionalValue,
+				Shares:         h.Shares,
+				Price:          h.Price,
+				Identifier:     h.Identifier,
+				Location:       h.Location,
+				Exchange:       h.Exchange,
+				MarketCurrency: h.MarketCurrency,
 			}
 		}
 	}
@@ -298,6 +308,15 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			AssetClassification:    result.FundProfile.AssetClassification,
 			DistributionStrategy:   result.FundProfile.DistributionStrategy,
 			MarketRegionFocus:      result.FundProfile.MarketRegionFocus,
+			SFDRClassification:     result.FundProfile.SFDRClassification,
+			Domicile:               result.FundProfile.Domicile,
+			RebalanceFrequency:     result.FundProfile.RebalanceFrequency,
+			ProductStructure:       result.FundProfile.ProductStructure,
+			Methodology:            result.FundProfile.Methodology,
+			FundManager:            result.FundProfile.FundManager,
+			Custodian:              result.FundProfile.Custodian,
+			IssuingCompany:         result.FundProfile.IssuingCompany,
+			BenchmarkTicker:        result.FundProfile.BenchmarkTicker,
 		}
 	}
 
@@ -314,6 +333,9 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			ForwardROE:               result.Characteristics.ForwardROE,
 			ForwardEPSGrowth:         result.Characteristics.ForwardEPSGrowth,
 			RevenueRatio:             result.Characteristics.RevenueRatio,
+			Beta3Y:                   result.Characteristics.Beta3Y,
+			StandardDeviation3Y:      result.Characteristics.StandardDeviation3Y,
+			NumberOfHoldings:         result.Characteristics.NumberOfHoldings,
 		}
 	}
 

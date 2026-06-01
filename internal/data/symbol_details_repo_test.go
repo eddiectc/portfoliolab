@@ -571,10 +571,10 @@ func TestSymbolDetailsRepository_GeographicAllocations_EmptySliceStoredAsEmpty(t
 
 	now := time.Now()
 	details := &symbol.SymbolDetails{
-		InternalSymbol: "EMPTYGEO",
-		ShortName:      "Empty Geo",
-		QuoteType:      "EQUITY",
-		FetchedAt:      now,
+		InternalSymbol:        "EMPTYGEO",
+		ShortName:             "Empty Geo",
+		QuoteType:             "EQUITY",
+		FetchedAt:             now,
 		GeographicAllocations: []symbol.GeographicAllocation{},
 	}
 
@@ -649,10 +649,10 @@ func TestSymbolDetailsRepository_ExtractorAsOfDate_RoundTrip(t *testing.T) {
 
 	asOfDate := time.Date(2024, 3, 29, 0, 0, 0, 0, time.UTC)
 	details := &symbol.SymbolDetails{
-		InternalSymbol:      "WMGG.L",
-		ShortName:           "WisdomTree Megatrends",
-		ExtractorAsOfDate:   asOfDate,
-		FetchedAt:           time.Now(),
+		InternalSymbol:    "WMGG.L",
+		ShortName:         "WisdomTree Megatrends",
+		ExtractorAsOfDate: asOfDate,
+		FetchedAt:         time.Now(),
 	}
 
 	err := repo.Upsert(context.Background(), details)
@@ -952,10 +952,10 @@ func TestSymbolDetailsRepository_AssetClassAllocation_NilStoredAsNull(t *testing
 	repo := NewSymbolDetailsRepository(db)
 
 	details := &symbol.SymbolDetails{
-		InternalSymbol:         "VOO",
-		ShortName:              "Vanguard S&P 500",
-		AssetClassAllocation:   nil,
-		FetchedAt:              time.Now(),
+		InternalSymbol:       "VOO",
+		ShortName:            "Vanguard S&P 500",
+		AssetClassAllocation: nil,
+		FetchedAt:            time.Now(),
 	}
 
 	err := repo.Upsert(context.Background(), details)
@@ -1097,12 +1097,12 @@ func TestSymbolDetailsRepository_VanguardFields_RoundTrip(t *testing.T) {
 			{Country: "China", Percent: 3.0, RegionName: "Asia Pacific", RegionCode: "AP", Date: "2024-03-29"},
 		},
 		EquityValuation: &symbol.EquityValuation{
-			PriceToEarnings:      21.5,
-			PriceToBook:          4.2,
-			MedianMarketCap:      1850.0,
-			ForwardROE:           18.3,
-			ForwardEPSGrowth:     12.1,
-			RevenueRatio:         1.05,
+			PriceToEarnings:  21.5,
+			PriceToBook:      4.2,
+			MedianMarketCap:  1850.0,
+			ForwardROE:       18.3,
+			ForwardEPSGrowth: 12.1,
+			RevenueRatio:     1.05,
 		},
 		BondCharacteristics: &symbol.BondCharacteristics{
 			AverageCoupon:   3.15,
@@ -1300,6 +1300,316 @@ func TestSymbolDetailsRepository_BackwardCompatibility_WisdomTreeData(t *testing
 	// BondCharacteristics: not set in old data
 	if got.BondCharacteristics != nil {
 		t.Errorf("expected nil BondCharacteristics (backward compat), got %+v", got.BondCharacteristics)
+	}
+}
+
+func TestSymbolDetailsRepository_BlackRockFields_RoundTrip(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	asOfDate := time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC)
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "ISUS.L",
+		ShortName:      "iShares Core USD Treasury Bond",
+		LongName:       "iShares Core USD Treasury Bond UCITS Fund",
+		Exchange:       "LSE",
+		Currency:       "GBP",
+		QuoteType:      "ETF",
+		FetchedAt:      time.Now(),
+		FundProfile: &symbol.FundProfile{
+			Family:               "iShares",
+			LegalType:            "UCITS",
+			TotalNetAssets:       15234.56,
+			AnnualExpenseRatio:   0.05,
+			Isin:                 "IE00B53HZB01",
+			Benchmark:            "ICE US Treasury Broad Index",
+			AssetClassification:  "Fixed Income",
+			DistributionStrategy: "Distributing",
+			MarketRegionFocus:    "Global",
+			SFDRClassification:   "Article 6",
+			Domicile:             "Ireland",
+			RebalanceFrequency:   "Quarterly",
+			ProductStructure:     "Physical",
+			Methodology:          "Representative",
+			FundManager:          "BlackRock Asset Management Ireland Limited",
+			Custodian:            "State Street Custodial Services (Ireland) Limited",
+			IssuingCompany:       "iShares IV plc",
+			BenchmarkTicker:      "IB000BM0001",
+		},
+		EquityValuation: &symbol.EquityValuation{
+			Beta3Y:              0.85,
+			StandardDeviation3Y: 4.12,
+			NumberOfHoldings:    12,
+		},
+		TopHoldings: []symbol.TopHolding{
+			{
+				Symbol:         "912828D57",
+				Name:           "United States Treasury Note 0.38% 20/05/2027",
+				Percent:        5.23,
+				Sector:         "Government",
+				AssetClass:     "Bond",
+				MarketValue:    125000000,
+				NotionalValue:  126500000,
+				Identifier:     "912828D57",
+				Location:       "United States",
+				Exchange:       "OTC",
+				MarketCurrency: "USD",
+			},
+			{
+				Symbol:         "912828Y37",
+				Name:           "United States Treasury Note 1.88% 31/05/2026",
+				Percent:        4.87,
+				Sector:         "Government",
+				AssetClass:     "Bond",
+				MarketValue:    118000000,
+				NotionalValue:  119200000,
+				Shares:         115000000,
+				Price:          1.0365,
+				Identifier:     "912828Y37",
+				Location:       "United States",
+				Exchange:       "OTC",
+				MarketCurrency: "USD",
+			},
+		},
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "government", Percent: 98.5},
+			{Sector: "cash", Percent: 1.5},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 98.5},
+			{Country: "Cash", Percent: 1.5},
+		},
+		ExtractorAsOfDate: asOfDate,
+	}
+
+	err := repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "ISUS.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+
+	// Verify FundProfile new fields
+	if got.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if got.FundProfile.SFDRClassification != "Article 6" {
+		t.Errorf("expected SFDRClassification 'Article 6', got %q", got.FundProfile.SFDRClassification)
+	}
+	if got.FundProfile.Domicile != "Ireland" {
+		t.Errorf("expected Domicile 'Ireland', got %q", got.FundProfile.Domicile)
+	}
+	if got.FundProfile.RebalanceFrequency != "Quarterly" {
+		t.Errorf("expected RebalanceFrequency 'Quarterly', got %q", got.FundProfile.RebalanceFrequency)
+	}
+	if got.FundProfile.ProductStructure != "Physical" {
+		t.Errorf("expected ProductStructure 'Physical', got %q", got.FundProfile.ProductStructure)
+	}
+	if got.FundProfile.Methodology != "Representative" {
+		t.Errorf("expected Methodology 'Representative', got %q", got.FundProfile.Methodology)
+	}
+	if got.FundProfile.FundManager != "BlackRock Asset Management Ireland Limited" {
+		t.Errorf("expected FundManager, got %q", got.FundProfile.FundManager)
+	}
+	if got.FundProfile.Custodian != "State Street Custodial Services (Ireland) Limited" {
+		t.Errorf("expected Custodian, got %q", got.FundProfile.Custodian)
+	}
+	if got.FundProfile.IssuingCompany != "iShares IV plc" {
+		t.Errorf("expected IssuingCompany, got %q", got.FundProfile.IssuingCompany)
+	}
+	if got.FundProfile.BenchmarkTicker != "IB000BM0001" {
+		t.Errorf("expected BenchmarkTicker 'IB000BM0001', got %q", got.FundProfile.BenchmarkTicker)
+	}
+
+	// Verify EquityValuation new fields
+	if got.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if got.EquityValuation.Beta3Y != 0.85 {
+		t.Errorf("expected Beta3Y 0.85, got %f", got.EquityValuation.Beta3Y)
+	}
+	if got.EquityValuation.StandardDeviation3Y != 4.12 {
+		t.Errorf("expected StandardDeviation3Y 4.12, got %f", got.EquityValuation.StandardDeviation3Y)
+	}
+	if got.EquityValuation.NumberOfHoldings != 12 {
+		t.Errorf("expected NumberOfHoldings 12, got %d", got.EquityValuation.NumberOfHoldings)
+	}
+
+	// Verify TopHoldings new fields
+	if len(got.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(got.TopHoldings))
+	}
+	if got.TopHoldings[0].Sector != "Government" {
+		t.Errorf("expected Sector 'Government', got %q", got.TopHoldings[0].Sector)
+	}
+	if got.TopHoldings[0].AssetClass != "Bond" {
+		t.Errorf("expected AssetClass 'Bond', got %q", got.TopHoldings[0].AssetClass)
+	}
+	if got.TopHoldings[0].MarketValue != 125000000 {
+		t.Errorf("expected MarketValue 125000000, got %f", got.TopHoldings[0].MarketValue)
+	}
+	if got.TopHoldings[0].NotionalValue != 126500000 {
+		t.Errorf("expected NotionalValue 126500000, got %f", got.TopHoldings[0].NotionalValue)
+	}
+	if got.TopHoldings[0].Identifier != "912828D57" {
+		t.Errorf("expected Identifier '912828D57', got %q", got.TopHoldings[0].Identifier)
+	}
+	if got.TopHoldings[0].Location != "United States" {
+		t.Errorf("expected Location 'United States', got %q", got.TopHoldings[0].Location)
+	}
+	if got.TopHoldings[0].Exchange != "OTC" {
+		t.Errorf("expected Exchange 'OTC', got %q", got.TopHoldings[0].Exchange)
+	}
+	if got.TopHoldings[0].MarketCurrency != "USD" {
+		t.Errorf("expected MarketCurrency 'USD', got %q", got.TopHoldings[0].MarketCurrency)
+	}
+	// Second holding with Shares and Price
+	if got.TopHoldings[1].Shares != 115000000 {
+		t.Errorf("expected Shares 115000000, got %f", got.TopHoldings[1].Shares)
+	}
+	if got.TopHoldings[1].Price != 1.0365 {
+		t.Errorf("expected Price 1.0365, got %f", got.TopHoldings[1].Price)
+	}
+
+	// Verify existing fields still work
+	if got.FundProfile.Family != "iShares" {
+		t.Errorf("expected Family 'iShares', got %q", got.FundProfile.Family)
+	}
+	if got.FundProfile.Isin != "IE00B53HZB01" {
+		t.Errorf("expected Isin 'IE00B53HZB01', got %q", got.FundProfile.Isin)
+	}
+	if got.ShortName != "iShares Core USD Treasury Bond" {
+		t.Errorf("expected ShortName, got %q", got.ShortName)
+	}
+}
+
+func TestSymbolDetailsRepository_BackwardCompatibility_BlackRockFields(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	// Simulate old WisdomTree-style JSON (without any BlackRock-specific fields)
+	oldHoldings := `[{"Symbol":"BE","Name":"Bloom Energy Corp","Percent":1.4},{"Symbol":"TSLA","Name":"Tesla Inc","Percent":2.5}]`
+	oldSectors := `[{"Sector":"technology","Percent":21.2},{"Sector":"industrials","Percent":36.4}]`
+	oldCountries := `[{"Country":"United States","Percent":45.2},{"Country":"Japan","Percent":8.1}]`
+	oldFundProfile := `{"Family":"WisdomTree","LegalType":"Exchange Traded Fund","TotalNetAssets":21526.37,"AnnualExpenseRatio":0.4,"Isin":"GB00BFNMHK52"}`
+	oldEquityVal := `{"PriceToEarnings":25.3,"PriceToBook":4.2,"DividendYield":0.5}`
+
+	_, err := db.Exec(`
+		INSERT INTO symbol_details (internal_symbol, short_name, long_name, exchange, currency, quote_type,
+			top_holdings, sector_weightings, geographic_allocations, fund_profile, equity_valuation, fetched_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, datetime('now'))
+	`, "WMGG.L", "WisdomTree Megatrends", "WisdomTree Megatrends UCITS ETF",
+		"LSE", "GBP", "ETF",
+		oldHoldings, oldSectors, oldCountries, oldFundProfile, oldEquityVal)
+	if err != nil {
+		t.Fatalf("insert old data: %v", err)
+	}
+
+	got, err := repo.GetByInternalSymbol(context.Background(), "WMGG.L")
+	if err != nil {
+		t.Fatalf("GetByInternalSymbol: %v", err)
+	}
+
+	// Verify old fields still deserialize correctly
+	if got.ShortName != "WisdomTree Megatrends" {
+		t.Errorf("expected ShortName 'WisdomTree Megatrends', got %q", got.ShortName)
+	}
+	if got.QuoteType != "ETF" {
+		t.Errorf("expected QuoteType 'ETF', got %q", got.QuoteType)
+	}
+
+	// Holdings: old fields present, new BlackRock fields empty/zero
+	if len(got.TopHoldings) != 2 {
+		t.Fatalf("expected 2 holdings, got %d", len(got.TopHoldings))
+	}
+	if got.TopHoldings[0].Symbol != "BE" {
+		t.Errorf("expected Symbol 'BE', got %q", got.TopHoldings[0].Symbol)
+	}
+	if got.TopHoldings[0].Percent != 1.4 {
+		t.Errorf("expected Percent 1.4, got %f", got.TopHoldings[0].Percent)
+	}
+	// New BlackRock fields should be empty/zero
+	if got.TopHoldings[0].Sector != "" {
+		t.Errorf("expected empty Sector (backward compat), got %q", got.TopHoldings[0].Sector)
+	}
+	if got.TopHoldings[0].AssetClass != "" {
+		t.Errorf("expected empty AssetClass (backward compat), got %q", got.TopHoldings[0].AssetClass)
+	}
+	if got.TopHoldings[0].MarketValue != 0 {
+		t.Errorf("expected zero MarketValue (backward compat), got %f", got.TopHoldings[0].MarketValue)
+	}
+	if got.TopHoldings[0].Location != "" {
+		t.Errorf("expected empty Location (backward compat), got %q", got.TopHoldings[0].Location)
+	}
+	if got.TopHoldings[0].Exchange != "" {
+		t.Errorf("expected empty Exchange (backward compat), got %q", got.TopHoldings[0].Exchange)
+	}
+
+	// FundProfile: old fields present, new BlackRock fields empty
+	if got.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if got.FundProfile.Family != "WisdomTree" {
+		t.Errorf("expected Family 'WisdomTree', got %q", got.FundProfile.Family)
+	}
+	if got.FundProfile.Isin != "GB00BFNMHK52" {
+		t.Errorf("expected Isin 'GB00BFNMHK52', got %q", got.FundProfile.Isin)
+	}
+	// New BlackRock fields should be empty
+	if got.FundProfile.SFDRClassification != "" {
+		t.Errorf("expected empty SFDRClassification (backward compat), got %q", got.FundProfile.SFDRClassification)
+	}
+	if got.FundProfile.Domicile != "" {
+		t.Errorf("expected empty Domicile (backward compat), got %q", got.FundProfile.Domicile)
+	}
+	if got.FundProfile.FundManager != "" {
+		t.Errorf("expected empty FundManager (backward compat), got %q", got.FundProfile.FundManager)
+	}
+	if got.FundProfile.Custodian != "" {
+		t.Errorf("expected empty Custodian (backward compat), got %q", got.FundProfile.Custodian)
+	}
+	if got.FundProfile.IssuingCompany != "" {
+		t.Errorf("expected empty IssuingCompany (backward compat), got %q", got.FundProfile.IssuingCompany)
+	}
+	if got.FundProfile.RebalanceFrequency != "" {
+		t.Errorf("expected empty RebalanceFrequency (backward compat), got %q", got.FundProfile.RebalanceFrequency)
+	}
+	if got.FundProfile.ProductStructure != "" {
+		t.Errorf("expected empty ProductStructure (backward compat), got %q", got.FundProfile.ProductStructure)
+	}
+	if got.FundProfile.Methodology != "" {
+		t.Errorf("expected empty Methodology (backward compat), got %q", got.FundProfile.Methodology)
+	}
+	if got.FundProfile.BenchmarkTicker != "" {
+		t.Errorf("expected empty BenchmarkTicker (backward compat), got %q", got.FundProfile.BenchmarkTicker)
+	}
+
+	// EquityValuation: old fields present, new BlackRock fields zero
+	if got.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation")
+	}
+	if got.EquityValuation.PriceToEarnings != 25.3 {
+		t.Errorf("expected PriceToEarnings 25.3, got %f", got.EquityValuation.PriceToEarnings)
+	}
+	if got.EquityValuation.Beta3Y != 0 {
+		t.Errorf("expected zero Beta3Y (backward compat), got %f", got.EquityValuation.Beta3Y)
+	}
+	if got.EquityValuation.StandardDeviation3Y != 0 {
+		t.Errorf("expected zero StandardDeviation3Y (backward compat), got %f", got.EquityValuation.StandardDeviation3Y)
+	}
+	if got.EquityValuation.NumberOfHoldings != 0 {
+		t.Errorf("expected zero NumberOfHoldings (backward compat), got %d", got.EquityValuation.NumberOfHoldings)
+	}
+
+	// Sectors and countries still work
+	if len(got.SectorWeightings) != 2 {
+		t.Fatalf("expected 2 sectors, got %d", len(got.SectorWeightings))
+	}
+	if len(got.GeographicAllocations) != 2 {
+		t.Fatalf("expected 2 countries, got %d", len(got.GeographicAllocations))
 	}
 }
 

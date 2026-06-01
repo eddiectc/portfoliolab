@@ -1186,6 +1186,383 @@ func TestService_extractResultToSymbolDetails_VanguardFields(t *testing.T) {
 	}
 }
 
+func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
+	result := &extractor.ExtractResult{
+		AsOfDate: time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC),
+		FundInfo: &extractor.FundInfo{
+			Symbol: "ISUS.L",
+			Name:   "iShares Core USD Total Bond Market UCITS ETF USD (Acc)",
+		},
+		FundProfile: &extractor.FundProfile{
+			Family:                 "iShares",
+			LegalType:              "Exchange Traded Fund",
+			TotalNetAssets:         25000000000,
+			AnnualExpenseRatio:     0.08,
+			InceptionDate:          time.Date(2012, 9, 25, 0, 0, 0, 0, time.UTC),
+			Isin:                   "IE00B53HDB03",
+			Benchmark:              "Bloomberg US Universal Treasury Index",
+			AssetClassification:    "Fixed Income",
+			DistributionStrategy:   "ACUM",
+			SFDRClassification:     "Article 6",
+			Domicile:               "Ireland",
+			RebalanceFrequency:     "Quarterly",
+			ProductStructure:       "Physical",
+			Methodology:            "Representative",
+			FundManager:            "BlackRock Asset Management Ireland Limited",
+			Custodian:              "State Street Custodial Services (Ireland) Limited",
+			IssuingCompany:         "iShares IV plc",
+			BenchmarkTicker:        "LBU000IW Index",
+		},
+		Holdings: []extractor.Holding{
+			{
+				Symbol:         "US-10Y",
+				Name:           "US Treasury 10Y",
+				Percent:        18.5,
+				SecurityType:   "Government Bond",
+				Sector:         "Government",
+				AssetClass:     "Fixed Income",
+				MarketValue:    4625000000,
+				NotionalValue:  4700000000,
+				Shares:         0,
+				Price:          98.5,
+				Identifier:     "912828ZT0",
+				Location:       "United States",
+				Exchange:       "OTC",
+				MarketCurrency: "USD",
+			},
+			{
+				Symbol:         "AAPL",
+				Name:           "Apple Inc",
+				Percent:        0.5,
+				SecurityType:   "Common Stock",
+				Sector:         "Information Technology",
+				AssetClass:     "Equity",
+				MarketValue:    125000000,
+				NotionalValue:  125000000,
+				Shares:         625000,
+				Price:          200.0,
+				Identifier:     "037833100",
+				Location:       "United States",
+				Exchange:       "NASDAQ",
+				MarketCurrency: "USD",
+			},
+			{
+				Symbol:         "CASH",
+				Name:           "Cash",
+				Percent:        0.2,
+				Sector:         "",
+				AssetClass:     "Cash",
+				MarketValue:    50000000,
+				NotionalValue:  50000000,
+				Shares:         0,
+				Price:          0,
+				Identifier:     "-",
+				Location:       "",
+				Exchange:       "",
+				MarketCurrency: "USD",
+			},
+		},
+		Sectors: []extractor.SectorWeighting{
+			{Sector: "Government", Percent: 85.0},
+			{Sector: "Corporate", Percent: 12.0},
+			{Sector: "Agency", Percent: 3.0},
+		},
+		CountryAllocation: []extractor.CountryAllocation{
+			{Country: "United States", Percent: 98.5},
+			{Country: "Cash", Percent: 1.5},
+		},
+		Characteristics: &extractor.FundCharacteristics{
+			PriceToEarnings:     0,
+			AverageCoupon:       4.25,
+			AverageMaturity:     8.5,
+			AverageQuality:      7.8,
+			AverageDuration:     6.2,
+			Beta3Y:              0.02,
+			StandardDeviation3Y: 5.8,
+			NumberOfHoldings:    8542,
+			FieldsPresent:       extractor.CharacteristicAverageCoupon |
+				extractor.CharacteristicAverageMaturity |
+				extractor.CharacteristicAverageQuality |
+				extractor.CharacteristicAverageDuration |
+				extractor.CharacteristicBeta3Y |
+				extractor.CharacteristicStandardDeviation3Y |
+				extractor.CharacteristicNumberOfHoldings,
+		},
+	}
+
+	details := extractResultToSymbolDetails(result, "ISUS.L")
+
+	// FundProfile — BlackRock-specific fields
+	if details.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if details.FundProfile.SFDRClassification != "Article 6" {
+		t.Errorf("expected SFDRClassification 'Article 6', got %q", details.FundProfile.SFDRClassification)
+	}
+	if details.FundProfile.Domicile != "Ireland" {
+		t.Errorf("expected Domicile 'Ireland', got %q", details.FundProfile.Domicile)
+	}
+	if details.FundProfile.RebalanceFrequency != "Quarterly" {
+		t.Errorf("expected RebalanceFrequency 'Quarterly', got %q", details.FundProfile.RebalanceFrequency)
+	}
+	if details.FundProfile.ProductStructure != "Physical" {
+		t.Errorf("expected ProductStructure 'Physical', got %q", details.FundProfile.ProductStructure)
+	}
+	if details.FundProfile.Methodology != "Representative" {
+		t.Errorf("expected Methodology 'Representative', got %q", details.FundProfile.Methodology)
+	}
+	if details.FundProfile.FundManager != "BlackRock Asset Management Ireland Limited" {
+		t.Errorf("expected FundManager, got %q", details.FundProfile.FundManager)
+	}
+	if details.FundProfile.Custodian != "State Street Custodial Services (Ireland) Limited" {
+		t.Errorf("expected Custodian, got %q", details.FundProfile.Custodian)
+	}
+	if details.FundProfile.IssuingCompany != "iShares IV plc" {
+		t.Errorf("expected IssuingCompany 'iShares IV plc', got %q", details.FundProfile.IssuingCompany)
+	}
+	if details.FundProfile.BenchmarkTicker != "LBU000IW Index" {
+		t.Errorf("expected BenchmarkTicker, got %q", details.FundProfile.BenchmarkTicker)
+	}
+
+	// Holdings — BlackRock-specific fields
+	if len(details.TopHoldings) != 3 {
+		t.Fatalf("expected 3 holdings, got %d", len(details.TopHoldings))
+	}
+	// First holding (bond)
+	h0 := details.TopHoldings[0]
+	if h0.Sector != "Government" {
+		t.Errorf("expected Sector 'Government', got %q", h0.Sector)
+	}
+	if h0.AssetClass != "Fixed Income" {
+		t.Errorf("expected AssetClass 'Fixed Income', got %q", h0.AssetClass)
+	}
+	if h0.MarketValue != 4625000000 {
+		t.Errorf("expected MarketValue 4625000000, got %f", h0.MarketValue)
+	}
+	if h0.NotionalValue != 4700000000 {
+		t.Errorf("expected NotionalValue 4700000000, got %f", h0.NotionalValue)
+	}
+	if h0.Price != 98.5 {
+		t.Errorf("expected Price 98.5, got %f", h0.Price)
+	}
+	if h0.Identifier != "912828ZT0" {
+		t.Errorf("expected Identifier '912828ZT0', got %q", h0.Identifier)
+	}
+	if h0.Location != "United States" {
+		t.Errorf("expected Location 'United States', got %q", h0.Location)
+	}
+	if h0.Exchange != "OTC" {
+		t.Errorf("expected Exchange 'OTC', got %q", h0.Exchange)
+	}
+	if h0.MarketCurrency != "USD" {
+		t.Errorf("expected MarketCurrency 'USD', got %q", h0.MarketCurrency)
+	}
+	// Second holding (equity)
+	h1 := details.TopHoldings[1]
+	if h1.Shares != 625000 {
+		t.Errorf("expected Shares 625000, got %f", h1.Shares)
+	}
+	if h1.Exchange != "NASDAQ" {
+		t.Errorf("expected Exchange 'NASDAQ', got %q", h1.Exchange)
+	}
+	// Third holding (cash)
+	h2 := details.TopHoldings[2]
+	if h2.Identifier != "-" {
+		t.Errorf("expected Identifier '-' for cash, got %q", h2.Identifier)
+	}
+	if h2.AssetClass != "Cash" {
+		t.Errorf("expected AssetClass 'Cash', got %q", h2.AssetClass)
+	}
+
+	// Bond characteristics — populated (bond fund)
+	if details.BondCharacteristics == nil {
+		t.Fatal("expected non-nil BondCharacteristics for bond fund")
+	}
+	if details.BondCharacteristics.AverageCoupon != 4.25 {
+		t.Errorf("expected AverageCoupon 4.25, got %f", details.BondCharacteristics.AverageCoupon)
+	}
+	if details.BondCharacteristics.AverageDuration != 6.2 {
+		t.Errorf("expected AverageDuration 6.2, got %f", details.BondCharacteristics.AverageDuration)
+	}
+
+	// Equity valuation — nil for bond fund (no equity fields present)
+	if details.EquityValuation != nil {
+		t.Errorf("expected nil EquityValuation for bond fund, got %+v", details.EquityValuation)
+	}
+
+	// Sectors and country allocation
+	if len(details.SectorWeightings) != 3 {
+		t.Errorf("expected 3 sectors, got %d", len(details.SectorWeightings))
+	}
+	if len(details.GeographicAllocations) != 2 {
+		t.Errorf("expected 2 countries, got %d", len(details.GeographicAllocations))
+	}
+}
+
+func TestService_extractResultToSymbolDetails_BlackRockEquityFund(t *testing.T) {
+	result := &extractor.ExtractResult{
+		AsOfDate: time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC),
+		FundInfo: &extractor.FundInfo{
+			Symbol: "ISF.L",
+			Name:   "iShares FTSE 100 UCITS ETF GBP (Dist)",
+		},
+		FundProfile: &extractor.FundProfile{
+			Family:                 "iShares",
+			LegalType:              "Exchange Traded Fund",
+			TotalNetAssets:         5000000000,
+			AnnualExpenseRatio:     0.07,
+			InceptionDate:          time.Date(2000, 5, 3, 0, 0, 0, 0, time.UTC),
+			Isin:                   "IE00B4K4B820",
+			Benchmark:              "FTSE 100 Total Return Index",
+			AssetClassification:    "Equity",
+			DistributionStrategy:   "INCM",
+			MarketRegionFocus:      "UK",
+			SFDRClassification:     "Article 6",
+			Domicile:               "Ireland",
+			RebalanceFrequency:     "Quarterly",
+			ProductStructure:       "Physical",
+			Methodology:            "Representative",
+			FundManager:            "BlackRock Asset Management Ireland Limited",
+			Custodian:              "State Street Custodial Services (Ireland) Limited",
+			IssuingCompany:         "iShares IV plc",
+			BenchmarkTicker:        "XFLT10 Index",
+		},
+		Holdings: []extractor.Holding{
+			{
+				Symbol:         "AZN.L",
+				Name:           "AstraZeneca PLC",
+				Percent:        5.2,
+				SecurityType:   "Common Stock",
+				Sector:         "Health Care",
+				AssetClass:     "Equity",
+				MarketValue:    260000000,
+				NotionalValue:  260000000,
+				Shares:         1200000,
+				Price:          216.67,
+				Identifier:     "GB0009895292",
+				Location:       "United Kingdom",
+				Exchange:       "LSE",
+				MarketCurrency: "GBP",
+			},
+		},
+		Sectors: []extractor.SectorWeighting{
+			{Sector: "Health Care", Percent: 18.5},
+			{Sector: "Financials", Percent: 16.2},
+			{Sector: "Consumer Staples", Percent: 14.8},
+		},
+		CountryAllocation: []extractor.CountryAllocation{
+			{Country: "United Kingdom", Percent: 100.0},
+		},
+		Characteristics: &extractor.FundCharacteristics{
+			PriceToEarnings:          12.5,
+			EstimatedPriceToEarnings: 11.8,
+			PriceToBook:              1.9,
+			PriceToCashflow:          9.2,
+			DividendYield:            3.8,
+			Beta3Y:                   0.95,
+			StandardDeviation3Y:      16.2,
+			NumberOfHoldings:         105,
+			FieldsPresent:            extractor.CharacteristicPriceToEarnings |
+				extractor.CharacteristicEstimatedPriceToEarnings |
+				extractor.CharacteristicPriceToBook |
+				extractor.CharacteristicPriceToCashflow |
+				extractor.CharacteristicDividendYield |
+				extractor.CharacteristicBeta3Y |
+				extractor.CharacteristicStandardDeviation3Y |
+				extractor.CharacteristicNumberOfHoldings,
+		},
+	}
+
+	details := extractResultToSymbolDetails(result, "ISF.L")
+
+	// FundProfile — BlackRock-specific fields
+	if details.FundProfile == nil {
+		t.Fatal("expected non-nil FundProfile")
+	}
+	if details.FundProfile.SFDRClassification != "Article 6" {
+		t.Errorf("expected SFDRClassification 'Article 6', got %q", details.FundProfile.SFDRClassification)
+	}
+	if details.FundProfile.Domicile != "Ireland" {
+		t.Errorf("expected Domicile 'Ireland', got %q", details.FundProfile.Domicile)
+	}
+	if details.FundProfile.BenchmarkTicker != "XFLT10 Index" {
+		t.Errorf("expected BenchmarkTicker, got %q", details.FundProfile.BenchmarkTicker)
+	}
+	// Existing fields still work
+	if details.FundProfile.AssetClassification != "Equity" {
+		t.Errorf("expected AssetClassification 'Equity', got %q", details.FundProfile.AssetClassification)
+	}
+	if details.FundProfile.DistributionStrategy != "INCM" {
+		t.Errorf("expected DistributionStrategy 'INCM', got %q", details.FundProfile.DistributionStrategy)
+	}
+
+	// Equity valuation — populated for equity fund (P/E present)
+	if details.EquityValuation == nil {
+		t.Fatal("expected non-nil EquityValuation for equity fund")
+	}
+	if details.EquityValuation.PriceToEarnings != 12.5 {
+		t.Errorf("expected P/E 12.5, got %f", details.EquityValuation.PriceToEarnings)
+	}
+	if details.EquityValuation.Beta3Y != 0.95 {
+		t.Errorf("expected Beta3Y 0.95, got %f", details.EquityValuation.Beta3Y)
+	}
+	if details.EquityValuation.StandardDeviation3Y != 16.2 {
+		t.Errorf("expected StandardDeviation3Y 16.2, got %f", details.EquityValuation.StandardDeviation3Y)
+	}
+	if details.EquityValuation.NumberOfHoldings != 105 {
+		t.Errorf("expected NumberOfHoldings 105, got %d", details.EquityValuation.NumberOfHoldings)
+	}
+	// Existing fields still work
+	if details.EquityValuation.EstimatedPriceToEarnings != 11.8 {
+		t.Errorf("expected Estimated P/E 11.8, got %f", details.EquityValuation.EstimatedPriceToEarnings)
+	}
+	if details.EquityValuation.DividendYield != 3.8 {
+		t.Errorf("expected DividendYield 3.8, got %f", details.EquityValuation.DividendYield)
+	}
+
+	// Holdings — BlackRock-specific fields
+	if len(details.TopHoldings) != 1 {
+		t.Fatalf("expected 1 holding, got %d", len(details.TopHoldings))
+	}
+	h := details.TopHoldings[0]
+	if h.Sector != "Health Care" {
+		t.Errorf("expected Sector 'Health Care', got %q", h.Sector)
+	}
+	if h.AssetClass != "Equity" {
+		t.Errorf("expected AssetClass 'Equity', got %q", h.AssetClass)
+	}
+	if h.Shares != 1200000 {
+		t.Errorf("expected Shares 1200000, got %f", h.Shares)
+	}
+	if h.MarketValue != 260000000 {
+		t.Errorf("expected MarketValue 260000000, got %f", h.MarketValue)
+	}
+	if h.Identifier != "GB0009895292" {
+		t.Errorf("expected Identifier 'GB0009895292', got %q", h.Identifier)
+	}
+	if h.Location != "United Kingdom" {
+		t.Errorf("expected Location 'United Kingdom', got %q", h.Location)
+	}
+	if h.Exchange != "LSE" {
+		t.Errorf("expected Exchange 'LSE', got %q", h.Exchange)
+	}
+	if h.MarketCurrency != "GBP" {
+		t.Errorf("expected MarketCurrency 'GBP', got %q", h.MarketCurrency)
+	}
+	// Existing fields still work
+	if h.Symbol != "AZN.L" {
+		t.Errorf("expected Symbol 'AZN.L', got %q", h.Symbol)
+	}
+	if h.Percent != 5.2 {
+		t.Errorf("expected Percent 5.2, got %f", h.Percent)
+	}
+
+	// Bond characteristics — nil for equity fund
+	if details.BondCharacteristics != nil {
+		t.Errorf("expected nil BondCharacteristics for equity fund, got %+v", details.BondCharacteristics)
+	}
+}
+
 func TestService_extractResultToSymbolDetails_BondFundCharacteristics(t *testing.T) {
 	result := &extractor.ExtractResult{
 		AsOfDate: time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC),
