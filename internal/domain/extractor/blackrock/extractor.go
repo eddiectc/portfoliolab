@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
@@ -126,11 +125,8 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 
 	// Update fund info symbol from Bloomberg ticker if available
 	if fundProfile.BenchmarkTicker != "" {
-		// Bloomberg ticker is "IWMO LN" — extract the first part as symbol
-		parts := strings.Split(fundProfile.BenchmarkTicker, " ")
-		if len(parts) > 0 {
-			fundInfo.Symbol = parts[0]
-		}
+		// Bloomberg ticker is "IWMO LN" — use the full value
+		fundInfo.Symbol = fundProfile.BenchmarkTicker
 	}
 
 	return &extractor.ExtractResult{

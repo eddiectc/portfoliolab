@@ -358,7 +358,7 @@ func DeriveSectorAllocation(holdings []extractor.Holding) ([]extractor.SectorWei
 			continue
 		}
 		// Use absolute weight for aggregation (negative weights are short positions)
-		sectorMap[h.Sector] += h.Percent
+		sectorMap[h.Sector] += math.Abs(h.Percent)
 	}
 
 	var sectors []extractor.SectorWeighting
@@ -387,7 +387,8 @@ func DeriveCountryAllocation(holdings []extractor.Holding) ([]extractor.CountryA
 		if h.Location == "" {
 			continue
 		}
-		countryMap[h.Location] += h.Percent
+		// Use absolute weight for aggregation (negative weights are short positions)
+		countryMap[h.Location] += math.Abs(h.Percent)
 	}
 
 	var countries []extractor.CountryAllocation
