@@ -502,6 +502,28 @@ func TestDeriveSectorAllocation(t *testing.T) {
 	}
 }
 
+func TestDeriveSectorAllocation_NegativeWeight(t *testing.T) {
+	// Negative-weight holding with a sector (e.g. short position) should use absolute weight
+	holdings := []extractor.Holding{
+		{Symbol: "MU", Sector: "Information Technology", Percent: 6.57},
+		{Symbol: "SHORT", Sector: "Information Technology", Percent: -2.00},
+		{Symbol: "JNJ", Sector: "Healthcare", Percent: 4.20},
+	}
+
+	sectors, err := DeriveSectorAllocation(holdings)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if sectors[0].Sector != "Information Technology" {
+		t.Errorf("first sector = %q, want Information Technology", sectors[0].Sector)
+	}
+	// 6.57 + |-2.00| = 8.57
+	if sectors[0].Percent != 8.57 {
+		t.Errorf("first sector percent = %f, want 8.57", sectors[0].Percent)
+	}
+}
+
 func TestDeriveCountryAllocation(t *testing.T) {
 	holdings := []extractor.Holding{
 		{Symbol: "MU", Location: "United States", Percent: 6.57},
@@ -528,6 +550,28 @@ func TestDeriveCountryAllocation(t *testing.T) {
 	}
 	if countries[1].Country != "Netherlands" {
 		t.Errorf("second country = %q, want Netherlands", countries[1].Country)
+	}
+}
+
+func TestDeriveCountryAllocation_NegativeWeight(t *testing.T) {
+	// Negative-weight holding with a location (e.g. short position) should use absolute weight
+	holdings := []extractor.Holding{
+		{Symbol: "MU", Location: "United States", Percent: 6.57},
+		{Symbol: "SHORT", Location: "United States", Percent: -2.00},
+		{Symbol: "NVS", Location: "Netherlands", Percent: 2.50},
+	}
+
+	countries, err := DeriveCountryAllocation(holdings)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if countries[0].Country != "United States" {
+		t.Errorf("first country = %q, want United States", countries[0].Country)
+	}
+	// 6.57 + |-2.00| = 8.57
+	if countries[0].Percent != 8.57 {
+		t.Errorf("first country percent = %f, want 8.57", countries[0].Percent)
 	}
 }
 
