@@ -3,6 +3,7 @@ package blackrock
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -192,6 +193,7 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 		// Store in AverageCoupon if YTM not already set (both map to similar concept)
 		if chars.AverageCoupon == 0 {
 			chars.AverageCoupon = parseFloatValue(val)
+			chars.FieldsPresent |= extractor.CharacteristicAverageCoupon
 		}
 	}
 
@@ -211,6 +213,7 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 	if val, err := parseKeyValue(html, "Effective Duration"); err == nil {
 		if chars.AverageDuration == 0 {
 			chars.AverageDuration = parseFloatValue(val)
+			chars.FieldsPresent |= extractor.CharacteristicAverageDuration
 		}
 	}
 
@@ -513,9 +516,6 @@ func getStringValue(node jsonNode) string {
 
 // mathRound rounds a float64 to the given number of decimal places.
 func mathRound(val float64, places int) float64 {
-	pow := 1.0
-	for i := 0; i < places; i++ {
-		pow *= 10
-	}
-	return float64(int(val*pow+0.5)) / pow
+	pow := math.Pow(10, float64(places))
+	return math.Round(val*pow) / pow
 }
