@@ -89,6 +89,16 @@ type FundProfile struct {
 	AssetClassification    string  // asset class (e.g. "Equity", "Fixed Income")
 	DistributionStrategy   string  // distribution strategy (e.g. "INCM", "ACUM")
 	MarketRegionFocus      string  // market region focus (e.g. "Global", "Europe")
+	// BlackRock/iShares-specific fields
+	SFDRClassification string // e.g. "Other", "Article 6", "Article 8", "Article 9"
+	Domicile           string // e.g. "Ireland", "Luxembourg"
+	RebalanceFrequency string // e.g. "Quarterly", "Semi-Annually"
+	ProductStructure   string // e.g. "Physical", "Synthetic"
+	Methodology        string // e.g. "Optimised", "Representative"
+	FundManager        string // e.g. "BlackRock Asset Management Ireland Limited"
+	Custodian          string // e.g. "State Street Custodial Services (Ireland) Limited"
+	IssuingCompany     string // e.g. "iShares IV plc"
+	BenchmarkTicker    string // e.g. Bloomberg ticker of the benchmark
 }
 
 // Holding is a single security holding with weight percentage.
@@ -100,6 +110,17 @@ type Holding struct {
 	CouponRate    *float64 // bond holdings only (Vanguard)
 	FinalMaturity *string  // bond holdings only (Vanguard)
 	AsOfDate      string   // effective date of the holdings data (Vanguard)
+	// BlackRock/iShares-specific fields
+	Sector         string  // e.g. "Information Technology"
+	AssetClass     string  // e.g. "Equity", "Cash"
+	MarketValue    float64 // market value in base currency
+	NotionalValue  float64 // notional value
+	Shares         float64 // number of shares/units
+	Price          float64 // price per share
+	Identifier     string  // CUSIP/ISIN, or "-" for cash
+	Location       string  // country, e.g. "United States"
+	Exchange       string  // e.g. "NASDAQ"
+	MarketCurrency string  // e.g. "USD"
 }
 
 // NavPoint is a single NAV data point.
@@ -156,6 +177,10 @@ type FundCharacteristics struct {
 	AverageMaturity float64 // average maturity in years
 	AverageQuality  float64 // average quality rating
 	AverageDuration float64 // average duration
+	// BlackRock/iShares-specific fields
+	Beta3Y             float64 // 3-year beta
+	StandardDeviation3Y float64 // 3-year standard deviation
+	NumberOfHoldings   int     // number of holdings
 	// FieldsPresent tracks which fields were actually populated by the parser.
 	// A zero value means the field was not present in the source data (distinct
 	// from the field being genuinely zero).
@@ -165,7 +190,7 @@ type FundCharacteristics struct {
 // CharacteristicsFieldsMask tracks which FundCharacteristics fields were
 // populated by the parser. A zero value means the field was not present
 // in the source data (distinct from the field being genuinely zero).
-type CharacteristicsFieldsMask uint16
+type CharacteristicsFieldsMask uint32
 
 const (
 	CharacteristicPriceToEarnings CharacteristicsFieldsMask = 1 << iota
@@ -182,6 +207,10 @@ const (
 	CharacteristicAverageMaturity
 	CharacteristicAverageQuality
 	CharacteristicAverageDuration
+	// BlackRock/iShares-specific fields
+	CharacteristicBeta3Y
+	CharacteristicStandardDeviation3Y
+	CharacteristicNumberOfHoldings
 )
 
 // HasCharacteristic reports whether the given characteristic field was

@@ -46,6 +46,17 @@ type TopHolding struct {
 	CouponRate    *float64 // bond holdings only (Vanguard)
 	FinalMaturity *string  // bond holdings only (Vanguard)
 	AsOfDate      string   // effective date of the holdings data (Vanguard)
+	// BlackRock/iShares-specific fields
+	Sector         string  // e.g. "Information Technology"
+	AssetClass     string  // e.g. "Equity", "Cash"
+	MarketValue    float64 // market value in base currency
+	NotionalValue  float64 // notional value
+	Shares         float64 // number of shares/units
+	Price          float64 // price per share
+	Identifier     string  // CUSIP/ISIN, or "-" for cash
+	Location       string  // country, e.g. "United States"
+	Exchange       string  // e.g. "NASDAQ"
+	MarketCurrency string  // e.g. "USD"
 }
 
 // SectorWeighting represents the allocation to a single sector.
@@ -80,6 +91,16 @@ type FundProfile struct {
 	AssetClassification    string  // asset class (e.g. "Equity", "Fixed Income")
 	DistributionStrategy   string  // distribution strategy (e.g. "INCM", "ACUM")
 	MarketRegionFocus      string  // market region focus (e.g. "Global", "Europe")
+	// BlackRock/iShares-specific fields
+	SFDRClassification string // e.g. "Other", "Article 6", "Article 8", "Article 9"
+	Domicile           string // e.g. "Ireland", "Luxembourg"
+	RebalanceFrequency string // e.g. "Quarterly", "Semi-Annually"
+	ProductStructure   string // e.g. "Physical", "Synthetic"
+	Methodology        string // e.g. "Optimised", "Representative"
+	FundManager        string // e.g. "BlackRock Asset Management Ireland Limited"
+	Custodian          string // e.g. "State Street Custodial Services (Ireland) Limited"
+	IssuingCompany     string // e.g. "iShares IV plc"
+	BenchmarkTicker    string // e.g. Bloomberg ticker of the benchmark
 }
 
 // EquityValuation represents aggregate valuation ratios of an ETF's equity holdings.
@@ -95,6 +116,10 @@ type EquityValuation struct {
 	ForwardROE       float64 // forward 5-year return on equity
 	ForwardEPSGrowth float64 // forward 5-year EPS growth
 	RevenueRatio     float64 // revenue / revenue prior year
+	// BlackRock/iShares-specific fields
+	Beta3Y             float64 // 3-year beta
+	StandardDeviation3Y float64 // 3-year standard deviation
+	NumberOfHoldings   int     // number of holdings
 }
 
 // BondCharacteristics represents bond-specific fund metrics.
