@@ -37,3 +37,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f023 | Dimensional Scraper | done | f015, f011 |
 | f024 | iMGP Scraper | done | f021 |
 | f025 | Vanguard Scraper | done | f021 |
+| f026 | BlackRock/iShares Scraper | draft | f021 |

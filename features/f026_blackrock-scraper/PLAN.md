@@ -99,10 +99,10 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** All new fields flow through existing JSON columns (`fund_profile`, `equity_valuation`, `top_holdings`) — no schema change needed. JSON is flexible and automatically accommodates new fields.
 
-- [ ] Confirm: `symbol_details.fund_profile` JSON column can store extended FundProfile fields — JSON is flexible, no change needed
-- [ ] Confirm: `symbol_details.equity_valuation` JSON column can store expanded EquityValuation fields — JSON is flexible, no change needed
-- [ ] Confirm: `symbol_details.top_holdings` JSON column can store extended holding fields — JSON is flexible, no change needed
-- [ ] Confirm: `market_data` table already supports `data_type='nav'` — confirmed from f021
+- [x] Confirm: `symbol_details.fund_profile` JSON column can store extended FundProfile fields — JSON is flexible, no change needed
+- [x] Confirm: `symbol_details.equity_valuation` JSON column can store expanded EquityValuation fields — JSON is flexible, no change needed
+- [x] Confirm: `symbol_details.top_holdings` JSON column can store extended holding fields — JSON is flexible, no change needed
+- [x] Confirm: `market_data` table already supports `data_type='nav'` — confirmed from f021
 
 **Verification:** All existing JSON columns can accommodate new fields without schema changes.
 
