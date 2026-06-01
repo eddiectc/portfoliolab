@@ -230,18 +230,18 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Register the BlackRock extractor in the dispatcher and write integration tests covering the full stack.
 
-- [ ] Register `blackrock` extractor in `internal/api/router.go` (added to extractor registry)
-- [ ] Write integration test: full extraction pipeline (dispatcher routing, extractor registration, full stack round-trip)
-- [ ] Write integration test: API endpoint `/api/symbols/{id}` returns BlackRock data with new fields (SFDR, domicile, beta, extended holdings)
-- [ ] Write integration test: web page `/symbols/{id}/details` renders correctly with symbol name and data
-- [ ] Write integration test: data source URL round-trip through stale query
-- [ ] Write integration test: equity fund with P/E, P/B, beta characteristics
-- [ ] Write integration test: bond fund with YTM, duration characteristics
-- [ ] Write integration test: sector allocation derived from holdings
-- [ ] Write integration test: country allocation derived from holdings
-- [ ] Write integration test: background refresh triggers both BlackRock details and Yahoo market data
-- [ ] Write integration test: extraction failure during background refresh marks symbol as failed, preserves previous data
-- [ ] Update `features/README.md` to mark f026 as in-progress
+- [x] Register `blackrock` extractor in `internal/api/router.go` (added to extractor registry)
+- [x] Write integration test: full extraction pipeline (dispatcher routing, extractor registration, full stack round-trip)
+- [x] Write integration test: API endpoint `/api/symbols/{id}` returns BlackRock data with new fields (SFDR, domicile, beta, extended holdings)
+- [x] Write integration test: web page `/symbols/{id}/details` renders correctly with symbol name and data
+- [x] Write integration test: data source URL round-trip through stale query
+- [x] Write integration test: equity fund with P/E, P/B, beta characteristics
+- [x] Write integration test: bond fund with YTM, duration characteristics
+- [x] Write integration test: sector allocation derived from holdings
+- [x] Write integration test: country allocation derived from holdings
+- [x] Write integration test: background refresh triggers both BlackRock details and Yahoo market data
+- [x] Write integration test: extraction failure during background refresh marks symbol as failed, preserves previous data
+- [x] Update `features/README.md` to mark f026 as in-progress
 
 **Verification:** BlackRock extractor registered and functional; full stack integration tests pass; existing extractors unaffected; background refresh integration works.
 

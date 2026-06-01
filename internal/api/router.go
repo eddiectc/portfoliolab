@@ -19,6 +19,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/blackrock"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dimensional"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dws"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/imgp"
@@ -91,6 +92,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	extractorReg.Register(dws.NewExtractor())
 	extractorReg.Register(dimensional.NewExtractor())
 	extractorReg.Register(imgp.NewExtractor())
+	extractorReg.Register(blackrock.NewExtractor())
 	vgExtractor := vanguard.NewExtractor()
 	if cfg.extractorCfg.Vanguard.NavHistoryDays > 0 {
 		vanguard.WithNavHistoryDays(cfg.extractorCfg.Vanguard.NavHistoryDays)(vgExtractor)
