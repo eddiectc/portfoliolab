@@ -155,7 +155,7 @@ func TestEnsureSwitchLocale(t *testing.T) {
 			name: "adds params",
 			url:  "https://www.ishares.com/uk/individual/en/products/270051/test",
 			wantQ: map[string]string{
-				"switchLocale":           "y",
+				"switchLocale":         "y",
 				"siteEntryPassthrough": "true",
 			},
 		},
@@ -163,8 +163,8 @@ func TestEnsureSwitchLocale(t *testing.T) {
 			name: "preserves existing params",
 			url:  "https://www.ishares.com/uk/individual/en/products/270051/test?foo=bar",
 			wantQ: map[string]string{
-				"foo":                    "bar",
-				"switchLocale":           "y",
+				"foo":                  "bar",
+				"switchLocale":         "y",
 				"siteEntryPassthrough": "true",
 			},
 		},
@@ -172,7 +172,7 @@ func TestEnsureSwitchLocale(t *testing.T) {
 			name: "already has switchLocale",
 			url:  "https://www.ishares.com/uk/individual/en/products/270051/test?switchLocale=y&siteEntryPassthrough=true",
 			wantQ: map[string]string{
-				"switchLocale":           "y",
+				"switchLocale":         "y",
 				"siteEntryPassthrough": "true",
 			},
 		},
