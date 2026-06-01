@@ -30,7 +30,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Extend the shared `extractor` and `symbol` package types to accommodate iShares-specific data. The iShares Key Facts include many fields not in the existing types (SFDR classification, domicile, rebalance frequency, fund manager, custodian, etc.). The portfolio characteristics include beta and standard deviation not in the existing `FundCharacteristics`.
 
-- [ ] **extractor.FundProfile**: Add iShares-specific fields:
+- [x] **extractor.FundProfile**: Add iShares-specific fields:
   - `SFDRClassification string` (e.g. "Other", "Article 6", "Article 8", "Article 9")
   - `Domicile string` (e.g. "Ireland", "Luxembourg")
   - `RebalanceFrequency string` (e.g. "Quarterly", "Semi-Annually")
@@ -41,7 +41,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
   - `IssuingCompany string` (e.g. "iShares IV plc")
   - `BenchmarkTicker string` (e.g. Bloomberg ticker of the benchmark)
 
-- [ ] **symbol.FundProfile**: Add matching fields:
+- [x] **symbol.FundProfile**: Add matching fields:
   - `SFDRClassification string`
   - `Domicile string`
   - `RebalanceFrequency string`
@@ -52,18 +52,18 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
   - `IssuingCompany string`
   - `BenchmarkTicker string`
 
-- [ ] **extractor.FundCharacteristics**: Add iShares-specific fields:
+- [x] **extractor.FundCharacteristics**: Add iShares-specific fields:
   - `Beta3Y float64` (3-year beta)
   - `StandardDeviation3Y float64` (3-year standard deviation)
   - `NumberOfHoldings int` (number of holdings)
   - Add corresponding bitmask entries in `CharacteristicsFieldsMask`
 
-- [ ] **symbol.EquityValuation**: Add matching fields:
+- [x] **symbol.EquityValuation**: Add matching fields:
   - `Beta3Y float64`
   - `StandardDeviation3Y float64`
   - `NumberOfHoldings int`
 
-- [ ] **extractor.Holding**: Add iShares-specific fields:
+- [x] **extractor.Holding**: Add iShares-specific fields:
   - `Sector string` (e.g. "Information Technology")
   - `AssetClass string` (e.g. "Equity", "Cash")
   - `MarketValue float64` (market value in base currency)
@@ -75,7 +75,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
   - `Exchange string` (e.g. "NASDAQ")
   - `MarketCurrency string` (e.g. "USD")
 
-- [ ] **symbol.TopHolding**: Add matching fields:
+- [x] **symbol.TopHolding**: Add matching fields:
   - `Sector string`
   - `AssetClass string`
   - `MarketValue float64`
@@ -87,7 +87,7 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
   - `Exchange string`
   - `MarketCurrency string`
 
-- [ ] Verify all existing tests still compile and pass (types are backward-compatible additions)
+- [x] Verify all existing tests still compile and pass (types are backward-compatible additions)
 
 **Verification:** All types compile; existing tests pass; new fields are present in both extractor and symbol packages.
 
