@@ -11,5 +11,8 @@
 ## Future Improvements
 - None yet.
 
+## Task 6 Notes
+- Holdings table: only the **Sector** column was added to the visible table (10 new fields available in display struct but not all shown). Adding AssetClass, MarketValue, Exchange, etc. would overcrowd the table for 350+ holding lists. The fields are available for future expandable-row or detail-popup features.
+
 ## Known Issues
 - None.

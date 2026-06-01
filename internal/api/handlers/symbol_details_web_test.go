@@ -1728,3 +1728,262 @@ func TestToDisplayDetails_EquityValuation_ZeroNewFields(t *testing.T) {
 		t.Errorf("expected PriceToEarnings '14.50', got %q", dd.EquityValuation.PriceToEarnings)
 	}
 }
+
+// --- BlackRock/iShares-specific display tests ---
+
+func TestToDisplayDetails_BlackRockFundProfile(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "ISEW.L",
+		FundProfile: &symbol.FundProfile{
+			Family:               "iShares",
+			LegalType:            "UCITS",
+			TotalNetAssets:       50e9,
+			AnnualExpenseRatio:   0.004,
+			Isin:                 "IE00B4L5Y983",
+			Benchmark:            "S&P 500 Index",
+			SFDRClassification:   "Article 8",
+			Domicile:             "Ireland",
+			RebalanceFrequency:   "Quarterly",
+			ProductStructure:     "Physical",
+			Methodology:          "Representative",
+			FundManager:          "BlackRock Asset Management Ireland Limited",
+			Custodian:            "State Street Custodial Services (Ireland) Limited",
+			IssuingCompany:       "iShares IV plc",
+			BenchmarkTicker:      "SPX",
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.FundProfile == nil {
+		t.Fatal("expected FundProfile to be set")
+	}
+
+	if dd.FundProfile.SFDRClassification != "Article 8" {
+		t.Errorf("expected SFDRClassification 'Article 8', got %q", dd.FundProfile.SFDRClassification)
+	}
+	if dd.FundProfile.Domicile != "Ireland" {
+		t.Errorf("expected Domicile 'Ireland', got %q", dd.FundProfile.Domicile)
+	}
+	if dd.FundProfile.RebalanceFrequency != "Quarterly" {
+		t.Errorf("expected RebalanceFrequency 'Quarterly', got %q", dd.FundProfile.RebalanceFrequency)
+	}
+	if dd.FundProfile.ProductStructure != "Physical" {
+		t.Errorf("expected ProductStructure 'Physical', got %q", dd.FundProfile.ProductStructure)
+	}
+	if dd.FundProfile.Methodology != "Representative" {
+		t.Errorf("expected Methodology 'Representative', got %q", dd.FundProfile.Methodology)
+	}
+	if dd.FundProfile.FundManager != "BlackRock Asset Management Ireland Limited" {
+		t.Errorf("expected FundManager, got %q", dd.FundProfile.FundManager)
+	}
+	if dd.FundProfile.Custodian != "State Street Custodial Services (Ireland) Limited" {
+		t.Errorf("expected Custodian, got %q", dd.FundProfile.Custodian)
+	}
+	if dd.FundProfile.IssuingCompany != "iShares IV plc" {
+		t.Errorf("expected IssuingCompany 'iShares IV plc', got %q", dd.FundProfile.IssuingCompany)
+	}
+	if dd.FundProfile.BenchmarkTicker != "SPX" {
+		t.Errorf("expected BenchmarkTicker 'SPX', got %q", dd.FundProfile.BenchmarkTicker)
+	}
+}
+
+func TestToDisplayDetails_BlackRockEquityValuation(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "ISEW.L",
+		EquityValuation: &symbol.EquityValuation{
+			PriceToEarnings:     15.2,
+			DividendYield:       1.5,
+			Beta3Y:              0.85,
+			StandardDeviation3Y: 9.16,
+			NumberOfHoldings:    352,
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if dd.EquityValuation == nil {
+		t.Fatal("expected EquityValuation to be set")
+	}
+	if dd.EquityValuation.Beta3Y != "0.85" {
+		t.Errorf("expected Beta3Y '0.85', got %q", dd.EquityValuation.Beta3Y)
+	}
+	if dd.EquityValuation.StandardDeviation3Y != "9.16%" {
+		t.Errorf("expected StandardDeviation3Y '9.16%%', got %q", dd.EquityValuation.StandardDeviation3Y)
+	}
+	if dd.EquityValuation.NumberOfHoldings != "352" {
+		t.Errorf("expected NumberOfHoldings '352', got %q", dd.EquityValuation.NumberOfHoldings)
+	}
+}
+
+func TestToDisplayDetails_BlackRockHoldings(t *testing.T) {
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "ISEW.L",
+		TopHoldings: []symbol.TopHolding{
+			{
+				Symbol:        "AAPL",
+				Name:          "Apple Inc.",
+				Percent:       7.04,
+				Sector:        "Information Technology",
+				AssetClass:    "Equity",
+				MarketValue:   120e9,
+				NotionalValue: 118e9,
+				Shares:        350000,
+				Price:         337.14,
+				Identifier:    "037833100",
+				Location:      "United States",
+				Exchange:      "NASDAQ",
+				MarketCurrency: "USD",
+			},
+		},
+	}
+
+	dd := toDisplayDetails(details)
+
+	if len(dd.TopHoldings) != 1 {
+		t.Fatalf("expected 1 holding, got %d", len(dd.TopHoldings))
+	}
+
+	h := dd.TopHoldings[0]
+	if h.Sector != "Information Technology" {
+		t.Errorf("expected Sector 'Information Technology', got %q", h.Sector)
+	}
+	if h.AssetClass != "Equity" {
+		t.Errorf("expected AssetClass 'Equity', got %q", h.AssetClass)
+	}
+	if h.MarketValue != "120.00B" {
+		t.Errorf("expected MarketValue '120.00B', got %q", h.MarketValue)
+	}
+	if h.NotionalValue != "118.00B" {
+		t.Errorf("expected NotionalValue '118.00B', got %q", h.NotionalValue)
+	}
+	if h.Shares != "350000.00" {
+		t.Errorf("expected Shares '350000.00', got %q", h.Shares)
+	}
+	if h.Price != "337.14" {
+		t.Errorf("expected Price '337.14', got %q", h.Price)
+	}
+	if h.Identifier != "037833100" {
+		t.Errorf("expected Identifier '037833100', got %q", h.Identifier)
+	}
+	if h.Location != "United States" {
+		t.Errorf("expected Location 'United States', got %q", h.Location)
+	}
+	if h.Exchange != "NASDAQ" {
+		t.Errorf("expected Exchange 'NASDAQ', got %q", h.Exchange)
+	}
+	if h.MarketCurrency != "USD" {
+		t.Errorf("expected MarketCurrency 'USD', got %q", h.MarketCurrency)
+	}
+}
+
+func TestDetailsHandleDetailsPage_BlackRockSections(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "ISEW.L",
+		MarketDataSymbol: "ISEW.L",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["ISEW.L"] = 1
+
+	asOfDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
+	detailsRepo.details["ISEW.L"] = &symbol.SymbolDetails{
+		InternalSymbol:    "ISEW.L",
+		ShortName:         "iShares Core S&P 500 UCITS ETF USD (Acc)",
+		LongName:          "iShares Core S&P 500 UCITS ETF USD (Acc)",
+		Exchange:          "LSE",
+		Currency:          "GBP",
+		QuoteType:         "ETF",
+		ExtractorAsOfDate: asOfDate,
+		FundProfile: &symbol.FundProfile{
+			Family:               "iShares",
+			LegalType:            "UCITS",
+			TotalNetAssets:       50e9,
+			AnnualExpenseRatio:   0.004,
+			Isin:                 "IE00B4L5Y983",
+			Benchmark:            "S&P 500 Index",
+			SFDRClassification:   "Article 8",
+			Domicile:             "Ireland",
+			RebalanceFrequency:   "Quarterly",
+			ProductStructure:     "Physical",
+			Methodology:          "Representative",
+			FundManager:          "BlackRock Asset Management Ireland Limited",
+			Custodian:            "State Street Custodial Services (Ireland) Limited",
+			IssuingCompany:       "iShares IV plc",
+			BenchmarkTicker:      "SPX",
+		},
+		EquityValuation: &symbol.EquityValuation{
+			PriceToEarnings:     15.2,
+			DividendYield:       1.5,
+			Beta3Y:              0.85,
+			StandardDeviation3Y: 9.16,
+			NumberOfHoldings:    352,
+		},
+		TopHoldings: []symbol.TopHolding{
+			{
+				Symbol:   "AAPL",
+				Name:     "Apple Inc.",
+				Percent:  7.04,
+				Sector:   "Information Technology",
+				Exchange: "NASDAQ",
+			},
+			{
+				Symbol:   "MSFT",
+				Name:     "Microsoft Corp.",
+				Percent:  6.50,
+				Sector:   "Information Technology",
+				Exchange: "NASDAQ",
+			},
+		},
+		FetchedAt: time.Now().Add(-1 * time.Hour),
+	}
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	r := httptest.NewRequest(http.MethodGet, "/symbols/1/details", nil)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.HandleDetailsPage(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	checkContains := func(label, text string) {
+		t.Helper()
+		if !strings.Contains(body, text) {
+			t.Errorf("page missing %s: %q", label, text)
+		}
+	}
+
+	// Fund Profile section — new BlackRock fields
+	checkContains("sfdr classification", "Article 8")
+	checkContains("domicile", "Ireland")
+	checkContains("rebalance frequency", "Quarterly")
+	checkContains("product structure", "Physical")
+	checkContains("methodology", "Representative")
+	checkContains("fund manager", "BlackRock Asset Management Ireland Limited")
+	checkContains("custodian", "State Street Custodial Services (Ireland) Limited")
+	checkContains("issuing company", "iShares IV plc")
+	checkContains("benchmark ticker", "SPX")
+
+	// Fund Characteristics — new BlackRock fields
+	checkContains("beta 3Y", "0.85")
+	checkContains("standard deviation", "9.16%")
+	checkContains("number of holdings", "352")
+
+	// Holdings table — sector column
+	checkContains("sector header", "Sector")
+	checkContains("sector value", "Information Technology")
+
+	// Existing fields still present
+	checkContains("pe ratio", "15.20")
+	checkContains("dividend yield", "1.50%")
+	checkContains("holdings header", "Top 10 Holdings")
+}

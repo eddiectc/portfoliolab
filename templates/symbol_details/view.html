@@ -90,6 +90,7 @@
                 <th>#</th>
                 <th>Symbol</th>
                 <th>Name</th>
+                <th>Sector</th>
                 <th>Type</th>
                 <th class="text-right">Coupon</th>
                 <th class="text-right">Maturity</th>
@@ -103,6 +104,7 @@
                 <td>{{add $i 1}}</td>
                 <td><strong>{{$h.Symbol}}</strong></td>
                 <td>{{$h.Name}}</td>
+                <td>{{if $h.Sector}}{{$h.Sector}}{{else}}—{{end}}</td>
                 <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
                 <td class="text-right">{{if $h.CouponRate}}{{$h.CouponRate}}{{else}}—{{end}}</td>
                 <td class="text-right">{{if $h.FinalMaturity}}{{$h.FinalMaturity}}{{else}}—{{end}}</td>
@@ -113,6 +115,7 @@
                 <td>{{add $i 1}}</td>
                 <td><strong>{{$h.Symbol}}</strong></td>
                 <td>{{$h.Name}}</td>
+                <td>{{if $h.Sector}}{{$h.Sector}}{{else}}—{{end}}</td>
                 <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
                 <td class="text-right">{{if $h.CouponRate}}{{$h.CouponRate}}{{else}}—{{end}}</td>
                 <td class="text-right">{{if $h.FinalMaturity}}{{$h.FinalMaturity}}{{else}}—{{end}}</td>
@@ -283,6 +286,60 @@
             <td>{{.Details.FundProfile.OngoingCharges}}</td>
         </tr>
         {{end}}
+        {{if .Details.FundProfile.SFDRClassification}}
+        <tr>
+            <th>SFDR Classification</th>
+            <td>{{.Details.FundProfile.SFDRClassification}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.Domicile}}
+        <tr>
+            <th>Domicile</th>
+            <td>{{.Details.FundProfile.Domicile}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.RebalanceFrequency}}
+        <tr>
+            <th>Rebalance Frequency</th>
+            <td>{{.Details.FundProfile.RebalanceFrequency}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.ProductStructure}}
+        <tr>
+            <th>Product Structure</th>
+            <td>{{.Details.FundProfile.ProductStructure}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.Methodology}}
+        <tr>
+            <th>Methodology</th>
+            <td>{{.Details.FundProfile.Methodology}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.FundManager}}
+        <tr>
+            <th>Fund Manager</th>
+            <td>{{.Details.FundProfile.FundManager}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.Custodian}}
+        <tr>
+            <th>Custodian</th>
+            <td>{{.Details.FundProfile.Custodian}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.IssuingCompany}}
+        <tr>
+            <th>Issuing Company</th>
+            <td>{{.Details.FundProfile.IssuingCompany}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.FundProfile.BenchmarkTicker}}
+        <tr>
+            <th>Benchmark Ticker</th>
+            <td>{{.Details.FundProfile.BenchmarkTicker}}</td>
+        </tr>
+        {{end}}
     </table>
 </div>
 {{end}}
@@ -359,6 +416,24 @@
             <th>Revenue / Prior Year</th>
             <td>{{.Details.EquityValuation.RevenueRatio}}</td>
         </tr>
+        {{if .Details.EquityValuation.Beta3Y}}
+        <tr>
+            <th>Beta (3Y)</th>
+            <td>{{.Details.EquityValuation.Beta3Y}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.EquityValuation.StandardDeviation3Y}}
+        <tr>
+            <th>Standard Deviation (3Y)</th>
+            <td>{{.Details.EquityValuation.StandardDeviation3Y}}</td>
+        </tr>
+        {{end}}
+        {{if .Details.EquityValuation.NumberOfHoldings}}
+        <tr>
+            <th>Number of Holdings</th>
+            <td>{{.Details.EquityValuation.NumberOfHoldings}}</td>
+        </tr>
+        {{end}}
     </table>
 </div>
 {{end}}

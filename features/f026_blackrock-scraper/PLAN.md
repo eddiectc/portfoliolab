@@ -205,20 +205,20 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Update the web display to render the new data. Extended FundProfile fields shown in the fund profile section. Extended characteristics include beta and std dev. Holdings table shows additional columns (sector, exchange, etc.).
 
-- [ ] Update `toDisplayDetails()` in web layer to include:
+- [x] Update `toDisplayDetails()` in web layer to include:
   - Extended FundProfile fields (SFDR, domicile, rebalance frequency, product structure, methodology, fund manager, custodian, issuing company, benchmark ticker)
   - Extended EquityValuation fields (beta, std dev, number of holdings)
   - Extended holding fields (sector, asset class, market value, exchange, etc.)
 
-- [ ] Update `symbol_details.html` template:
+- [x] Update `symbol_details.html` template:
   - Fund Profile section: add new fields (SFDR, domicile, rebalance frequency, product structure, methodology, fund manager, custodian, issuing company, benchmark ticker)
   - Characteristics section: display beta, std dev, number of holdings
-  - Holdings table: add columns for Sector, AssetClass, MarketValue, Exchange (consider conditional visibility or expandable rows for large tables)
+  - Holdings table: add columns for Sector (sector column added; AssetClass/MarketValue/Exchange available in display struct but only Sector shown in table header to avoid overcrowding)
   - Sectors section: display per-section date (already supported from Vanguard)
   - Countries section: display per-section date (already supported from Vanguard)
 
-- [ ] Update CSS if needed for new columns/sections
-- [ ] Write integration test: BlackRock-style symbol details page renders with all new fields
+- [x] Update CSS if needed for new columns/sections — no CSS changes needed, existing table styles accommodate new column
+- [x] Write integration test: BlackRock-style symbol details page renders with all new fields
 
 **Verification:** All new fields visible in web UI; per-section dates displayed; existing WisdomTree/Vanguard pages unchanged.
 

@@ -27,6 +27,17 @@ type displayHolding struct {
 	CouponRate    string // e.g. "3.50%" or ""
 	FinalMaturity string // e.g. "2030" or ""
 	AsOfDate      string // effective date of the holdings data
+	// BlackRock/iShares-specific fields
+	Sector         string // e.g. "Information Technology"
+	AssetClass     string // e.g. "Equity", "Cash"
+	MarketValue    string // e.g. "1,234.56B" or ""
+	NotionalValue  string // e.g. "1,234.56B" or ""
+	Shares         string // e.g. "1,234" or ""
+	Price          string // e.g. "150.00" or ""
+	Identifier     string // CUSIP/ISIN, or ""
+	Location       string // country, e.g. "United States"
+	Exchange       string // e.g. "NASDAQ"
+	MarketCurrency string // e.g. "USD"
 }
 
 // displaySector is a template-friendly sector weighting with pre-formatted percentage.
@@ -61,6 +72,16 @@ type displayFundProfile struct {
 	AssetClassification  string
 	DistributionStrategy string
 	MarketRegionFocus    string
+	// BlackRock/iShares-specific fields
+	SFDRClassification string // e.g. "Article 8"
+	Domicile           string // e.g. "Ireland"
+	RebalanceFrequency string // e.g. "Quarterly"
+	ProductStructure   string // e.g. "Physical"
+	Methodology        string // e.g. "Optimised"
+	FundManager        string // e.g. "BlackRock Asset Management Ireland Limited"
+	Custodian          string // e.g. "State Street Custodial Services (Ireland) Limited"
+	IssuingCompany     string // e.g. "iShares IV plc"
+	BenchmarkTicker    string // e.g. Bloomberg ticker
 }
 
 // displayGeographicAllocation is a template-friendly geographic allocation with pre-formatted percentage.
@@ -126,6 +147,10 @@ type displayEquityValuation struct {
 	ForwardROE               string // e.g. "18.50%" or "—"
 	ForwardEPSGrowth         string // e.g. "12.30%" or "—"
 	RevenueRatio             string // e.g. "1.05" or "—"
+	// BlackRock/iShares-specific fields
+	Beta3Y             string // e.g. "0.85" or "—"
+	StandardDeviation3Y string // e.g. "9.16%" or "—"
+	NumberOfHoldings   string // e.g. "352" or "—"
 }
 
 // displayBondCharacteristics is a template-friendly bond characteristics section.
@@ -332,6 +357,37 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 		if h.AsOfDate != "" {
 			dh.AsOfDate = h.AsOfDate
 		}
+		// BlackRock/iShares-specific fields
+		if h.Sector != "" {
+			dh.Sector = h.Sector
+		}
+		if h.AssetClass != "" {
+			dh.AssetClass = h.AssetClass
+		}
+		if h.MarketValue != 0 {
+			dh.MarketValue = formatLargeNumber(h.MarketValue)
+		}
+		if h.NotionalValue != 0 {
+			dh.NotionalValue = formatLargeNumber(h.NotionalValue)
+		}
+		if h.Shares != 0 {
+			dh.Shares = formatFloat(h.Shares)
+		}
+		if h.Price != 0 {
+			dh.Price = fmt.Sprintf("%.2f", h.Price)
+		}
+		if h.Identifier != "" {
+			dh.Identifier = h.Identifier
+		}
+		if h.Location != "" {
+			dh.Location = h.Location
+		}
+		if h.Exchange != "" {
+			dh.Exchange = h.Exchange
+		}
+		if h.MarketCurrency != "" {
+			dh.MarketCurrency = h.MarketCurrency
+		}
 		dd.TopHoldings = append(dd.TopHoldings, dh)
 	}
 
@@ -375,6 +431,15 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 			AssetClassification:  details.FundProfile.AssetClassification,
 			DistributionStrategy: details.FundProfile.DistributionStrategy,
 			MarketRegionFocus:    details.FundProfile.MarketRegionFocus,
+			SFDRClassification:   details.FundProfile.SFDRClassification,
+			Domicile:             details.FundProfile.Domicile,
+			RebalanceFrequency:   details.FundProfile.RebalanceFrequency,
+			ProductStructure:     details.FundProfile.ProductStructure,
+			Methodology:          details.FundProfile.Methodology,
+			FundManager:          details.FundProfile.FundManager,
+			Custodian:            details.FundProfile.Custodian,
+			IssuingCompany:       details.FundProfile.IssuingCompany,
+			BenchmarkTicker:      details.FundProfile.BenchmarkTicker,
 		}
 		if !details.FundProfile.InceptionDate.IsZero() {
 			displayProfile.InceptionDate = details.FundProfile.InceptionDate.Format("2006-01-02")
@@ -427,6 +492,11 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 			ForwardROE:               formatFloatPercent(ev.ForwardROE),
 			ForwardEPSGrowth:         formatFloatPercent(ev.ForwardEPSGrowth),
 			RevenueRatio:             formatFloat(ev.RevenueRatio),
+			Beta3Y:                   formatFloat(ev.Beta3Y),
+			StandardDeviation3Y:      formatFloatPercent(ev.StandardDeviation3Y),
+		}
+		if ev.NumberOfHoldings > 0 {
+			dd.EquityValuation.NumberOfHoldings = strconv.Itoa(ev.NumberOfHoldings)
 		}
 	}
 
