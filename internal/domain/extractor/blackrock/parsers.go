@@ -236,16 +236,28 @@ func ParseComponentID(html string) (string, error) {
 	return match[1], nil
 }
 
-// ParseAsOfDate extracts the "as of" date from the holdings section.
-// Pattern: "Fund Holdings as of" followed by a date in the page.
+// ParseAsOfDate extracts the "as of" date from the page.
+// Tries the old "Fund Holdings as of" pattern first, then falls back to
+// the new div-based as-of-date elements in product-data-item blocks.
+// Returns zero time if no date found (the JSON API provides its own asOfDate).
 func ParseAsOfDate(html string) (time.Time, error) {
-	re := regexp.MustCompile(`Fund Holdings as of["\s,]*([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
-	match := re.FindStringSubmatch(html)
-	if match == nil || len(match) < 2 {
-		return time.Time{}, fmt.Errorf("holdings as-of date not found")
+	// Try old "Fund Holdings as of" pattern first
+	oldRe := regexp.MustCompile(`Fund Holdings as of["\s,]*([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
+	match := oldRe.FindStringSubmatch(html)
+	if match != nil && len(match) > 1 {
+		return parseIShareDate(match[1])
 	}
 
-	return parseIShareDate(match[1])
+	// Try new div-based as-of-date elements: <div class="as-of-date">as of DD/Mon/YYYY</div>
+	// or <p class="as-of-date">as of DD/Mon/YYYY</p>
+	newRe := regexp.MustCompile(`<[^>]*class="as-of-date"[^>]*>\s*as of\s*([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
+	match = newRe.FindStringSubmatch(html)
+	if match != nil && len(match) > 1 {
+		return parseIShareDate(match[1])
+	}
+
+	// Not found — return zero time; the JSON API provides its own asOfDate
+	return time.Time{}, nil
 }
 
 // --- Phase 2: JSON API Parsers ---
@@ -408,24 +420,88 @@ func DeriveCountryAllocation(holdings []extractor.Holding) ([]extractor.CountryA
 	return countries, nil
 }
 
-// --- Helpers ---
+// colClassForKey maps old key-value label names to their new CSS class names
+// used in the div-based product-data-item layout.
+var colClassForKey = map[string]string{
+	"Net Assets":            "totalNetAssets",
+	"Inception Date":        "inceptionDate",
+	"Asset Class":           "assetClass",
+	"SFDR Classification":   "sfdr",
+	"Use of Income":         "useOfProfitsCode",
+	"Domicile":              "domicile",
+	"Rebalance Frequency":   "rebalanceFrequency",
+	"Fund Manager":          "fundmanager",
+	"Custodian":             "fundCustodian",
+	"Bloomberg Ticker":      "bbeqtick",
+	"Benchmark Index":       "indexSeriesName",
+	"ISIN":                  "isin",
+	"Product Structure":     "productStructure",
+	"Methodology":           "fundMethodologyTypeCode",
+	"Issuing Company":       "issuingCompany",
+	"Number of Holdings":    "numHoldings",
+	"P/E Ratio":             "priceEarnings",
+	"P/B Ratio":             "priceBook",
+	"3y Beta":               "threeYrBetaFund",
+	"Standard Deviation (3y)": "volatilitySourced3YrAnnualized",
+}
 
 // parseKeyValue extracts a value from a key-value table row in the HTML.
-// Pattern: <td>Key</td> ... <td>Value</td>
-// Handles whitespace and newlines in table cells.
+// Tries the old <td> table format first, then falls back to the new
+// div-based product-data-item format.
 func parseKeyValue(html, key string) (string, error) {
-	// Match: <td...> whitespace KEY whitespace </td> ... <td...> VALUE ... </td>
+	// Try old <td> table format first
+	val, err := parseKeyValueFromTable(html, key)
+	if err == nil {
+		return val, nil
+	}
+
+	// Fall back to new div-based format
+	colClass, ok := colClassForKey[key]
+	if !ok {
+		return "", fmt.Errorf("key %q not found", key)
+	}
+	val, err = parseKeyValueFromDiv(html, colClass)
+	if err != nil {
+		return "", fmt.Errorf("key %q not found", key)
+	}
+	return val, nil
+}
+
+// parseKeyValueFromTable extracts a value from <td>Key</td><td>Value</td> format.
+func parseKeyValueFromTable(html, key string) (string, error) {
 	re := regexp.MustCompile(`<td[^>]*>[ \t\n\r]*` + regexp.QuoteMeta(key) + `[ \t\n\r]*</td>\s*<td[^>]*>([^<]+(?:<[^/][^>]*>[^<]*)*)`)
 	match := re.FindStringSubmatch(html)
 	if match == nil || len(match) < 2 {
-		return "", fmt.Errorf("key %q not found", key)
+		return "", fmt.Errorf("key %q not found in table", key)
 	}
 
 	val := match[1]
-	// Strip inline HTML tags
 	tagRe := regexp.MustCompile(`<[^>]+>`)
 	val = tagRe.ReplaceAllString(val, "")
 	return strings.TrimSpace(val), nil
+}
+
+// parseKeyValueFromDiv extracts a value from the new div-based product-data-item format.
+// Pattern: <div class="product-data-item col-xxx"><div class="caption">...</div><div class="data">VALUE</div></div>
+// Strategy: find the column marker, then extract the <div class="data"> value from the next occurrence.
+// This avoids regex issues with deeply nested divs in the caption section.
+func parseKeyValueFromDiv(html, colClass string) (string, error) {
+	// Find the position of this column class marker
+	marker := `col-` + colClass
+	idx := strings.Index(html, marker)
+	if idx == -1 {
+		return "", fmt.Errorf("product-data-item col-%s not found", colClass)
+	}
+
+	// From this position, find the next <div class="data"> and extract its value
+	remaining := html[idx:]
+	dataRe := regexp.MustCompile(`<div class="data">([^<]+)`)
+	match := dataRe.FindStringSubmatch(remaining)
+	if match == nil || len(match) < 2 {
+		return "", fmt.Errorf("data div not found in col-%s", colClass)
+	}
+
+	return strings.TrimSpace(match[1]), nil
 }
 
 // extractAUM parses AUM from strings like "USD 5,181,115,355 (as of 29/May/2026)".

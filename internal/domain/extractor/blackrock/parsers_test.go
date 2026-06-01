@@ -143,6 +143,112 @@ func TestParseFundProfile_MissingData(t *testing.T) {
 	}
 }
 
+func TestParseFundProfile_DivFormat(t *testing.T) {
+	html := `<div class="product-data-list">
+<div class="product-data-item col-totalNetAssets "><div class="caption" data-label="" data-hasContent="no">Net Assets<div class="as-of-date">as of 29/May/2026</div></div><div class="data">USD 5,181,115,355</div></div>
+<div class="product-data-item col-inceptionDate "><div class="caption" data-label="" data-hasContent="no">Inception Date<div class="as-of-date"></div></div><div class="data">03/Oct/2014</div></div>
+<div class="product-data-item col-assetClass "><div class="caption" data-label="" data-hasContent="no">Asset Class<div class="as-of-date"></div></div><div class="data">Equity</div></div>
+<div class="product-data-item col-sfdr "><div class="caption" data-label="" data-hasContent="no">SFDR Classification<div class="as-of-date"></div></div><div class="data">Other</div></div>
+<div class="product-data-item col-useOfProfitsCode "><div class="caption" data-label="" data-hasContent="no">Use of Income<div class="as-of-date"></div></div><div class="data">Accumulating</div></div>
+<div class="product-data-item col-domicile "><div class="caption" data-label="" data-hasContent="no">Domicile<div class="as-of-date"></div></div><div class="data">Ireland</div></div>
+<div class="product-data-item col-rebalanceFrequency "><div class="caption" data-label="" data-hasContent="no">Rebalance Frequency<div class="as-of-date"></div></div><div class="data">Quarterly</div></div>
+<div class="product-data-item col-fundmanager "><div class="caption" data-label="" data-hasContent="no">Fund Manager<div class="as-of-date"></div></div><div class="data">BlackRock Asset Management Ireland Limited</div></div>
+<div class="product-data-item col-fundCustodian "><div class="caption" data-label="" data-hasContent="no">Custodian<div class="as-of-date"></div></div><div class="data">State Street Custodial Services (Ireland) Limited</div></div>
+<div class="product-data-item col-bbeqtick "><div class="caption" data-label="" data-hasContent="no">Bloomberg Ticker<div class="as-of-date"></div></div><div class="data">IWMO LN</div></div>
+<div class="product-data-item col-indexSeriesName "><div class="caption" data-label="" data-hasContent="no">Benchmark Index<div class="as-of-date"></div></div><div class="data">MSCI World Momentum Index (Net)</div></div>
+<div class="product-data-item col-isin "><div class="caption" data-label="" data-hasContent="no">ISIN<div class="as-of-date"></div></div><div class="data">IE00BP3QZ825</div></div>
+<div class="product-data-item col-productStructure "><div class="caption" data-label="" data-hasContent="no">Product Structure<div class="as-of-date"></div></div><div class="data">Physical</div></div>
+<div class="product-data-item col-fundMethodologyTypeCode "><div class="caption" data-label="" data-hasContent="no">Methodology<div class="as-of-date"></div></div><div class="data">Optimised</div></div>
+<div class="product-data-item col-issuingCompany "><div class="caption" data-label="" data-hasContent="no">Issuing Company<div class="as-of-date"></div></div><div class="data">iShares IV plc</div></div>
+</div>`
+
+	profile, err := ParseFundProfile(html)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if profile.TotalNetAssets != 5181115355 {
+		t.Errorf("TotalNetAssets = %f, want 5181115355", profile.TotalNetAssets)
+	}
+	if profile.InceptionDate.Year() != 2014 || profile.InceptionDate.Month() != 10 || profile.InceptionDate.Day() != 3 {
+		t.Errorf("InceptionDate = %v, want 2014-10-03", profile.InceptionDate)
+	}
+	if profile.AssetClassification != "Equity" {
+		t.Errorf("AssetClassification = %q, want Equity", profile.AssetClassification)
+	}
+	if profile.SFDRClassification != "Other" {
+		t.Errorf("SFDRClassification = %q, want Other", profile.SFDRClassification)
+	}
+	if profile.DistributionStrategy != "Accumulating" {
+		t.Errorf("DistributionStrategy = %q, want Accumulating", profile.DistributionStrategy)
+	}
+	if profile.Domicile != "Ireland" {
+		t.Errorf("Domicile = %q, want Ireland", profile.Domicile)
+	}
+	if profile.RebalanceFrequency != "Quarterly" {
+		t.Errorf("RebalanceFrequency = %q, want Quarterly", profile.RebalanceFrequency)
+	}
+	if profile.FundManager != "BlackRock Asset Management Ireland Limited" {
+		t.Errorf("FundManager = %q", profile.FundManager)
+	}
+	if profile.Custodian != "State Street Custodial Services (Ireland) Limited" {
+		t.Errorf("Custodian = %q", profile.Custodian)
+	}
+	if profile.BenchmarkTicker != "IWMO LN" {
+		t.Errorf("BenchmarkTicker = %q, want IWMO LN", profile.BenchmarkTicker)
+	}
+	if profile.Benchmark != "MSCI World Momentum Index (Net)" {
+		t.Errorf("Benchmark = %q", profile.Benchmark)
+	}
+	if profile.Isin != "IE00BP3QZ825" {
+		t.Errorf("Isin = %q, want IE00BP3QZ825", profile.Isin)
+	}
+	if profile.ProductStructure != "Physical" {
+		t.Errorf("ProductStructure = %q, want Physical", profile.ProductStructure)
+	}
+	if profile.Methodology != "Optimised" {
+		t.Errorf("Methodology = %q, want Optimised", profile.Methodology)
+	}
+	if profile.IssuingCompany != "iShares IV plc" {
+		t.Errorf("IssuingCompany = %q, want iShares IV plc", profile.IssuingCompany)
+	}
+	// Total Expense Ratio is not in the new page layout — should be 0
+	if profile.AnnualExpenseRatio != 0 {
+		t.Errorf("AnnualExpenseRatio = %f, want 0 (not present in new layout)", profile.AnnualExpenseRatio)
+	}
+}
+
+func TestParseFundCharacteristics_DivFormat(t *testing.T) {
+	html := `<div class="product-data-list">
+<div class="product-data-item col-numHoldings "><div class="caption">Number of Holdings<div class="as-of-date">as of 29/May/2026</div></div><div class="data">352</div></div>
+<div class="product-data-item col-priceEarnings "><div class="caption">P/E Ratio<div class="as-of-date">as of 29/May/2026</div></div><div class="data">29.16</div></div>
+<div class="product-data-item col-priceBook "><div class="caption">P/B Ratio<div class="as-of-date">as of 29/May/2026</div></div><div class="data">3.89</div></div>
+<div class="product-data-item col-threeYrBetaFund "><div class="caption">3y Beta<div class="as-of-date">as of 30/Apr/2026</div></div><div class="data">0.999</div></div>
+<div class="product-data-item col-volatilitySourced3YrAnnualized "><div class="caption">Standard Deviation (3y)<div class="as-of-date">as of 30/Apr/2026</div></div><div class="data">16.62%</div></div>
+</div>`
+
+	chars, err := ParseFundCharacteristics(html)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if chars.NumberOfHoldings != 352 {
+		t.Errorf("NumberOfHoldings = %d, want 352", chars.NumberOfHoldings)
+	}
+	if chars.PriceToEarnings != 29.16 {
+		t.Errorf("PriceToEarnings = %f, want 29.16", chars.PriceToEarnings)
+	}
+	if chars.PriceToBook != 3.89 {
+		t.Errorf("PriceToBook = %f, want 3.89", chars.PriceToBook)
+	}
+	if chars.Beta3Y != 0.999 {
+		t.Errorf("Beta3Y = %f, want 0.999", chars.Beta3Y)
+	}
+	if chars.StandardDeviation3Y != 16.62 {
+		t.Errorf("StandardDeviation3Y = %f, want 16.62", chars.StandardDeviation3Y)
+	}
+}
+
 func TestParseFundCharacteristics_Equity(t *testing.T) {
 	html := `<table>
 <tr><td>Number of Holdings</td><td>352 (as of 29/May/2026)</td></tr>
@@ -283,19 +389,34 @@ func TestParseAsOfDate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "standard format",
+			name: "standard format (old table)",
 			html: `<h3>Fund Holdings as of,"29/May/2026"</h3>`,
 			want: time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
 		},
 		{
-			name: "with space",
+			name: "with space (old table)",
 			html: `<h3>Fund Holdings as of "30/Apr/2026"</h3>`,
 			want: time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC),
 		},
 		{
-			name:    "missing as-of date",
-			html:    `<h3>Fund Holdings</h3>`,
-			wantErr: true,
+			name: "div as-of-date",
+			html: `<div class="as-of-date">as of 29/May/2026</div>`,
+			want: time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name: "p as-of-date",
+			html: `<p class="as-of-date">as of 31/Mar/2026</p>`,
+			want: time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name: "product-data-item as-of-date",
+			html: `<div class="product-data-item col-totalNetAssets "><div class="caption"><div class="as-of-date">as of 29/May/2026</div></div><div class="data">USD 5,181,115,355</div></div>`,
+			want: time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name: "missing as-of date returns zero",
+			html: `<h3>Fund Holdings</h3>`,
+			want: time.Time{},
 		},
 	}
 
