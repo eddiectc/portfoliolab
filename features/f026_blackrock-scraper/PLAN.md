@@ -171,12 +171,12 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** Update the `extractResultToSymbolDetails` function in `symbols/service.go` to map the new iShares-specific fields. The existing routing logic already works — only the field mapping requires updates.
 
-- [ ] Update FundProfile mapping: include new fields (`SFDRClassification`, `Domicile`, `RebalanceFrequency`, `ProductStructure`, `Methodology`, `FundManager`, `Custodian`, `IssuingCompany`, `BenchmarkTicker`)
-- [ ] Update EquityValuation mapping: include new fields (`Beta3Y`, `StandardDeviation3Y`, `NumberOfHoldings`)
-- [ ] Update holdings mapping: include new fields (`Sector`, `AssetClass`, `MarketValue`, `NotionalValue`, `Shares`, `Price`, `Identifier`, `Location`, `Exchange`, `MarketCurrency`)
-- [ ] Sector and country allocation mapping already works (existing code maps `result.Sectors` and `result.CountryAllocation`) — no changes needed
-- [ ] Write unit tests: extractResultToSymbolDetails correctly maps all new fields (table-driven with BlackRock-specific ExtractResult)
-- [ ] Write unit tests: bond fund characteristics map correctly (equity fields null, bond fields populated)
+- [x] Update FundProfile mapping: include new fields (`SFDRClassification`, `Domicile`, `RebalanceFrequency`, `ProductStructure`, `Methodology`, `FundManager`, `Custodian`, `IssuingCompany`, `BenchmarkTicker`)
+- [x] Update EquityValuation mapping: include new fields (`Beta3Y`, `StandardDeviation3Y`, `NumberOfHoldings`)
+- [x] Update holdings mapping: include new fields (`Sector`, `AssetClass`, `MarketValue`, `NotionalValue`, `Shares`, `Price`, `Identifier`, `Location`, `Exchange`, `MarketCurrency`)
+- [x] Sector and country allocation mapping already works (existing code maps `result.Sectors` and `result.CountryAllocation`) — no changes needed
+- [x] Write unit tests: extractResultToSymbolDetails correctly maps all new fields (table-driven with BlackRock-specific ExtractResult)
+- [x] Write unit tests: bond fund characteristics map correctly (equity fields null, bond fields populated)
 
 **Verification:** All new fields flow from ExtractResult through to SymbolDetails; existing field mapping unchanged.
 
@@ -188,12 +188,12 @@ All tasks are sequential. Task 1 must complete before Task 3 (new types are used
 
 **Description:** The existing `toSQLNullJSON` function marshals entire structs to JSON. Since JSON is flexible, new fields are automatically included. However, the deserialization (`toSymbolDetail`) must handle the new fields correctly.
 
-- [ ] Confirm `toSQLNullJSON` automatically includes new FundProfile fields (marshals entire struct) — no changes needed
-- [ ] Confirm `toSQLNullJSON` automatically includes new EquityValuation fields — no changes needed
-- [ ] Confirm `toSQLNullJSON` automatically includes new TopHolding fields — no changes needed
-- [ ] Update `toSymbolDetail` deserialization: ensure new fields are populated from JSON (unmarshal entire struct — should work automatically)
-- [ ] Write integration test: repo round-trip for all new fields (BlackRock-style data inserted → retrieved → fields match)
-- [ ] Write integration test: backward compatibility — existing WisdomTree/Vanguard data still deserializes correctly (new fields are optional in JSON)
+- [x] Confirm `toSQLNullJSON` automatically includes new FundProfile fields (marshals entire struct) — no changes needed
+- [x] Confirm `toSQLNullJSON` automatically includes new EquityValuation fields — no changes needed
+- [x] Confirm `toSQLNullJSON` automatically includes new TopHolding fields — no changes needed
+- [x] Update `toSymbolDetail` deserialization: ensure new fields are populated from JSON (unmarshal entire struct — works automatically, no changes needed)
+- [x] Write integration test: repo round-trip for all new fields (`TestSymbolDetailsRepository_BlackRockFields_RoundTrip`)
+- [x] Write integration test: backward compatibility — existing WisdomTree/Vanguard data still deserializes correctly (`TestSymbolDetailsRepository_BackwardCompatibility_BlackRockFields`)
 
 **Verification:** All new fields survive a full round-trip through the repository; existing data not affected.
 
