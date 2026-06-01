@@ -148,9 +148,9 @@ type displayEquityValuation struct {
 	ForwardEPSGrowth         string // e.g. "12.30%" or "—"
 	RevenueRatio             string // e.g. "1.05" or "—"
 	// BlackRock/iShares-specific fields
-	Beta3Y             string // e.g. "0.85" or "—"
+	Beta3Y              string // e.g. "0.85" or "—"
 	StandardDeviation3Y string // e.g. "9.16%" or "—"
-	NumberOfHoldings   string // e.g. "352" or "—"
+	NumberOfHoldings    string // e.g. "352" or "—"
 }
 
 // displayBondCharacteristics is a template-friendly bond characteristics section.

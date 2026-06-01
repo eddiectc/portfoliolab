@@ -127,13 +127,13 @@ Yahoo Finance data for iShares/BlackRock ETFs is often incomplete or lacks the s
   When I view the symbol details page,
   Then I see the following sections (in addition to existing Overview and Fund Profile):
   - **Fund Characteristics** — P/E, P/B, 3y beta, standard deviation, number of holdings, and bond-specific metrics where applicable, with "as of" date.
-  - **Full Holdings** — all securities with weights (expandable beyond top 10), with "as of" date.
-  - **Sector Allocation** — sector breakdown with percentages, with "as of" date.
+  - **Top 10 Holdings** — all securities with weights (expandable beyond top 10), with "as of" date.
+  - **Sector Weightings** — sector breakdown with percentages, with "as of" date.
   - **Country Allocation** — country/region exposure with percentages, with "as of" date.
 
 - Given the existing symbol details page already shows Top 10 Holdings, Sector Weightings, Fund Profile, and Geographic Allocation from Yahoo,
   When BlackRock extractor data is present,
-  Then the BlackRock sections replace the Yahoo sections: "Full Holdings" replaces "Top 10 Holdings", "Sector Allocation" replaces "Sector Weightings", and "Country Allocation" replaces "Geographic Allocation".
+  Then the same sections are used with richer data: the Holdings table includes additional columns (Sector, Exchange), the Sector Weightings and Country Allocation sections show per-section "as of" dates, and the Geographic Allocation header changes to "Country Allocation" for extractor data.
 
 - Given extractor data includes an "as of" date (the date embedded in BlackRock's data, **not** the date the system fetched it),
   When I view the symbol details page,
