@@ -58,7 +58,7 @@ func main() {
 	}
 
 	// Build router and market cache
-	router, marketCache := api.Router(db, logger)
+	router, marketCache := api.Router(db, logger, api.WithExtractorConfig(cfg.Extractors))
 
 	// Start market cache background workers
 	marketCache.Start(context.Background())
