@@ -16,6 +16,21 @@ func TestExtractor_Name(t *testing.T) {
 	}
 }
 
+func TestExtractor_NavHistoryDays_Default(t *testing.T) {
+	e := NewExtractor()
+	if e.navHistoryDays != DefaultNavHistoryDays {
+		t.Errorf("expected default navHistoryDays %d, got %d", DefaultNavHistoryDays, e.navHistoryDays)
+	}
+}
+
+func TestExtractor_NavHistoryDays_WithOptions(t *testing.T) {
+	e := NewExtractor()
+	WithNavHistoryDays(365)(e)
+	if e.navHistoryDays != 365 {
+		t.Errorf("expected navHistoryDays 365, got %d", e.navHistoryDays)
+	}
+}
+
 func TestExtractor_Match(t *testing.T) {
 	e := NewExtractor()
 
