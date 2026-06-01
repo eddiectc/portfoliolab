@@ -628,3 +628,26 @@ func TestParseFloatValue(t *testing.T) {
 		})
 	}
 }
+
+func TestMathRound(t *testing.T) {
+	tests := []struct {
+		name   string
+		val    float64
+		places int
+		want   float64
+	}{
+		{"positive", 10.435, 2, 10.44},
+		{"negative", -0.025, 2, -0.03},
+		{"zero", 0, 2, 0},
+		{"large", 1234567.895, 2, 1234567.90},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mathRound(tt.val, tt.places)
+			if got != tt.want {
+				t.Errorf("mathRound(%f, %d) = %f, want %f", tt.val, tt.places, got, tt.want)
+			}
+		})
+	}
+}

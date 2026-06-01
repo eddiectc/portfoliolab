@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -145,39 +146,49 @@ func TestExtractor_Extract_Cancellation(t *testing.T) {
 
 func TestEnsureSwitchLocale(t *testing.T) {
 	tests := []struct {
-		name string
-		url  string
-		want string
+		name     string
+		url      string
+		wantQ    map[string]string // expected query params (all must be present)
+		notWantQ string            // param that must NOT be added (already present case)
 	}{
 		{
 			name: "adds params",
 			url:  "https://www.ishares.com/uk/individual/en/products/270051/test",
-			want: "https://www.ishares.com/uk/individual/en/products/270051/test?siteEntryPassthrough=true&switchLocale=y",
+			wantQ: map[string]string{
+				"switchLocale":           "y",
+				"siteEntryPassthrough": "true",
+			},
 		},
 		{
 			name: "preserves existing params",
 			url:  "https://www.ishares.com/uk/individual/en/products/270051/test?foo=bar",
-			want: "https://www.ishares.com/uk/individual/en/products/270051/test?foo=bar&siteEntryPassthrough=true&switchLocale=y",
+			wantQ: map[string]string{
+				"foo":                    "bar",
+				"switchLocale":           "y",
+				"siteEntryPassthrough": "true",
+			},
 		},
 		{
 			name: "already has switchLocale",
 			url:  "https://www.ishares.com/uk/individual/en/products/270051/test?switchLocale=y&siteEntryPassthrough=true",
-			want: "https://www.ishares.com/uk/individual/en/products/270051/test?switchLocale=y&siteEntryPassthrough=true",
+			wantQ: map[string]string{
+				"switchLocale":           "y",
+				"siteEntryPassthrough": "true",
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ensureSwitchLocale(tt.url)
-			// Compare without query param ordering
-			if got == tt.url && tt.url != tt.want {
-				// URL already had the params
+			gotURL, err := url.Parse(got)
+			if err != nil {
+				t.Fatalf("parsed result is not a valid URL: %v", err)
 			}
-			// Just verify the params are present
-			if got != tt.want {
-				// Note: query params may be reordered by url.Query.Encode
-				// So check for presence instead
-				_ = got // suppress unused
+			for k, v := range tt.wantQ {
+				if gotURL.Query().Get(k) != v {
+					t.Errorf("query param %q = %q, want %q", k, gotURL.Query().Get(k), v)
+				}
 			}
 		})
 	}
