@@ -10,3 +10,8 @@ database:
 
 log:
   level: "info"  # debug, info, warn, error
+
+extractors:
+  vanguard:
+    # Lookback period for NAV history extraction in days (default 730 / 2 years)
+    nav_history_days: 730

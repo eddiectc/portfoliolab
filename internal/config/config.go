@@ -10,9 +10,21 @@ import (
 
 // Config holds the application configuration.
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Log      LogConfig      `yaml:"log"`
+	Server    ServerConfig    `yaml:"server"`
+	Database  DatabaseConfig  `yaml:"database"`
+	Log       LogConfig       `yaml:"log"`
+	Extractors ExtractorConfig `yaml:"extractors"`
+}
+
+// ExtractorConfig holds extractor-specific settings.
+type ExtractorConfig struct {
+	Vanguard VanguardConfig `yaml:"vanguard"`
+}
+
+// VanguardConfig holds Vanguard extractor settings.
+type VanguardConfig struct {
+	// NavHistoryDays is the lookback period for NAV history extraction (default 730 / 2 years).
+	NavHistoryDays int `yaml:"nav_history_days"`
 }
 
 // ServerConfig holds server-related settings.
@@ -43,6 +55,11 @@ func Defaults() Config {
 		},
 		Log: LogConfig{
 			Level: "info",
+		},
+		Extractors: ExtractorConfig{
+			Vanguard: VanguardConfig{
+				NavHistoryDays: 730,
+			},
 		},
 	}
 }

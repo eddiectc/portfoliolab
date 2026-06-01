@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/api/handlers"
 	"codeberg.org/eddiectc/portfoliolab/internal/api/middleware"
+	"codeberg.org/eddiectc/portfoliolab/internal/config"
 	"codeberg.org/eddiectc/portfoliolab/internal/data"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
@@ -42,12 +43,20 @@ type RouterOption func(*routerConfig)
 
 type routerConfig struct {
 	templatesDir string
+	extractorCfg config.ExtractorConfig
 }
 
 // WithTemplatesDir sets the templates directory for the router.
 func WithTemplatesDir(dir string) RouterOption {
 	return func(c *routerConfig) {
 		c.templatesDir = dir
+	}
+}
+
+// WithExtractorConfig sets the extractor configuration.
+func WithExtractorConfig(cfg config.ExtractorConfig) RouterOption {
+	return func(c *routerConfig) {
+		c.extractorCfg = cfg
 	}
 }
 
@@ -82,7 +91,11 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	extractorReg.Register(dws.NewExtractor())
 	extractorReg.Register(dimensional.NewExtractor())
 	extractorReg.Register(imgp.NewExtractor())
-	extractorReg.Register(vanguard.NewExtractor())
+	vgExtractor := vanguard.NewExtractor()
+	if cfg.extractorCfg.Vanguard.NavHistoryDays > 0 {
+		vanguard.WithNavHistoryDays(cfg.extractorCfg.Vanguard.NavHistoryDays)(vgExtractor)
+	}
+	extractorReg.Register(vgExtractor)
 	extractorDispatcher := extractor.NewDispatcher(extractorReg)
 
 	// Static files
