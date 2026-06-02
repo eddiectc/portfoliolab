@@ -98,22 +98,30 @@ func (r *SymbolMappingRepository) GetByID(ctx context.Context, id int64) (*symbo
 		return nil, err
 	}
 
-	// Load associated broker symbols
+	mapping.BrokerSymbols, err = r.loadBrokerSymbols(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapping, nil
+}
+
+// loadBrokerSymbols loads broker symbols for a given symbol mapping ID.
+func (r *SymbolMappingRepository) loadBrokerSymbols(ctx context.Context, id int64) ([]symbolmapping.BrokerSymbol, error) {
 	brokerSymbols, err := r.q.GetBrokerSymbolsByMappingID(ctx, r.db, id)
 	if err != nil {
 		return nil, fmt.Errorf("get broker symbols for mapping %d: %w", id, err)
 	}
 
-	mapping.BrokerSymbols = make([]symbolmapping.BrokerSymbol, len(brokerSymbols))
+	result := make([]symbolmapping.BrokerSymbol, len(brokerSymbols))
 	for i, bsm := range brokerSymbols {
 		bs, err := toBrokerSymbol(bsm)
 		if err != nil {
 			return nil, fmt.Errorf("parse broker symbol %d: %w", bsm.ID, err)
 		}
-		mapping.BrokerSymbols[i] = *bs
+		result[i] = *bs
 	}
-
-	return mapping, nil
+	return result, nil
 }
 
 // GetByInternalSymbol retrieves a symbol mapping by its internal symbol.
@@ -128,7 +136,7 @@ func (r *SymbolMappingRepository) GetByInternalSymbol(ctx context.Context, inter
 	return toSymbolMapping(sm)
 }
 
-// GetAll retrieves all symbol mappings with pagination.
+// GetAll retrieves all symbol mappings with pagination, including broker symbols.
 func (r *SymbolMappingRepository) GetAll(ctx context.Context, limit, offset int) ([]symbolmapping.SymbolMapping, error) {
 	sms, err := r.q.ListSymbolMappings(ctx, r.db, queries.ListSymbolMappingsParams{
 		Limit:  int64(limit),
@@ -144,12 +152,16 @@ func (r *SymbolMappingRepository) GetAll(ctx context.Context, limit, offset int)
 		if err != nil {
 			return nil, fmt.Errorf("parse symbol mapping %d: %w", sm.ID, err)
 		}
+		d.BrokerSymbols, err = r.loadBrokerSymbols(ctx, d.ID)
+		if err != nil {
+			return nil, err
+		}
 		mappings[i] = *d
 	}
 	return mappings, nil
 }
 
-// ListAll returns all symbol mappings without pagination.
+// ListAll returns all symbol mappings without pagination, including broker symbols.
 func (r *SymbolMappingRepository) ListAll(ctx context.Context) ([]symbolmapping.SymbolMapping, error) {
 	sms, err := r.q.ListAllSymbolMappings(ctx, r.db)
 	if err != nil {
@@ -161,6 +173,10 @@ func (r *SymbolMappingRepository) ListAll(ctx context.Context) ([]symbolmapping.
 		d, err := toSymbolMapping(sm)
 		if err != nil {
 			return nil, fmt.Errorf("parse symbol mapping %d: %w", sm.ID, err)
+		}
+		d.BrokerSymbols, err = r.loadBrokerSymbols(ctx, d.ID)
+		if err != nil {
+			return nil, err
 		}
 		mappings[i] = *d
 	}
