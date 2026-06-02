@@ -651,33 +651,53 @@ func formatFloatPercent(val float64) string {
 
 // navPriceChartData is the JSON structure for the ECharts NAV vs Price chart.
 type navPriceChartData struct {
-	NavDates    []string  `json:"navDates"`
-	NavValues   []float64 `json:"navValues"`
-	PriceDates  []string  `json:"priceDates"`
-	PriceValues []float64 `json:"priceValues"`
+	NavDates      []string  `json:"navDates"`
+	NavValues     []float64 `json:"navValues"`
+	PriceDates    []string  `json:"priceDates"`
+	PriceValues   []float64 `json:"priceValues"`
+	RatioDates    []string  `json:"ratioDates"`
+	RatioValues   []float64 `json:"ratioValues"`
 }
 
 // serializeNavPriceChartData converts NAV and stock price history to JSON for
 // ECharts consumption. Both series are displayed as-is without interpolation.
+// The ratio (Price/NAV - 1) is computed for dates where both series overlap.
 func serializeNavPriceChartData(navPrices, stockPrices []market.HistoricalPrice) (string, error) {
 	data := &navPriceChartData{}
 
+	// Build NAV map for ratio computation.
+	navMap := make(map[string]float64)
 	for _, p := range navPrices {
-		data.NavDates = append(data.NavDates, p.Date.Format("2006-01-02"))
+		dateStr := p.Date.Format("2006-01-02")
+		data.NavDates = append(data.NavDates, dateStr)
 		val, ok := p.Close.Float64()
 		if !ok {
-			return "", fmt.Errorf("convert NAV price for %s", p.Date.Format("2006-01-02"))
+			return "", fmt.Errorf("convert NAV price for %s", dateStr)
 		}
 		data.NavValues = append(data.NavValues, val)
+		navMap[dateStr] = val
 	}
 
+	// Build stock price map for ratio computation.
+	priceMap := make(map[string]float64)
 	for _, p := range stockPrices {
-		data.PriceDates = append(data.PriceDates, p.Date.Format("2006-01-02"))
+		dateStr := p.Date.Format("2006-01-02")
+		data.PriceDates = append(data.PriceDates, dateStr)
 		val, ok := p.Close.Float64()
 		if !ok {
-			return "", fmt.Errorf("convert stock price for %s", p.Date.Format("2006-01-02"))
+			return "", fmt.Errorf("convert stock price for %s", dateStr)
 		}
 		data.PriceValues = append(data.PriceValues, val)
+		priceMap[dateStr] = val
+	}
+
+	// Compute price-to-NAV percentage for overlapping dates.
+	for dateStr, priceVal := range priceMap {
+		navVal, ok := navMap[dateStr]
+		if ok && navVal != 0 {
+			data.RatioDates = append(data.RatioDates, dateStr)
+			data.RatioValues = append(data.RatioValues, (priceVal-navVal)/navVal*100)
+		}
 	}
 
 	bytes, err := json.Marshal(data)
