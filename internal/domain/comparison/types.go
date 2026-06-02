@@ -46,9 +46,9 @@ type ComparisonResult struct {
 
 // PortfolioComparison holds the per-portfolio metrics for one side of the comparison.
 type PortfolioComparison struct {
-	ID                 int64                            `json:"id"`
-	Name               string                           `json:"name"`
-	Type               PortfolioType                    `json:"type"`
+	ID   int64         `json:"id"`
+	Name string        `json:"name"`
+	Type PortfolioType `json:"type"`
 	// EffectiveDateFrom and EffectiveDateTo are the actual date range used for
 	// computation, which may be narrower than the requested period due to data
 	// availability (e.g. a symbol with shorter history clips the period).
@@ -107,10 +107,29 @@ type YearlyReturn struct {
 
 // CrossPortfolioMetrics holds the metrics computed between two portfolios.
 type CrossPortfolioMetrics struct {
-	BetaAlpha   *BetaAlphaResult            `json:"beta_alpha,omitempty"`
-	Correlation *PortfolioCorrelationResult `json:"correlation,omitempty"`
-	Overlap     *OverlapResult              `json:"overlap,omitempty"`
-	Warnings    []string                    `json:"warnings,omitempty"`
+	BetaAlpha     *BetaAlphaResult            `json:"beta_alpha,omitempty"`
+	Correlation   *PortfolioCorrelationResult `json:"correlation,omitempty"`
+	CaptureRatios *CaptureRatiosResult        `json:"capture_ratios,omitempty"`
+	Overlap       *OverlapResult              `json:"overlap,omitempty"`
+	Warnings      []string                    `json:"warnings,omitempty"`
+}
+
+// CaptureRatiosResult holds the upside and downside capture ratios of
+// portfolio A relative to portfolio B (the benchmark).
+type CaptureRatiosResult struct {
+	// UpsideCapturePct is the percentage of the benchmark's upside that the
+	// portfolio captures. Computed as sum(portfolio up-day returns) /
+	// sum(benchmark up-day returns) × 100. A value of 100 means the portfolio
+	// captures the benchmark's upside exactly. Nil when insufficient data.
+	UpsideCapturePct *decimal.Decimal `json:"upside_capture_pct,omitempty"`
+	// DownsideCapturePct is the percentage of the benchmark's downside that the
+	// portfolio captures. Computed as sum(portfolio down-day returns) /
+	// sum(benchmark down-day returns) × 100. A value of 100 means the portfolio
+	// captures the benchmark's downside exactly. Lower is better. Nil when
+	// insufficient data.
+	DownsideCapturePct *decimal.Decimal `json:"downside_capture_pct,omitempty"`
+	// OverlapDays is the number of aligned daily return observations used.
+	OverlapDays int `json:"overlap_days"`
 }
 
 // OverlapResult holds portfolio overlap information.

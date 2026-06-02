@@ -184,6 +184,64 @@ func ComputePortfolioCorrelation(aPoints, bPoints []EquityCurvePoint) PortfolioC
 	return result
 }
 
+// ComputeCaptureRatios computes the upside and downside capture ratios of
+// portfolio A relative to portfolio B (the benchmark).
+//
+// Upside Capture = sum(A returns on B's up-days) / sum(B up-day returns) × 100
+// Downside Capture = sum(A returns on B's down-days) / sum(B down-day returns) × 100
+//
+// Daily returns are derived from equity curve points: (value[t]/value[t-1]) - 1.
+// Returns from both series are aligned by date (matching trading days only).
+//
+// Returns nil capture ratios when fewer than 2 aligned observations, or when
+// the corresponding benchmark sum is zero (no up-days or no down-days).
+func ComputeCaptureRatios(aPoints, bPoints []EquityCurvePoint) CaptureRatiosResult {
+	aRet := equityCurveToDailyReturns(aPoints)
+	bRet := equityCurveToDailyReturns(bPoints)
+
+	if len(aRet) < 2 || len(bRet) < 2 {
+		return CaptureRatiosResult{}
+	}
+
+	x, y, overlap := alignDailyReturns(aRet, bRet)
+	if overlap < 2 {
+		return CaptureRatiosResult{OverlapDays: overlap}
+	}
+
+	result := CaptureRatiosResult{OverlapDays: overlap}
+
+	var sumAUp, sumBUp, sumADown, sumBDown float64
+	for i := 0; i < overlap; i++ {
+		if y[i] > 0 {
+			sumAUp += x[i]
+			sumBUp += y[i]
+		} else if y[i] < 0 {
+			sumADown += x[i]
+			sumBDown += y[i]
+		}
+	}
+
+	// Upside capture: ratio of portfolio A's returns on benchmark up-days
+	// to the benchmark's up-day returns.
+	if sumBUp > 0 {
+		upside := (sumAUp / sumBUp) * 100.0
+		upsideDec, _ := decimal.NewFromFloat64(upside)
+		upsideDec = upsideDec.Round(2)
+		result.UpsideCapturePct = &upsideDec
+	}
+
+	// Downside capture: ratio of portfolio A's returns on benchmark down-days
+	// to the benchmark's down-day returns.
+	if sumBDown < 0 {
+		downside := (sumADown / sumBDown) * 100.0
+		downsideDec, _ := decimal.NewFromFloat64(downside)
+		downsideDec = downsideDec.Round(2)
+		result.DownsideCapturePct = &downsideDec
+	}
+
+	return result
+}
+
 // PeriodExtremes holds the best/worst monthly and yearly returns, plus
 // the win rate (percentage of positive-return months).
 type PeriodExtremes struct {
