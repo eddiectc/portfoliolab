@@ -117,7 +117,7 @@ type Holding struct {
 	NotionalValue  float64 // notional value
 	Shares         float64 // number of shares/units
 	Price          float64 // price per share
-	Identifier     string  // CUSIP/ISIN, or "-" for cash
+	ISIN           string  // ISIN, or "-" for cash
 	Location       string  // country, e.g. "United States"
 	Exchange       string  // e.g. "NASDAQ"
 	MarketCurrency string  // e.g. "USD"
@@ -125,8 +125,9 @@ type Holding struct {
 
 // NavPoint is a single NAV data point.
 type NavPoint struct {
-	Date string
-	NAV  decimal.Decimal
+	Date     string
+	NAV      decimal.Decimal
+	Currency string // currency of the NAV value; empty means use the symbol's currency
 }
 
 // Theme is a thematic allocation entry.

@@ -1838,7 +1838,7 @@ func TestToDisplayDetails_BlackRockHoldings(t *testing.T) {
 				NotionalValue:  118e9,
 				Shares:         350000,
 				Price:          337.14,
-				Identifier:     "037833100",
+				ISIN:     "037833100",
 				Location:       "United States",
 				Exchange:       "NASDAQ",
 				MarketCurrency: "USD",
@@ -1871,8 +1871,8 @@ func TestToDisplayDetails_BlackRockHoldings(t *testing.T) {
 	if h.Price != "337.14" {
 		t.Errorf("expected Price '337.14', got %q", h.Price)
 	}
-	if h.Identifier != "037833100" {
-		t.Errorf("expected Identifier '037833100', got %q", h.Identifier)
+	if h.ISIN != "037833100" {
+		t.Errorf("expected ISIN '037833100', got %q", h.ISIN)
 	}
 	if h.Location != "United States" {
 		t.Errorf("expected Location 'United States', got %q", h.Location)

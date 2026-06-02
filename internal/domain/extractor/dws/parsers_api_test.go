@@ -39,7 +39,7 @@ func TestParseHoldings_ActualAPIFormat(t *testing.T) {
 	}
 
 	// Verify first holding
-	if holdings[0].Symbol != "US67066G1040" || holdings[0].Name != "NVIDIA CORP" || holdings[0].Percent != 8.315 {
+	if holdings[0].ISIN != "US67066G1040" || holdings[0].Name != "NVIDIA CORP" || holdings[0].Percent != 8.315 {
 		t.Errorf("holding 0 mismatch: %+v", holdings[0])
 	}
 

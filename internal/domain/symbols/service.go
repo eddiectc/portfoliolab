@@ -141,13 +141,20 @@ func (s *Service) fetchDetails(ctx context.Context, internalSymbol, marketDataSy
 }
 
 // storeNavHistory stores NAV data points in the market_data table.
+// Each NAV point may carry its own currency (e.g. Vanguard API returns NAV
+// in the fund's base currency, which can differ from the symbol's listing
+// currency). If the point's currency is empty, the symbol's currency is used.
 func (s *Service) storeNavHistory(ctx context.Context, internalSymbol, currency string, navPoints []extractor.NavPoint, source string) error {
 	now := time.Now()
 	for _, np := range navPoints {
+		currencyToUse := currency
+		if np.Currency != "" {
+			currencyToUse = np.Currency
+		}
 		md := &market.MarketData{
 			Symbol:    internalSymbol,
 			Price:     np.NAV,
-			Currency:  currency,
+			Currency:  currencyToUse,
 			DataType:  "nav",
 			Source:    source,
 			Date:      np.Date,
@@ -242,6 +249,7 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 		InternalSymbol:    internalSymbol,
 		ExtractorAsOfDate: result.AsOfDate,
 		FetchedAt:         time.Now(),
+		QuoteType:         "ETF", // all extractors are ETF providers
 	}
 
 	// Fund info — symbol and name.
@@ -268,7 +276,7 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 				NotionalValue:  h.NotionalValue,
 				Shares:         h.Shares,
 				Price:          h.Price,
-				Identifier:     h.Identifier,
+				ISIN:           h.ISIN,
 				Location:       h.Location,
 				Exchange:       h.Exchange,
 				MarketCurrency: h.MarketCurrency,

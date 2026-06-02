@@ -1229,7 +1229,7 @@ func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
 				NotionalValue:  4700000000,
 				Shares:         0,
 				Price:          98.5,
-				Identifier:     "912828ZT0",
+				ISIN:     "912828ZT0",
 				Location:       "United States",
 				Exchange:       "OTC",
 				MarketCurrency: "USD",
@@ -1245,7 +1245,7 @@ func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
 				NotionalValue:  125000000,
 				Shares:         625000,
 				Price:          200.0,
-				Identifier:     "037833100",
+				ISIN:     "037833100",
 				Location:       "United States",
 				Exchange:       "NASDAQ",
 				MarketCurrency: "USD",
@@ -1260,7 +1260,7 @@ func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
 				NotionalValue:  50000000,
 				Shares:         0,
 				Price:          0,
-				Identifier:     "-",
+				ISIN:     "-",
 				Location:       "",
 				Exchange:       "",
 				MarketCurrency: "USD",
@@ -1349,8 +1349,8 @@ func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
 	if h0.Price != 98.5 {
 		t.Errorf("expected Price 98.5, got %f", h0.Price)
 	}
-	if h0.Identifier != "912828ZT0" {
-		t.Errorf("expected Identifier '912828ZT0', got %q", h0.Identifier)
+	if h0.ISIN != "912828ZT0" {
+		t.Errorf("expected ISIN '912828ZT0', got %q", h0.ISIN)
 	}
 	if h0.Location != "United States" {
 		t.Errorf("expected Location 'United States', got %q", h0.Location)
@@ -1371,8 +1371,8 @@ func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
 	}
 	// Third holding (cash)
 	h2 := details.TopHoldings[2]
-	if h2.Identifier != "-" {
-		t.Errorf("expected Identifier '-' for cash, got %q", h2.Identifier)
+	if h2.ISIN != "-" {
+		t.Errorf("expected ISIN '-' for cash, got %q", h2.ISIN)
 	}
 	if h2.AssetClass != "Cash" {
 		t.Errorf("expected AssetClass 'Cash', got %q", h2.AssetClass)
@@ -1443,7 +1443,7 @@ func TestService_extractResultToSymbolDetails_BlackRockEquityFund(t *testing.T) 
 				NotionalValue:  260000000,
 				Shares:         1200000,
 				Price:          216.67,
-				Identifier:     "GB0009895292",
+				ISIN:     "GB0009895292",
 				Location:       "United Kingdom",
 				Exchange:       "LSE",
 				MarketCurrency: "GBP",
@@ -1541,8 +1541,8 @@ func TestService_extractResultToSymbolDetails_BlackRockEquityFund(t *testing.T) 
 	if h.MarketValue != 260000000 {
 		t.Errorf("expected MarketValue 260000000, got %f", h.MarketValue)
 	}
-	if h.Identifier != "GB0009895292" {
-		t.Errorf("expected Identifier 'GB0009895292', got %q", h.Identifier)
+	if h.ISIN != "GB0009895292" {
+		t.Errorf("expected ISIN 'GB0009895292', got %q", h.ISIN)
 	}
 	if h.Location != "United Kingdom" {
 		t.Errorf("expected Location 'United Kingdom', got %q", h.Location)
@@ -1873,5 +1873,45 @@ func TestService_storeNavHistory_DecimalConversion(t *testing.T) {
 	// Verify currency
 	if marketDataRepo.entries[0].Currency != "GBP" {
 		t.Errorf("expected currency 'GBP', got %q", marketDataRepo.entries[0].Currency)
+	}
+}
+
+// --- NAV Currency Matching Test ---
+
+func TestService_storeNavHistory_CurrencyFromNavPoint(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	marketDataRepo := newMockMarketDataRepo()
+	svc.WithMarketDataRepo(marketDataRepo)
+
+	// NAV points carry their own currency (e.g. Vanguard returns NAV in
+	// the fund's base currency USD, even though the symbol lists in GBP)
+	navPoints := []extractor.NavPoint{
+		{Date: "2024-01-15", NAV: decimal.MustNew(10500, 2), Currency: "USD"},
+		{Date: "2024-01-16", NAV: decimal.MustNew(10550, 2), Currency: "USD"},
+		{Date: "2024-01-17", NAV: decimal.MustNew(10600, 2)}, // no currency — should fallback
+	}
+
+	// Symbol currency is GBP (from Yahoo Finance listing)
+	err := svc.storeNavHistory(context.Background(), "VWRP.L", "GBP", navPoints, "vanguard")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(marketDataRepo.entries) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(marketDataRepo.entries))
+	}
+
+	// Points with their own currency should use it
+	if marketDataRepo.entries[0].Currency != "USD" {
+		t.Errorf("entry 0: expected currency 'USD', got %q", marketDataRepo.entries[0].Currency)
+	}
+	if marketDataRepo.entries[1].Currency != "USD" {
+		t.Errorf("entry 1: expected currency 'USD', got %q", marketDataRepo.entries[1].Currency)
+	}
+
+	// Point without currency should fallback to symbol currency
+	if marketDataRepo.entries[2].Currency != "GBP" {
+		t.Errorf("entry 2: expected fallback currency 'GBP', got %q", marketDataRepo.entries[2].Currency)
 	}
 }

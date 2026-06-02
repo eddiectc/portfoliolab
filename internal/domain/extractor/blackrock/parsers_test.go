@@ -527,8 +527,8 @@ func TestParseHoldings(t *testing.T) {
 	if holdings[0].Shares != 350601 {
 		t.Errorf("holding[0].Shares = %f, want 350601", holdings[0].Shares)
 	}
-	if holdings[0].Identifier != "US5951121038" {
-		t.Errorf("holding[0].Identifier = %q", holdings[0].Identifier)
+	if holdings[0].ISIN != "US5951121038" {
+		t.Errorf("holding[0].ISIN = %q", holdings[0].ISIN)
 	}
 	if holdings[0].Price != 971 {
 		t.Errorf("holding[0].Price = %f, want 971", holdings[0].Price)
@@ -550,8 +550,8 @@ func TestParseHoldings(t *testing.T) {
 	if holdings[2].Percent != -0.02 {
 		t.Errorf("holding[2].Percent = %f, want -0.02", holdings[2].Percent)
 	}
-	if holdings[2].Identifier != "-" {
-		t.Errorf("holding[2].Identifier = %q, want -", holdings[2].Identifier)
+	if holdings[2].ISIN != "-" {
+		t.Errorf("holding[2].ISIN = %q, want -", holdings[2].ISIN)
 	}
 
 	// As-of date

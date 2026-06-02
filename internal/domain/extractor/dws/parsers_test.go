@@ -68,7 +68,7 @@ func TestParseHoldings(t *testing.T) {
 	// Verify one specific holding
 	found := false
 	for _, h := range holdings {
-		if h.Symbol == "US0378331005" && h.Percent == 7.5 {
+		if h.ISIN == "US0378331005" && h.Percent == 7.5 {
 			found = true
 			break
 		}
