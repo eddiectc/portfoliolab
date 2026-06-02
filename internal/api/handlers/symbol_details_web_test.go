@@ -21,7 +21,9 @@ import (
 // --- Mocks ---
 
 type detailsWebTestRepo struct {
-	details map[string]*symbol.SymbolDetails
+	details           map[string]*symbol.SymbolDetails
+	touchFetchedAt    bool
+	touchFetchedAtSym string
 }
 
 func newDetailsWebTestRepo() *detailsWebTestRepo {
@@ -44,6 +46,12 @@ func (r *detailsWebTestRepo) GetByInternalSymbol(_ context.Context, s string) (*
 
 func (r *detailsWebTestRepo) ListStale(_ context.Context, _ time.Time) ([]symbol.StaleSymbol, error) {
 	return nil, nil
+}
+
+func (r *detailsWebTestRepo) TouchFetchedAt(_ context.Context, sym string) error {
+	r.touchFetchedAt = true
+	r.touchFetchedAtSym = sym
+	return nil
 }
 
 type detailsWebTestFetcher struct {
@@ -1986,4 +1994,89 @@ func TestDetailsHandleDetailsPage_BlackRockSections(t *testing.T) {
 	checkContains("pe ratio", "15.20")
 	checkContains("dividend yield", "1.50%")
 	checkContains("holdings header", "Top 10 Holdings")
+}
+
+func TestHandleRefreshDetails_Success(t *testing.T) {
+	handler, _, _, smRepo, detailsRepo, _, _ := setupDetailsWebHandler(t)
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "VOO",
+		MarketDataSymbol: "VOO",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["VOO"] = 1
+
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	req := httptest.NewRequest(http.MethodPost, "/symbols/1/details/refresh", nil)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("expected 303, got %d", w.Code)
+	}
+
+	loc := w.Header().Get("Location")
+	if loc != "/symbols/1/details" {
+		t.Errorf("expected redirect to /symbols/1/details, got %s", loc)
+	}
+
+	if !detailsRepo.touchFetchedAt {
+		t.Error("expected TouchFetchedAt to be called")
+	}
+	if detailsRepo.touchFetchedAtSym != "VOO" {
+		t.Errorf("expected TouchFetchedAt for VOO, got %s", detailsRepo.touchFetchedAtSym)
+	}
+}
+
+func TestHandleRefreshDetails_NotFound(t *testing.T) {
+	handler, _, _, _, _, _, _ := setupDetailsWebHandler(t)
+
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "999")
+	req := httptest.NewRequest(http.MethodPost, "/symbols/999/details/refresh", nil)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestHandleRefreshDetails_NoDetailsService(t *testing.T) {
+	handler, _, _, smRepo, _, _, _ := setupDetailsWebHandler(t)
+	handler.detailsSvc = nil
+
+	smRepo.mappings[1] = &symbolmapping.SymbolMapping{
+		ID:               1,
+		InternalSymbol:   "VOO",
+		MarketDataSymbol: "VOO",
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	smRepo.byInternal["VOO"] = 1
+
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	req := httptest.NewRequest(http.MethodPost, "/symbols/1/details/refresh", nil)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("expected 303, got %d", w.Code)
+	}
 }

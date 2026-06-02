@@ -150,11 +150,11 @@ func TestPositionsTemplate_CacheStatusRefreshing(t *testing.T) {
 	renderer := newTestRenderer(t)
 
 	data := openPositionListPageData{
-		PageData:     web.PageData{Title: "Open Positions"},
-		Positions:    []position.PositionWithMarket{},
-		Accounts:     []account.Account{},
+		PageData:       web.PageData{Title: "Open Positions"},
+		Positions:      []position.PositionWithMarket{},
+		Accounts:       []account.Account{},
 		HasCacheStatus: true,
-		CacheStatus:  marketcache.CacheStatus{Refreshing: true},
+		CacheStatus:    marketcache.CacheStatus{Refreshing: true},
 	}
 
 	w := httptest.NewRecorder()
@@ -191,5 +191,3 @@ func TestPositionsTemplate_NoCacheStatus(t *testing.T) {
 		t.Error("expected no cache status indicator when HasCacheStatus is false")
 	}
 }
-
-

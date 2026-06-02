@@ -20,12 +20,12 @@ import (
 // ---- Mocks ----
 
 type mockImportService struct {
-	previewResp   *ibkrimport.PreviewResponse
-	previewErr    error
-	importResp    *ibkrimport.ImportResult
-	importErr     error
-	createSymErr  error
-	addBrokerErr  error
+	previewResp  *ibkrimport.PreviewResponse
+	previewErr   error
+	importResp   *ibkrimport.ImportResult
+	importErr    error
+	createSymErr error
+	addBrokerErr error
 }
 
 func newMockImportService() *mockImportService {
@@ -316,8 +316,8 @@ func TestImportHandleConfirm_MissingAccountID(t *testing.T) {
 
 func TestImportHandleCreateSymbol_Success(t *testing.T) {
 	sm := &symbolmapping.SymbolMapping{
-		ID:             42,
-		InternalSymbol: "AAPL",
+		ID:               42,
+		InternalSymbol:   "AAPL",
 		MarketDataSymbol: "AAPL",
 	}
 
@@ -481,9 +481,9 @@ func TestImportHandleAddBrokerSymbol_BrokerSymbolExists(t *testing.T) {
 func TestImportRegisterRoutes(t *testing.T) {
 	importSvc := newMockImportService()
 	importSvc.previewResp = &ibkrimport.PreviewResponse{
-		Importable:      []ibkrimport.PreviewTransaction{},
-		Skipped:         []ibkrimport.SkippedTransaction{},
-		Errored:         []ibkrimport.ErroredTransaction{},
+		Importable: []ibkrimport.PreviewTransaction{},
+		Skipped:    []ibkrimport.SkippedTransaction{},
+		Errored:    []ibkrimport.ErroredTransaction{},
 	}
 	symbolSvc := newMockSymbolService()
 	handler := NewImportHandler(importSvc, symbolSvc)
@@ -521,37 +521,37 @@ func TestImportRegisterRoutes(t *testing.T) {
 
 func TestImportErrorResponseFormat(t *testing.T) {
 	tests := []struct {
-		name       string
-		method     string
-		path       string
-		body       string
+		name        string
+		method      string
+		path        string
+		body        string
 		contentType string
-		setup      func(*mockImportService)
-		wantCode   int
+		setup       func(*mockImportService)
+		wantCode    int
 		wantErrCode string
 	}{
 		{
-			name:  "preview invalid XML",
-			method: http.MethodPost,
-			path:  "/api/transactions/import/ibkr/preview",
-			setup: func(m *mockImportService) { m.previewErr = ibkrimport.ErrInvalidXML },
-			wantCode: http.StatusBadRequest,
+			name:        "preview invalid XML",
+			method:      http.MethodPost,
+			path:        "/api/transactions/import/ibkr/preview",
+			setup:       func(m *mockImportService) { m.previewErr = ibkrimport.ErrInvalidXML },
+			wantCode:    http.StatusBadRequest,
 			wantErrCode: "INVALID_XML",
 		},
 		{
-			name:  "preview account not found",
-			method: http.MethodPost,
-			path:  "/api/transactions/import/ibkr/preview",
-			setup: func(m *mockImportService) { m.previewErr = ibkrimport.ErrAccountNotFound },
-			wantCode: http.StatusNotFound,
+			name:        "preview account not found",
+			method:      http.MethodPost,
+			path:        "/api/transactions/import/ibkr/preview",
+			setup:       func(m *mockImportService) { m.previewErr = ibkrimport.ErrAccountNotFound },
+			wantCode:    http.StatusNotFound,
 			wantErrCode: "ACCOUNT_NOT_FOUND",
 		},
 		{
-			name:  "confirm internal error",
-			method: http.MethodPost,
-			path:  "/api/transactions/import/ibkr/confirm",
-			setup: func(m *mockImportService) { m.importErr = fmt.Errorf("batch create failed") },
-			wantCode: http.StatusInternalServerError,
+			name:        "confirm internal error",
+			method:      http.MethodPost,
+			path:        "/api/transactions/import/ibkr/confirm",
+			setup:       func(m *mockImportService) { m.importErr = fmt.Errorf("batch create failed") },
+			wantCode:    http.StatusInternalServerError,
 			wantErrCode: "IMPORT_FAILED",
 		},
 	}

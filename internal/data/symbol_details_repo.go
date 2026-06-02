@@ -268,6 +268,15 @@ func (r *SymbolDetailsRepository) GetByInternalSymbol(ctx context.Context, inter
 	return r.toSymbolDetail(sd)
 }
 
+// TouchFetchedAt sets fetched_at to NULL, marking the symbol as needing
+// a refresh by the periodic background job.
+func (r *SymbolDetailsRepository) TouchFetchedAt(ctx context.Context, internalSymbol string) error {
+	if err := r.q.TouchSymbolDetailsFetchedAt(ctx, r.db, internalSymbol); err != nil {
+		return fmt.Errorf("touch fetched_at for %s: %w", internalSymbol, err)
+	}
+	return nil
+}
+
 // ListStale retrieves symbols whose details are older than the given threshold.
 // Returns internal_symbol and market_data_symbol pairs for refresh.
 func (r *SymbolDetailsRepository) ListStale(ctx context.Context, olderThan time.Time) ([]symbol.StaleSymbol, error) {

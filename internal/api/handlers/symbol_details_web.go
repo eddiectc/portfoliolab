@@ -238,6 +238,7 @@ func NewSymbolDetailsWebHandler(symbolMappingSvc *symbolmapping.Service, details
 // RegisterRoutes mounts web symbol details routes on the given router.
 func (h *SymbolDetailsWebHandler) RegisterRoutes(r *chi.Mux) {
 	r.Get("/symbols/{id}/details", h.HandleDetailsPage)
+	r.Post("/symbols/{id}/details/refresh", h.HandleRefreshDetails)
 }
 
 // HandleDetailsPage renders GET /symbols/{id}/details showing cached symbol details + live price.
@@ -320,6 +321,38 @@ func (h *SymbolDetailsWebHandler) HandleDetailsPage(w http.ResponseWriter, r *ht
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+// HandleRefreshDetails handles POST /symbols/{id}/details/refresh.
+// Marks the symbol details as stale so the background job picks it up.
+func (h *SymbolDetailsWebHandler) HandleRefreshDetails(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if h.symbolMappingSvc == nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	sm, err := h.symbolMappingSvc.Get(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if h.detailsSvc != nil {
+		if err := h.detailsSvc.TouchFetchedAt(r.Context(), sm.InternalSymbol); err != nil {
+			setFlash(w, "Failed to schedule refresh")
+			http.Redirect(w, r, "/symbols/"+strconv.FormatInt(id, 10)+"/details", http.StatusSeeOther)
+			return
+		}
+	}
+
+	setFlash(w, "Symbol refresh scheduled — will update on next background run")
+	http.Redirect(w, r, "/symbols/"+strconv.FormatInt(id, 10)+"/details", http.StatusSeeOther)
 }
 
 // toDisplayDetails converts a SymbolDetails to a template-friendly display struct.
@@ -651,12 +684,12 @@ func formatFloatPercent(val float64) string {
 
 // navPriceChartData is the JSON structure for the ECharts NAV vs Price chart.
 type navPriceChartData struct {
-	NavDates      []string  `json:"navDates"`
-	NavValues     []float64 `json:"navValues"`
-	PriceDates    []string  `json:"priceDates"`
-	PriceValues   []float64 `json:"priceValues"`
-	RatioDates    []string  `json:"ratioDates"`
-	RatioValues   []float64 `json:"ratioValues"`
+	NavDates    []string  `json:"navDates"`
+	NavValues   []float64 `json:"navValues"`
+	PriceDates  []string  `json:"priceDates"`
+	PriceValues []float64 `json:"priceValues"`
+	RatioDates  []string  `json:"ratioDates"`
+	RatioValues []float64 `json:"ratioValues"`
 }
 
 // serializeNavPriceChartData converts NAV and stock price history to JSON for

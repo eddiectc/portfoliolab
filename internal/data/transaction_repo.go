@@ -15,8 +15,8 @@ import (
 // TransactionRepository provides data access for transactions,
 // delegating to sqlc-generated queries.
 type TransactionRepository struct {
-	q    *queries.Queries
-	db   queries.DBTX
+	q     *queries.Queries
+	db    queries.DBTX
 	sqlDB *sql.DB
 }
 
@@ -136,7 +136,7 @@ func (r *TransactionRepository) Create(ctx context.Context, t *transaction.Trans
 		Currency:          t.Currency,
 		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
-		Description:           toNullString(t.Description),
+		Description:       toNullString(t.Description),
 		ExternalReference: toNullString(t.ExternalReference),
 		LotID:             toNullString(t.LotID),
 		CreatedAt:         t.CreatedAt.Format(time.RFC3339),
@@ -171,8 +171,8 @@ func (r *TransactionRepository) BatchCreate(ctx context.Context, txns []*transac
 			Currency:          t.Currency,
 			NetCash:           t.NetCash.String(),
 			ExternalSystem:    toNullString(t.ExternalSystem),
-			Description:           toNullString(t.Description),
-		ExternalReference: toNullString(t.ExternalReference),
+			Description:       toNullString(t.Description),
+			ExternalReference: toNullString(t.ExternalReference),
 			LotID:             toNullString(t.LotID),
 			CreatedAt:         t.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
@@ -252,12 +252,12 @@ func (r *TransactionRepository) List(ctx context.Context, filters transaction.Li
 		})
 	case hasSymbol && hasType && hasDate:
 		items, err = r.q.ListTransactionsBySymbolTypeDateRange(ctx, r.db, queries.ListTransactionsBySymbolTypeDateRangeParams{
-			Symbol:    *filters.Symbol,
-			Type:      *filters.Type,
-			Date:      filters.DateFrom.Format(time.RFC3339),
-			Date_2:    filters.DateTo.Format(time.RFC3339),
-			Limit:     int64(limit),
-			Offset:    int64(offset),
+			Symbol: *filters.Symbol,
+			Type:   *filters.Type,
+			Date:   filters.DateFrom.Format(time.RFC3339),
+			Date_2: filters.DateTo.Format(time.RFC3339),
+			Limit:  int64(limit),
+			Offset: int64(offset),
 		})
 	case hasAccount && hasSymbol:
 		items, err = r.q.ListTransactionsByAccountAndSymbol(ctx, r.db, queries.ListTransactionsByAccountAndSymbolParams{
@@ -451,7 +451,7 @@ func (r *TransactionRepository) Update(ctx context.Context, t *transaction.Trans
 		Currency:          t.Currency,
 		NetCash:           t.NetCash.String(),
 		ExternalSystem:    toNullString(t.ExternalSystem),
-		Description:           toNullString(t.Description),
+		Description:       toNullString(t.Description),
 		ExternalReference: toNullString(t.ExternalReference),
 		LotID:             toNullString(t.LotID),
 		UpdatedAt:         t.UpdatedAt.Format(time.RFC3339),
@@ -553,12 +553,12 @@ func (r *TransactionRepository) ListWithAccount(ctx context.Context, filters tra
 		return toDomainWithAccount(toBaseRow(rows))
 	case hasSymbol && hasType && hasDate:
 		rows, err := r.q.ListTransactionsWithAccountBySymbolTypeDateRange(ctx, r.db, queries.ListTransactionsWithAccountBySymbolTypeDateRangeParams{
-			Symbol:    *filters.Symbol,
-			Type:      *filters.Type,
-			Date:      filters.DateFrom.Format(time.RFC3339),
-			Date_2:    filters.DateTo.Format(time.RFC3339),
-			Limit:     int64(limit),
-			Offset:    int64(offset),
+			Symbol: *filters.Symbol,
+			Type:   *filters.Type,
+			Date:   filters.DateFrom.Format(time.RFC3339),
+			Date_2: filters.DateTo.Format(time.RFC3339),
+			Limit:  int64(limit),
+			Offset: int64(offset),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("list transactions with account: %w", err)

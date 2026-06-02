@@ -56,6 +56,10 @@ func (m *mockRepo) ListStale(_ context.Context, _ time.Time) ([]symbol.StaleSymb
 	return result, nil
 }
 
+func (m *mockRepo) TouchFetchedAt(_ context.Context, _ string) error {
+	return m.err
+}
+
 // --- Mock Fetcher ---
 
 type mockFetcher struct {
@@ -77,8 +81,8 @@ func (m *mockFetcher) FetchSymbolDetails(_ context.Context, _ string) (*symbol.S
 // --- Mock DataSourceURLSource ---
 
 type mockDataSourceURLRepo struct {
-	urls map[string]string    // internal_symbol -> data_source_url
-	ids  map[string]int64     // internal_symbol -> id
+	urls map[string]string // internal_symbol -> data_source_url
+	ids  map[string]int64  // internal_symbol -> id
 	err  error
 }
 
@@ -129,9 +133,9 @@ func (m *mockMarketDataRepo) Upsert(_ context.Context, md *market.MarketData) er
 // --- Mock Extractor ---
 
 type mockExtractor struct {
-	name     string
-	result   *extractor.ExtractResult
-	err      error
+	name   string
+	result *extractor.ExtractResult
+	err    error
 }
 
 func (m *mockExtractor) Name() string { return m.name }
@@ -157,12 +161,12 @@ func TestService_FetchAndStore_Success(t *testing.T) {
 	svc, repo, fetcher := newTestService()
 
 	fetcher.details = &symbol.SymbolDetails{
-		ShortName:  "Vanguard S&P 500 ETF",
-		LongName:   "Vanguard S&P 500 ETF",
-		Exchange:   "PCX",
-		Currency:   "USD",
-		QuoteType:  "ETF",
-		FetchedAt:  time.Now(),
+		ShortName: "Vanguard S&P 500 ETF",
+		LongName:  "Vanguard S&P 500 ETF",
+		Exchange:  "PCX",
+		Currency:  "USD",
+		QuoteType: "ETF",
+		FetchedAt: time.Now(),
 	}
 
 	err := svc.FetchAndStore(context.Background(), "VOO", "VOO")
@@ -204,8 +208,8 @@ func TestService_FetchAndStore_StoreFails(t *testing.T) {
 	svc, repo, fetcher := newTestService()
 
 	fetcher.details = &symbol.SymbolDetails{
-		ShortName:  "Test",
-		FetchedAt:  time.Now(),
+		ShortName: "Test",
+		FetchedAt: time.Now(),
 	}
 	repo.err = fmt.Errorf("db connection lost")
 
@@ -220,12 +224,12 @@ func TestService_FetchAndStore_PartialData(t *testing.T) {
 
 	// Simulate partial data (no ETF-specific fields)
 	fetcher.details = &symbol.SymbolDetails{
-		ShortName:  "Apple Inc.",
-		LongName:   "Apple Inc.",
-		Exchange:   "NMS",
-		Currency:   "USD",
-		QuoteType:  "EQUITY",
-		FetchedAt:  time.Now(),
+		ShortName: "Apple Inc.",
+		LongName:  "Apple Inc.",
+		Exchange:  "NMS",
+		Currency:  "USD",
+		QuoteType: "EQUITY",
+		FetchedAt: time.Now(),
 	}
 
 	err := svc.FetchAndStore(context.Background(), "AAPL", "AAPL")
@@ -645,11 +649,11 @@ func TestService_FetchAndStore_NAVHistoryStoreFails(t *testing.T) {
 
 func TestService_GetDataSourceURL(t *testing.T) {
 	tests := []struct {
-		name       string
-		symbol     string
-		setupRepo  func() DataSourceURLSource
-		wantURL    string
-		wantErr    bool
+		name      string
+		symbol    string
+		setupRepo func() DataSourceURLSource
+		wantURL   string
+		wantErr   bool
 	}{
 		{
 			name:   "success",
@@ -673,11 +677,11 @@ func TestService_GetDataSourceURL(t *testing.T) {
 			wantURL: "",
 		},
 		{
-			name:       "empty when no repo",
-			symbol:     "VOO",
-			setupRepo:  nil,
-			wantURL:    "",
-			wantErr:    false,
+			name:      "empty when no repo",
+			symbol:    "VOO",
+			setupRepo: nil,
+			wantURL:   "",
+			wantErr:   false,
 		},
 		{
 			name:   "error when repo fails",
@@ -1105,7 +1109,7 @@ func TestService_extractResultToSymbolDetails_VanguardFields(t *testing.T) {
 			ForwardROE:               15.2,
 			ForwardEPSGrowth:         10.5,
 			RevenueRatio:             1.08,
-			FieldsPresent:            extractor.CharacteristicPriceToEarnings |
+			FieldsPresent: extractor.CharacteristicPriceToEarnings |
 				extractor.CharacteristicMedianMarketCap |
 				extractor.CharacteristicForwardROE |
 				extractor.CharacteristicForwardEPSGrowth |
@@ -1194,24 +1198,24 @@ func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
 			Name:   "iShares Core USD Total Bond Market UCITS ETF USD (Acc)",
 		},
 		FundProfile: &extractor.FundProfile{
-			Family:                 "iShares",
-			LegalType:              "Exchange Traded Fund",
-			TotalNetAssets:         25000000000,
-			AnnualExpenseRatio:     0.08,
-			InceptionDate:          time.Date(2012, 9, 25, 0, 0, 0, 0, time.UTC),
-			Isin:                   "IE00B53HDB03",
-			Benchmark:              "Bloomberg US Universal Treasury Index",
-			AssetClassification:    "Fixed Income",
-			DistributionStrategy:   "ACUM",
-			SFDRClassification:     "Article 6",
-			Domicile:               "Ireland",
-			RebalanceFrequency:     "Quarterly",
-			ProductStructure:       "Physical",
-			Methodology:            "Representative",
-			FundManager:            "BlackRock Asset Management Ireland Limited",
-			Custodian:              "State Street Custodial Services (Ireland) Limited",
-			IssuingCompany:         "iShares IV plc",
-			BenchmarkTicker:        "LBU000IW Index",
+			Family:               "iShares",
+			LegalType:            "Exchange Traded Fund",
+			TotalNetAssets:       25000000000,
+			AnnualExpenseRatio:   0.08,
+			InceptionDate:        time.Date(2012, 9, 25, 0, 0, 0, 0, time.UTC),
+			Isin:                 "IE00B53HDB03",
+			Benchmark:            "Bloomberg US Universal Treasury Index",
+			AssetClassification:  "Fixed Income",
+			DistributionStrategy: "ACUM",
+			SFDRClassification:   "Article 6",
+			Domicile:             "Ireland",
+			RebalanceFrequency:   "Quarterly",
+			ProductStructure:     "Physical",
+			Methodology:          "Representative",
+			FundManager:          "BlackRock Asset Management Ireland Limited",
+			Custodian:            "State Street Custodial Services (Ireland) Limited",
+			IssuingCompany:       "iShares IV plc",
+			BenchmarkTicker:      "LBU000IW Index",
 		},
 		Holdings: []extractor.Holding{
 			{
@@ -1280,7 +1284,7 @@ func TestService_extractResultToSymbolDetails_BlackRockFields(t *testing.T) {
 			Beta3Y:              0.02,
 			StandardDeviation3Y: 5.8,
 			NumberOfHoldings:    8542,
-			FieldsPresent:       extractor.CharacteristicAverageCoupon |
+			FieldsPresent: extractor.CharacteristicAverageCoupon |
 				extractor.CharacteristicAverageMaturity |
 				extractor.CharacteristicAverageQuality |
 				extractor.CharacteristicAverageDuration |
@@ -1407,25 +1411,25 @@ func TestService_extractResultToSymbolDetails_BlackRockEquityFund(t *testing.T) 
 			Name:   "iShares FTSE 100 UCITS ETF GBP (Dist)",
 		},
 		FundProfile: &extractor.FundProfile{
-			Family:                 "iShares",
-			LegalType:              "Exchange Traded Fund",
-			TotalNetAssets:         5000000000,
-			AnnualExpenseRatio:     0.07,
-			InceptionDate:          time.Date(2000, 5, 3, 0, 0, 0, 0, time.UTC),
-			Isin:                   "IE00B4K4B820",
-			Benchmark:              "FTSE 100 Total Return Index",
-			AssetClassification:    "Equity",
-			DistributionStrategy:   "INCM",
-			MarketRegionFocus:      "UK",
-			SFDRClassification:     "Article 6",
-			Domicile:               "Ireland",
-			RebalanceFrequency:     "Quarterly",
-			ProductStructure:       "Physical",
-			Methodology:            "Representative",
-			FundManager:            "BlackRock Asset Management Ireland Limited",
-			Custodian:              "State Street Custodial Services (Ireland) Limited",
-			IssuingCompany:         "iShares IV plc",
-			BenchmarkTicker:        "XFLT10 Index",
+			Family:               "iShares",
+			LegalType:            "Exchange Traded Fund",
+			TotalNetAssets:       5000000000,
+			AnnualExpenseRatio:   0.07,
+			InceptionDate:        time.Date(2000, 5, 3, 0, 0, 0, 0, time.UTC),
+			Isin:                 "IE00B4K4B820",
+			Benchmark:            "FTSE 100 Total Return Index",
+			AssetClassification:  "Equity",
+			DistributionStrategy: "INCM",
+			MarketRegionFocus:    "UK",
+			SFDRClassification:   "Article 6",
+			Domicile:             "Ireland",
+			RebalanceFrequency:   "Quarterly",
+			ProductStructure:     "Physical",
+			Methodology:          "Representative",
+			FundManager:          "BlackRock Asset Management Ireland Limited",
+			Custodian:            "State Street Custodial Services (Ireland) Limited",
+			IssuingCompany:       "iShares IV plc",
+			BenchmarkTicker:      "XFLT10 Index",
 		},
 		Holdings: []extractor.Holding{
 			{
@@ -1462,7 +1466,7 @@ func TestService_extractResultToSymbolDetails_BlackRockEquityFund(t *testing.T) 
 			Beta3Y:                   0.95,
 			StandardDeviation3Y:      16.2,
 			NumberOfHoldings:         105,
-			FieldsPresent:            extractor.CharacteristicPriceToEarnings |
+			FieldsPresent: extractor.CharacteristicPriceToEarnings |
 				extractor.CharacteristicEstimatedPriceToEarnings |
 				extractor.CharacteristicPriceToBook |
 				extractor.CharacteristicPriceToCashflow |
@@ -1575,7 +1579,7 @@ func TestService_extractResultToSymbolDetails_BondFundCharacteristics(t *testing
 			AverageMaturity: 8.2,
 			AverageQuality:  7.5,
 			AverageDuration: 6.1,
-			FieldsPresent:   extractor.CharacteristicAverageCoupon |
+			FieldsPresent: extractor.CharacteristicAverageCoupon |
 				extractor.CharacteristicAverageMaturity |
 				extractor.CharacteristicAverageQuality |
 				extractor.CharacteristicAverageDuration,
@@ -1762,11 +1766,11 @@ func TestService_RefreshSymbol_Success(t *testing.T) {
 
 	// Fetcher returns fresh data
 	fetcher.details = &symbol.SymbolDetails{
-		ShortName:  "Updated Name",
-		Exchange:   "PCX",
-		Currency:   "USD",
-		QuoteType:  "ETF",
-		FetchedAt:  time.Now(),
+		ShortName: "Updated Name",
+		Exchange:  "PCX",
+		Currency:  "USD",
+		QuoteType: "ETF",
+		FetchedAt: time.Now(),
 	}
 
 	err := svc.RefreshSymbol(context.Background(), "VOO", "VOO")
@@ -1802,6 +1806,34 @@ func TestService_RefreshSymbol_FetchFails(t *testing.T) {
 	details, _ := repo.GetByInternalSymbol(context.Background(), "VOO")
 	if details.ShortName != "Existing Data" {
 		t.Errorf("expected existing data preserved, got %q", details.ShortName)
+	}
+}
+
+func TestService_TouchFetchedAt_Success(t *testing.T) {
+	svc, repo, _ := newTestService()
+
+	// Insert existing details
+	repo.details["VOO"] = &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		ShortName:      "Vanguard S&P 500",
+		FetchedAt:      time.Now().AddDate(0, 0, -8),
+	}
+
+	err := svc.TouchFetchedAt(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestService_TouchFetchedAt_Error(t *testing.T) {
+	repo := newMockRepo()
+	repo.err = fmt.Errorf("db error")
+	fetcher := &mockFetcher{details: &symbol.SymbolDetails{InternalSymbol: "VOO"}}
+	svc := NewService(repo, fetcher)
+
+	err := svc.TouchFetchedAt(context.Background(), "VOO")
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 

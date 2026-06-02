@@ -21,12 +21,12 @@ import (
 // ---- Mocks ----
 
 type mockTrading212ImportService struct {
-	previewResp   *brokerimport.PreviewResponse
-	previewErr    error
-	importResp    *brokerimport.ImportResult
-	importErr     error
-	createSymErr  error
-	addBrokerErr  error
+	previewResp  *brokerimport.PreviewResponse
+	previewErr   error
+	importResp   *brokerimport.ImportResult
+	importErr    error
+	createSymErr error
+	addBrokerErr error
 }
 
 func newMockTrading212ImportService() *mockTrading212ImportService {
@@ -506,27 +506,27 @@ func TestTrading212ErrorResponseFormat(t *testing.T) {
 		wantErrCode string
 	}{
 		{
-			name:  "preview invalid CSV",
-			method: http.MethodPost,
-			path:  "/api/transactions/import/trading212/preview",
-			setup: func(m *mockTrading212ImportService) { m.previewErr = trading212import.ErrInvalidCSV },
-			wantCode: http.StatusBadRequest,
+			name:        "preview invalid CSV",
+			method:      http.MethodPost,
+			path:        "/api/transactions/import/trading212/preview",
+			setup:       func(m *mockTrading212ImportService) { m.previewErr = trading212import.ErrInvalidCSV },
+			wantCode:    http.StatusBadRequest,
 			wantErrCode: "INVALID_CSV",
 		},
 		{
-			name:  "preview account not found",
-			method: http.MethodPost,
-			path:  "/api/transactions/import/trading212/preview",
-			setup: func(m *mockTrading212ImportService) { m.previewErr = trading212import.ErrAccountNotFound },
-			wantCode: http.StatusNotFound,
+			name:        "preview account not found",
+			method:      http.MethodPost,
+			path:        "/api/transactions/import/trading212/preview",
+			setup:       func(m *mockTrading212ImportService) { m.previewErr = trading212import.ErrAccountNotFound },
+			wantCode:    http.StatusNotFound,
 			wantErrCode: "ACCOUNT_NOT_FOUND",
 		},
 		{
-			name:  "confirm internal error",
-			method: http.MethodPost,
-			path:  "/api/transactions/import/trading212/confirm",
-			setup: func(m *mockTrading212ImportService) { m.importErr = fmt.Errorf("batch create failed") },
-			wantCode: http.StatusInternalServerError,
+			name:        "confirm internal error",
+			method:      http.MethodPost,
+			path:        "/api/transactions/import/trading212/confirm",
+			setup:       func(m *mockTrading212ImportService) { m.importErr = fmt.Errorf("batch create failed") },
+			wantCode:    http.StatusInternalServerError,
 			wantErrCode: "IMPORT_FAILED",
 		},
 	}

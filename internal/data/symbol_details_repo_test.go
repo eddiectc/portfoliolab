@@ -1637,3 +1637,53 @@ func TestSymbolDetailsRepository_CurrencyDerivativesAllocation_NilStoredAsNull(t
 		t.Errorf("expected nil CurrencyDerivativesAllocation, got %+v", got.CurrencyDerivativesAllocation)
 	}
 }
+
+func TestSymbolDetailsRepository_TouchFetchedAt(t *testing.T) {
+	db := setupSymbolDetailsDB(t)
+	repo := NewSymbolDetailsRepository(db)
+
+	// Insert symbol mapping
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
+		"VOO", "VOO")
+	if err != nil {
+		t.Fatalf("insert symbol mapping: %v", err)
+	}
+
+	// Insert details with recent fetched_at
+	details := &symbol.SymbolDetails{
+		InternalSymbol: "VOO",
+		ShortName:      "Vanguard S&P 500",
+		FetchedAt:      time.Now(),
+	}
+	err = repo.Upsert(context.Background(), details)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	// Verify it's not stale
+	stale, err := repo.ListStale(context.Background(), time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Fatalf("ListStale before touch: %v", err)
+	}
+	if len(stale) != 0 {
+		t.Errorf("expected no stale symbols before touch, got %d", len(stale))
+	}
+
+	// Touch fetched_at
+	err = repo.TouchFetchedAt(context.Background(), "VOO")
+	if err != nil {
+		t.Fatalf("TouchFetchedAt: %v", err)
+	}
+
+	// Verify it's now stale
+	stale, err = repo.ListStale(context.Background(), time.Now())
+	if err != nil {
+		t.Fatalf("ListStale after touch: %v", err)
+	}
+	if len(stale) != 1 {
+		t.Errorf("expected 1 stale symbol after touch, got %d", len(stale))
+	} else if stale[0].InternalSymbol != "VOO" {
+		t.Errorf("expected VOO, got %s", stale[0].InternalSymbol)
+	}
+}

@@ -13,8 +13,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
@@ -602,10 +602,10 @@ func TestSymbolHandleUpdate_DataSourceURL(t *testing.T) {
 func TestSymbolHandleUpdate_DataSourceURL_Clear(t *testing.T) {
 	repo := newTestSMRepo()
 	repo.mappings[1] = &symbolmapping.SymbolMapping{
-		ID:            1,
-		InternalSymbol: "WMGT",
+		ID:               1,
+		InternalSymbol:   "WMGT",
 		MarketDataSymbol: "WMGT",
-		DataSourceURL: "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
+		DataSourceURL:    "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
 	}
 	repo.byInternal["WMGT"] = 1
 	svc := symbolmapping.NewService(repo)
@@ -1129,6 +1129,10 @@ func (r *testDetailsRepo) ListStale(_ context.Context, _ time.Time) ([]symbol.St
 	return nil, nil
 }
 
+func (r *testDetailsRepo) TouchFetchedAt(_ context.Context, _ string) error {
+	return nil
+}
+
 func TestHandleGet_WithDetails(t *testing.T) {
 	repo := newTestSMRepo()
 	repo.mappings[1] = &symbolmapping.SymbolMapping{ID: 1, InternalSymbol: "AAPL", MarketDataSymbol: "AAPL", CreatedAt: time.Now(), UpdatedAt: time.Now()}
@@ -1531,11 +1535,11 @@ func TestHandleGet_WithExtractorAsOfDate(t *testing.T) {
 	detailsRepo := newTestDetailsRepo()
 	asOfDate := time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC)
 	detailsRepo.byInternal["WMGT"] = &symbol.SymbolDetails{
-		InternalSymbol:      "WMGT",
-		ShortName:           "WisdomTree Mid Cap Growth",
-		QuoteType:           "ETF",
-		ExtractorAsOfDate:   asOfDate,
-		FetchedAt:           time.Now(),
+		InternalSymbol:    "WMGT",
+		ShortName:         "WisdomTree Mid Cap Growth",
+		QuoteType:         "ETF",
+		ExtractorAsOfDate: asOfDate,
+		FetchedAt:         time.Now(),
 	}
 	detailsSvc := symbols.NewService(detailsRepo, nil)
 

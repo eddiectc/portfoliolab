@@ -52,9 +52,9 @@ func makeTestResult() *analysis.AnalysisResult {
 		},
 		SectorAllocation: &analysis.AllocationResult{
 			Breakdown: map[string]float64{
-				"Technology":  30.5,
-				"Healthcare":  15.2,
-				"Unknown":     5.0,
+				"Technology": 30.5,
+				"Healthcare": 15.2,
+				"Unknown":    5.0,
 			},
 			UnknownWeightPct: 5.0,
 		},
@@ -68,9 +68,9 @@ func makeTestResult() *analysis.AnalysisResult {
 		StressTest: &analysis.StressTestResult{
 			Scenarios: []analysis.StressScenarioResult{
 				{
-					Name:               "2008 Global Financial Crisis",
-					DateRange:          "2007-10-09 to 2009-03-09",
-					EstimatedReturnPct: -42.5,
+					Name:                  "2008 Global Financial Crisis",
+					DateRange:             "2007-10-09 to 2009-03-09",
+					EstimatedReturnPct:    -42.5,
 					EstimatedDollarImpact: decimal.MustParse("-42500.00"),
 					SectorContributions: map[string]float64{
 						"Financials": -18.0,

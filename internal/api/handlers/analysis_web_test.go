@@ -98,22 +98,22 @@ func TestAnalysisTemplate_FullResult(t *testing.T) {
 		StressTest: &analysis.StressTestResult{
 			Scenarios: []analysis.StressScenarioResult{
 				{
-					Name:                "2008 GFC",
-					DateRange:           "2007-10 to 2009-03",
-					EstimatedReturnPct:  -35.2,
+					Name:                  "2008 GFC",
+					DateRange:             "2007-10 to 2009-03",
+					EstimatedReturnPct:    -35.2,
 					EstimatedDollarImpact: decimal.MustParse("-35200.00"),
 				},
 			},
 		},
 		FactorExposure: &analysis.FactorExposureResult{
-			ValueGrowthTilt: analysis.FactorValueGrowth{WeightedPE: 18.5, WeightedPB: 3.2, Tilt: "value"},
-			SizeTilt:        analysis.FactorSizeTilt{LargeCapPct: 70.0, MidCapPct: 25.0, SmallCapPct: 5.0, Tilt: "large"},
-			Concentration:   analysis.FactorConcentration{HHI: 0.015, Interpretation: "well-diversified"},
+			ValueGrowthTilt:     analysis.FactorValueGrowth{WeightedPE: 18.5, WeightedPB: 3.2, Tilt: "value"},
+			SizeTilt:            analysis.FactorSizeTilt{LargeCapPct: 70.0, MidCapPct: 25.0, SmallCapPct: 5.0, Tilt: "large"},
+			Concentration:       analysis.FactorConcentration{HHI: 0.015, Interpretation: "well-diversified"},
 			TopHoldingWeightPct: 8.5,
-			Quality:           analysis.FactorQuality{WeightedPCF: 8.5, WeightedPS: 2.1, Tilt: "high-quality"},
-			Cost:              analysis.FactorCost{WeightedExpenseRatio: 0.45, WeightedTurnover: 22.0},
-			Momentum:          analysis.FactorMomentum{Return3M: 5.2, Return6M: 8.1, Return12M: 12.3, Tilt: "positive"},
-			Volatility:        analysis.FactorVolatility{AnnualizedVol: 14.5, Tilt: "medium"},
+			Quality:             analysis.FactorQuality{WeightedPCF: 8.5, WeightedPS: 2.1, Tilt: "high-quality"},
+			Cost:                analysis.FactorCost{WeightedExpenseRatio: 0.45, WeightedTurnover: 22.0},
+			Momentum:            analysis.FactorMomentum{Return3M: 5.2, Return6M: 8.1, Return12M: 12.3, Tilt: "positive"},
+			Volatility:          analysis.FactorVolatility{AnnualizedVol: 14.5, Tilt: "medium"},
 		},
 	}
 
@@ -122,8 +122,8 @@ func TestAnalysisTemplate_FullResult(t *testing.T) {
 	geoData := serializeAllocationChartData(result.GeographicAllocation)
 
 	data := analysisPageData{
-		PageData:            web.PageData{Title: "Portfolio Analysis"},
-		Result:              result,
+		PageData:             web.PageData{Title: "Portfolio Analysis"},
+		Result:               result,
 		CorrelationChartData: correlationData,
 		SectorChartData:      sectorData,
 		GeographicChartData:  geoData,
@@ -233,12 +233,12 @@ func TestAnalysisTemplate_SectionFilter(t *testing.T) {
 	correlationData := serializeCorrelationData(result)
 
 	data := analysisPageData{
-		PageData:           web.PageData{Title: "Portfolio Analysis"},
-		Result:             result,
+		PageData:             web.PageData{Title: "Portfolio Analysis"},
+		Result:               result,
 		CorrelationChartData: correlationData,
-		SelectedSection:    "correlation",
-		PeriodURLs:         map[string]string{"1Y": "/analysis"},
-		SectionURLs:        map[string]string{"all": "/analysis", "correlation": "/analysis?section=correlation"},
+		SelectedSection:      "correlation",
+		PeriodURLs:           map[string]string{"1Y": "/analysis"},
+		SectionURLs:          map[string]string{"all": "/analysis", "correlation": "/analysis?section=correlation"},
 	}
 
 	w := httptest.NewRecorder()
@@ -319,8 +319,8 @@ func TestAnalysisTemplate_ResultMessage(t *testing.T) {
 // Test serializeCorrelationData with various inputs.
 func TestSerializeCorrelationData(t *testing.T) {
 	tests := []struct {
-		name string
-		result *analysis.AnalysisResult
+		name      string
+		result    *analysis.AnalysisResult
 		wantEmpty bool
 	}{
 		{
@@ -395,8 +395,8 @@ func TestSerializeCorrelationData(t *testing.T) {
 // Test serializeAllocationChartData with various inputs.
 func TestSerializeAllocationChartData(t *testing.T) {
 	tests := []struct {
-		name string
-		result *analysis.AllocationResult
+		name      string
+		result    *analysis.AllocationResult
 		wantEmpty bool
 	}{
 		{

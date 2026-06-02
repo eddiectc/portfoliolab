@@ -27,11 +27,11 @@ var allowedTransactionTypes = []string{
 // transactionFormPageData is the shared data struct for the transaction form template.
 type transactionFormPageData struct {
 	web.PageData
-	Transaction   *transaction.Transaction
-	Accounts      []account.Account
-	Symbols       []symbolmapping.SymbolMapping
-	Types         []string
-	FieldErrors   map[string]string
+	Transaction *transaction.Transaction
+	Accounts    []account.Account
+	Symbols     []symbolmapping.SymbolMapping
+	Types       []string
+	FieldErrors map[string]string
 	// Form values (preserved on error)
 	AccountID      string
 	Date           string
@@ -54,14 +54,14 @@ type transactionFormPageData struct {
 // newTransactionFormPageData creates a transactionFormPageData with common defaults.
 func newTransactionFormPageData(pd web.PageData, accounts []account.Account, symbols []symbolmapping.SymbolMapping, action, submitText, cancelHref string) *transactionFormPageData {
 	return &transactionFormPageData{
-		PageData:   pd,
-		Accounts:   accounts,
-		Symbols:    symbols,
-		Types:      allowedTransactionTypes,
+		PageData:    pd,
+		Accounts:    accounts,
+		Symbols:     symbols,
+		Types:       allowedTransactionTypes,
 		FieldErrors: make(map[string]string),
-		Action:     action,
-		SubmitText: submitText,
-		CancelHref: cancelHref,
+		Action:      action,
+		SubmitText:  submitText,
+		CancelHref:  cancelHref,
 	}
 }
 
@@ -407,8 +407,8 @@ func (h *TransactionWebHandler) HandleDetailPage(w http.ResponseWriter, r *http.
 
 	data := struct {
 		web.PageData
-		Transaction   transaction.Transaction
-		AccountName   string
+		Transaction transaction.Transaction
+		AccountName string
 	}{
 		PageData: web.PageData{
 			Title: "Transaction #" + strconv.FormatInt(t.ID, 10),

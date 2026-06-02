@@ -13,8 +13,8 @@ import (
 	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -46,19 +46,19 @@ type performancePageData struct {
 	LastRefreshText string
 	StaleSymbols    []string
 	// Pre-built URLs for template safety (Go html/template is strict about expressions in URLs).
-	RefreshURL  string
-	PeriodURLs  map[string]string // period label -> full URL
-	ModeURLs    map[string]string // mode label -> full URL
+	RefreshURL string
+	PeriodURLs map[string]string // period label -> full URL
+	ModeURLs   map[string]string // mode label -> full URL
 	// Benchmark fields.
-	SelectedBenchmark   string
-	BenchmarkNames      map[string]string // ticker -> display name for dropdown
-	BenchmarkTicker     string
-	BenchmarkChartData  string // JSON-serialized benchmark prices for ECharts
-	BenchmarkMWRPct     *decimal.Decimal
-	BenchmarkCurrency   string
-	BenchmarkWarning    string
-	BenchmarkURLs       map[string]string // option label -> full URL
-	MonthlyReturns      []performance.YearlyMonthlyReturns
+	SelectedBenchmark  string
+	BenchmarkNames     map[string]string // ticker -> display name for dropdown
+	BenchmarkTicker    string
+	BenchmarkChartData string // JSON-serialized benchmark prices for ECharts
+	BenchmarkMWRPct    *decimal.Decimal
+	BenchmarkCurrency  string
+	BenchmarkWarning   string
+	BenchmarkURLs      map[string]string // option label -> full URL
+	MonthlyReturns     []performance.YearlyMonthlyReturns
 }
 
 // benchmarkSymbolLister exposes the subset of symbol mapping repository needed
@@ -69,11 +69,11 @@ type benchmarkSymbolLister interface {
 
 // PerformanceWebHandler handles server-rendered performance pages.
 type PerformanceWebHandler struct {
-	apiHandler        *PerformanceHandler
-	portfolioSvc      *portfolio.Service
-	marketCache       cacheStatusProvider
-	benchmarkLister   benchmarkSymbolLister
-	renderer          *web.Renderer
+	apiHandler      *PerformanceHandler
+	portfolioSvc    *portfolio.Service
+	marketCache     cacheStatusProvider
+	benchmarkLister benchmarkSymbolLister
+	renderer        *web.Renderer
 }
 
 // NewPerformanceWebHandler creates a new performance web handler.
@@ -213,16 +213,16 @@ func (h *PerformanceWebHandler) HandlePerformance(w http.ResponseWriter, r *http
 		PeriodURLs:          buildPeriodURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		ModeURLs:            buildModeURLs(selectedPortfolioID, filters.Period, benchmark, mode),
 		// Benchmark fields (from result, computed by API handler).
-			SelectedBenchmark:   benchmark,
-			BenchmarkNames:      benchmarkNames,
-			BenchmarkTicker:     result.BenchmarkTicker,
-		BenchmarkChartData:  benchmarkChartData,
-		BenchmarkMWRPct:     result.BenchmarkMWRPct,
-		BenchmarkCurrency:   result.BenchmarkCurrency,
-		BenchmarkWarning:    result.BenchmarkWarning,
-		BenchmarkURLs:       buildBenchmarkURLs(benchmarkNames, benchmark, selectedPortfolioID, filters.Period, mode),
-			MonthlyReturns:      result.MonthlyReturns,
-		}
+		SelectedBenchmark:  benchmark,
+		BenchmarkNames:     benchmarkNames,
+		BenchmarkTicker:    result.BenchmarkTicker,
+		BenchmarkChartData: benchmarkChartData,
+		BenchmarkMWRPct:    result.BenchmarkMWRPct,
+		BenchmarkCurrency:  result.BenchmarkCurrency,
+		BenchmarkWarning:   result.BenchmarkWarning,
+		BenchmarkURLs:      buildBenchmarkURLs(benchmarkNames, benchmark, selectedPortfolioID, filters.Period, mode),
+		MonthlyReturns:     result.MonthlyReturns,
+	}
 
 	if err := h.renderer.Render(w, "performance/index", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)

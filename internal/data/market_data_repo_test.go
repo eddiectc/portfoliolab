@@ -245,12 +245,12 @@ func TestMarketDataRepository_GetHistoricalFxRateOnOrBefore(t *testing.T) {
 	for _, r := range rates {
 		price, _ := decimal.NewFromFloat64(r.price)
 		md := &market.MarketData{
-			Symbol:   "GBP/USD",
-			Price:    price,
-			Currency: "USD",
-			DataType: "fx",
-			Source:   "yahoo",
-			Date:     r.date,
+			Symbol:    "GBP/USD",
+			Price:     price,
+			Currency:  "USD",
+			DataType:  "fx",
+			Source:    "yahoo",
+			Date:      r.date,
 			FetchedAt: time.Now(),
 		}
 		repo.Upsert(context.Background(), md)
@@ -562,12 +562,12 @@ func TestMarketDataRepository_GetHistoricalPricesBySymbol_ExcludesCurrent(t *tes
 
 	currentPrice, _ := decimal.NewFromFloat64(185.00)
 	repo.Upsert(context.Background(), &market.MarketData{
-		Symbol:   "AAPL",
-		Price:    currentPrice,
-		Currency: "USD",
-		DataType: "stock",
-		Source:   "yahoo",
-		Date:     "", // current
+		Symbol:    "AAPL",
+		Price:     currentPrice,
+		Currency:  "USD",
+		DataType:  "stock",
+		Source:    "yahoo",
+		Date:      "", // current
 		FetchedAt: time.Now(),
 	})
 
@@ -594,12 +594,12 @@ func TestMarketDataRepository_GetLatestQuotesBatch(t *testing.T) {
 			price, _ = decimal.NewFromFloat64(420.00)
 		}
 		repo.Upsert(context.Background(), &market.MarketData{
-			Symbol:   sym,
-			Price:    price,
-			Currency: "USD",
-			DataType: "stock",
-			Source:   "yahoo",
-			Date:     "",
+			Symbol:    sym,
+			Price:     price,
+			Currency:  "USD",
+			DataType:  "stock",
+			Source:    "yahoo",
+			Date:      "",
 			FetchedAt: time.Now(),
 		})
 	}

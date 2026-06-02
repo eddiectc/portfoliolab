@@ -34,6 +34,9 @@ RETURNING *;
 -- name: GetSymbolDetailsByInternalSymbol :one
 SELECT * FROM symbol_details WHERE internal_symbol = ?;
 
+-- name: TouchSymbolDetailsFetchedAt :exec
+UPDATE symbol_details SET fetched_at = '1970-01-01T00:00:00Z' WHERE internal_symbol = ?;
+
 -- name: ListStaleSymbolDetails :many
 SELECT sm.internal_symbol, sm.market_data_symbol, sm.data_source_url, sd.fetched_at
 FROM symbol_mappings sm

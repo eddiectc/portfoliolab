@@ -187,5 +187,3 @@ func readCSVFile(r *http.Request) ([]byte, error) {
 
 	return io.ReadAll(file)
 }
-
-

@@ -24,21 +24,25 @@ import (
 // --- Mocks (implementing position/market interfaces) ---
 
 type mockPosRepoForPerf struct {
-	mu         sync.RWMutex
-	positions  []position.Position
-	openErr    error
-	closedErr  error
+	mu        sync.RWMutex
+	positions []position.Position
+	openErr   error
+	closedErr error
 }
 
 func newMockPosRepoForPerf() *mockPosRepoForPerf {
 	return &mockPosRepoForPerf{positions: []position.Position{}}
 }
 
-func (m *mockPosRepoForPerf) CreatePosition(context.Context, *position.Position) error            { return nil }
-func (m *mockPosRepoForPerf) CreateLot(context.Context, *position.Lot) error                     { return nil }
-func (m *mockPosRepoForPerf) CreateConsumption(context.Context, *position.LotConsumption) error  { return nil }
-func (m *mockPosRepoForPerf) DeleteAllForAccount(context.Context, int64) error                   { return nil }
-func (m *mockPosRepoForPerf) Recalculate(context.Context, int64, *position.CalculateResult) error { return nil }
+func (m *mockPosRepoForPerf) CreatePosition(context.Context, *position.Position) error { return nil }
+func (m *mockPosRepoForPerf) CreateLot(context.Context, *position.Lot) error           { return nil }
+func (m *mockPosRepoForPerf) CreateConsumption(context.Context, *position.LotConsumption) error {
+	return nil
+}
+func (m *mockPosRepoForPerf) DeleteAllForAccount(context.Context, int64) error { return nil }
+func (m *mockPosRepoForPerf) Recalculate(context.Context, int64, *position.CalculateResult) error {
+	return nil
+}
 
 func (m *mockPosRepoForPerf) GetOpenPositions(_ context.Context, accountID int64, _limit, _offset int) ([]position.Position, error) {
 	if m.openErr != nil {
@@ -181,10 +185,10 @@ func (m *mockFxProviderForPerf) GetCurrentRate(_ context.Context, from, to strin
 }
 
 type mockMarketFetcherForPerf struct {
-	prices    map[string][]market.HistoricalPrice
-	failed    []string
-	quotes    map[string]*market.MarketData
-	quoteErr  bool
+	prices   map[string][]market.HistoricalPrice
+	failed   []string
+	quotes   map[string]*market.MarketData
+	quoteErr bool
 }
 
 func (m *mockMarketFetcherForPerf) FetchQuote(_ context.Context, symbol string) (*market.MarketData, error) {
@@ -233,11 +237,13 @@ func newMockMarketDataRepoForPerf() *mockMarketDataRepoForPerf {
 	}
 }
 
-func (m *mockMarketDataRepoForPerf) GetLatest(context.Context, string) (*market.MarketData, error)   { return nil, nil }
+func (m *mockMarketDataRepoForPerf) GetLatest(context.Context, string) (*market.MarketData, error) {
+	return nil, nil
+}
 func (m *mockMarketDataRepoForPerf) GetBySourceAndDate(context.Context, string, string, string) (*market.MarketData, error) {
 	return nil, nil
 }
-func (m *mockMarketDataRepoForPerf) Upsert(context.Context, *market.MarketData) error                { return nil }
+func (m *mockMarketDataRepoForPerf) Upsert(context.Context, *market.MarketData) error { return nil }
 func (m *mockMarketDataRepoForPerf) GetCurrentFxRate(context.Context, string, string) (*market.MarketData, error) {
 	return nil, nil
 }
@@ -1092,11 +1098,11 @@ func TestFilterPerformanceResult_MetricsOnly(t *testing.T) {
 func TestFilterPerformanceResult_EquityCurveOnly(t *testing.T) {
 	volatility := decimal.MustParse("15.00")
 	result := &performance.PerformanceResult{
-		EquityCurve:    []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
-		ReturnMetrics:  performance.ReturnMetrics{HasInsufficientData: false},
-		BaseCurrency:   "USD",
-		RiskMetrics:    performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
-		MonthlyReturns: []performance.YearlyMonthlyReturns{{Year: 2024}},
+		EquityCurve:     []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
+		ReturnMetrics:   performance.ReturnMetrics{HasInsufficientData: false},
+		BaseCurrency:    "USD",
+		RiskMetrics:     performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
+		MonthlyReturns:  []performance.YearlyMonthlyReturns{{Year: 2024}},
 		BenchmarkTicker: "^GSPC",
 	}
 
@@ -1122,12 +1128,12 @@ func TestFilterPerformanceResult_AllFields(t *testing.T) {
 	maxDD := decimal.MustParse("10.00")
 	benchMWR := decimal.MustParse("18.50")
 	result := &performance.PerformanceResult{
-		EquityCurve:      []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
-		ReturnMetrics:    performance.ReturnMetrics{HasInsufficientData: false},
-		BaseCurrency:     "USD",
-		Warnings:         []string{"test"},
-		RiskMetrics:      performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
-		DrawdownAnalysis: performance.DrawdownAnalysis{MaxDrawdownPct: &maxDD},
+		EquityCurve:       []performance.EquityCurvePoint{{Date: time.Now(), PortfolioValue: decimal.MustParse("100"), NetDeposit: decimal.MustParse("100")}},
+		ReturnMetrics:     performance.ReturnMetrics{HasInsufficientData: false},
+		BaseCurrency:      "USD",
+		Warnings:          []string{"test"},
+		RiskMetrics:       performance.RiskMetrics{AnnualizedVolatilityPct: &volatility},
+		DrawdownAnalysis:  performance.DrawdownAnalysis{MaxDrawdownPct: &maxDD},
 		YearlyPerformance: performance.YearlyPerformance{{Year: 2024, ReturnPct: ptrDecimal(decimal.MustParse("10.00"))}},
 		MonthlyReturns:    []performance.YearlyMonthlyReturns{{Year: 2024}},
 		BenchmarkTicker:   "^GSPC",
