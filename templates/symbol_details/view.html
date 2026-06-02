@@ -659,12 +659,28 @@
             for (var i = 0; i < chartData.priceDates.length; i++) {
                 priceMap[chartData.priceDates[i]] = chartData.priceValues[i];
             }
+            var ratioMap = {};
+            for (var i = 0; i < chartData.ratioDates.length; i++) {
+                ratioMap[chartData.ratioDates[i]] = chartData.ratioValues[i];
+            }
 
             var chart1 = echarts.init(document.getElementById('nav-price-chart'));
             chart1.setOption({
                 tooltip: {
                     trigger: 'axis',
-                    axisPointer: { type: 'cross' }
+                    axisPointer: { type: 'cross' },
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        var ts = params[0].name;
+                        var s = ts;
+                        for (var i = 0; i < params.length; i++) {
+                            s += '<br/>' + params[i].marker + params[i].seriesName + ': ' + params[i].value.toFixed(2);
+                        }
+                        if (ratioMap[ts] !== undefined) {
+                            s += '<br/><strong>Price to NAV: ' + ratioMap[ts].toFixed(2) + '%</strong>';
+                        }
+                        return s;
+                    }
                 },
                 legend: {
                     data: ['NAV', 'Price']
@@ -696,10 +712,6 @@
 
             var chart2 = echarts.init(document.getElementById('nav-ratio-chart'));
             var ratioDates = chartData.ratioDates.slice().sort(function(a, b) { return a.localeCompare(b); });
-            var ratioMap = {};
-            for (var i = 0; i < chartData.ratioDates.length; i++) {
-                ratioMap[chartData.ratioDates[i]] = chartData.ratioValues[i];
-            }
             chart2.setOption({
                 tooltip: {
                     trigger: 'axis',
@@ -742,6 +754,8 @@
                     }
                 }]
             });
+
+            echarts.connect([chart1, chart2]);
 
             window.addEventListener('resize', function() {
                 chart1.resize();
