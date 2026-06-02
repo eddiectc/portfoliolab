@@ -1350,7 +1350,7 @@ func TestSymbolDetailsRepository_BlackRockFields_RoundTrip(t *testing.T) {
 				AssetClass:     "Bond",
 				MarketValue:    125000000,
 				NotionalValue:  126500000,
-				Identifier:     "912828D57",
+				ISIN:     "912828D57",
 				Location:       "United States",
 				Exchange:       "OTC",
 				MarketCurrency: "USD",
@@ -1365,7 +1365,7 @@ func TestSymbolDetailsRepository_BlackRockFields_RoundTrip(t *testing.T) {
 				NotionalValue:  119200000,
 				Shares:         115000000,
 				Price:          1.0365,
-				Identifier:     "912828Y37",
+				ISIN:     "912828Y37",
 				Location:       "United States",
 				Exchange:       "OTC",
 				MarketCurrency: "USD",
@@ -1454,8 +1454,8 @@ func TestSymbolDetailsRepository_BlackRockFields_RoundTrip(t *testing.T) {
 	if got.TopHoldings[0].NotionalValue != 126500000 {
 		t.Errorf("expected NotionalValue 126500000, got %f", got.TopHoldings[0].NotionalValue)
 	}
-	if got.TopHoldings[0].Identifier != "912828D57" {
-		t.Errorf("expected Identifier '912828D57', got %q", got.TopHoldings[0].Identifier)
+	if got.TopHoldings[0].ISIN != "912828D57" {
+		t.Errorf("expected ISIN '912828D57', got %q", got.TopHoldings[0].ISIN)
 	}
 	if got.TopHoldings[0].Location != "United States" {
 		t.Errorf("expected Location 'United States', got %q", got.TopHoldings[0].Location)

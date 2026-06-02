@@ -34,7 +34,7 @@ type displayHolding struct {
 	NotionalValue  string // e.g. "1,234.56B" or ""
 	Shares         string // e.g. "1,234" or ""
 	Price          string // e.g. "150.00" or ""
-	Identifier     string // CUSIP/ISIN, or ""
+	ISIN           string // ISIN, or ""
 	Location       string // country, e.g. "United States"
 	Exchange       string // e.g. "NASDAQ"
 	MarketCurrency string // e.g. "USD"
@@ -409,8 +409,8 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 		if h.Price != 0 {
 			dh.Price = fmt.Sprintf("%.2f", h.Price)
 		}
-		if h.Identifier != "" {
-			dh.Identifier = h.Identifier
+		if h.ISIN != "" {
+			dh.ISIN = h.ISIN
 		}
 		if h.Location != "" {
 			dh.Location = h.Location
@@ -690,13 +690,27 @@ type navPriceChartData struct {
 	PriceValues []float64 `json:"priceValues"`
 	RatioDates  []string  `json:"ratioDates"`
 	RatioValues []float64 `json:"ratioValues"`
+	NavCurrency string    `json:"navCurrency"`
+	PriceCurrency string  `json:"priceCurrency"`
 }
 
 // serializeNavPriceChartData converts NAV and stock price history to JSON for
 // ECharts consumption. Both series are displayed as-is without interpolation.
-// The ratio (Price/NAV - 1) is computed for dates where both series overlap.
+// The ratio (Price/NAV - 1) is computed only when both series share the same
+// currency — comparing values in different currencies is meaningless.
 func serializeNavPriceChartData(navPrices, stockPrices []market.HistoricalPrice) (string, error) {
 	data := &navPriceChartData{}
+
+	// Determine currencies from the first data point of each series.
+	var navCurrency, priceCurrency string
+	if len(navPrices) > 0 {
+		navCurrency = navPrices[0].Currency
+	}
+	if len(stockPrices) > 0 {
+		priceCurrency = stockPrices[0].Currency
+	}
+	data.NavCurrency = navCurrency
+	data.PriceCurrency = priceCurrency
 
 	// Build NAV map for ratio computation.
 	navMap := make(map[string]float64)
@@ -724,12 +738,15 @@ func serializeNavPriceChartData(navPrices, stockPrices []market.HistoricalPrice)
 		priceMap[dateStr] = val
 	}
 
-	// Compute price-to-NAV percentage for overlapping dates.
-	for dateStr, priceVal := range priceMap {
-		navVal, ok := navMap[dateStr]
-		if ok && navVal != 0 {
-			data.RatioDates = append(data.RatioDates, dateStr)
-			data.RatioValues = append(data.RatioValues, (priceVal-navVal)/navVal*100)
+	// Compute price-to-NAV percentage only when currencies match.
+	// Comparing NAV in one currency against price in another is meaningless.
+	if navCurrency == priceCurrency && navCurrency != "" {
+		for dateStr, priceVal := range priceMap {
+			navVal, ok := navMap[dateStr]
+			if ok && navVal != 0 {
+				data.RatioDates = append(data.RatioDates, dateStr)
+				data.RatioValues = append(data.RatioValues, (priceVal-navVal)/navVal*100)
+			}
 		}
 	}
 

@@ -50,20 +50,36 @@ type graphqlRoot struct {
 	Data json.RawMessage `json:"data"`
 }
 
-// holdingsResponse is the HoldingDetailsQuery response.
+// holdingsResponse is the FundsHoldingsQuery response.
 type holdingsResponse struct {
+	Funds []struct {
+		Profile struct {
+			FundFullName                    string `json:"fundFullName"`
+			FundCurrency                    string `json:"fundCurrency"`
+			PrimarySectorEquityClassification string `json:"primarySectorEquityClassification"`
+		} `json:"profile"`
+	} `json:"funds"`
 	BorHoldings []struct {
 		Holdings struct {
 			TotalHoldings int     `json:"totalHoldings"`
 			LastItemKey   *string `json:"lastItemKey"`
 			Items         []struct {
-				EffectiveDate      string   `json:"effectiveDate"`
-				MarketValuePercent float64  `json:"marketValuePercentage"`
-				IssuerName         string   `json:"issuerName"`
-				SecurityLongDesc   string   `json:"securityLongDescription"`
-				CouponRate         *float64 `json:"couponRate"`
-				SecurityType       string   `json:"securityType"`
-				FinalMaturity      *string  `json:"finalMaturity"`
+				IssuerName              string   `json:"issuerName"`
+				SecurityLongDesc        string   `json:"securityLongDescription"`
+				GicsSectorDescription   string   `json:"gicsSectorDescription"`
+				IcbSectorDescription    string   `json:"icbSectorDescription"`
+				IcbIndustryDescription  string   `json:"icbIndustryDescription"`
+				MarketValuePercent      float64  `json:"marketValuePercentage"`
+				Sedol1                  string   `json:"sedol1"`
+				Quantity                float64  `json:"quantity"`
+				Ticker                  string   `json:"ticker"`
+				SecurityType            string   `json:"securityType"`
+				FinalMaturity           *string  `json:"finalMaturity"`
+				EffectiveDate           string   `json:"effectiveDate"`
+				MarketValueBaseCurrency float64  `json:"marketValueBaseCurrency"`
+				BloombergIsoCountry     string   `json:"bloombergIsoCountry"`
+				CouponRate              *float64 `json:"couponRate"`
+				Isin                    string   `json:"isin"`
 			} `json:"items"`
 		} `json:"holdings"`
 	} `json:"borHoldings"`
@@ -170,19 +186,31 @@ type navResponse struct {
 
 // --- GraphQL query strings ---
 
-const holdingsQuery = `query HoldingDetailsQuery($portIds: [String!], $securityTypes: [String!], $lastItemKey: String) {
+const holdingsQuery = `query FundsHoldingsQuery($portIds: [String!], $securityTypes: [String!], $lastItemKey: String) {
+  funds(portIds: $portIds) {
+    profile { fundFullName fundCurrency primarySectorEquityClassification }
+  }
   borHoldings(portIds: $portIds) {
     holdings(limit: 1500, securityTypes: $securityTypes, lastItemKey: $lastItemKey) {
       totalHoldings
       lastItemKey
       items {
-        effectiveDate
-        marketValuePercentage
         issuerName
         securityLongDescription
-        couponRate
+        gicsSectorDescription
+        icbSectorDescription
+        icbIndustryDescription
+        marketValuePercentage
+        sedol1
+        quantity
+        ticker
         securityType
         finalMaturity
+        effectiveDate
+        marketValueBaseCurrency
+        bloombergIsoCountry
+        couponRate
+        isin
       }
     }
   }
@@ -340,17 +368,20 @@ func ParseHoldings(data []byte) ([]extractor.Holding, string, error) {
 
 	var holdings []extractor.Holding
 	for _, item := range items {
+		name := item.IssuerName
+		if name == "" {
+			name = item.SecurityLongDesc
+		}
+
 		holding := extractor.Holding{
-			Name:          item.IssuerName,
+			Symbol:        item.Ticker,
+			Name:          name,
 			Percent:       item.MarketValuePercent,
 			SecurityType:  item.SecurityType,
 			CouponRate:    item.CouponRate,
 			FinalMaturity: item.FinalMaturity,
 			AsOfDate:      effectiveDate,
-		}
-		// Also store the long description if issuer name is empty
-		if holding.Name == "" {
-			holding.Name = item.SecurityLongDesc
+			ISIN:          item.Isin,
 		}
 
 		holdings = append(holdings, holding)
@@ -536,8 +567,9 @@ func ParseNavHistory(data []byte) ([]extractor.NavPoint, error) {
 			continue
 		}
 		points = append(points, extractor.NavPoint{
-			Date: item.AsOfDate,
-			NAV:  decimal.MustParse(fmt.Sprintf("%.4f", item.Price)),
+			Date:     item.AsOfDate,
+			NAV:      decimal.MustParse(fmt.Sprintf("%.4f", item.Price)),
+			Currency: item.CurrencyCode,
 		})
 	}
 

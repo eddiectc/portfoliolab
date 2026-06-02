@@ -95,10 +95,10 @@ func TestBlackRock_SymbolDetails_FullStackRoundTrip(t *testing.T) {
 
 	asOfDate := time.Date(2026, 5, 31, 0, 0, 0, 0, time.UTC)
 
-	// Holdings with BlackRock-specific fields (Sector, AssetClass, MarketValue, NotionalValue, Shares, Price, Identifier, Location, Exchange, MarketCurrency)
+	// Holdings with BlackRock-specific fields (Sector, AssetClass, MarketValue, NotionalValue, Shares, Price, ISIN, Location, Exchange, MarketCurrency)
 	holdingsJSON := `[
-		{"symbol":"AAPL","name":"Apple Inc","percent":7.2,"sector":"Information Technology","assetClass":"Equity","marketValue":1500000000,"notionalValue":1500000000,"shares":8000000,"price":187.5,"identifier":"US0378331005","location":"United States","exchange":"NASDAQ","marketCurrency":"USD"},
-		{"symbol":"MSFT","name":"Microsoft Corp","percent":6.8,"sector":"Information Technology","assetClass":"Equity","marketValue":1420000000,"notionalValue":1420000000,"shares":3500000,"price":405.71,"identifier":"US5949181045","location":"United States","exchange":"NASDAQ","marketCurrency":"USD"}
+		{"symbol":"AAPL","name":"Apple Inc","percent":7.2,"sector":"Information Technology","assetClass":"Equity","marketValue":1500000000,"notionalValue":1500000000,"shares":8000000,"price":187.5,"isin":"US0378331005","location":"United States","exchange":"NASDAQ","marketCurrency":"USD"},
+		{"symbol":"MSFT","name":"Microsoft Corp","percent":6.8,"sector":"Information Technology","assetClass":"Equity","marketValue":1420000000,"notionalValue":1420000000,"shares":3500000,"price":405.71,"isin":"US5949181045","location":"United States","exchange":"NASDAQ","marketCurrency":"USD"}
 	]`
 	// Sectors derived from holdings
 	sectorsJSON := `[{"sector":"Information Technology","percent":48.5},{"sector":"Health Care","percent":13.2},{"sector":"Financials","percent":12.8}]`
@@ -143,7 +143,7 @@ func TestBlackRock_SymbolDetails_FullStackRoundTrip(t *testing.T) {
 		NotionalValue  float64 `json:"notionalValue"`
 		Shares         float64 `json:"shares"`
 		Price          float64 `json:"price"`
-		Identifier     string  `json:"identifier"`
+		ISIN     string  `json:"isin"`
 		Location       string  `json:"location"`
 		Exchange       string  `json:"exchange"`
 		MarketCurrency string  `json:"marketCurrency"`
@@ -163,8 +163,8 @@ func TestBlackRock_SymbolDetails_FullStackRoundTrip(t *testing.T) {
 	if holdings[0].MarketValue != 1500000000 {
 		t.Errorf("expected MarketValue 1500000000, got %v", holdings[0].MarketValue)
 	}
-	if holdings[0].Identifier != "US0378331005" {
-		t.Errorf("expected Identifier 'US0378331005', got %q", holdings[0].Identifier)
+	if holdings[0].ISIN != "US0378331005" {
+		t.Errorf("expected ISIN 'US0378331005', got %q", holdings[0].ISIN)
 	}
 	if holdings[0].Location != "United States" {
 		t.Errorf("expected Location 'United States', got %q", holdings[0].Location)
@@ -284,7 +284,7 @@ func TestBlackRock_BondFund_OnlyBondCharacteristics(t *testing.T) {
 	internalSymbol := "IEF.L"
 
 	// Bond fund with bond characteristics (YTM, duration) and no equity valuation
-	holdingsJSON := `[{"symbol":"US10Y","name":"US Treasury 10Y","percent":15.0,"sector":"Government","assetClass":"Government Bond","marketValue":3100000000,"notionalValue":3100000000,"shares":0,"price":0,"identifier":"US912828Z079","location":"United States","exchange":"OTC","marketCurrency":"USD"}]`
+	holdingsJSON := `[{"symbol":"US10Y","name":"US Treasury 10Y","percent":15.0,"sector":"Government","assetClass":"Government Bond","marketValue":3100000000,"notionalValue":3100000000,"shares":0,"price":0,"isin":"US912828Z079","location":"United States","exchange":"OTC","marketCurrency":"USD"}]`
 	bondJSON := `{"averageCoupon":4.25,"averageMaturity":8.5,"averageQuality":9.0,"averageDuration":7.8}`
 	profileJSON := `{"family":"iShares","legalType":"Exchange Traded Fund","totalNetAssets":25000000000,"annualExpenseRatio":0.05,"isin":"IE00B53SZB19","sfdrClassification":"Article 6","domicile":"Ireland","productStructure":"Physical","fundManager":"BlackRock Asset Management Ireland Limited","custodian":"State Street Custodial Services (Ireland) Limited","issuingCompany":"iShares IV plc"}`
 
@@ -343,7 +343,7 @@ func TestBlackRock_BondFund_OnlyBondCharacteristics(t *testing.T) {
 	var holdings []struct {
 		Sector     string `json:"sector"`
 		AssetClass string `json:"assetClass"`
-		Identifier string `json:"identifier"`
+		ISIN string `json:"isin"`
 		Location   string `json:"location"`
 		Exchange   string `json:"exchange"`
 	}
@@ -359,8 +359,8 @@ func TestBlackRock_BondFund_OnlyBondCharacteristics(t *testing.T) {
 	if holdings[0].AssetClass != "Government Bond" {
 		t.Errorf("expected AssetClass 'Government Bond', got %q", holdings[0].AssetClass)
 	}
-	if holdings[0].Identifier != "US912828Z079" {
-		t.Errorf("expected Identifier 'US912828Z079', got %q", holdings[0].Identifier)
+	if holdings[0].ISIN != "US912828Z079" {
+		t.Errorf("expected ISIN 'US912828Z079', got %q", holdings[0].ISIN)
 	}
 }
 
@@ -567,7 +567,7 @@ func TestBlackRock_SymbolAPIDetailsWithNewFields(t *testing.T) {
 	}
 
 	// Insert symbol details with BlackRock-specific fields
-	holdingsJSON := `[{"symbol":"AAPL","name":"Apple Inc","percent":7.2,"sector":"Information Technology","assetClass":"Equity","marketValue":1500000000,"notionalValue":1500000000,"shares":8000000,"price":187.5,"identifier":"US0378331005","location":"United States","exchange":"NASDAQ","marketCurrency":"USD"}]`
+	holdingsJSON := `[{"symbol":"AAPL","name":"Apple Inc","percent":7.2,"sector":"Information Technology","assetClass":"Equity","marketValue":1500000000,"notionalValue":1500000000,"shares":8000000,"price":187.5,"isin":"US0378331005","location":"United States","exchange":"NASDAQ","marketCurrency":"USD"}]`
 	sectorsJSON := `[{"sector":"Information Technology","percent":48.5}]`
 	countriesJSON := `[{"country":"United States","percent":94.2}]`
 	equityJSON := `{"priceToEarnings":22.5,"priceToBook":4.8,"beta3Y":1.02,"standardDeviation3Y":14.8,"numberOfHoldings":505}`
@@ -629,8 +629,8 @@ func TestBlackRock_SymbolAPIDetailsWithNewFields(t *testing.T) {
 	if holding["MarketValue"] != float64(1500000000) {
 		t.Errorf("expected MarketValue 1500000000, got %v", holding["MarketValue"])
 	}
-	if holding["Identifier"] != "US0378331005" {
-		t.Errorf("expected Identifier 'US0378331005', got %v", holding["Identifier"])
+	if holding["ISIN"] != "US0378331005" {
+		t.Errorf("expected ISIN 'US0378331005', got %v", holding["ISIN"])
 	}
 	if holding["Location"] != "United States" {
 		t.Errorf("expected Location 'United States', got %v", holding["Location"])

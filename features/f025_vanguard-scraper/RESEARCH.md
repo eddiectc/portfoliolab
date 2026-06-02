@@ -24,6 +24,8 @@ All queries use `portId` (resolved from REST API) as the primary identifier. The
 
 ### HoldingDetailsQuery (paginated, 1500/page)
 
+> **Deprecated**: Use `FundsHoldingsQuery` instead. `HoldingDetailsQuery` lacks `ticker`, `sedol1`, `isin`, and sector/country fields per holding. `FundsHoldingsQuery` is a strict superset with identical pagination.
+
 ```json
 {
   "operationName": "HoldingDetailsQuery",
@@ -49,6 +51,89 @@ Pass this string as the `lastItemKey` variable in the next request. When `lastIt
 - Page 3: 798 items, lastItemKey = null
 
 **Limit**: Cannot exceed 1500. Attempts with 5000/7000 return "GraphQL request failed".
+
+### FundsHoldingsQuery (paginated, 1500/page) — **PREFERRED**
+
+Found in the SPA JavaScript bundle (`/ukm/main.d86125ee522a2c39.js`). This is the query the Vanguard SPA itself uses for holdings display. It is a **strict superset** of `HoldingDetailsQuery` — all fields from `HoldingDetailsQuery` are present, plus additional identifier and classification fields.
+
+```json
+{
+  "operationName": "FundsHoldingsQuery",
+  "variables": {
+    "portIds": ["9505"],
+    "securityTypes": ["EQ.STOCK","FI.CORP","FI.US_GOV","FI.NONUS_GOV"],
+    "lastItemKey": null
+  },
+  "query": "query FundsHoldingsQuery($portIds: [String!], $securityTypes: [String!], $lastItemKey: String) {\n  funds(portIds: $portIds) {\n    profile {\n      fundFullName\n      fundCurrency\n      primarySectorEquityClassification\n    }\n  }\n  borHoldings(portIds: $portIds) {\n    holdings(limit: 1500, securityTypes: $securityTypes, lastItemKey: $lastItemKey) {\n      totalHoldings\n      lastItemKey\n      items {\n        issuerName\n        securityLongDescription\n        gicsSectorDescription\n        icbSectorDescription\n        icbIndustryDescription\n        marketValuePercentage\n        sedol1\n        quantity\n        ticker\n        securityType\n        finalMaturity\n        effectiveDate\n        marketValueBaseCurrency\n        bloombergIsoCountry\n        couponRate\n      }\n    }\n  }\n}"
+}
+```
+
+**Pagination**: Identical to `HoldingDetailsQuery` — same `lastItemKey` format, same 1500/page limit.
+
+**Field comparison** (FundsHoldingsQuery vs HoldingDetailsQuery):
+
+| Field | HoldingDetailsQuery | FundsHoldingsQuery | Notes |
+|---|---|---|---|
+| `effectiveDate` | ✅ | ✅ | Reference date for holdings |
+| `marketValuePercentage` | ✅ | ✅ | Holding weight as percentage |
+| `issuerName` | ✅ | ✅ | Company/security name |
+| `securityLongDescription` | ✅ | ✅ | Longer description |
+| `couponRate` | ✅ | ✅ | For fixed income |
+| `securityType` | ✅ | ✅ | e.g. "EQ.STOCK", "FI.CORP" |
+| `finalMaturity` | ✅ | ✅ | For fixed income |
+| `ticker` | ❌ | ✅ | **Ticker symbol (e.g. NVDA, AAPL, MSFT)** |
+| `sedol1` | ❌ | ✅ | **SEDOL identifier (e.g. 2379504)** |
+| `isin` | ❌ | ✅ | **ISIN (e.g. US67066G1040)** |
+| `gicsSectorDescription` | ❌ | ✅ | GICS sector (e.g. "Information Technology") |
+| `icbSectorDescription` | ❌ | ✅ | ICB sector (e.g. "Technology Hardware & Equipment") |
+| `icbIndustryDescription` | ❌ | ✅ | ICB industry (e.g. "Technology") |
+| `quantity` | ❌ | ✅ | Number of shares/units held |
+| `marketValueBaseCurrency` | ❌ | ✅ | Market value in fund's base currency |
+| `bloombergIsoCountry` | ❌ | ✅ | ISO country code (e.g. US, GB, JP) |
+
+**Sample response** (VWRL, top 3 holdings):
+
+```json
+{
+  "data": {
+    "funds": [{
+      "profile": {
+        "fundFullName": "Vanguard FTSE All-World UCITS ETF (USD) Distributing",
+        "fundCurrency": "USD",
+        "primarySectorEquityClassification": "ICB Sectors"
+      }
+    }],
+    "borHoldings": [{
+      "holdings": {
+        "totalHoldings": 4070,
+        "lastItemKey": "{\"portIdKey\":\"fundBorHoldings-9505-2026-04-30\",\"pkey\":\"...\",\"skey\":2.96617}",
+        "items": [
+          {
+            "issuerName": "NVIDIA Corp",
+            "ticker": "NVDA",
+            "sedol1": "2379504",
+            "isin": "US67066G1040",
+            "marketValuePercentage": 4.58302,
+            "securityType": "EQ.STOCK",
+            "couponRate": 0,
+            "finalMaturity": null,
+            "effectiveDate": "2026-04-30",
+            "securityLongDescription": "NVIDIA Corp",
+            "gicsSectorDescription": "Information Technology",
+            "icbSectorDescription": "Technology Hardware & Equipment",
+            "icbIndustryDescription": "Technology",
+            "quantity": 15328739,
+            "marketValueBaseCurrency": 3059156442.23,
+            "bloombergIsoCountry": "US"
+          }
+        ]
+      }
+    }]
+  }
+}
+```
+
+**Key benefit**: `isin`, `ticker`, and `sedol1` enable reliable cross-portfolio holdings overlap calculation. ISIN (e.g. `US0378331005` for Apple) is the universal identifier for deduplication across different data sources.
 
 ### getSectorDiversification
 
@@ -156,17 +241,26 @@ Returns NAV prices and market prices per exchange listing. `limit: 0` means unli
 | `ISIN` | Stored in fund profile | ISIN identifier. |
 | `TOTEXPRTPC` | Stored in fund profile | Expense ratio as numeric value. |
 
-### Holdings
+### Holdings (from FundsHoldingsQuery)
 
 | Source Field | Portfolio Lab Domain Field | Logic |
 |---|---|---|
-| `issuerName` | Holding name | Direct mapping. |
-| `securityLongDescription` | Holding description | Direct mapping. |
-| `marketValuePercentage` | Holding weight | Parse as float percentage. |
-| `securityType` | Holding type | e.g. "EQ.STOCK", "FI.CORP". |
-| `couponRate` | Holding coupon | For fixed income. |
-| `finalMaturity` | Holding maturity | For fixed income. |
+| `issuerName` | Holding `Name` | Direct mapping. |
+| `securityLongDescription` | Holding description | Fallback name if `issuerName` is empty. |
+| `marketValuePercentage` | Holding `Percent` | Parse as float percentage. |
+| `securityType` | Holding `SecurityType` | e.g. "EQ.STOCK", "FI.CORP". |
+| `couponRate` | Holding `CouponRate` | For fixed income. |
+| `finalMaturity` | Holding `FinalMaturity` | For fixed income. |
 | `effectiveDate` | `ExtractResult.AsOfDate` | Reference date for holdings. |
+| `ticker` | Holding `Symbol` | Ticker symbol (e.g. NVDA, AAPL). |
+| `sedol1` | — | SEDOL identifier (stored but no dedicated field). |
+| `isin` | Holding `Identifier` | ISIN (e.g. US67066G1040). Used for cross-portfolio overlap deduplication. |
+| `gicsSectorDescription` | — | GICS sector classification per holding. |
+| `icbSectorDescription` | — | ICB sector classification per holding. |
+| `icbIndustryDescription` | — | ICB industry classification per holding. |
+| `quantity` | — | Number of shares/units held. |
+| `marketValueBaseCurrency` | — | Market value in fund's base currency. |
+| `bloombergIsoCountry` | — | ISO country code (e.g. US, GB, JP). |
 
 ### Sector Allocation
 

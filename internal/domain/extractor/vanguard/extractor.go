@@ -179,7 +179,7 @@ func (e *Extractor) fetchAllHoldings(ctx context.Context, portIds []string) ([]e
 			"lastItemKey":   lastItemKey,
 		}
 
-		data, err := e.client.FetchGraphQLPage("HoldingDetailsQuery", variables, holdingsQuery)
+		data, err := e.client.FetchGraphQLPage("FundsHoldingsQuery", variables, holdingsQuery)
 		if err != nil {
 			return nil, "", fmt.Errorf("fetch holdings page: %w", err)
 		}

@@ -351,7 +351,7 @@ func ParseHoldings(jsonData string) ([]extractor.Holding, string, error) {
 			NotionalValue:  notionalValue,
 			Shares:         shares,
 			Price:          price,
-			Identifier:     identifier,
+			ISIN:           identifier,
 			Location:       location,
 			Exchange:       exchange,
 			MarketCurrency: marketCurrency,

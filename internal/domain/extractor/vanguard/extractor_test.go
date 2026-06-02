@@ -190,7 +190,7 @@ func TestExtractor_Extract(t *testing.T) {
 	// Mock GraphQL fetch
 	e.client.SetGraphqlFetch(func(operationName string, variables map[string]interface{}, query string) ([]byte, error) {
 		switch operationName {
-		case "HoldingDetailsQuery":
+		case "FundsHoldingsQuery":
 			return holdingsBytes, nil
 		case "getSectorDiversification":
 			return sectorBytes, nil
@@ -364,7 +364,7 @@ func TestExtractor_Extract_EmptyHoldings(t *testing.T) {
 
 	e.client.SetGraphqlFetch(func(operationName string, variables map[string]interface{}, query string) ([]byte, error) {
 		switch operationName {
-		case "HoldingDetailsQuery":
+		case "FundsHoldingsQuery":
 			return holdingsBytes, nil
 		default:
 			// Return empty but valid responses for other queries

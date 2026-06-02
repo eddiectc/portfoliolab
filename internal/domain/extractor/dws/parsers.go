@@ -170,7 +170,7 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 		}
 
 		holdings = append(holdings, extractor.Holding{
-			Symbol:  v.Header.Value,
+			ISIN:    v.Header.Value, // CUSIP/ISIN from header column
 			Name:    v.Column0.Value,
 			Percent: weight * 100, // Convert back to percentage for domain model (e.g. 8.315)
 		})

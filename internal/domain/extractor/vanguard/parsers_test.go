@@ -198,6 +198,9 @@ func TestParseHoldings(t *testing.T) {
 		"issuerName":              "Apple Inc.",
 		"securityLongDescription": "Apple Inc. Common Stock",
 		"securityType":            "EQ.STOCK",
+		"ticker":                  "AAPL",
+		"isin":                    "US0378331005",
+		"sedol1":                  "2046251",
 	}
 
 	bondHolding := map[string]interface{}{
@@ -208,6 +211,9 @@ func TestParseHoldings(t *testing.T) {
 		"couponRate":              2.5,
 		"securityType":            "FI.US_GOV",
 		"finalMaturity":           "2032-06-15",
+		"ticker":                  "",
+		"isin":                    "US912810TM82",
+		"sedol1":                  "2401265",
 	}
 
 	tests := []struct {
@@ -226,11 +232,17 @@ func TestParseHoldings(t *testing.T) {
 				if h.Name != "Apple Inc." {
 					t.Errorf("Name: got %q, want %q", h.Name, "Apple Inc.")
 				}
+				if h.Symbol != "AAPL" {
+					t.Errorf("Symbol: got %q, want %q", h.Symbol, "AAPL")
+				}
 				if h.Percent != 1.399 {
 					t.Errorf("Percent: got %f, want 1.399", h.Percent)
 				}
 				if h.SecurityType != "EQ.STOCK" {
 					t.Errorf("SecurityType: got %q, want %q", h.SecurityType, "EQ.STOCK")
+				}
+				if h.ISIN != "US0378331005" {
+					t.Errorf("ISIN: got %q, want %q", h.ISIN, "US0378331005")
 				}
 				if h.CouponRate != nil {
 					t.Errorf("CouponRate: got %v, want nil", h.CouponRate)
@@ -756,6 +768,12 @@ func TestParseNavHistory(t *testing.T) {
 				}
 				if points[1].Date != "2026-05-29" {
 					t.Errorf("Date: got %q, want %q", points[1].Date, "2026-05-29")
+				}
+				if points[0].Currency != "USD" {
+					t.Errorf("Currency: got %q, want %q", points[0].Currency, "USD")
+				}
+				if points[1].Currency != "USD" {
+					t.Errorf("Currency: got %q, want %q", points[1].Currency, "USD")
 				}
 			},
 		},

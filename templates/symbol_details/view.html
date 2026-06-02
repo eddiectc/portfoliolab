@@ -91,7 +91,7 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>Symbol</th>
+                <th>ISIN</th>
                 <th>Name</th>
                 <th>Sector</th>
                 <th>Type</th>
@@ -105,7 +105,7 @@
             {{if lt $i 10}}
             <tr>
                 <td>{{add $i 1}}</td>
-                <td><strong>{{$h.Symbol}}</strong></td>
+                <td><strong>{{if $h.ISIN}}{{$h.ISIN}}{{else}}—{{end}}</strong></td>
                 <td>{{$h.Name}}</td>
                 <td>{{if $h.Sector}}{{$h.Sector}}{{else}}—{{end}}</td>
                 <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
@@ -116,7 +116,7 @@
             {{else}}
             <tr class="holding-extra" style="display:none;">
                 <td>{{add $i 1}}</td>
-                <td><strong>{{$h.Symbol}}</strong></td>
+                <td><strong>{{if $h.ISIN}}{{$h.ISIN}}{{else}}—{{end}}</strong></td>
                 <td>{{$h.Name}}</td>
                 <td>{{if $h.Sector}}{{$h.Sector}}{{else}}—{{end}}</td>
                 <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
@@ -654,6 +654,13 @@
                 .sort(function(a, b) { return a.localeCompare(b); })
                 .filter(function(item, i, arr) { return arr.indexOf(item) === i; });
 
+            // Series names include currency label.
+            var navCurrency = chartData.navCurrency || '';
+            var priceCurrency = chartData.priceCurrency || '';
+            var currenciesMatch = (navCurrency && priceCurrency && navCurrency === priceCurrency);
+            var navName = 'NAV' + (navCurrency ? ' (' + navCurrency + ')' : '');
+            var priceName = 'Price' + (priceCurrency ? ' (' + priceCurrency + ')' : '');
+
             var navMap = {};
             for (var i = 0; i < chartData.navDates.length; i++) {
                 navMap[chartData.navDates[i]] = chartData.navValues[i];
@@ -677,7 +684,14 @@
                         var ts = params[0].name;
                         var s = ts;
                         for (var i = 0; i < params.length; i++) {
-                            s += '<br/>' + params[i].marker + params[i].seriesName + ': ' + params[i].value.toFixed(2);
+                            var val = params[i].value;
+                            // Data points are [date, value] arrays; skip if value is missing
+                            if (val && typeof val === 'object' && val.length > 1) {
+                                val = val[1];
+                            }
+                            if (val !== undefined && val !== null) {
+                                s += '<br/>' + params[i].marker + params[i].seriesName + ': ' + val.toFixed(2);
+                            }
                         }
                         if (ratioMap[ts] !== undefined) {
                             s += '<br/><strong>Price to NAV: ' + ratioMap[ts].toFixed(2) + '%</strong>';
@@ -686,7 +700,7 @@
                     }
                 },
                 legend: {
-                    data: ['NAV', 'Price']
+                    data: [navName, priceName]
                 },
                 xAxis: {
                     type: 'category',
@@ -697,14 +711,14 @@
                 },
                 series: [
                     {
-                        name: 'NAV',
+                        name: navName,
                         type: 'line',
                         data: allDates.map(function(d) { return [d, navMap[d]]; }),
                         showSymbol: false,
                         smooth: false
                     },
                     {
-                        name: 'Price',
+                        name: priceName,
                         type: 'line',
                         data: allDates.map(function(d) { return [d, priceMap[d]]; }),
                         showSymbol: false,
@@ -713,57 +727,69 @@
                 ]
             });
 
-            var chart2 = echarts.init(document.getElementById('nav-ratio-chart'));
-            var ratioDates = chartData.ratioDates.slice().sort(function(a, b) { return a.localeCompare(b); });
-            chart2.setOption({
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: { type: 'cross' },
-                    formatter: function(params) {
-                        if (!params || !params.length) return '';
-                        return params[0].name + '<br/>' + params[0].seriesName + ': ' + params[0].value.toFixed(2) + '%';
-                    }
-                },
-                title: {
-                    text: 'Price to NAV',
-                    left: 'center',
-                    top: 4,
-                    textStyle: { fontSize: 13, fontWeight: 'normal' }
-                },
-                xAxis: {
-                    type: 'category',
-                    data: ratioDates,
-                    axisLine: { onZero: false },
-                    axisTick: { onZero: false }
-                },
-                yAxis: {
-                    type: 'value',
-                    axisLine: { onZero: false },
-                    axisTick: { onZero: false },
-                    axisLabel: {
-                        formatter: function(v) { return v + '%'; }
-                    }
-                },
-                series: [{
-                    name: 'Price to NAV',
-                    type: 'line',
-                    data: ratioDates.map(function(d) { return [d, ratioMap[d]]; }),
-                    showSymbol: false,
-                    smooth: false,
-                    areaStyle: {},
-                    markLine: {
-                        silent: true,
-                        data: [{ yAxis: 0 }],
-                        lineStyle: { type: 'dashed', color: '#999' }
-                    }
-                }]
-            });
-
-            echarts.connect([chart1, chart2]);
+            // Only show ratio chart when currencies match.
+            var ratioEl = document.getElementById('nav-ratio-chart');
+            var chart2 = null;
+            if (currenciesMatch && chartData.ratioDates.length > 0) {
+                ratioEl.style.display = '';
+                chart2 = echarts.init(ratioEl);
+                var ratioDates = chartData.ratioDates.slice().sort(function(a, b) { return a.localeCompare(b); });
+                chart2.setOption({
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'cross' },
+                        formatter: function(params) {
+                            if (!params || !params.length) return '';
+                            var val = params[0].value;
+                            if (val && typeof val === 'object' && val.length > 1) {
+                                val = val[1];
+                            }
+                            if (val === undefined || val === null) return params[0].name;
+                            return params[0].name + '<br/>' + params[0].seriesName + ': ' + val.toFixed(2) + '%';
+                        }
+                    },
+                    title: {
+                        text: 'Price to NAV',
+                        left: 'center',
+                        top: 4,
+                        textStyle: { fontSize: 13, fontWeight: 'normal' }
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: ratioDates,
+                        axisLine: { onZero: false },
+                        axisTick: { onZero: false }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLine: { onZero: false },
+                        axisTick: { onZero: false },
+                        axisLabel: {
+                            formatter: function(v) { return v + '%'; }
+                        }
+                    },
+                    series: [{
+                        name: 'Price to NAV',
+                        type: 'line',
+                        data: ratioDates.map(function(d) { return [d, ratioMap[d]]; }),
+                        showSymbol: false,
+                        smooth: false,
+                        areaStyle: {},
+                        markLine: {
+                            silent: true,
+                            data: [{ yAxis: 0 }],
+                            lineStyle: { type: 'dashed', color: '#999' }
+                        }
+                    }]
+                });
+                echarts.connect([chart1, chart2]);
+            } else {
+                ratioEl.style.display = 'none';
+            }
 
             window.addEventListener('resize', function() {
                 chart1.resize();
-                chart2.resize();
+                if (chart2) chart2.resize();
             });
         })();
         </script>
