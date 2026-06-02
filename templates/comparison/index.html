@@ -362,9 +362,19 @@ function toggleCustomDates(e) {
                 <td class="num">{{if .Result.CrossMetrics.Correlation.Correlation}}{{template "decimal-val" .Result.CrossMetrics.Correlation.Correlation}}{{else}}—{{end}}</td>
             </tr>
             {{end}}
+            {{if .Result.CrossMetrics.CaptureRatios}}
+            <tr>
+                <td>Upside Capture</td>
+                <td class="num">{{if .Result.CrossMetrics.CaptureRatios.UpsideCapturePct}}{{template "pct-val" .Result.CrossMetrics.CaptureRatios.UpsideCapturePct}}%{{else}}—{{end}}</td>
+            </tr>
+            <tr>
+                <td>Downside Capture</td>
+                <td class="num">{{if .Result.CrossMetrics.CaptureRatios.DownsideCapturePct}}{{template "pct-val" .Result.CrossMetrics.CaptureRatios.DownsideCapturePct}}%{{else}}—{{end}}</td>
+            </tr>
+            {{end}}
         </tbody>
     </table>
-    <p class="section-note">Beta measures sensitivity of A's returns to B's returns. Alpha is A's excess return not explained by beta. Correlation is the Pearson coefficient between daily return series.</p>
+    <p class="section-note">Beta measures sensitivity of A's returns to B's returns. Alpha is A's excess return not explained by beta. Correlation is the Pearson coefficient between daily return series. Upside capture is the % of B's up-day returns that A captures; downside capture is the % of B's down-day returns that A captures (lower is better).</p>
 </div>
 {{end}}
 

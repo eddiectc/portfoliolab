@@ -775,3 +775,157 @@ func TestComputeBetaAlpha_PartialOverlap(t *testing.T) {
 		}
 	}
 }
+
+// --- ComputeCaptureRatios ---
+
+func TestComputeCaptureRatios(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name            string
+		aValues         []float64
+		bValues         []float64
+		wantUpside      *decimal.Decimal // non-nil = check exact value
+		wantUpsideNil   bool             // true = expect nil
+		wantDownside    *decimal.Decimal // non-nil = check exact value
+		wantDownsideNil bool             // true = expect nil
+		wantOverlap     int
+	}{
+		{
+			name:         "identical portfolios — both 100%",
+			aValues:      []float64{100, 102, 105, 103, 108, 110},
+			bValues:      []float64{100, 102, 105, 103, 108, 110},
+			wantUpside:   ptrDecF(t, 100.0),
+			wantDownside: ptrDecF(t, 100.0),
+			wantOverlap:  5,
+		},
+		{
+			name:         "A captures 2x upside, 0.5x downside",
+			aValues:      []float64{100, 102, 100.98, 107.0388, 106.503606},
+			bValues:      []float64{100, 101, 98.98, 101.9494, 100.929906},
+			wantUpside:   ptrDecF(t, 200.0),
+			wantDownside: ptrDecF(t, 50.0),
+			wantOverlap:  4,
+		},
+		{
+			name:         "A flat — upside=0%, downside=0%",
+			aValues:      []float64{100, 100, 100, 100, 100},
+			bValues:      []float64{100, 102, 105, 103, 108},
+			wantUpside:   ptrDecF(t, 0.0),
+			wantDownside: ptrDecF(t, 0.0),
+			wantOverlap:  4,
+		},
+		{
+			name:            "B only up-days — downside nil",
+			aValues:         []float64{100, 102, 105, 108, 110},
+			bValues:         []float64{100, 101, 103, 106, 108},
+			wantUpside:      nil,  // computed but skip exact check
+			wantDownsideNil: true, // nil — no down-days in B
+			wantOverlap:     4,
+		},
+		{
+			name:          "B only down-days — upside nil",
+			aValues:       []float64{100, 98, 95, 93, 90},
+			bValues:       []float64{100, 99, 97, 94, 92},
+			wantUpsideNil: true, // nil — no up-days in B
+			wantDownside:  nil,  // computed but skip exact check
+			wantOverlap:   4,
+		},
+		{
+			name:            "single point — both nil",
+			aValues:         []float64{100},
+			bValues:         []float64{100, 102},
+			wantUpsideNil:   true,
+			wantDownsideNil: true,
+			wantOverlap:     0,
+		},
+		{
+			name:            "empty — both nil",
+			aValues:         []float64{},
+			bValues:         []float64{},
+			wantUpsideNil:   true,
+			wantDownsideNil: true,
+			wantOverlap:     0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			aPoints := eqPointsFromFloats(t, base, tt.aValues)
+			bPoints := eqPointsFromFloats(t, base, tt.bValues)
+			got := ComputeCaptureRatios(aPoints, bPoints)
+
+			if got.OverlapDays != tt.wantOverlap {
+				t.Errorf("OverlapDays = %d, want %d", got.OverlapDays, tt.wantOverlap)
+			}
+
+			if tt.wantUpside != nil {
+				if got.UpsideCapturePct == nil {
+					t.Errorf("UpsideCapturePct = nil, want %v", tt.wantUpside)
+				} else if !approxEqual(t, got.UpsideCapturePct, tt.wantUpside, 0.5) {
+					t.Errorf("UpsideCapturePct = %v, want ~%v", got.UpsideCapturePct, tt.wantUpside)
+				}
+			} else if tt.wantUpsideNil {
+				if got.UpsideCapturePct != nil {
+					t.Errorf("UpsideCapturePct = %v, want nil", got.UpsideCapturePct)
+				}
+			}
+			// else: wantUpside==nil && !wantUpsideNil → skip exact check
+
+			if tt.wantDownside != nil {
+				if got.DownsideCapturePct == nil {
+					t.Errorf("DownsideCapturePct = nil, want %v", tt.wantDownside)
+				} else if !approxEqual(t, got.DownsideCapturePct, tt.wantDownside, 0.5) {
+					t.Errorf("DownsideCapturePct = %v, want ~%v", got.DownsideCapturePct, tt.wantDownside)
+				}
+			} else if tt.wantDownsideNil {
+				if got.DownsideCapturePct != nil {
+					t.Errorf("DownsideCapturePct = %v, want nil", got.DownsideCapturePct)
+				}
+			}
+			// else: wantDownside==nil && !wantDownsideNil → skip exact check
+		})
+	}
+}
+
+func TestComputeCaptureRatios_PartialOverlap(t *testing.T) {
+	datesA := []time.Time{
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
+	}
+	datesB := []time.Time{
+		time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC),
+		time.Date(2024, 1, 7, 0, 0, 0, 0, time.UTC),
+	}
+
+	aPoints := eqPointsFromDatesAndValues(t, datesA, []float64{100, 102, 100, 105, 102})
+	bPoints := eqPointsFromDatesAndValues(t, datesB, []float64{200, 210, 204, 210, 200})
+
+	got := ComputeCaptureRatios(aPoints, bPoints)
+
+	if got.OverlapDays != 2 {
+		t.Errorf("OverlapDays = %d, want 2", got.OverlapDays)
+	}
+	if got.UpsideCapturePct == nil {
+		t.Error("UpsideCapturePct = nil, expected non-nil")
+	} else {
+		upF, _ := got.UpsideCapturePct.Float64()
+		if math.Abs(upF-100.0) > 0.5 {
+			t.Errorf("UpsideCapturePct = %v, want ~100.0", got.UpsideCapturePct)
+		}
+	}
+	if got.DownsideCapturePct == nil {
+		t.Error("DownsideCapturePct = nil, expected non-nil")
+	} else {
+		downF, _ := got.DownsideCapturePct.Float64()
+		if math.Abs(downF-100.0) > 0.5 {
+			t.Errorf("DownsideCapturePct = %v, want ~100.0", got.DownsideCapturePct)
+		}
+	}
+}

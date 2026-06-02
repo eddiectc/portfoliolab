@@ -821,6 +821,10 @@ func (s *Service) computeCrossMetrics(
 	correlation := ComputePortfolioCorrelation(aCurve, bCurve)
 	cross.Correlation = &correlation
 
+	// Capture ratios (A relative to B).
+	captureRatios := ComputeCaptureRatios(aCurve, bCurve)
+	cross.CaptureRatios = &captureRatios
+
 	// Overlap — only available when both portfolios have holdings data
 	// (i.e. both are model portfolios with known weights).
 	overlap := s.computeOverlap(ctx, aData, bData)
