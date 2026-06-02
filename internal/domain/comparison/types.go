@@ -134,6 +134,7 @@ type CaptureRatiosResult struct {
 
 // OverlapResult holds portfolio overlap information.
 type OverlapResult struct {
+	// TopHoldings are the expanded underlying holdings (ETFs broken into constituents).
 	TopHoldingsA []HoldingWeight  `json:"top_holdings_a"`
 	TopHoldingsB []HoldingWeight  `json:"top_holdings_b"`
 	OverlapPct   *decimal.Decimal `json:"overlap_pct,omitempty"`
@@ -142,6 +143,7 @@ type OverlapResult struct {
 
 // HoldingWeight maps a symbol to its weight in a portfolio.
 type HoldingWeight struct {
+	ISIN   string          `json:"isin,omitempty"`
 	Symbol string          `json:"symbol"`
 	Weight decimal.Decimal `json:"weight"` // as fraction (0.0-1.0)
 	Name   string          `json:"name,omitempty"`

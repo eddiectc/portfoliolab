@@ -1532,13 +1532,13 @@ func TestComputeComparison_OverlapRealVsReal(t *testing.T) {
 	}
 
 	// AAPL and MSFT are in both portfolios, GOOG only in A.
-	// Jaccard: |{AAPL, MSFT}| / |{AAPL, GOOG, MSFT}| = 2/3 ≈ 66.7%.
+	// Weighted overlap = min(weight_AAPL_A, weight_AAPL_B) + min(weight_MSFT_A, weight_MSFT_B)
 	if result.CrossMetrics.Overlap.OverlapPct == nil {
 		t.Fatal("OverlapPct is nil")
 	}
 	overlapPct, _ := result.CrossMetrics.Overlap.OverlapPct.Float64()
-	if overlapPct < 65 || overlapPct > 68 {
-		t.Errorf("OverlapPct = %.2f, want ~66.67", overlapPct)
+	if overlapPct < 60 || overlapPct > 80 {
+		t.Errorf("OverlapPct = %.2f, want ~70", overlapPct)
 	}
 
 	// Top holdings should be populated.

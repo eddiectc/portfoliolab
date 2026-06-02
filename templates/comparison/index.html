@@ -338,7 +338,7 @@ function toggleCustomDates(e) {
 {{if .Result.CrossMetrics}}
 <div class="analysis-section">
     <h2>Cross-Portfolio Metrics</h2>
-    <table class="data-table">
+    <table class="data-table comparison-table">
         <thead>
             <tr>
                 <th>Metric</th>
@@ -348,11 +348,11 @@ function toggleCustomDates(e) {
         <tbody>
             {{if .Result.CrossMetrics.BetaAlpha}}
             <tr>
-                <td>Beta (A vs B)</td>
+                <td>Beta ({{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}} vs {{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}})</td>
                 <td class="num">{{if .Result.CrossMetrics.BetaAlpha.Beta}}{{template "decimal-val" .Result.CrossMetrics.BetaAlpha.Beta}}{{else}}—{{end}}</td>
             </tr>
             <tr>
-                <td>Alpha (A vs B)</td>
+                <td>Alpha ({{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}} vs {{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}})</td>
                 <td class="num">{{if .Result.CrossMetrics.BetaAlpha.Alpha}}{{template "pct-val" .Result.CrossMetrics.BetaAlpha.Alpha}}%{{else}}—{{end}}</td>
             </tr>
             {{end}}
@@ -392,15 +392,16 @@ function toggleCustomDates(e) {
     {{end}}
 
     {{if .Result.CrossMetrics.Overlap.OverlapPct}}
-    <p>Overlap: <strong>{{template "pct-val" .Result.CrossMetrics.Overlap.OverlapPct}}%</strong> (Jaccard similarity of unique underlying holdings)</p>
+    <p>Overlap: <strong>{{template "pct-val" .Result.CrossMetrics.Overlap.OverlapPct}}%</strong> (weighted overlap of shared underlying holdings)</p>
     {{end}}
 
     <div class="comparison-charts-row">
         <div style="flex:1;min-width:0;">
             <h3>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}} — Top Holdings</h3>
-            <table class="data-table">
+            <table class="data-table comparison-table">
                 <thead>
                     <tr>
+                        <th>ISIN</th>
                         <th>Symbol</th>
                         <th>Name</th>
                         <th>Weight</th>
@@ -409,7 +410,8 @@ function toggleCustomDates(e) {
                 <tbody>
                     {{range .Result.CrossMetrics.Overlap.TopHoldingsA}}
                     <tr>
-                        <td>{{.Symbol}}</td>
+                        <td>{{if .ISIN}}{{.ISIN}}{{else}}—{{end}}</td>
+                        <td>{{if .Symbol}}{{.Symbol}}{{else}}—{{end}}</td>
                         <td>{{if .Name}}{{.Name}}{{else}}—{{end}}</td>
                         <td class="num">{{.WeightPct}}</td>
                     </tr>
@@ -419,9 +421,10 @@ function toggleCustomDates(e) {
         </div>
         <div style="flex:1;min-width:0;">
             <h3>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}} — Top Holdings</h3>
-            <table class="data-table">
+            <table class="data-table comparison-table">
                 <thead>
                     <tr>
+                        <th>ISIN</th>
                         <th>Symbol</th>
                         <th>Name</th>
                         <th>Weight</th>
@@ -430,7 +433,8 @@ function toggleCustomDates(e) {
                 <tbody>
                     {{range .Result.CrossMetrics.Overlap.TopHoldingsB}}
                     <tr>
-                        <td>{{.Symbol}}</td>
+                        <td>{{if .ISIN}}{{.ISIN}}{{else}}—{{end}}</td>
+                        <td>{{if .Symbol}}{{.Symbol}}{{else}}—{{end}}</td>
                         <td>{{if .Name}}{{.Name}}{{else}}—{{end}}</td>
                         <td class="num">{{.WeightPct}}</td>
                     </tr>
