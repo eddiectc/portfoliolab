@@ -230,6 +230,10 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return ""
 		},
+		"safeJS": func(s string) template.JS {
+			// Marks a string as safe JavaScript (e.g. pre-serialized JSON).
+			return template.JS(s)
+		},
 		"fxRateDisplay": func(posCurrency, baseCurrency string, rate interface{}) string {
 			// Returns "PAIR RATE" in market convention (e.g. "GBP/USD 1.3000").
 			// If rate is nil or zero, returns "—".
