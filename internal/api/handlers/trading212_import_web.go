@@ -138,12 +138,12 @@ func (h *Trading212ImportWebHandler) HandleImportPost(w http.ResponseWriter, r *
 	}
 
 	data := t212PreviewPageData{
-		PageData:      web.PageData{Title: "Import Preview"},
-		Preview:       preview,
-		CSVData:       encodedCSV,
-		AccountID:     accountIDStr,
+		PageData:        web.PageData{Title: "Import Preview"},
+		Preview:         preview,
+		CSVData:         encodedCSV,
+		AccountID:       accountIDStr,
 		ExistingSymbols: existingSymbols,
-		ActiveTab:     activeTab,
+		ActiveTab:       activeTab,
 	}
 
 	if err := h.renderer.Render(w, "transaction/t212_import_preview", data); err != nil {

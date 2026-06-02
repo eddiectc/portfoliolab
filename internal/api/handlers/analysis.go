@@ -27,12 +27,12 @@ var validPeriodNames = []string{"3M", "6M", "1Y", "3Y", "5Y", "10Y"}
 
 // validSections is the set of accepted section filter values.
 var validSections = map[string]bool{
-	string(analysis.SectionOverlap):             true,
-	string(analysis.SectionCorrelation):         true,
-	string(analysis.SectionSectorAllocation):    true,
+	string(analysis.SectionOverlap):              true,
+	string(analysis.SectionCorrelation):          true,
+	string(analysis.SectionSectorAllocation):     true,
 	string(analysis.SectionGeographicAllocation): true,
-	string(analysis.SectionStressTest):          true,
-	string(analysis.SectionFactorExposure):      true,
+	string(analysis.SectionStressTest):           true,
+	string(analysis.SectionFactorExposure):       true,
 }
 
 // validPeriods is the set of accepted period filter values.

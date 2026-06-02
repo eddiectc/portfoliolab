@@ -3,6 +3,9 @@
     <h1>{{if and .Details .Details.ShortName}}{{.Details.ShortName}}{{else}}{{.Symbol.InternalSymbol}}{{end}}</h1>
     <div>
         <a href="{{.BackHref}}" class="btn">{{.BackLabel}}</a>
+        <form action="/symbols/{{.Symbol.ID}}/details/refresh" method="POST" class="inline-form" style="display: inline;">
+            <button type="submit" class="btn">↻ Refresh</button>
+        </form>
     </div>
 </div>
 

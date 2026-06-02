@@ -12,10 +12,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -267,12 +267,12 @@ func TestPerformanceTemplate_WithData(t *testing.T) {
 		SelectedPortfolioID: "1",
 		RefreshURL:          "/performance/refresh?portfolio_id=1&period=1Y",
 		PeriodURLs: map[string]string{
-			"1W": "/performance?portfolio_id=1&period=1W",
-			"1M": "/performance?portfolio_id=1&period=1M",
-			"3M": "/performance?portfolio_id=1&period=3M",
-			"1Y": "/performance?portfolio_id=1&period=1Y",
-			"3Y": "/performance?portfolio_id=1&period=3Y",
-			"5Y": "/performance?portfolio_id=1&period=5Y",
+			"1W":  "/performance?portfolio_id=1&period=1W",
+			"1M":  "/performance?portfolio_id=1&period=1M",
+			"3M":  "/performance?portfolio_id=1&period=3M",
+			"1Y":  "/performance?portfolio_id=1&period=1Y",
+			"3Y":  "/performance?portfolio_id=1&period=3Y",
+			"5Y":  "/performance?portfolio_id=1&period=5Y",
 			"YTD": "/performance?portfolio_id=1&period=YTD",
 			"All": "/performance?portfolio_id=1",
 		},
@@ -529,7 +529,9 @@ type mockMarketDataServiceForWeb struct {
 	historical map[string][]market.HistoricalPrice
 }
 
-func (m *mockMarketDataServiceForWeb) GetQuotes(_ context.Context, _ []string) map[string]*market.MarketData { return nil }
+func (m *mockMarketDataServiceForWeb) GetQuotes(_ context.Context, _ []string) map[string]*market.MarketData {
+	return nil
+}
 func (m *mockMarketDataServiceForWeb) GetHistoricalPrices(_ context.Context, symbol string, _, _ time.Time) ([]market.HistoricalPrice, error) {
 	if prices, ok := m.historical[symbol]; ok {
 		result := make([]market.HistoricalPrice, len(prices))
@@ -538,11 +540,21 @@ func (m *mockMarketDataServiceForWeb) GetHistoricalPrices(_ context.Context, sym
 	}
 	return nil, nil
 }
-func (m *mockMarketDataServiceForWeb) GetLatestPriceDatePerSymbol(_ context.Context, _ []string) map[string]*time.Time { return nil }
-func (m *mockMarketDataServiceForWeb) RefreshQuotes(_ context.Context, _ []string) marketservice.RefreshResult { return marketservice.RefreshResult{} }
-func (m *mockMarketDataServiceForWeb) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) { return nil, nil }
-func (m *mockMarketDataServiceForWeb) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) { return nil, nil }
-func (m *mockMarketDataServiceForWeb) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult { return marketservice.FxRefreshResult{} }
+func (m *mockMarketDataServiceForWeb) GetLatestPriceDatePerSymbol(_ context.Context, _ []string) map[string]*time.Time {
+	return nil
+}
+func (m *mockMarketDataServiceForWeb) RefreshQuotes(_ context.Context, _ []string) marketservice.RefreshResult {
+	return marketservice.RefreshResult{}
+}
+func (m *mockMarketDataServiceForWeb) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) {
+	return nil, nil
+}
+func (m *mockMarketDataServiceForWeb) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) {
+	return nil, nil
+}
+func (m *mockMarketDataServiceForWeb) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult {
+	return marketservice.FxRefreshResult{}
+}
 
 // mockBenchmarkLister implements benchmarkSymbolLister for tests.
 type mockBenchmarkLister struct {
@@ -666,17 +678,17 @@ func TestPerformanceTemplate_CacheStatusCurrent(t *testing.T) {
 	}
 
 	data := performancePageData{
-		PageData:       web.PageData{Title: "Performance"},
-		Result:         result,
-		ChartData:      serializeChartData(curve),
-		CurrentValue:   "100000.00",
-		Portfolios:     []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
-		SelectedPeriod: "1Y",
-		HasCacheStatus: true,
+		PageData:        web.PageData{Title: "Performance"},
+		Result:          result,
+		ChartData:       serializeChartData(curve),
+		CurrentValue:    "100000.00",
+		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedPeriod:  "1Y",
+		HasCacheStatus:  true,
 		LastRefreshText: "Just now",
-		StaleSymbols:   []string{},
-		RefreshURL:     "/performance/refresh",
-		PeriodURLs:     map[string]string{"All": "/performance"},
+		StaleSymbols:    []string{},
+		RefreshURL:      "/performance/refresh",
+		PeriodURLs:      map[string]string{"All": "/performance"},
 	}
 
 	w := httptest.NewRecorder()
@@ -823,7 +835,7 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 		SelectedPortfolioID: "1",
 		RefreshURL:          "/performance/refresh?portfolio_id=1&benchmark=^GSPC",
 		PeriodURLs: map[string]string{
-			"1Y": "/performance?portfolio_id=1&period=1Y&benchmark=^GSPC",
+			"1Y":  "/performance?portfolio_id=1&period=1Y&benchmark=^GSPC",
 			"All": "/performance?portfolio_id=1&benchmark=^GSPC",
 		},
 		// Benchmark fields.
@@ -835,8 +847,8 @@ func TestPerformanceTemplate_WithBenchmark(t *testing.T) {
 		BenchmarkCurrency:  "USD",
 		BenchmarkWarning:   "",
 		BenchmarkURLs: map[string]string{
-			"None":               "/performance?portfolio_id=1&period=1Y",
-			"S&P 500 (^GSPC)":    "/performance?portfolio_id=1&period=1Y&benchmark=^GSPC",
+			"None":                     "/performance?portfolio_id=1&period=1Y",
+			"S&P 500 (^GSPC)":          "/performance?portfolio_id=1&period=1Y&benchmark=^GSPC",
 			"NASDAQ Composite (^IXIC)": "/performance?portfolio_id=1&period=1Y&benchmark=^IXIC",
 		},
 	}
@@ -904,7 +916,7 @@ func TestPerformanceTemplate_WithoutBenchmark(t *testing.T) {
 		SelectedBenchmark:   "", // No benchmark selected.
 		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500"},
 		BenchmarkURLs: map[string]string{
-			"None":          "/performance?portfolio_id=1",
+			"None":            "/performance?portfolio_id=1",
 			"S&P 500 (^GSPC)": "/performance?portfolio_id=1&benchmark=^GSPC",
 		},
 		PeriodURLs: map[string]string{"All": "/performance?portfolio_id=1"},
@@ -945,17 +957,17 @@ func TestPerformanceTemplate_WithBenchmarkWarning(t *testing.T) {
 	}
 
 	data := performancePageData{
-		PageData:            web.PageData{Title: "Performance"},
-		Result:              result,
-		ChartData:           serializeChartData(curve),
-		CurrentValue:        "100000.00",
-		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
-		SelectedBenchmark:   "^GSPC",
-		BenchmarkTicker:     "^GSPC",
-		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500"},
-		BenchmarkWarning:    "no cached data available for benchmark",
+		PageData:          web.PageData{Title: "Performance"},
+		Result:            result,
+		ChartData:         serializeChartData(curve),
+		CurrentValue:      "100000.00",
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedBenchmark: "^GSPC",
+		BenchmarkTicker:   "^GSPC",
+		BenchmarkNames:    map[string]string{"^GSPC": "S&P 500"},
+		BenchmarkWarning:  "no cached data available for benchmark",
 		BenchmarkURLs: map[string]string{
-			"None":          "/performance",
+			"None":            "/performance",
 			"S&P 500 (^GSPC)": "/performance?benchmark=^GSPC",
 		},
 		PeriodURLs: map[string]string{"All": "/performance?benchmark=^GSPC"},
@@ -988,16 +1000,16 @@ func TestPerformanceTemplate_BenchmarkSelectorURLs(t *testing.T) {
 	}
 
 	data := performancePageData{
-		PageData:            web.PageData{Title: "Performance"},
-		Result:              result,
-		ChartData:           serializeChartData(curve),
-		CurrentValue:        "100000.00",
-		Portfolios:          []portfolio.Portfolio{},
-		SelectedBenchmark:   "^IXIC",
-		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
+		PageData:          web.PageData{Title: "Performance"},
+		Result:            result,
+		ChartData:         serializeChartData(curve),
+		CurrentValue:      "100000.00",
+		Portfolios:        []portfolio.Portfolio{},
+		SelectedBenchmark: "^IXIC",
+		BenchmarkNames:    map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
 		BenchmarkURLs: map[string]string{
-			"None":                 "/performance?period=1Y",
-			"S&P 500 (^GSPC)":      "/performance?period=1Y&benchmark=^GSPC",
+			"None":                     "/performance?period=1Y",
+			"S&P 500 (^GSPC)":          "/performance?period=1Y&benchmark=^GSPC",
 			"NASDAQ Composite (^IXIC)": "/performance?period=1Y&benchmark=^IXIC",
 		},
 		PeriodURLs: map[string]string{"1Y": "/performance?period=1Y&benchmark=^IXIC"},
@@ -1127,7 +1139,7 @@ func TestComputeMonthlyReturnsFromCurve(t *testing.T) {
 			wantLen:       1, // 1 year row (2024), Jan + Feb in Months map
 			wantFirstYear: 2024,
 			wantFirstMon:  1,
-			wantFirstRet:  "0", // no change, no cash flow → 0%
+			wantFirstRet:  "0",     // no change, no cash flow → 0%
 			wantFirstDiff: "-2.13", // bench 2.13%, portfolio 0, diff = -2.13
 		},
 		{
@@ -1581,11 +1593,11 @@ func TestPerformanceTemplate_NoBenchmarks(t *testing.T) {
 	renderer := newTestRenderer(t)
 
 	data := performancePageData{
-		PageData:            web.PageData{Title: "Performance"},
-		Portfolios:          []portfolio.Portfolio{},
-		BenchmarkNames:      nil, // No benchmarks configured.
-		BenchmarkURLs:       map[string]string{"None": "/performance"},
-		PeriodURLs:          map[string]string{"All": "/performance"},
+		PageData:       web.PageData{Title: "Performance"},
+		Portfolios:     []portfolio.Portfolio{},
+		BenchmarkNames: nil, // No benchmarks configured.
+		BenchmarkURLs:  map[string]string{"None": "/performance"},
+		PeriodURLs:     map[string]string{"All": "/performance"},
 	}
 
 	w := httptest.NewRecorder()
@@ -1620,15 +1632,15 @@ func TestPerformanceTemplate_WithBenchmarkInput(t *testing.T) {
 	}
 
 	data := performancePageData{
-		PageData:            web.PageData{Title: "Performance"},
-		Result:              result,
-		ChartData:           serializeChartData(curve),
-		CurrentValue:        "100000.00",
-		Portfolios:          []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
-		SelectedBenchmark:   "^GSPC",
-		BenchmarkNames:      map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
-		BenchmarkURLs:       map[string]string{"None": "/performance", "S&P 500 (^GSPC)": "/performance?benchmark=^GSPC"},
-		PeriodURLs:          map[string]string{"All": "/performance?benchmark=^GSPC"},
+		PageData:          web.PageData{Title: "Performance"},
+		Result:            result,
+		ChartData:         serializeChartData(curve),
+		CurrentValue:      "100000.00",
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		SelectedBenchmark: "^GSPC",
+		BenchmarkNames:    map[string]string{"^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite"},
+		BenchmarkURLs:     map[string]string{"None": "/performance", "S&P 500 (^GSPC)": "/performance?benchmark=^GSPC"},
+		PeriodURLs:        map[string]string{"All": "/performance?benchmark=^GSPC"},
 	}
 
 	w := httptest.NewRecorder()

@@ -206,3 +206,12 @@ func (q *Queries) ListStaleSymbolDetails(ctx context.Context, db DBTX, fetchedAt
 	}
 	return items, nil
 }
+
+const touchSymbolDetailsFetchedAt = `-- name: TouchSymbolDetailsFetchedAt :exec
+UPDATE symbol_details SET fetched_at = '1970-01-01T00:00:00Z' WHERE internal_symbol = ?
+`
+
+func (q *Queries) TouchSymbolDetailsFetchedAt(ctx context.Context, db DBTX, internalSymbol string) error {
+	_, err := db.ExecContext(ctx, touchSymbolDetailsFetchedAt, internalSymbol)
+	return err
+}

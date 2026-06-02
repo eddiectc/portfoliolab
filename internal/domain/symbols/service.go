@@ -24,6 +24,7 @@ type SymbolDetailsRepository interface {
 	Upsert(ctx context.Context, details *symbol.SymbolDetails) error
 	GetByInternalSymbol(ctx context.Context, internalSymbol string) (*symbol.SymbolDetails, error)
 	ListStale(ctx context.Context, olderThan time.Time) ([]symbol.StaleSymbol, error)
+	TouchFetchedAt(ctx context.Context, internalSymbol string) error
 }
 
 // DataSourceURLSource looks up and updates the data_source_url for a symbol.
@@ -194,6 +195,15 @@ func (s *Service) GetStaleSymbols(ctx context.Context) ([]symbol.StaleSymbol, er
 // Returns an error if the fetch or storage fails.
 func (s *Service) RefreshSymbol(ctx context.Context, internalSymbol, marketDataSymbol string) error {
 	return s.FetchAndStore(ctx, internalSymbol, marketDataSymbol)
+}
+
+// TouchFetchedAt sets fetched_at to NULL, scheduling the symbol for refresh
+// by the periodic background job.
+func (s *Service) TouchFetchedAt(ctx context.Context, internalSymbol string) error {
+	if err := s.repo.TouchFetchedAt(ctx, internalSymbol); err != nil {
+		return fmt.Errorf("touch fetched_at for %s: %w", internalSymbol, err)
+	}
+	return nil
 }
 
 // GetDataSourceURL retrieves the configured data source URL for a symbol.

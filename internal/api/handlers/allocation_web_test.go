@@ -30,9 +30,9 @@ func TestAllocationTemplate_EmptyState(t *testing.T) {
 	renderer := newTestRenderer(t)
 
 	data := allocationPageData{
-		PageData:     web.PageData{Title: "Allocation"},
-		Portfolios:   []portfolio.Portfolio{},
-		Filter:       AllocationFilter{},
+		PageData:   web.PageData{Title: "Allocation"},
+		Portfolios: []portfolio.Portfolio{},
+		Filter:     AllocationFilter{},
 	}
 
 	w := httptest.NewRecorder()
@@ -62,12 +62,12 @@ func TestAllocationTemplate_WithData(t *testing.T) {
 	alloc := &allocation.AllocationResult{
 		Rows: []allocation.AllocationRow{
 			{
-				Symbol:        "AAPL",
-				MarketValue:   decimal.MustParse("50000.00"),
+				Symbol:          "AAPL",
+				MarketValue:     decimal.MustParse("50000.00"),
 				MarketValueBase: &mvBase,
-				AllocationPct: decimal.MustParse("33.3"),
-				Currency:      "USD",
-				HasMarketData: true,
+				AllocationPct:   decimal.MustParse("33.3"),
+				Currency:        "USD",
+				HasMarketData:   true,
 				AccountBreakdown: []allocation.AccountBreakdown{
 					{
 						AccountID:       1,
@@ -80,31 +80,31 @@ func TestAllocationTemplate_WithData(t *testing.T) {
 				},
 			},
 			{
-				Symbol:        "MSFT",
-				MarketValue:   decimal.MustParse("45000.00"),
+				Symbol:          "MSFT",
+				MarketValue:     decimal.MustParse("45000.00"),
 				MarketValueBase: func() *decimal.Decimal { v := decimal.MustParse("45000.00"); return &v }(),
-				AllocationPct: decimal.MustParse("30.0"),
-				Currency:      "USD",
-				HasMarketData: true,
+				AllocationPct:   decimal.MustParse("30.0"),
+				Currency:        "USD",
+				HasMarketData:   true,
 			},
 		},
 		TotalValueBase: totalValue,
 		BaseCurrency:   "USD",
 		CashRow: &allocation.AllocationRow{
-			Symbol:        "$CASH",
-			MarketValue:   decimal.MustParse("55000.00"),
+			Symbol:          "$CASH",
+			MarketValue:     decimal.MustParse("55000.00"),
 			MarketValueBase: func() *decimal.Decimal { v := decimal.MustParse("55000.00"); return &v }(),
-			AllocationPct: decimal.MustParse("36.7"),
-			Currency:      "USD",
-			HasMarketData: true,
+			AllocationPct:   decimal.MustParse("36.7"),
+			Currency:        "USD",
+			HasMarketData:   true,
 		},
 		MarketDataAvailable: true,
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Allocation:      alloc,
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Allocation:        alloc,
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -217,12 +217,12 @@ func TestAllocationTemplate_WithDrift(t *testing.T) {
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Allocation:      alloc,
-		Drift:           drift,
-		Rebalance:       rebalance,
-		Targets:         targets,
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Allocation:        alloc,
+		Drift:             drift,
+		Rebalance:         rebalance,
+		Targets:           targets,
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -290,10 +290,10 @@ func TestAllocationTemplate_Balanced(t *testing.T) {
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Drift:           drift,
-		Rebalance:       rebalance,
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Drift:             drift,
+		Rebalance:         rebalance,
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -325,10 +325,10 @@ func TestAllocationTemplate_NoTarget(t *testing.T) {
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Drift:           drift,
-		Targets:         []allocation.TargetAllocation{},
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Drift:             drift,
+		Targets:           []allocation.TargetAllocation{},
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -358,10 +358,10 @@ func TestAllocationTemplate_ErrorState(t *testing.T) {
 	renderer := newTestRenderer(t)
 
 	data := allocationPageData{
-		PageData:     web.PageData{Title: "Allocation"},
-		Portfolios:   []portfolio.Portfolio{},
-		SaveError:    "An error occurred while computing allocation data.",
-		Filter:       AllocationFilter{},
+		PageData:   web.PageData{Title: "Allocation"},
+		Portfolios: []portfolio.Portfolio{},
+		SaveError:  "An error occurred while computing allocation data.",
+		Filter:     AllocationFilter{},
 	}
 
 	w := httptest.NewRecorder()
@@ -426,10 +426,10 @@ func TestAllocationTemplate_WithDriftWarning(t *testing.T) {
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Drift:           drift,
-		DriftWarning:    "Could not compute drift: zero total portfolio value",
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Drift:             drift,
+		DriftWarning:      "Could not compute drift: zero total portfolio value",
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -460,17 +460,17 @@ func TestAllocationTemplate_WithRebalanceWarning(t *testing.T) {
 	}
 
 	rebalance := &allocation.RebalanceResult{
-		Suggestions:      []allocation.RebalanceSuggestion{},
-		BaseCurrency:     "USD",
-		IsBalanced:       false,
+		Suggestions:  []allocation.RebalanceSuggestion{},
+		BaseCurrency: "USD",
+		IsBalanced:   false,
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Drift:           drift,
-		Rebalance:       rebalance,
-		RebalanceWarning: "Could not compute rebalancing suggestions: market data unavailable",
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Drift:             drift,
+		Rebalance:         rebalance,
+		RebalanceWarning:  "Could not compute rebalancing suggestions: market data unavailable",
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -498,10 +498,10 @@ func TestAllocationTemplate_WithTargetWarning(t *testing.T) {
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Drift:           drift,
-		TargetWarning:   "Could not load target allocation: database connection failed",
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Drift:             drift,
+		TargetWarning:     "Could not load target allocation: database connection failed",
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -524,9 +524,9 @@ func TestAllocationTemplate_WithTargetWarning(t *testing.T) {
 // Test AllocationFilter.QueryParams.
 func TestAllocationFilter_QueryParams(t *testing.T) {
 	tests := []struct {
-		name string
+		name   string
 		filter AllocationFilter
-		want string
+		want   string
 	}{
 		{
 			name:   "empty filter",
@@ -558,9 +558,9 @@ func TestAllocationFilter_QueryParams(t *testing.T) {
 // Test parseWebAllocationFilter.
 func TestParseWebAllocationFilter(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		query map[string][]string
-		want AllocationFilter
+		want  AllocationFilter
 	}{
 		{
 			name:  "empty query",
@@ -785,10 +785,10 @@ func TestAllocationTemplate_WithModelPortfolios(t *testing.T) {
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Drift:           drift,
-		ModelPortfolios: modelPortfolios,
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Drift:             drift,
+		ModelPortfolios:   modelPortfolios,
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",
@@ -829,10 +829,10 @@ func TestAllocationTemplate_NoModelPortfolios(t *testing.T) {
 	}
 
 	data := allocationPageData{
-		PageData:        web.PageData{Title: "Allocation"},
-		Drift:           drift,
-		ModelPortfolios: []modelportfolio.ModelPortfolioSummary{},
-		Portfolios:      []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
+		PageData:          web.PageData{Title: "Allocation"},
+		Drift:             drift,
+		ModelPortfolios:   []modelportfolio.ModelPortfolioSummary{},
+		Portfolios:        []portfolio.Portfolio{{ID: 1, Name: "Main", Currency: "USD"}},
 		SelectedPortfolio: "1",
 		Filter:            AllocationFilter{PortfolioIDs: []int64{1}},
 		BaseCurrency:      "USD",

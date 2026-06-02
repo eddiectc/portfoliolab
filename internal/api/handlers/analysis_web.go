@@ -16,9 +16,9 @@ import (
 
 // AnalysisWebHandler handles server-rendered analysis pages.
 type AnalysisWebHandler struct {
-	apiHandler    *AnalysisHandler
-	portfolioSvc  *portfolio.Service
-	renderer      *web.Renderer
+	apiHandler   *AnalysisHandler
+	portfolioSvc *portfolio.Service
+	renderer     *web.Renderer
 }
 
 // NewAnalysisWebHandler creates a new analysis web handler.
@@ -75,17 +75,17 @@ func (h *AnalysisWebHandler) HandleAnalysis(w http.ResponseWriter, r *http.Reque
 	geographicChartData := serializeAllocationChartData(result.GeographicAllocation)
 
 	data := analysisPageData{
-		PageData:              web.PageData{Title: "Portfolio Analysis", Flash: getFlash(w, r)},
-		Result:                result,
-		CorrelationChartData:  correlationData,
-		SectorChartData:       sectorChartData,
-		GeographicChartData:   geographicChartData,
-		Portfolios:            h.fetchPortfolios(r.Context()),
-		SelectedPortfolioID:   selectedPortfolioID,
-		SelectedPeriod:        period,
-		SelectedSection:       filters.Section,
-		PeriodURLs:            buildAnalysisPeriodURLs(selectedPortfolioID, period, filters.Section),
-		SectionURLs:           buildAnalysisSectionURLs(selectedPortfolioID, period, filters.Section),
+		PageData:             web.PageData{Title: "Portfolio Analysis", Flash: getFlash(w, r)},
+		Result:               result,
+		CorrelationChartData: correlationData,
+		SectorChartData:      sectorChartData,
+		GeographicChartData:  geographicChartData,
+		Portfolios:           h.fetchPortfolios(r.Context()),
+		SelectedPortfolioID:  selectedPortfolioID,
+		SelectedPeriod:       period,
+		SelectedSection:      filters.Section,
+		PeriodURLs:           buildAnalysisPeriodURLs(selectedPortfolioID, period, filters.Section),
+		SectionURLs:          buildAnalysisSectionURLs(selectedPortfolioID, period, filters.Section),
 	}
 
 	if err := h.renderer.Render(w, "analysis/index", data); err != nil {
@@ -96,17 +96,17 @@ func (h *AnalysisWebHandler) HandleAnalysis(w http.ResponseWriter, r *http.Reque
 // analysisPageData is the data struct for the analysis page template.
 type analysisPageData struct {
 	web.PageData
-	Result                *analysis.AnalysisResult
-	CorrelationChartData  string // pre-serialized JSON for ECharts heatmap
-	SectorChartData       string // pre-serialized JSON for ECharts bar chart
-	GeographicChartData   string // pre-serialized JSON for ECharts bar chart
-	Portfolios            []portfolio.Portfolio
-	SelectedPortfolioID   string
-	SelectedPeriod        string
-	SelectedSection       string
-	Error                 string
-	PeriodURLs            map[string]string
-	SectionURLs           map[string]string
+	Result               *analysis.AnalysisResult
+	CorrelationChartData string // pre-serialized JSON for ECharts heatmap
+	SectorChartData      string // pre-serialized JSON for ECharts bar chart
+	GeographicChartData  string // pre-serialized JSON for ECharts bar chart
+	Portfolios           []portfolio.Portfolio
+	SelectedPortfolioID  string
+	SelectedPeriod       string
+	SelectedSection      string
+	Error                string
+	PeriodURLs           map[string]string
+	SectionURLs          map[string]string
 }
 
 // fetchPortfolios returns all portfolios for the selector dropdown.
@@ -170,7 +170,7 @@ func serializeCorrelationData(result *analysis.AnalysisResult) string {
 
 // allocationBarData is the JSON format for allocation bar charts.
 type allocationBarData struct {
-	Categories []string `json:"categories"`
+	Categories []string  `json:"categories"`
 	Values     []float64 `json:"values"`
 }
 

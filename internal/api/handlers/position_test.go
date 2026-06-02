@@ -43,15 +43,15 @@ func (m *mockPortfolioSvc) Get(_ context.Context, id int64) (portfolio.Portfolio
 }
 
 type mockPosRepo struct {
-	mu              sync.RWMutex
-	positions       []position.Position
-	lots            []position.Lot
-	consumptions    []position.LotConsumption
-	getOpenErr      error
-	getClosedErr    error
-	getLotErr       error
-	getConsumeErr   error
-	recalculateErr  error
+	mu             sync.RWMutex
+	positions      []position.Position
+	lots           []position.Lot
+	consumptions   []position.LotConsumption
+	getOpenErr     error
+	getClosedErr   error
+	getLotErr      error
+	getConsumeErr  error
+	recalculateErr error
 }
 
 func newMockPosRepo() *mockPosRepo {
@@ -62,10 +62,12 @@ func newMockPosRepo() *mockPosRepo {
 	}
 }
 
-func (m *mockPosRepo) CreatePosition(_ context.Context, _ *position.Position) error    { return nil }
-func (m *mockPosRepo) CreateLot(_ context.Context, _ *position.Lot) error             { return nil }
-func (m *mockPosRepo) CreateConsumption(_ context.Context, _ *position.LotConsumption) error { return nil }
-func (m *mockPosRepo) DeleteAllForAccount(_ context.Context, _ int64) error           { return nil }
+func (m *mockPosRepo) CreatePosition(_ context.Context, _ *position.Position) error { return nil }
+func (m *mockPosRepo) CreateLot(_ context.Context, _ *position.Lot) error           { return nil }
+func (m *mockPosRepo) CreateConsumption(_ context.Context, _ *position.LotConsumption) error {
+	return nil
+}
+func (m *mockPosRepo) DeleteAllForAccount(_ context.Context, _ int64) error { return nil }
 func (m *mockPosRepo) Recalculate(_ context.Context, _ int64, _ *position.CalculateResult) error {
 	return m.recalculateErr
 }
