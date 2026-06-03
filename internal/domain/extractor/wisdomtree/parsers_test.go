@@ -675,6 +675,108 @@ func TestIsCashPosition(t *testing.T) {
 	}
 }
 
+func TestExtractModalURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		html     string
+		expected string
+	}{
+		{
+			name:     "standard modal url",
+			html:     `<a data-href="https://www.wisdomtree.eu/en-gb/global/etf-details/modals/all-holdings?id={8B845B79-F55C-4B6A-8D67-CA84E1C19C5B}">`,
+			expected: "https://www.wisdomtree.eu/en-gb/global/etf-details/modals/all-holdings?id={8B845B79-F55C-4B6A-8D67-CA84E1C19C5B}",
+		},
+		{
+			name:     "missing modal url",
+			html:     `<div>no modal here</div>`,
+			expected: "",
+		},
+		{
+			name:     "empty html",
+			html:     ``,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractModalURL(tt.html)
+			if got != tt.expected {
+				t.Errorf("ExtractModalURL() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractTicker(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"bloomberg format", "NVDA UQ", "NVDA"},
+		{"bloomberg with US", "MSFT US", "MSFT"},
+		{"bloomberg with UN", "LLY UN", "LLY"},
+		{"cusip", "US5128073062", "US5128073062"},
+		{"simple ticker", "AAPL", "AAPL"},
+		{"empty", "", ""},
+		{"with spaces", "  AMD US  ", "AMD"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractTicker(tt.input)
+			if got != tt.expected {
+				t.Errorf("extractTicker(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseHoldingsFromModal(t *testing.T) {
+	modalHTML := `<script>
+var source = [
+{"CountryCode":"US ","Weight":0.1426250,"COBDate":"2026-06-02T00:00:00","IdentifierName":"Nvidia Corp","IdentifierTicker":"NVDA UQ","FIGI":null,"SharesPar":"26576","MarketValue":5921664.32,"ContractType":null},
+{"CountryCode":"US ","Weight":0.1228107,"COBDate":"2026-06-02T00:00:00","IdentifierName":"Apple Inc","IdentifierTicker":"AAPL UQ","FIGI":null,"SharesPar":"16177","MarketValue":5098990.40,"ContractType":null},
+{"CountryCode":"US ","Weight":0.0114614,"COBDate":"2026-06-02T00:00:00","IdentifierName":"LAM RESEARCH CORP","IdentifierTicker":"US5128073062","FIGI":null,"SharesPar":"1423","MarketValue":475865.43,"ContractType":null},
+{"CountryCode":"   ","Weight":0.0011587,"COBDate":"2026-06-02T00:00:00","IdentifierName":"CASH W-O","IdentifierTicker":null,"FIGI":null,"SharesPar":"0","MarketValue":null,"ContractType":null}
+];
+</script>`
+
+	t.Run("basic modal holdings", func(t *testing.T) {
+		got, err := ParseHoldingsFromModal(modalHTML)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 3 {
+			t.Fatalf("expected 3 holdings (cash filtered), got %d", len(got))
+		}
+
+		// Check first holding
+		if got[0].Name != "Nvidia Corp" {
+			t.Errorf("holding[0].Name = %q, want %q", got[0].Name, "Nvidia Corp")
+		}
+		if got[0].Symbol != "NVDA" {
+			t.Errorf("holding[0].Symbol = %q, want %q", got[0].Symbol, "NVDA")
+		}
+		if got[0].Percent != 14.2625 {
+			t.Errorf("holding[0].Percent = %f, want %f", got[0].Percent, 14.2625)
+		}
+
+		// Check CUSIP ticker preserved
+		if got[2].Symbol != "US5128073062" {
+			t.Errorf("holding[2].Symbol = %q, want %q", got[2].Symbol, "US5128073062")
+		}
+	})
+
+	t.Run("missing JSON", func(t *testing.T) {
+		_, err := ParseHoldingsFromModal(`<div>no JSON here</div>`)
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+}
+
 func TestUnescapeJSString(t *testing.T) {
 	tests := []struct {
 		name     string

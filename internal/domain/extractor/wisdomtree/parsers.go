@@ -2,6 +2,7 @@ package wisdomtree
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -90,6 +91,7 @@ func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 // ParseHoldings extracts holdings from `var fundHoldingsData = '...'`.
 // CSV format: date,Weight,Security Description
 // Filters out cash/currency positions.
+// Deprecated: use ParseHoldingsWithModal for holdings with ticker/symbol data.
 func ParseHoldings(html string) ([]extractor.Holding, error) {
 	re := regexp.MustCompile(`var\s+fundHoldingsData\s*=\s*'((?:[^'\\]|\\.)*)'`)
 	match := re.FindStringSubmatch(html)
@@ -134,6 +136,84 @@ func ParseHoldings(html string) ([]extractor.Holding, error) {
 	}
 
 	return holdings, nil
+}
+
+// modalHolding is the JSON structure from the all-holdings modal.
+type modalHolding struct {
+	CountryCode    string  `json:"CountryCode"`
+	Weight         float64 `json:"Weight"`
+	COBDate        string  `json:"COBDate"`
+	IdentifierName string  `json:"IdentifierName"`
+	IdentifierTicker string `json:"IdentifierTicker"`
+	SharesPar      string  `json:"SharesPar"`
+	MarketValue    float64 `json:"MarketValue"`
+}
+
+// ExtractModalURL extracts the all-holdings modal URL from the main page HTML.
+// Pattern: data-href="https://www.wisdomtree.eu/en-gb/global/etf-details/modals/all-holdings?id={GUID}"
+func ExtractModalURL(html string) string {
+	re := regexp.MustCompile(`data-href="([^"]*all-holdings[^"]*)"`)
+	match := re.FindStringSubmatch(html)
+	if match == nil || len(match) < 2 {
+		return ""
+	}
+	return match[1]
+}
+
+// ParseHoldingsFromModal extracts holdings from the all-holdings modal page.
+// The modal contains an embedded JSON array with ticker data.
+// Ticker format is "NVDA UQ" (Bloomberg-style with market suffix); the suffix is stripped.
+// Some entries have CUSIP instead of ticker (e.g. "US5128073062").
+func ParseHoldingsFromModal(modalHTML string) ([]extractor.Holding, error) {
+	// Extract the JSON array from the JavaScript source variable
+	// Pattern: var source = [{...},{...},...];
+	re := regexp.MustCompile(`var\s+source\s*=\s*(\[\s*\{[^\]]*\}\s*\])`)
+	match := re.FindStringSubmatch(modalHTML)
+	if match == nil || len(match) < 2 {
+		return nil, fmt.Errorf("holdings JSON not found in modal")
+	}
+
+	var modalHoldings []modalHolding
+	if err := json.Unmarshal([]byte(match[1]), &modalHoldings); err != nil {
+		return nil, fmt.Errorf("parse holdings JSON: %w", err)
+	}
+
+	var holdings []extractor.Holding
+	for _, h := range modalHoldings {
+		if isCashPosition(h.IdentifierName) {
+			continue
+		}
+
+		holding := extractor.Holding{
+			Name:    h.IdentifierName,
+			Percent: h.Weight * 100, // fraction to percentage
+		}
+
+		// Extract ticker, stripping Bloomberg market suffix (e.g. "NVDA UQ" -> "NVDA")
+		if h.IdentifierTicker != "" {
+			holding.Symbol = extractTicker(h.IdentifierTicker)
+		}
+
+		holdings = append(holdings, holding)
+	}
+
+	return holdings, nil
+}
+
+// extractTicker strips the Bloomberg market suffix from a ticker string.
+// "NVDA UQ" -> "NVDA", "US5128073062" -> "US5128073062" (CUSIP kept as-is)
+func extractTicker(ticker string) string {
+	ticker = strings.TrimSpace(ticker)
+	if ticker == "" {
+		return ""
+	}
+	// Bloomberg format: "TICKER SUFFIX" (e.g. "NVDA UQ", "AAPL UQ")
+	// CUSIP format: "US5128073062" (no space)
+	// Strip the suffix part after the space
+	if idx := strings.Index(ticker, " "); idx > 0 {
+		return strings.TrimSpace(ticker[:idx])
+	}
+	return ticker
 }
 
 // ParseNavHistory extracts NAV history from `var fundMarketData<HASH> = '...'`.

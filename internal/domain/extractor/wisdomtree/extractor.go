@@ -48,7 +48,22 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("fetch page: %w", err)
 	}
 
-	return extractFromHTML(html)
+	// Fetch all-holdings modal for ticker data
+	modalURL := ExtractModalURL(html)
+	var modalHTML string
+	if modalURL != "" {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		modalHTML, err = e.client.Fetch(modalURL)
+		if err != nil {
+			return nil, fmt.Errorf("fetch holdings modal: %w", err)
+		}
+	}
+
+	return extractFromHTMLWithModal(html, modalHTML)
 }
 
 // SetClient sets the HTTP client for fetching pages.
@@ -58,7 +73,14 @@ func (e *Extractor) SetClient(c *Client) {
 
 // extractFromHTML parses all sections from pre-fetched HTML.
 // Used for testing and when renderer is not available.
+// Prefer extractFromHTMLWithModal for holdings with ticker data.
 func extractFromHTML(html string) (*extractor.ExtractResult, error) {
+	return extractFromHTMLWithModal(html, "")
+}
+
+// extractFromHTMLWithModal parses all sections from pre-fetched HTML,
+// using the optional modalHTML for holdings with ticker/symbol data.
+func extractFromHTMLWithModal(html, modalHTML string) (*extractor.ExtractResult, error) {
 	fundInfo, err := ParseFundInfo(html)
 	if err != nil {
 		return nil, fmt.Errorf("parse fund info: %w", err)
@@ -69,9 +91,18 @@ func extractFromHTML(html string) (*extractor.ExtractResult, error) {
 		return nil, fmt.Errorf("parse fund profile: %w", err)
 	}
 
-	holdings, err := ParseHoldings(html)
-	if err != nil {
-		return nil, fmt.Errorf("parse holdings: %w", err)
+	// Use modal data for holdings (has tickers) if available, otherwise fall back to CSV
+	var holdings []extractor.Holding
+	if modalHTML != "" {
+		holdings, err = ParseHoldingsFromModal(modalHTML)
+		if err != nil {
+			return nil, fmt.Errorf("parse holdings from modal: %w", err)
+		}
+	} else {
+		holdings, err = ParseHoldings(html)
+		if err != nil {
+			return nil, fmt.Errorf("parse holdings: %w", err)
+		}
 	}
 
 	navHistory, err := ParseNavHistory(html)

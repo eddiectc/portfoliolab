@@ -53,6 +53,17 @@ func TestParseFundCharacteristics_Real(t *testing.T) {
 		ch.PriceToEarnings, ch.EstimatedPriceToEarnings, ch.PriceToBook, ch.PriceToSales, ch.PriceToCashflow, ch.DividendYield)
 }
 
+func TestExtractModalURL_Real(t *testing.T) {
+	modalURL := ExtractModalURL(realHTML)
+	if modalURL == "" {
+		t.Error("expected modal URL, got empty string")
+	}
+	if modalURL != "https://www.wisdomtree.eu/en-gb/global/etf-details/modals/all-holdings?id={8B845B79-F55C-4B6A-8D67-CA84E1C19C5B}" {
+		t.Errorf("unexpected modal URL: %s", modalURL)
+	}
+	t.Logf("Modal URL: %s", modalURL)
+}
+
 func TestExtractFromHTML_Real(t *testing.T) {
 	// Test individual parsers against real HTML.
 	// Full extractFromHTML is not tested here because the real page
