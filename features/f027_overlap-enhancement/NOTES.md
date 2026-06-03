@@ -55,6 +55,16 @@
 
 - **Sector field added alongside SectorWeightings**: The plan specified `SectorWeightings []symbol.SectorWeighting` and `GeographicAllocations []symbol.GeographicAllocation`, but stocks use `SymbolDetails.Sector` (a single primary sector string), not `SectorWeightings` (a slice used by ETFs). Added `Sector string` to `PortfolioHolding` to cover both cases, matching the pattern in `analysis/allocation.go`.
 
+### Task 10: End-to-end integration test
+
+- **Two of three test cases already covered by Task 7**: `TestComputeComparison_EnhancedOverlap_FullPipeline` (full pipeline) and `TestComputeComparison_EnhancedOverlap_IdenticalPortfolios` (identical portfolios) were added during Task 7 and satisfy those Task 10 requirements.
+- **New test added**: `TestComputeComparison_EnhancedOverlap_OneSideMissingData` — Portfolio A (VOO with full sector/geographic/top holdings data) vs Portfolio B (VXUS with zero sector/geographic/top holdings data). Verifies:
+  - SectorAllocationA and CountryAllocationA populated from VOO data
+  - SectorAllocationB/CountryAllocationB degrade gracefully (Unknown bucket or empty)
+  - MergedHoldings still produced (3 entries: VOO's top holdings expanded, VXUS as atomic)
+  - Warnings include `[sector Minimal Data] VXUS: no sector data for ETF` and `[country Minimal Data] VXUS: no geographic data`
+  - No panic, result struct fully valid
+
 ## Planning Notes
 
 ### Codebase Analysis
