@@ -1,6 +1,7 @@
 package comparison
 
 import (
+	"strings"
 	"testing"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
@@ -265,9 +266,20 @@ func TestComputeCrossPortfolioOverlap_ETFWithNoHoldings(t *testing.T) {
 
 	result := ComputeCrossPortfolioOverlap(input)
 
-	// Should have 1 warning for UNKNOWN_ETF
-	if len(result.Warnings) != 1 {
-		t.Errorf("Warnings len = %d, want 1; warnings = %v", len(result.Warnings), result.Warnings)
+	// Should have at least 1 warning for UNKNOWN_ETF (plus sector/country warnings from enhanced overlap)
+	if len(result.Warnings) < 1 {
+		t.Fatalf("Warnings len = %d, want >= 1; warnings = %v", len(result.Warnings), result.Warnings)
+	}
+	// Verify the UNKNOWN_ETF warning is present.
+	foundUnknownETF := false
+	for _, w := range result.Warnings {
+		if strings.HasPrefix(w, "ETF UNKNOWN_ETF") {
+			foundUnknownETF = true
+			break
+		}
+	}
+	if !foundUnknownETF {
+		t.Errorf("Expected UNKNOWN_ETF warning not found in: %v", result.Warnings)
 	}
 
 	// UNKNOWN_ETF with no holdings is treated as atomic, so A expands to:
@@ -856,4 +868,232 @@ func TestDecEq(t *testing.T) {
 	a := decF(1.234)
 	b := decF(1.235)
 	decEq(t, a, b, 0.01) // should pass
+}
+
+// --- Task 6 integration: all new OverlapResult fields populated ---
+
+func TestComputeCrossPortfolioOverlap_EnhancedFieldsPopulated(t *testing.T) {
+	// Portfolio A: ETF with sector + geographic data + stock with sector
+	// Portfolio B: ETF with sector + geographic data + stock with sector
+
+	sectorA := []symbol.SectorWeighting{
+		{Sector: "Technology", Percent: 50},
+		{Sector: "Finance", Percent: 30},
+		{Sector: "Healthcare", Percent: 20},
+	}
+	geoA := []symbol.GeographicAllocation{
+		{Country: "United States", Percent: 60},
+		{Country: "Germany", Percent: 25},
+		{Country: "Japan", Percent: 15},
+	}
+
+	sectorB := []symbol.SectorWeighting{
+		{Sector: "Technology", Percent: 40},
+		{Sector: "Finance", Percent: 40},
+		{Sector: "Energy", Percent: 20},
+	}
+	geoB := []symbol.GeographicAllocation{
+		{Country: "United States", Percent: 70},
+		{Country: "United Kingdom", Percent: 20},
+		{Country: "France", Percent: 10},
+	}
+
+	input := CrossPortfolioOverlapInput{
+		PortfolioA:   []PortfolioHolding{
+			portfolioHoldingETFWithSector(t, "VOO", 0.6, topHoldings(
+				[]string{"AAPL", "MSFT"},
+				[]float64{5, 4},
+				[]string{"Apple", "Microsoft"},
+			), sectorA, geoA),
+			portfolioHoldingStockWithSector(t, "AAPL", 0.4, "Apple", "Technology"),
+		},
+		PortfolioAName: "My Model",
+		PortfolioB:   []PortfolioHolding{
+			portfolioHoldingETFWithSector(t, "IVV", 0.5, topHoldings(
+				[]string{"AAPL", "MSFT"},
+				[]float64{4.5, 3.5},
+				[]string{"Apple", "Microsoft"},
+			), sectorB, geoB),
+			portfolioHoldingStockWithSector(t, "MSFT", 0.5, "Microsoft", "Technology"),
+		},
+		PortfolioBName: "My Real",
+	}
+
+	result := ComputeCrossPortfolioOverlap(input)
+
+	// --- Existing fields still present ---
+	if len(result.TopHoldingsA) == 0 {
+		t.Error("TopHoldingsA is empty")
+	}
+	if len(result.TopHoldingsB) == 0 {
+		t.Error("TopHoldingsB is empty")
+	}
+	if result.OverlapPct == nil {
+		t.Error("OverlapPct is nil")
+	}
+
+	// --- Sector allocation ---
+	if result.SectorAllocationA == nil {
+		t.Fatal("SectorAllocationA is nil")
+	}
+	if len(result.SectorAllocationA.Breakdown) == 0 {
+		t.Error("SectorAllocationA.Breakdown is empty")
+	}
+	// VOO (0.6) contributes: Tech 0.6*50/100=0.3, Finance 0.6*30/100=0.18, Healthcare 0.6*20/100=0.12
+	// AAPL (0.4) contributes: Tech 0.4
+	// Total Tech = 0.3+0.4 = 0.7
+	if tech, ok := result.SectorAllocationA.Breakdown["Technology"]; !ok || !floatEq(tech, 0.7, 0.01) {
+		t.Errorf("SectorAllocationA Technology = %v, want ~0.7", tech)
+	}
+
+	if result.SectorAllocationB == nil {
+		t.Fatal("SectorAllocationB is nil")
+	}
+	if len(result.SectorAllocationB.Breakdown) == 0 {
+		t.Error("SectorAllocationB.Breakdown is empty")
+	}
+
+	// --- Country allocation ---
+	if result.CountryAllocationA == nil {
+		t.Fatal("CountryAllocationA is nil")
+	}
+	if len(result.CountryAllocationA.Breakdown) == 0 {
+		t.Error("CountryAllocationA.Breakdown is empty")
+	}
+	// VOO (0.6) contributes: US 0.6*60/100=0.36, Germany 0.6*25/100=0.15, Japan 0.6*15/100=0.09
+	// AAPL has no geographic data → unknown
+	if us, ok := result.CountryAllocationA.Breakdown["United States"]; !ok || !floatEq(us, 0.36, 0.01) {
+		t.Errorf("CountryAllocationA United States = %v, want ~0.36", us)
+	}
+	// AAPL has no geo data so unknown should be > 0
+	if result.CountryAllocationA.UnknownWeightPct == 0 {
+		t.Error("CountryAllocationA.UnknownWeightPct should be > 0 (AAPL has no geo data)")
+	}
+
+	// Verify portfolio names appear in warnings (not generic "A"/"B")
+	foundNameWarning := false
+	for _, w := range result.Warnings {
+		if strings.HasPrefix(w, "[country My Model]") {
+			foundNameWarning = true
+			break
+		}
+	}
+	if !foundNameWarning {
+		t.Errorf("Expected warning with portfolio name 'My Model', got warnings: %v", result.Warnings)
+	}
+
+	if result.CountryAllocationB == nil {
+		t.Fatal("CountryAllocationB is nil")
+	}
+	if len(result.CountryAllocationB.Breakdown) == 0 {
+		t.Error("CountryAllocationB.Breakdown is empty")
+	}
+
+	// --- Merged holdings ---
+	if len(result.MergedHoldings) == 0 {
+		t.Error("MergedHoldings is empty")
+	}
+	// Shared holdings (AAPL, MSFT) should come first
+	if len(result.MergedHoldings) > 0 && result.MergedHoldings[0].OverlapPct == 0 {
+		t.Error("First merged holding should be shared (overlap > 0)")
+	}
+
+	// --- Overweight/underweight/neutral ---
+	// At least one of these should be non-empty
+	hasDiff := len(result.OverweightHoldings) > 0 ||
+		len(result.UnderweightHoldings) > 0 ||
+		len(result.NeutralHoldings) > 0
+	if !hasDiff {
+		t.Error("All of Overweight/Underweight/Neutral holdings are empty")
+	}
+
+	// Verify overweight/underweight signs
+	for _, h := range result.OverweightHoldings {
+		if h.Difference <= 0 {
+			t.Errorf("Overweight holding %s has non-positive difference %f", h.Symbol, h.Difference)
+		}
+	}
+	for _, h := range result.UnderweightHoldings {
+		if h.Difference >= 0 {
+			t.Errorf("Underweight holding %s has non-negative difference %f", h.Symbol, h.Difference)
+		}
+	}
+}
+
+func TestComputeCrossPortfolioOverlap_EnhancedFields_EmptyPortfolio(t *testing.T) {
+	// Edge case: empty portfolio — enhanced fields should handle gracefully
+	input := CrossPortfolioOverlapInput{
+		PortfolioA: []PortfolioHolding{
+			portfolioHoldingStockWithSector(t, "AAPL", 1.0, "Apple", "Technology"),
+		},
+		PortfolioB: []PortfolioHolding{},
+	}
+
+	result := ComputeCrossPortfolioOverlap(input)
+
+	// Sector/country for A should still be populated
+	if result.SectorAllocationA == nil || len(result.SectorAllocationA.Breakdown) == 0 {
+		t.Error("SectorAllocationA should be populated even when B is empty")
+	}
+
+	// Sector/country for B should have empty-state message
+	if result.SectorAllocationB == nil || result.SectorAllocationB.Message == "" {
+		t.Error("SectorAllocationB should have empty-state message")
+	}
+	if result.CountryAllocationB == nil || result.CountryAllocationB.Message == "" {
+		t.Error("CountryAllocationB should have empty-state message")
+	}
+
+	// Merged/weight diff should still work with one empty side
+	if len(result.MergedHoldings) == 0 {
+		t.Error("MergedHoldings should have entries from portfolio A")
+	}
+}
+
+func TestComputeCrossPortfolioOverlap_EnhancedFields_IdenticalPortfolios(t *testing.T) {
+	// Edge case: identical portfolios — zero drift, all neutral
+	// Use direct stock holdings so overlap sums to 100%
+	shared := []PortfolioHolding{
+		portfolioHoldingStockWithSector(t, "AAPL", 0.4, "Apple", "Technology"),
+		portfolioHoldingStockWithSector(t, "MSFT", 0.35, "Microsoft", "Technology"),
+		portfolioHoldingStockWithSector(t, "JNJ", 0.25, "J&J", "Healthcare"),
+	}
+
+	input := CrossPortfolioOverlapInput{
+		PortfolioA: shared,
+		PortfolioB: shared,
+	}
+
+	result := ComputeCrossPortfolioOverlap(input)
+
+	// Overlap should be 100%
+	if result.OverlapPct == nil {
+		t.Fatal("OverlapPct is nil")
+	}
+	overlapF, _ := result.OverlapPct.Float64()
+	if !floatEq(overlapF, 100.0, 0.01) {
+		t.Errorf("OverlapPct = %.2f, want 100.0", overlapF)
+	}
+
+	// All holdings should be neutral (zero difference)
+	if len(result.OverweightHoldings) > 0 {
+		t.Errorf("OverweightHoldings should be empty for identical portfolios, got %d", len(result.OverweightHoldings))
+	}
+	if len(result.UnderweightHoldings) > 0 {
+		t.Errorf("UnderweightHoldings should be empty for identical portfolios, got %d", len(result.UnderweightHoldings))
+	}
+	if len(result.NeutralHoldings) == 0 {
+		t.Error("NeutralHoldings should be non-empty for identical portfolios")
+	}
+
+	// Sector allocations should be identical
+	if len(result.SectorAllocationA.Breakdown) != len(result.SectorAllocationB.Breakdown) {
+		t.Error("Sector allocations should have same number of entries")
+	}
+	for sector, pctA := range result.SectorAllocationA.Breakdown {
+		pctB, ok := result.SectorAllocationB.Breakdown[sector]
+		if !ok || !floatEq(pctA, pctB, 0.01) {
+			t.Errorf("Sector %s: A=%.4f, B=%.4f", sector, pctA, pctB)
+		}
+	}
 }

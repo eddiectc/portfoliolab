@@ -1,6 +1,7 @@
 package comparison
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -25,8 +26,10 @@ type PortfolioHolding struct {
 
 // CrossPortfolioOverlapInput holds the two portfolios to compare.
 type CrossPortfolioOverlapInput struct {
-	PortfolioA []PortfolioHolding
-	PortfolioB []PortfolioHolding
+	PortfolioA   []PortfolioHolding
+	PortfolioAName string
+	PortfolioB   []PortfolioHolding
+	PortfolioBName string
 }
 
 // ComputeCrossPortfolioOverlap computes the holdings overlap between two
@@ -63,11 +66,51 @@ func ComputeCrossPortfolioOverlap(input CrossPortfolioOverlapInput) *OverlapResu
 	overlapPct, matchWarnings := computeWeightedOverlap(expandedA, expandedB)
 	warnings = append(warnings, matchWarnings...)
 
+	// Sector/country allocation for each portfolio.
+	sectorA := ComputeSectorAllocationForHoldings(input.PortfolioA)
+	sectorB := ComputeSectorAllocationForHoldings(input.PortfolioB)
+	countryA := ComputeCountryAllocationForHoldings(input.PortfolioA)
+	countryB := ComputeCountryAllocationForHoldings(input.PortfolioB)
+
+	// Collect warnings from allocation computations, using portfolio names.
+	aName := input.PortfolioAName
+	bName := input.PortfolioBName
+	if aName == "" {
+		aName = "A"
+	}
+	if bName == "" {
+		bName = "B"
+	}
+	for _, w := range sectorA.Warnings {
+		warnings = append(warnings, fmt.Sprintf("[sector %s] %s", aName, w))
+	}
+	for _, w := range sectorB.Warnings {
+		warnings = append(warnings, fmt.Sprintf("[sector %s] %s", bName, w))
+	}
+	for _, w := range countryA.Warnings {
+		warnings = append(warnings, fmt.Sprintf("[country %s] %s", aName, w))
+	}
+	for _, w := range countryB.Warnings {
+		warnings = append(warnings, fmt.Sprintf("[country %s] %s", bName, w))
+	}
+
+	// Merged holdings and overweight/underweight/neutral.
+	mergedHoldings := ComputeMergedHoldings(input.PortfolioA, input.PortfolioB, 10)
+	overweight, underweight, neutral := ComputeWeightDifferences(input.PortfolioA, input.PortfolioB, 10)
+
 	return &OverlapResult{
-		TopHoldingsA: topA,
-		TopHoldingsB: topB,
-		OverlapPct:   &overlapPct,
-		Warnings:     warnings,
+		TopHoldingsA:       topA,
+		TopHoldingsB:       topB,
+		OverlapPct:         &overlapPct,
+		SectorAllocationA:  sectorA,
+		SectorAllocationB:  sectorB,
+		CountryAllocationA: countryA,
+		CountryAllocationB: countryB,
+		MergedHoldings:     mergedHoldings,
+		OverweightHoldings: overweight,
+		UnderweightHoldings: underweight,
+		NeutralHoldings:    neutral,
+		Warnings:           warnings,
 	}
 }
 
