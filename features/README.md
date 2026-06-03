@@ -38,4 +38,4 @@ Feature IDs are sequential: f001, f002, etc.
 | f024 | iMGP Scraper | done | f021 |
 | f025 | Vanguard Scraper | done | f021 |
 | f026 | BlackRock/iShares Scraper | done | f021 |
-| f027 | Overlap Enhancement | spec | f020, f015, f017 |
+| f027 | Overlap Enhancement | in-progress | f020, f015, f017 |

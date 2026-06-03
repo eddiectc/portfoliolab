@@ -873,10 +873,11 @@ func serializeOverlapChartData(result *comparison.ComparisonResult) string {
 // driftChartData holds JSON data for a diverging bar chart showing the
 // allocation drift (Portfolio A - Portfolio B) for each category.
 type driftChartData struct {
-	Categories []string    `json:"categories"`
-	Values     []float64   `json:"values"` // positive = A > B, negative = B > A (percentage points)
-	NameA      string      `json:"name_a"`
-	NameB      string      `json:"name_b"`
+	Categories []string  `json:"categories"`
+	Values     []float64 `json:"values"` // positive = A > B, negative = B > A (percentage points)
+	NameA      string    `json:"name_a"`
+	NameB      string    `json:"name_b"`
+	Note       string    `json:"note,omitempty"` // informational note (e.g. truncation)
 }
 
 // serializeSectorDriftChart produces a diverging bar chart JSON showing the
@@ -913,7 +914,9 @@ func serializeSectorDriftChart(result *comparison.ComparisonResult) string {
 
 // serializeCountryDriftChart produces a diverging bar chart JSON showing the
 // country allocation drift between the two portfolios (A - B in percentage points).
-// Categories are sorted by absolute difference descending.
+// Categories are sorted by absolute difference descending, limited to top 15.
+const countryDriftLimit = 15
+
 func serializeCountryDriftChart(result *comparison.ComparisonResult) string {
 	if result == nil || result.CrossMetrics == nil || result.CrossMetrics.Overlap == nil {
 		return "{}"
@@ -930,11 +933,21 @@ func serializeCountryDriftChart(result *comparison.ComparisonResult) string {
 		return "{}"
 	}
 
+	var note string
+	categories := drift.categories
+	values := drift.values
+	if len(categories) > countryDriftLimit {
+		categories = categories[:countryDriftLimit]
+		values = values[:countryDriftLimit]
+		note = strconv.Itoa(len(drift.categories)-countryDriftLimit) + " country(s) omitted (below top " + strconv.Itoa(countryDriftLimit) + ")"
+	}
+
 	data := driftChartData{
-		Categories: drift.categories,
-		Values:     drift.values,
+		Categories: categories,
+		Values:     values,
 		NameA:      portfolioName(result.PortfolioA),
 		NameB:      portfolioName(result.PortfolioB),
+		Note:       note,
 	}
 	b, err := json.Marshal(data)
 	if err != nil {

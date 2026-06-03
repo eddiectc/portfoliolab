@@ -4,7 +4,8 @@
 
 ### Task 8: Chart serialization for sector/country drift charts
 
-- **Drift chart data structure**: `driftChartData` with `Categories []string`, `Values []float64` (percentage points, positive = A overweight), `NameA`, `NameB`. Sorted by absolute difference descending, alphabetically for ties.
+- **Drift chart data structure**: `driftChartData` with `Categories []string`, `Values []float64` (percentage points, positive = A overweight), `NameA`, `NameB`, `Note` (optional truncation message). Sorted by absolute difference descending, alphabetically for ties.
+- **Country drift limit**: `serializeCountryDriftChart` truncates to top 15 countries by absolute difference (spec edge case). A `Note` field is set with the count of omitted countries. Sector drift chart has no limit (typically 11 GICS sectors). Constant `countryDriftLimit = 15` in `comparison_web.go`.
 - **`computeAllocationDrift` helper**: Takes two breakdown maps (fractions 0.0-1.0), computes union of categories, drift = (A-B)*100 in percentage points. Returns sorted `allocationDrift` struct.
 - **`roundTo2` helper**: Correctly handles negative numbers (Go's `int()` truncates toward zero, so `int(-5499.5) = -5499` not `-5500`). Uses sign extraction for correct rounding.
 - **`mergedHoldingsData`**: Converts `MergedHolding` domain types to display-ready rows with weights as percentages and overlap as percentage points.

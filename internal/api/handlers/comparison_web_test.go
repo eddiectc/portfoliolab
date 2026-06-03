@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -647,6 +648,45 @@ func TestSerializeCountryDriftChart_NilResult(t *testing.T) {
 	}
 }
 
+func TestSerializeCountryDriftChart_TruncatesToTop15(t *testing.T) {
+	// Build 20 countries — more than the countryDriftLimit of 15.
+	breakdownA := make(map[string]float64)
+	breakdownB := make(map[string]float64)
+	for i := 0; i < 20; i++ {
+		name := fmt.Sprintf("Country_%02d", i)
+		// Each country has a unique difference: Country_00 has diff 19pp, Country_19 has diff 0pp.
+		breakdownA[name] = float64(19-i) / 100.0
+		breakdownB[name] = 0.0
+	}
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{Name: "A"},
+		PortfolioB: &comparison.PortfolioComparison{Name: "B"},
+		CrossMetrics: &comparison.CrossPortfolioMetrics{
+			Overlap: &comparison.OverlapResult{
+				CountryAllocationA: &comparison.CountryAllocationResult{Breakdown: breakdownA},
+				CountryAllocationB: &comparison.CountryAllocationResult{Breakdown: breakdownB},
+			},
+		},
+	}
+
+	jsonStr := serializeCountryDriftChart(result)
+	var data driftChartData
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if len(data.Categories) != 15 {
+		t.Errorf("expected 15 categories (truncated), got %d", len(data.Categories))
+	}
+	if data.Note == "" {
+		t.Error("expected truncation note, got empty string")
+	}
+	// Top country should be Country_00 (diff 19pp).
+	if data.Categories[0] != "Country_00" {
+		t.Errorf("first category: got %q, want Country_00", data.Categories[0])
+	}
+}
+
 func TestSerializeMergedHoldings(t *testing.T) {
 	result := &comparison.ComparisonResult{
 		PortfolioA: &comparison.PortfolioComparison{Name: "Portfolio A"},
@@ -750,6 +790,43 @@ func TestComputeAllocationDrift_EmptyBreakdowns(t *testing.T) {
 	drift := computeAllocationDrift(map[string]float64{}, map[string]float64{})
 	if len(drift.categories) != 0 {
 		t.Errorf("expected 0 categories, got %d", len(drift.categories))
+	}
+}
+
+func TestRoundTo2_PositiveValues(t *testing.T) {
+	tests := []struct {
+		input float64
+		want  float64
+	}{
+		{0.125, 0.13},
+		{0.124, 0.12},
+		{5.995, 6.0},
+		{100.0, 100.0},
+	}
+	for _, tc := range tests {
+		got := roundTo2(tc.input)
+		if got != tc.want {
+			t.Errorf("roundTo2(%.4f) = %.2f, want %.2f", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestRoundTo2_NegativeValues(t *testing.T) {
+	tests := []struct {
+		input float64
+		want  float64
+	}{
+		{-0.125, -0.13},
+		{-0.124, -0.12},
+		{-5.995, -6.0},
+		{-100.0, -100.0},
+		{-54.995, -55.0}, // Go's int() truncates toward zero; roundTo2 must handle this
+	}
+	for _, tc := range tests {
+		got := roundTo2(tc.input)
+		if got != tc.want {
+			t.Errorf("roundTo2(%.4f) = %.2f, want %.2f", tc.input, got, tc.want)
+		}
 	}
 }
 
