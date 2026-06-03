@@ -466,6 +466,293 @@ func TestMergeYearlyReturns_Nil(t *testing.T) {
 	}
 }
 
+func TestSerializeSectorDriftChart(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{Name: "Portfolio A"},
+		PortfolioB: &comparison.PortfolioComparison{Name: "Portfolio B"},
+		CrossMetrics: &comparison.CrossPortfolioMetrics{
+			Overlap: &comparison.OverlapResult{
+				SectorAllocationA: &comparison.SectorAllocationResult{
+					Breakdown: map[string]float64{
+						"Technology": 0.35,
+						"Healthcare": 0.20,
+						"Finance":    0.15,
+						"Energy":     0.10,
+						"Unknown":    0.20,
+					},
+				},
+				SectorAllocationB: &comparison.SectorAllocationResult{
+					Breakdown: map[string]float64{
+						"Technology": 0.25,
+						"Healthcare": 0.25,
+						"Finance":    0.20,
+						"Energy":     0.10,
+						"Consumer":   0.20,
+					},
+				},
+			},
+		},
+	}
+
+	jsonStr := serializeSectorDriftChart(result)
+	var data driftChartData
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Union: Technology, Healthcare, Finance, Energy, Unknown (from A), Consumer (from B) = 6 categories
+	// Sorted by abs diff desc: Unknown(20pp), Consumer(20pp), Technology(10pp), Finance(5pp), Healthcare(5pp), Energy(0pp)
+	if len(data.Categories) != 6 {
+		t.Fatalf("expected 6 categories, got %d", len(data.Categories))
+	}
+	if data.NameA != "Portfolio A" {
+		t.Errorf("name_a: got %q, want Portfolio A", data.NameA)
+	}
+	if data.NameB != "Portfolio B" {
+		t.Errorf("name_b: got %q, want Portfolio B", data.NameB)
+	}
+
+	// Technology: A=35%, B=25% → drift = +10
+	found := false
+	for i, cat := range data.Categories {
+		if cat == "Technology" {
+			if data.Values[i] != 10.0 {
+				t.Errorf("Technology drift: got %.2f, want 10.0", data.Values[i])
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Technology not found in categories")
+	}
+
+	// Consumer: A=0%, B=20% → drift = -20
+	found = false
+	for i, cat := range data.Categories {
+		if cat == "Consumer" {
+			if data.Values[i] != -20.0 {
+				t.Errorf("Consumer drift: got %.2f, want -20.0", data.Values[i])
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Consumer not found in categories")
+	}
+}
+
+func TestSerializeSectorDriftChart_NilResult(t *testing.T) {
+	jsonStr := serializeSectorDriftChart(nil)
+	if jsonStr != "{}" {
+		t.Errorf("expected '{}', got %q", jsonStr)
+	}
+}
+
+func TestSerializeSectorDriftChart_NoOverlap(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		CrossMetrics: &comparison.CrossPortfolioMetrics{},
+	}
+	jsonStr := serializeSectorDriftChart(result)
+	if jsonStr != "{}" {
+		t.Errorf("expected '{}', got %q", jsonStr)
+	}
+}
+
+func TestSerializeSectorDriftChart_MissingSectorData(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		CrossMetrics: &comparison.CrossPortfolioMetrics{
+			Overlap: &comparison.OverlapResult{
+				SectorAllocationA: &comparison.SectorAllocationResult{},
+				// SectorAllocationB is nil
+			},
+		},
+	}
+	jsonStr := serializeSectorDriftChart(result)
+	if jsonStr != "{}" {
+		t.Errorf("expected '{}', got %q", jsonStr)
+	}
+}
+
+func TestSerializeCountryDriftChart(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{Name: "A"},
+		PortfolioB: &comparison.PortfolioComparison{Name: "B"},
+		CrossMetrics: &comparison.CrossPortfolioMetrics{
+			Overlap: &comparison.OverlapResult{
+				CountryAllocationA: &comparison.CountryAllocationResult{
+					Breakdown: map[string]float64{
+						"United States": 0.50,
+						"Germany":       0.20,
+						"UK":            0.10,
+						"Japan":         0.20,
+					},
+				},
+				CountryAllocationB: &comparison.CountryAllocationResult{
+					Breakdown: map[string]float64{
+						"United States": 0.40,
+						"Germany":       0.30,
+						"France":        0.20,
+						"Japan":         0.10,
+					},
+				},
+			},
+		},
+	}
+
+	jsonStr := serializeCountryDriftChart(result)
+	var data driftChartData
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if len(data.Categories) != 5 {
+		t.Fatalf("expected 5 categories, got %d", len(data.Categories))
+	}
+
+	// United States: A=50%, B=40% → +10
+	// Germany: A=20%, B=30% → -10
+	// UK: A=10%, B=0% → +10
+	// Japan: A=20%, B=10% → +10
+	// France: A=0%, B=20% → -20
+	for i, cat := range data.Categories {
+		switch cat {
+		case "United States":
+			if data.Values[i] != 10.0 {
+				t.Errorf("US drift: got %.2f, want 10.0", data.Values[i])
+			}
+		case "Germany":
+			if data.Values[i] != -10.0 {
+				t.Errorf("Germany drift: got %.2f, want -10.0", data.Values[i])
+			}
+		case "UK":
+			if data.Values[i] != 10.0 {
+				t.Errorf("UK drift: got %.2f, want 10.0", data.Values[i])
+			}
+		case "Japan":
+			if data.Values[i] != 10.0 {
+				t.Errorf("Japan drift: got %.2f, want 10.0", data.Values[i])
+			}
+		case "France":
+			if data.Values[i] != -20.0 {
+				t.Errorf("France drift: got %.2f, want -20.0", data.Values[i])
+			}
+		}
+	}
+}
+
+func TestSerializeCountryDriftChart_NilResult(t *testing.T) {
+	jsonStr := serializeCountryDriftChart(nil)
+	if jsonStr != "{}" {
+		t.Errorf("expected '{}', got %q", jsonStr)
+	}
+}
+
+func TestSerializeMergedHoldings(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{Name: "Portfolio A"},
+		PortfolioB: &comparison.PortfolioComparison{Name: "Portfolio B"},
+		CrossMetrics: &comparison.CrossPortfolioMetrics{
+			Overlap: &comparison.OverlapResult{
+				MergedHoldings: []comparison.MergedHolding{
+					{Symbol: "AAPL", Name: "Apple Inc", WeightA: decimal.MustParse("0.05"), WeightB: decimal.MustParse("0.04"), OverlapPct: 4.0},
+					{Symbol: "MSFT", Name: "Microsoft", WeightA: decimal.MustParse("0.03"), WeightB: decimal.MustParse("0.03"), OverlapPct: 3.0},
+					{Symbol: "GOOG", Name: "Alphabet", WeightA: decimal.MustParse("0.02"), WeightB: decimal.MustParse("0.00"), OverlapPct: 0},
+				},
+			},
+		},
+	}
+
+	jsonStr := serializeMergedHoldings(result)
+	var data mergedHoldingsData
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if len(data.Holdings) != 3 {
+		t.Fatalf("expected 3 holdings, got %d", len(data.Holdings))
+	}
+
+	// AAPL: weightA=5%, weightB=4%, overlap=4%
+	if data.Holdings[0].Symbol != "AAPL" {
+		t.Errorf("first holding symbol: got %q, want AAPL", data.Holdings[0].Symbol)
+	}
+	if data.Holdings[0].WeightAPct != 5.0 {
+		t.Errorf("AAPL weight_a_pct: got %.2f, want 5.0", data.Holdings[0].WeightAPct)
+	}
+	if data.Holdings[0].WeightBPct != 4.0 {
+		t.Errorf("AAPL weight_b_pct: got %.2f, want 4.0", data.Holdings[0].WeightBPct)
+	}
+	if data.Holdings[0].OverlapPct != 4.0 {
+		t.Errorf("AAPL overlap_pct: got %.2f, want 4.0", data.Holdings[0].OverlapPct)
+	}
+
+	// GOOG: weightA=2%, weightB=0%, overlap=0
+	if data.Holdings[2].Symbol != "GOOG" {
+		t.Errorf("third holding symbol: got %q, want GOOG", data.Holdings[2].Symbol)
+	}
+	if data.Holdings[2].WeightBPct != 0.0 {
+		t.Errorf("GOOG weight_b_pct: got %.2f, want 0.0", data.Holdings[2].WeightBPct)
+	}
+}
+
+func TestSerializeMergedHoldings_NilResult(t *testing.T) {
+	jsonStr := serializeMergedHoldings(nil)
+	if jsonStr != "{}" {
+		t.Errorf("expected '{}', got %q", jsonStr)
+	}
+}
+
+func TestSerializeMergedHoldings_EmptyHoldings(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		CrossMetrics: &comparison.CrossPortfolioMetrics{
+			Overlap: &comparison.OverlapResult{
+				MergedHoldings: []comparison.MergedHolding{},
+			},
+		},
+	}
+	jsonStr := serializeMergedHoldings(result)
+	if jsonStr != "{}" {
+		t.Errorf("expected '{}', got %q", jsonStr)
+	}
+}
+
+func TestComputeAllocationDrift_SortedByAbsDiff(t *testing.T) {
+	breakdownA := map[string]float64{
+		"X": 0.40,
+		"Y": 0.30,
+		"Z": 0.30,
+	}
+	breakdownB := map[string]float64{
+		"X": 0.20,
+		"Y": 0.25,
+		"W": 0.55,
+	}
+
+	drift := computeAllocationDrift(breakdownA, breakdownB)
+
+	// X: 40-20=+20, Y: 30-25=+5, Z: 30-0=+30, W: 0-55=-55
+	// Sorted by abs desc: W(55), Z(30), X(20), Y(5)
+	if len(drift.categories) != 4 {
+		t.Fatalf("expected 4 categories, got %d", len(drift.categories))
+	}
+	if drift.categories[0] != "W" {
+		t.Errorf("first category: got %q, want W (abs diff 55)", drift.categories[0])
+	}
+	if drift.values[0] != -55.0 {
+		t.Errorf("W value: got %.2f, want -55.0", drift.values[0])
+	}
+	if drift.categories[1] != "Z" {
+		t.Errorf("second category: got %q, want Z (abs diff 30)", drift.categories[1])
+	}
+}
+
+func TestComputeAllocationDrift_EmptyBreakdowns(t *testing.T) {
+	drift := computeAllocationDrift(map[string]float64{}, map[string]float64{})
+	if len(drift.categories) != 0 {
+		t.Errorf("expected 0 categories, got %d", len(drift.categories))
+	}
+}
+
 func TestBuildComparisonPeriodURLs(t *testing.T) {
 	filter := comparisonFilter{
 		PortfolioAID:   1,
