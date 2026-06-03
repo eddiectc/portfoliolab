@@ -23,8 +23,8 @@ As an investor, I want to see a drift chart showing the country allocation diffe
 ### US-5: Merged Holdings Table
 As an investor, I want to see a single table of top holdings from both portfolios, ordered by overlap, so that I can compare weightings of shared and unique holdings at a glance.
 
-### US-6: Overweight/Underweight Holdings
-As an investor, I want to see the top 10 holdings where the first portfolio is overweight or underweight relative to the second portfolio, so that I can understand the key drivers of portfolio divergence.
+### US-6: Overweight/Underweight/Neutral Holdings
+As an investor, I want to see the top 10 holdings where the first portfolio is overweight, underweight, or neutral relative to the second portfolio, so that I can understand the key drivers of portfolio divergence and where the two portfolios align.
 
 ## Scenarios
 
@@ -92,6 +92,15 @@ As an investor, I want to see the top 10 holdings where the first portfolio is o
 **And** the table includes columns: Name, Weight in the first portfolio, Weight in the second portfolio, Difference
 **And** holdings where the first portfolio weight is 0 (not present in the first portfolio) are included
 
+### Scenario: View neutral holdings table
+**Given** two portfolios are selected for comparison
+**And** underlying holdings data is available for both portfolios
+**When** I view the neutral section
+**Then** I see a table of the top 10 holdings where both portfolios have the same weight
+**And** holdings are sorted by their weight descending
+**And** the table includes columns: Name, Weight in the first portfolio, Weight in the second portfolio, Difference
+**And** the Difference column shows 0 for all neutral holdings
+
 ### Scenario: Sector allocation with missing data
 **Given** two portfolios are selected for comparison
 **And** some ETFs in the portfolios have no cached sector data
@@ -113,7 +122,7 @@ As an investor, I want to see the top 10 holdings where the first portfolio is o
 **And** neither portfolio contains ETFs with holdings data (e.g., all direct stock holdings)
 **When** I view the holdings analysis section
 **Then** I see the direct holdings treated as their own underlying holdings
-**And** the merged table, overweight, and underweight tables are computed from direct positions
+**And** the merged table, overweight, underweight, and neutral tables are computed from direct positions
 
 ### Scenario: Portfolio names used throughout
 **Given** two portfolios are selected for comparison
@@ -127,7 +136,7 @@ As an investor, I want to see the top 10 holdings where the first portfolio is o
 **Then** I see the sector allocation table and drift chart
 **And** I see the country allocation table and drift chart
 **And** I see the merged holdings table
-**And** I see the overweight and underweight holdings tables
+**And** I see the overweight, underweight, and neutral holdings tables
 **And** all sections are presented in a single scrollable view
 
 ### Scenario: One portfolio is empty
@@ -144,6 +153,7 @@ As an investor, I want to see the top 10 holdings where the first portfolio is o
 **Then** the sector drift chart shows zero difference for all sectors
 **And** the country drift chart shows zero difference for all countries
 **And** the overweight and underweight tables are empty
+**And** the neutral table lists all shared holdings (zero difference)
 **And** the merged holdings table shows 100% overlap for all shared holdings
 
 ## Edge Cases
