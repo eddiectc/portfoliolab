@@ -2,8 +2,6 @@ package comparison
 
 import (
 	"testing"
-
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // --- ComputeMergedHoldings ---
@@ -179,7 +177,7 @@ func TestComputeMergedHoldings_LimitRespected(t *testing.T) {
 
 	var holdingsA []PortfolioHolding
 	for i := 0; i < 15; i++ {
-		sym := string(rune('A' + i)) + "SYM"
+		sym := string(rune('A'+i)) + "SYM"
 		holdingsA = append(holdingsA, portfolioHoldingStock(t, sym, 1.0/15, "Stock "+sym))
 	}
 
@@ -535,60 +533,6 @@ func TestSelectTopN_ZeroLimit(t *testing.T) {
 	}
 }
 
-// --- expandETFHoldingsWithKey ---
-
-func TestExpandETFHoldingsWithKey_DirectHoldingsOnly(t *testing.T) {
-	holdings := []PortfolioHolding{
-		portfolioHoldingStock(t, "AAPL", 0.4, "Apple"),
-		portfolioHoldingStock(t, "MSFT", 0.6, "Microsoft"),
-	}
-
-	result := expandETFHoldingsWithKey(holdings, keySymbol)
-
-	if len(result) != 2 {
-		t.Fatalf("len = %d, want 2", len(result))
-	}
-
-	aaplW, _ := result["AAPL"].weight.Float64()
-	if !floatEq(aaplW, 0.4, 0.001) {
-		t.Errorf("AAPL weight = %.4f, want 0.4", aaplW)
-	}
-
-	msftW, _ := result["MSFT"].weight.Float64()
-	if !floatEq(msftW, 0.6, 0.001) {
-		t.Errorf("MSFT weight = %.4f, want 0.6", msftW)
-	}
-}
-
-func TestExpandETFHoldingsWithKey_MixedETFAndStock(t *testing.T) {
-	holdings := []PortfolioHolding{
-		portfolioHoldingStock(t, "AAPL", 0.3, "Apple"),
-		portfolioHoldingETF(t, "VOO", 0.7, topHoldings(
-			[]string{"AAPL", "MSFT"},
-			[]float64{5, 4},
-			[]string{"Apple", "Microsoft"},
-		)),
-	}
-
-	result := expandETFHoldingsWithKey(holdings, keySymbol)
-
-	if len(result) != 2 {
-		t.Fatalf("len = %d, want 2", len(result))
-	}
-
-	// AAPL = 0.3 + 0.7*5/100 = 0.335
-	aaplW, _ := result["AAPL"].weight.Float64()
-	if !floatEq(aaplW, 0.335, 0.001) {
-		t.Errorf("AAPL weight = %.4f, want 0.335", aaplW)
-	}
-
-	// MSFT = 0.7*4/100 = 0.028
-	msftW, _ := result["MSFT"].weight.Float64()
-	if !floatEq(msftW, 0.028, 0.001) {
-		t.Errorf("MSFT weight = %.4f, want 0.028", msftW)
-	}
-}
-
 func TestComputeMergedHoldings_ETFMatchingByISIN(t *testing.T) {
 	// Two ETFs with same underlying stocks identified by ISIN.
 	holdingsA := []PortfolioHolding{
@@ -640,18 +584,4 @@ func TestComputeMergedHoldings_NameFieldPreserved(t *testing.T) {
 	if result[0].Name == "" {
 		t.Error("Name should not be empty")
 	}
-}
-
-// Helper for creating TopHolding with ISIN for tests.
-func topHoldingsWithISINForMerged(symbols, isins []string, percents []float64, names []string) []symbol.TopHolding {
-	h := make([]symbol.TopHolding, len(symbols))
-	for i := range symbols {
-		h[i] = symbol.TopHolding{
-			Symbol:  symbols[i],
-			ISIN:    isins[i],
-			Percent: percents[i],
-			Name:    names[i],
-		}
-	}
-	return h
 }

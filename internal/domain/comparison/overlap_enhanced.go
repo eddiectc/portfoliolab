@@ -2,7 +2,6 @@ package comparison
 
 import (
 	"sort"
-	"strings"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"github.com/govalues/decimal"
@@ -63,13 +62,13 @@ func ComputeMergedHoldings(holdingsA, holdingsB []PortfolioHolding, limit int) [
 
 	// Classify as shared or unique.
 	type holdingEntry struct {
-		key      string
-		symbol   string
-		name     string
-		weightA  decimal.Decimal
-		weightB  decimal.Decimal
+		key        string
+		symbol     string
+		name       string
+		weightA    decimal.Decimal
+		weightB    decimal.Decimal
 		overlapPct float64
-		isShared bool
+		isShared   bool
 	}
 
 	var shared []holdingEntry
@@ -207,67 +206,4 @@ func selectTopN(expanded map[string]*holdingInfoDisplay, limit int) map[string]*
 		result[e.key] = e.info
 	}
 	return result
-}
-
-// expandETFHoldingsWithKey expands ETF holdings for merged computation,
-// using a consistent key resolution (ISIN > Symbol > Name) so both portfolios
-// can be matched at the same key level.
-//
-// This is a variant of expandETFHoldingsDisplay that normalizes keys for
-// cross-portfolio comparison.
-func expandETFHoldingsWithKey(holdings []PortfolioHolding, level keyLevel) map[string]*holdingInfoDisplay {
-	agg := make(map[string]*holdingInfoDisplay)
-
-	for _, h := range holdings {
-		weight, _ := h.Weight.Float64()
-
-		if isETF(h) {
-			for _, uh := range h.TopHoldings {
-				key := holdingKey(uh, level)
-				if key == "" {
-					continue
-				}
-				info, ok := agg[key]
-				if !ok {
-					info = &holdingInfoDisplay{}
-					agg[key] = info
-				}
-				contribution := weight * uh.Percent / 100.0
-				contribDec, _ := decimal.NewFromFloat64(contribution)
-				info.weight, _ = info.weight.Add(contribDec)
-				if info.name == "" {
-					info.name = uh.Name
-				}
-				if info.isin == "" && uh.ISIN != "" && uh.ISIN != "-" {
-					info.isin = uh.ISIN
-				}
-				if info.symbol == "" && uh.Symbol != "" {
-					info.symbol = strings.ToUpper(uh.Symbol)
-				}
-			}
-		} else {
-			// Direct holding.
-			key := h.Symbol
-			if key == "" && h.Name != "" {
-				key = normalizeName(h.Name)
-			} else if key != "" && level == keySymbol {
-				key = strings.ToUpper(key)
-			} else if key != "" && level == keyName {
-				key = normalizeName(h.Name)
-			}
-			info, ok := agg[key]
-			if !ok {
-				info = &holdingInfoDisplay{
-					symbol: strings.ToUpper(h.Symbol),
-				}
-				agg[key] = info
-			}
-			info.weight, _ = info.weight.Add(h.Weight)
-			if info.name == "" {
-				info.name = h.Name
-			}
-		}
-	}
-
-	return agg
 }
