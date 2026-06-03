@@ -152,22 +152,22 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
 ### Task 6: Extend OverlapResult type and integrate in ComputeCrossPortfolioOverlap
 **Files**: `internal/domain/comparison/types.go`, `internal/domain/comparison/overlap.go`
 
-- Add new fields to `OverlapResult`:
+- [x] Add new fields to `OverlapResult`:
   - `SectorAllocationA`, `SectorAllocationB *SectorAllocationResult`
   - `CountryAllocationA`, `CountryAllocationB *CountryAllocationResult`
   - `MergedHoldings []MergedHolding`
   - `OverweightHoldings []WeightDifferenceHolding`
   - `UnderweightHoldings []WeightDifferenceHolding`
   - `NeutralHoldings []WeightDifferenceHolding`
-- Add new types to `types.go`: `SectorAllocationResult`, `CountryAllocationResult`, `MergedHolding`, `WeightDifferenceHolding`, `AllocationEntry`
-- In `ComputeCrossPortfolioOverlap`, after computing existing overlap:
+- [x] Add new types to `types.go`: `SectorAllocationResult`, `CountryAllocationResult`, `MergedHolding`, `WeightDifferenceHolding`, `AllocationEntry`
+- [x] In `ComputeCrossPortfolioOverlap`, after computing existing overlap:
   - Call `ComputeSectorAllocationForHoldings` for both portfolios
   - Call `ComputeCountryAllocationForHoldings` for both portfolios
   - Call `ComputeMergedHoldings` with limit 10
   - Call `ComputeWeightDifferences` with limit 10
-- The function signature changes: it now needs the full `PortfolioHolding` slices (not just the expanded versions), which it already has via `input.PortfolioA` and `input.PortfolioB`
+- [x] The function signature changes: it now needs the full `PortfolioHolding` slices (not just the expanded versions), which it already has via `input.PortfolioA` and `input.PortfolioB`
 
-**Tests**: Integration test that verifies all new fields are populated when sector/country data is available.
+**Tests**: [x] Integration test that verifies all new fields are populated when sector/country data is available.
 
 ---
 

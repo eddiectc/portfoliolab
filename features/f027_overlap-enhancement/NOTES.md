@@ -2,6 +2,13 @@
 
 ## Implementation Notes
 
+### Task 6: Extend OverlapResult type and integrate in ComputeCrossPortfolioOverlap
+
+- **Types placement follows NOTES.md from Tasks 2–5**: `SectorAllocationResult`, `CountryAllocationResult`, and `AllocationEntry` live in `allocation.go` (not `types.go`). `MergedHolding` and `WeightDifferenceHolding` already live in `types.go` since `OverlapResult` references them directly.
+- **Warnings from allocation computations**: Sector/country warnings use portfolio names (e.g. `[sector My Model]`, `[country My Real]`). `CrossPortfolioOverlapInput` gained `PortfolioAName`/`PortfolioBName` fields; defaults to "A"/"B" when names are empty (backward compatible for tests).
+- **Existing test fix**: `TestComputeCrossPortfolioOverlap_ETFWithNoHoldings` expected exactly 1 warning — updated to check `>= 1` and verify the UNKNOWN_ETF warning is present by prefix, since enhanced overlap adds sector/country warnings.
+- **Integration tests**: Three new tests — populated fields (ETF+stock with sector/geo data), empty portfolio B (graceful degradation), identical portfolios (100% overlap, zero drift, all neutral).
+
 ### Task 4: Merged holdings computation
 
 - **MergedHolding type in types.go**: The plan placed `MergedHolding` in `types.go` (TD-4) and it was added there since `OverlapResult` (in Task 6) will reference it. This follows the cross-reference rule.
