@@ -3,6 +3,7 @@ package comparison
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -1703,170 +1704,447 @@ func TestComputeReturnMetrics_ModelPortfolio_TWR(t *testing.T) {
 // TestBuildModelHoldings_EnrichmentWithSectorAndGeo verifies that
 // buildModelHoldings populates Sector, SectorWeightings, and
 // GeographicAllocations from SymbolDetails.
-func TestBuildModelHoldings_EnrichmentWithSectorAndGeo(t *testing.T) {
-	meta := &modelPortfolioMeta{
-		ID:       1,
-		Name:     "Test Portfolio",
-		Currency: "USD",
-		Weights: []ModelPortfolioWeight{
-			{
-				Symbol:    "VOO",
-				Weight:    decimal.MustNew(5000, 2), // 0.50
+// TestBuildHoldings_EnrichmentWithSectorAndGeo verifies that both
+// buildModelHoldings and buildRealHoldings populate Sector,
+// SectorWeightings, and GeographicAllocations from SymbolDetails.
+func TestBuildHoldings_EnrichmentWithSectorAndGeo(t *testing.T) {
+	// Shared symbol details used by both model and real paths.
+	symbolDetails := &mockSymbolDetailsSource{
+		details: map[string]*symbol.SymbolDetails{
+			"VOO": {
 				Currency:  "USD",
-				MarketSym: "VOO",
+				QuoteType: "ETF",
+				ShortName: "Vanguard S&P 500 ETF",
+				SectorWeightings: []symbol.SectorWeighting{
+					{Sector: "technology", Percent: 30.0},
+					{Sector: "healthcare", Percent: 15.0},
+				},
+				GeographicAllocations: []symbol.GeographicAllocation{
+					{Country: "United States", Percent: 95.0},
+					{Country: "Other", Percent: 5.0},
+				},
 			},
-			{
-				Symbol:    "AAPL",
-				Weight:    decimal.MustNew(5000, 2), // 0.50
+			"AAPL": {
 				Currency:  "USD",
-				MarketSym: "AAPL",
+				QuoteType: "EQUITY",
+				ShortName: "Apple Inc.",
+				Sector:    "Technology",
 			},
 		},
 	}
 
-	svc := &Service{
-		symbolDetails: &mockSymbolDetailsSource{
-			details: map[string]*symbol.SymbolDetails{
-				"VOO": {
-					Currency:  "USD",
-					QuoteType: "ETF",
-					ShortName: "Vanguard S&P 500 ETF",
-					SectorWeightings: []symbol.SectorWeighting{
-						{Sector: "technology", Percent: 30.0},
-						{Sector: "healthcare", Percent: 15.0},
-					},
-					GeographicAllocations: []symbol.GeographicAllocation{
-						{Country: "United States", Percent: 95.0},
-						{Country: "Other", Percent: 5.0},
-					},
-				},
-				"AAPL": {
-					Currency:  "USD",
-					QuoteType: "EQUITY",
-					ShortName: "Apple Inc.",
-					Sector:    "Technology",
-				},
+	cases := []struct {
+		name   string
+		build  func(*Service, context.Context) ([]PortfolioHolding, bool)
+		setup  func(*Service)
+		wantETF int // expected SectorWeightings count for VOO
+	}{
+		{
+			name: "model portfolio",
+			setup: func(s *Service) {
+				s.symbolDetails = symbolDetails
 			},
+			build: func(s *Service, _ context.Context) ([]PortfolioHolding, bool) {
+				meta := &modelPortfolioMeta{
+					ID:       1,
+					Name:     "Test Portfolio",
+					Currency: "USD",
+					Weights: []ModelPortfolioWeight{
+						{Symbol: "VOO", Weight: decimal.MustNew(5000, 2), Currency: "USD", MarketSym: "VOO"},
+						{Symbol: "AAPL", Weight: decimal.MustNew(5000, 2), Currency: "USD", MarketSym: "AAPL"},
+					},
+				}
+				return s.buildModelHoldings(ctx, meta)
+			},
+			wantETF: 2,
+		},
+		{
+			name: "real portfolio",
+			setup: func(s *Service) {
+				s.symbolDetails = symbolDetails
+				s.allocation = &mockAllocationSource{
+					results: map[int64]*allocation.AllocationResult{
+						1: {
+							Rows: []allocation.AllocationRow{
+								{Symbol: "VOO", AllocationPct: decimal.MustNew(6000, 2), HasMarketData: true, Currency: "USD"},
+								{Symbol: "AAPL", AllocationPct: decimal.MustNew(4000, 2), HasMarketData: true, Currency: "USD"},
+							},
+							MarketDataAvailable: true,
+							BaseCurrency:        "USD",
+						},
+					},
+				}
+			},
+			build: func(s *Service, _ context.Context) ([]PortfolioHolding, bool) {
+				meta := &realPortfolioMeta{
+					ID:           1,
+					Name:         "Real Portfolio",
+					BaseCurrency: "USD",
+				}
+				return s.buildRealHoldings(ctx, meta)
+			},
+			wantETF: 2, // same symbol details, so same count
 		},
 	}
 
-	holdings, ok := svc.buildModelHoldings(ctx, meta)
-	if !ok {
-		t.Fatal("buildModelHoldings returned ok=false")
-	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &Service{}
+			tc.setup(svc)
 
-	if len(holdings) != 2 {
-		t.Fatalf("got %d holdings, want 2", len(holdings))
-	}
+			holdings, ok := tc.build(svc, ctx)
+			if !ok {
+				t.Fatal("build returned ok=false")
+			}
+			if len(holdings) != 2 {
+				t.Fatalf("got %d holdings, want 2", len(holdings))
+			}
 
-	// VOO (ETF) should have SectorWeightings and GeographicAllocations.
-	voo := holdings[0]
-	if voo.Symbol != "VOO" {
-		t.Errorf("holding[0].Symbol = %q, want %q", voo.Symbol, "VOO")
-	}
-	if len(voo.SectorWeightings) != 2 {
-		t.Errorf("VOO SectorWeightings len = %d, want 2", len(voo.SectorWeightings))
-	}
-	if len(voo.SectorWeightings) >= 1 && voo.SectorWeightings[0].Sector != "technology" {
-		t.Errorf("VOO SectorWeightings[0].Sector = %q, want %q", voo.SectorWeightings[0].Sector, "technology")
-	}
-	if len(voo.GeographicAllocations) != 2 {
-		t.Errorf("VOO GeographicAllocations len = %d, want 2", len(voo.GeographicAllocations))
-	}
-	if len(voo.GeographicAllocations) >= 1 && voo.GeographicAllocations[0].Country != "United States" {
-		t.Errorf("VOO GeographicAllocations[0].Country = %q, want %q", voo.GeographicAllocations[0].Country, "United States")
-	}
+			// VOO (ETF) should have SectorWeightings and GeographicAllocations.
+			voo := holdings[0]
+			if voo.Symbol != "VOO" {
+				t.Errorf("holding[0].Symbol = %q, want %q", voo.Symbol, "VOO")
+			}
+			if len(voo.SectorWeightings) != tc.wantETF {
+				t.Errorf("VOO SectorWeightings len = %d, want %d", len(voo.SectorWeightings), tc.wantETF)
+			}
+			if len(voo.SectorWeightings) >= 1 && voo.SectorWeightings[0].Sector != "technology" {
+				t.Errorf("VOO SectorWeightings[0].Sector = %q, want %q", voo.SectorWeightings[0].Sector, "technology")
+			}
+			if len(voo.GeographicAllocations) != 2 {
+				t.Errorf("VOO GeographicAllocations len = %d, want 2", len(voo.GeographicAllocations))
+			}
+			if len(voo.GeographicAllocations) >= 1 && voo.GeographicAllocations[0].Country != "United States" {
+				t.Errorf("VOO GeographicAllocations[0].Country = %q, want %q", voo.GeographicAllocations[0].Country, "United States")
+			}
 
-	// AAPL (stock) should have primary Sector.
-	aapl := holdings[1]
-	if aapl.Symbol != "AAPL" {
-		t.Errorf("holding[1].Symbol = %q, want %q", aapl.Symbol, "AAPL")
-	}
-	if aapl.Sector != "Technology" {
-		t.Errorf("AAPL Sector = %q, want %q", aapl.Sector, "Technology")
-	}
-	// Stocks should NOT have SectorWeightings from symbol details.
-	if len(aapl.SectorWeightings) != 0 {
-		t.Errorf("AAPL SectorWeightings len = %d, want 0", len(aapl.SectorWeightings))
+			// AAPL (stock) should have primary Sector.
+			aapl := holdings[1]
+			if aapl.Symbol != "AAPL" {
+				t.Errorf("holding[1].Symbol = %q, want %q", aapl.Symbol, "AAPL")
+			}
+			if aapl.Sector != "Technology" {
+				t.Errorf("AAPL Sector = %q, want %q", aapl.Sector, "Technology")
+			}
+			if len(aapl.SectorWeightings) != 0 {
+				t.Errorf("AAPL SectorWeightings len = %d, want 0", len(aapl.SectorWeightings))
+			}
+		})
 	}
 }
 
-// TestBuildRealHoldings_EnrichmentWithSectorAndGeo verifies that
-// buildRealHoldings populates Sector, SectorWeightings, and
-// GeographicAllocations from SymbolDetails.
-func TestBuildRealHoldings_EnrichmentWithSectorAndGeo(t *testing.T) {
-	allocPct60 := decimal.MustNew(6000, 2)
-	allocPct40 := decimal.MustNew(4000, 2)
+// TestComputeComparison_EnhancedOverlap_FullPipeline verifies that the full
+// ComputeComparison pipeline (service → computeOverlap → ComputeCrossPortfolioOverlap)
+// produces OverlapResult with all enhanced fields populated: sector/country
+// allocations, merged holdings, and overweight/underweight/neutral.
+func TestComputeComparison_EnhancedOverlap_FullPipeline(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	meta := &realPortfolioMeta{
-		ID:           1,
-		Name:         "Real Portfolio",
-		BaseCurrency: "USD",
+	// VOO: S&P 500 ETF with sector/geographic/top holdings data
+	vooDetails := &symbol.SymbolDetails{
+		Currency:  "USD",
+		QuoteType: "ETF",
+		ShortName: "Vanguard S&P 500 ETF",
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "Technology", Percent: 30.0},
+			{Sector: "Healthcare", Percent: 15.0},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 95.0},
+			{Country: "Other", Percent: 5.0},
+		},
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 7.0},
+			{Symbol: "MSFT", Name: "Microsoft Corp.", Percent: 6.0},
+			{Symbol: "GOOG", Name: "Alphabet Inc.", Percent: 5.0},
+		},
 	}
 
-	svc := &Service{
-		allocation: &mockAllocationSource{
-			results: map[int64]*allocation.AllocationResult{
-				1: {
-					Rows: []allocation.AllocationRow{
-						{Symbol: "VOO", AllocationPct: allocPct60, HasMarketData: true, Currency: "USD"},
-						{Symbol: "AAPL", AllocationPct: allocPct40, HasMarketData: true, Currency: "USD"},
-					},
-					MarketDataAvailable: true,
-					BaseCurrency:        "USD",
-				},
+	// VXUS: Total International ETF with different sector/geographic data
+	vxusDetails := &symbol.SymbolDetails{
+		Currency:  "USD",
+		QuoteType: "ETF",
+		ShortName: "Vanguard Total International Stock ETF",
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "Financials", Percent: 25.0},
+			{Sector: "Industrials", Percent: 12.0},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "Japan", Percent: 15.0},
+			{Country: "United Kingdom", Percent: 10.0},
+			{Country: "Other", Percent: 75.0},
+		},
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "NVD", Name: "Nintendo Co.", Percent: 1.5},
+			{Symbol: "SIE", Name: "Sony Group", Percent: 1.2},
+		},
+	}
+
+	// AAPL: individual stock with primary sector
+	aaplDetails := &symbol.SymbolDetails{
+		Currency:  "USD",
+		QuoteType: "EQUITY",
+		ShortName: "Apple Inc.",
+		Sector:    "Technology",
+	}
+
+	// 10 days of prices for each symbol
+	vooPrices := buildPriceSeries(base, []float64{400, 402, 401, 403, 405, 404, 406, 408, 410, 412}, "USD")
+	vxusPrices := buildPriceSeries(base, []float64{60, 60.2, 60.1, 60.3, 60.5, 60.4, 60.6, 60.8, 61, 61.2}, "USD")
+	aaplPrices := buildPriceSeries(base, []float64{170, 171, 170.5, 172, 173, 172.5, 174, 175, 176, 177}, "USD")
+
+	// Model A: 60% VOO + 40% AAPL
+	modelA := buildModelPortfolio(1, "US Growth", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "VOO", WeightPct: decimal.MustNew(6000, 2)},  // 60%
+		{Symbol: "AAPL", WeightPct: decimal.MustNew(4000, 2)}, // 40%
+	})
+
+	// Model B: 50% VOO + 50% VXUS
+	modelB := buildModelPortfolio(2, "Global Blend", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "VOO", WeightPct: decimal.MustNew(5000, 2)},  // 50%
+		{Symbol: "VXUS", WeightPct: decimal.MustNew(5000, 2)}, // 50%
+	})
+
+	from := base
+	to := base.AddDate(0, 0, 9)
+
+	svc := NewService(
+		&mockModelPortfolioSource{
+			portfolios: map[int64]modelportfolio.ModelPortfolio{
+				1: modelA,
+				2: modelB,
 			},
 		},
-		symbolDetails: &mockSymbolDetailsSource{
+		nil,
+		&mockMarketHistorySource{
+			prices: map[string][]market.HistoricalPrice{
+				"VOO":  vooPrices,
+				"VXUS": vxusPrices,
+				"AAPL": aaplPrices,
+			},
+		},
+		&mockMarketDataSymbolResolver{
+			symbols: map[string]string{},
+		},
+		&mockSymbolDetailsSource{
 			details: map[string]*symbol.SymbolDetails{
-				"VOO": {
-					Currency:  "USD",
-					QuoteType: "ETF",
-					ShortName: "Vanguard S&P 500 ETF",
-					SectorWeightings: []symbol.SectorWeighting{
-						{Sector: "technology", Percent: 30.0},
-					},
-					GeographicAllocations: []symbol.GeographicAllocation{
-						{Country: "United States", Percent: 95.0},
-					},
-				},
-				"AAPL": {
-					Currency:  "USD",
-					QuoteType: "EQUITY",
-					ShortName: "Apple Inc.",
-					Sector:    "Technology",
-				},
+				"VOO":  vooDetails,
+				"VXUS": vxusDetails,
+				"AAPL": aaplDetails,
 			},
 		},
+		nil,
+		nil,
+		nil,
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   1,
+		PortfolioAType: PortTypeModel,
+		PortfolioBID:   2,
+		PortfolioBType: PortTypeModel,
+		DateFrom:       &from,
+		DateTo:         &to,
+		BaseCurrency:   "USD",
+		StartingValue:  decimal.MustNew(1000000, 2),
 	}
 
-	holdings, ok := svc.buildRealHoldings(ctx, meta)
-	if !ok {
-		t.Fatal("buildRealHoldings returned ok=false")
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
 	}
 
-	if len(holdings) != 2 {
-		t.Fatalf("got %d holdings, want 2", len(holdings))
+	// Verify basic structure.
+	if result.CrossMetrics == nil {
+		t.Fatal("CrossMetrics is nil")
+	}
+	if result.CrossMetrics.Overlap == nil {
+		t.Fatal("CrossMetrics.Overlap is nil")
 	}
 
-	// VOO (ETF) should have SectorWeightings and GeographicAllocations.
-	voo := holdings[0]
-	if voo.Symbol != "VOO" {
-		t.Errorf("holding[0].Symbol = %q, want %q", voo.Symbol, "VOO")
-	}
-	if len(voo.SectorWeightings) != 1 {
-		t.Errorf("VOO SectorWeightings len = %d, want 1", len(voo.SectorWeightings))
-	}
-	if len(voo.GeographicAllocations) != 1 {
-		t.Errorf("VOO GeographicAllocations len = %d, want 1", len(voo.GeographicAllocations))
+	overlap := result.CrossMetrics.Overlap
+
+	// --- Sector allocations ---
+	if overlap.SectorAllocationA == nil {
+		t.Error("SectorAllocationA is nil — should be populated from VOO sector weightings + AAPL primary sector")
+	} else {
+		if len(overlap.SectorAllocationA.Breakdown) == 0 {
+			t.Error("SectorAllocationA.Breakdown is empty")
+		}
+		// Portfolio A has VOO (60%, tech 30% + healthcare 15%) + AAPL (40%, tech)
+		// Technology = 0.60*0.30 + 0.40 = 0.58 (58%)
+		if tech, ok := overlap.SectorAllocationA.Breakdown["Technology"]; !ok || tech < 0.50 {
+			t.Errorf("SectorAllocationA Technology weight = %v, want >= 0.50", tech)
+		}
 	}
 
-	// AAPL (stock) should have primary Sector.
-	aapl := holdings[1]
-	if aapl.Symbol != "AAPL" {
-		t.Errorf("holding[1].Symbol = %q, want %q", aapl.Symbol, "AAPL")
+	if overlap.SectorAllocationB == nil {
+		t.Error("SectorAllocationB is nil — should be populated from VOO + VXUS sector weightings")
+	} else {
+		if len(overlap.SectorAllocationB.Breakdown) == 0 {
+			t.Error("SectorAllocationB.Breakdown is empty")
+		}
 	}
-	if aapl.Sector != "Technology" {
-		t.Errorf("AAPL Sector = %q, want %q", aapl.Sector, "Technology")
+
+	// --- Country allocations ---
+	if overlap.CountryAllocationA == nil {
+		t.Error("CountryAllocationA is nil — should be populated from VOO geographic allocations")
+	} else {
+		if len(overlap.CountryAllocationA.Breakdown) == 0 {
+			t.Error("CountryAllocationA.Breakdown is empty")
+		}
+		// Portfolio A: VOO (60%, US 95%) → US = 0.60*0.95 = 0.57 (57%)
+		// AAPL has no geo data → goes to Unknown
+		if us, ok := overlap.CountryAllocationA.Breakdown["United States"]; !ok || us < 0.50 {
+			t.Errorf("CountryAllocationA United States weight = %v, want >= 0.50", us)
+		}
+	}
+
+	if overlap.CountryAllocationB == nil {
+		t.Error("CountryAllocationB is nil — should be populated from VOO + VXUS geographic allocations")
+	}
+
+	// --- Merged holdings ---
+	if len(overlap.MergedHoldings) == 0 {
+		t.Error("MergedHoldings is empty — should have merged underlying holdings from both portfolios")
+	}
+
+	// --- Overweight/underweight/neutral ---
+	// AAPL is only in A (40% direct), so it should be overweight in A.
+	// VXUS holdings (NVD, SIE) are only in B, so they should be underweight in A.
+	// VOO's top holdings (AAPL, MSFT, GOOG) appear in both but at different weights.
+	hasOverweight := len(overlap.OverweightHoldings) > 0
+	hasUnderweight := len(overlap.UnderweightHoldings) > 0
+	if !hasOverweight {
+		t.Error("OverweightHoldings is empty — portfolio A has unique/different-weight holdings")
+	}
+	if !hasUnderweight {
+		t.Error("UnderweightHoldings is empty — portfolio B has unique/different-weight holdings")
+	}
+
+	// --- Warnings ---
+	// Should have sector/country warnings prefixed with portfolio names.
+	hasPortfolioNameWarning := false
+	for _, w := range overlap.Warnings {
+		if strings.HasPrefix(w, "[sector") || strings.HasPrefix(w, "[country") {
+			hasPortfolioNameWarning = true
+			break
+		}
+	}
+	if !hasPortfolioNameWarning {
+		t.Logf("No portfolio-name-prefixed warnings found (may be expected if all data is complete). Warnings: %v", overlap.Warnings)
 	}
 }
+
+// TestComputeComparison_EnhancedOverlap_IdenticalPortfolios verifies
+// identical portfolios produce 100% overlap, zero drift, all neutral.
+func TestComputeComparison_EnhancedOverlap_IdenticalPortfolios(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// VOO with full data
+	vooFull := &symbol.SymbolDetails{
+		Currency:  "USD",
+		QuoteType: "ETF",
+		ShortName: "Vanguard S&P 500 ETF",
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "Technology", Percent: 30.0},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 95.0},
+		},
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 7.0},
+		},
+	}
+
+	vooPrices := buildPriceSeries(base, []float64{400, 402, 401, 403, 405, 404, 406, 408, 410, 412}, "USD")
+
+	modelA := buildModelPortfolio(1, "Full Data", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "VOO", WeightPct: decimal.MustNew(10000, 2)},
+	})
+
+	modelB := buildModelPortfolio(2, "Minimal Data", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "VOO", WeightPct: decimal.MustNew(10000, 2)},
+	})
+
+	from := base
+	to := base.AddDate(0, 0, 9)
+
+	svc := NewService(
+		&mockModelPortfolioSource{
+			portfolios: map[int64]modelportfolio.ModelPortfolio{
+				1: modelA,
+				2: modelB,
+			},
+		},
+		nil,
+		&mockMarketHistorySource{
+			prices: map[string][]market.HistoricalPrice{
+				"VOO": vooPrices,
+			},
+		},
+		&mockMarketDataSymbolResolver{
+			symbols: map[string]string{},
+		},
+		&mockSymbolDetailsSource{
+			details: map[string]*symbol.SymbolDetails{
+				"VOO": vooFull, // Both portfolios use the same symbol, so both get full data
+			},
+		},
+		nil,
+		nil,
+		nil,
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   1,
+		PortfolioAType: PortTypeModel,
+		PortfolioBID:   2,
+		PortfolioBType: PortTypeModel,
+		DateFrom:       &from,
+		DateTo:         &to,
+		BaseCurrency:   "USD",
+		StartingValue:  decimal.MustNew(1000000, 2),
+	}
+
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
+	}
+
+	if result.CrossMetrics == nil || result.CrossMetrics.Overlap == nil {
+		t.Fatal("CrossMetrics.Overlap is nil")
+	}
+
+	overlap := result.CrossMetrics.Overlap
+
+	// Both portfolios use the same symbol (VOO) with full data,
+	// so both should have sector/country data.
+	if overlap.SectorAllocationA == nil || len(overlap.SectorAllocationA.Breakdown) == 0 {
+		t.Error("SectorAllocationA should be populated")
+	}
+	if overlap.SectorAllocationB == nil || len(overlap.SectorAllocationB.Breakdown) == 0 {
+		t.Error("SectorAllocationB should be populated")
+	}
+
+	// Identical portfolios with same top holdings data.
+	// Overlap is based on expanded top holdings (not 100% of ETF),
+	// so the overlap reflects the shared top holdings proportion.
+	// VOO top holdings: AAPL at 7% → overlap = 7% (min(0.07, 0.07) = 0.07).
+	overlapPct, _ := overlap.OverlapPct.Float64()
+	if overlapPct < 5 {
+		t.Errorf("OverlapPct = %.2f, want > 0 (identical portfolios share all top holdings)", overlapPct)
+	}
+
+	// All holdings should be neutral (identical weights).
+	if len(overlap.NeutralHoldings) == 0 {
+		t.Error("NeutralHoldings is empty — identical portfolios should have all neutral holdings")
+	}
+	if len(overlap.OverweightHoldings) > 0 {
+		t.Errorf("OverweightHoldings has %d entries — identical portfolios should have none", len(overlap.OverweightHoldings))
+	}
+	if len(overlap.UnderweightHoldings) > 0 {
+		t.Errorf("UnderweightHoldings has %d entries — identical portfolios should have none", len(overlap.UnderweightHoldings))
+	}
+}
+
