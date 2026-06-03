@@ -1,6 +1,6 @@
 # WisdomTree ETF Scraper — Progress & Findings
 
-**Last updated**: 2026-05-26
+**Last updated**: 2026-06-03
 
 > **WORKFLOW RULE**: Update this file AFTER EVERY finding or failure, not at the end. This prevents repeating work when context window resets.
 **Target URL**: `https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt---wisdomtree-megatrends-ucits-etf---usd-acc`
@@ -9,7 +9,7 @@
 
 ---
 
-## Status: ✅ Data extraction patterns fully identified. ALL data (including country allocation, market cap, fund characteristics) is in raw HTML. CycleTLS bypasses Cloudflare successfully. No headless browser needed.
+## Status: ✅ Data extraction complete. ALL data extractable via CycleTLS + HTML parsing. Holdings with ticker/symbol data available via the all-holdings modal page. No headless browser needed.
 
 ---
 
@@ -23,7 +23,7 @@ The HTML page contains **four data variables**, each a CSV string with `\n` as r
 
 | Variable | Data Type | Format |
 |----------|-----------|--------|
-| `var fundHoldingsData` | Top holdings (weights + security names) | `date,Weight,Security Description` |
+| `var fundHoldingsData` | Top holdings (weights + security names, **no ticker**) | `date,Weight,Security Description` |
 | `var fundMarketData<HASH>` | NAV history + benchmark index | `date,fund_ticker,close_price_adj,volume_adj,nav,...,uv10KMP,uv10KNAV` |
 | `var fundThemeData` | Theme allocation breakdown | `date,Weight,Security Description` |
 | `var fundSectorsData` | Sector allocation (per-security + totals) | `date,securityName,weight,Sector,wgtSector` |
@@ -39,6 +39,12 @@ The `<HASH>` suffix (e.g. `657FFD51CE524D86BA76544F895FF0FE`) is a Sitecore item
 - **NAV table**: NAV, Daily Change, Daily Return, Total AUM of fund, Issuer AUM (with "as of" date in header)
 - **Product Overview table**: Inception Date, TER, Exchange Ticker, Index Name (key-value rows with `class="key"` and `class="value"`)
 
+**All-holdings modal** (separate page fetched via `data-href` link):
+- Contains an embedded JSON array (`var source = [...]`) with full holdings data including `IdentifierTicker` (e.g. `"NVDA UQ"`) and `IdentifierName`
+- URL pattern: `https://www.wisdomtree.eu/{locale}/global/etf-details/modals/all-holdings?id={GUID}`
+- The GUID is extracted from a `data-href` attribute on the main page
+- Modal page also bypassed by CycleTLS (same Cloudflare protection)
+
 ---
 
 ## Extraction Patterns (Regex for Go)
@@ -49,7 +55,7 @@ var fundInfo\w+\s*=\s*\{([^}]+)\}
 ```
 Extract the JSON-like object, then parse `symbol` and `name` fields.
 
-### 2. Holdings Data
+### 2. Holdings Data (Main Page CSV — No Ticker)
 ```regex
 var fundHoldingsData = '([^']+)'\s*;
 ```
@@ -61,6 +67,44 @@ The captured group is CSV with literal `\n` as row separator. Replace `\\n` with
 - `Security Description`: Quoted string, may contain `\u0026` for `&`
 
 **Note**: The last ~25 rows are cash/currency positions (e.g. "CASH W-O", "STERLING POUND", "JAPANESE YEN") — these are not equity holdings.
+
+**Note**: This CSV has **no ticker/symbol column**. Use the all-holdings modal (Section 2b) for ticker data.
+
+### 2b. Holdings Data (All-Holdings Modal — With Ticker)
+
+The main page contains a link to an "all-holdings" modal page:
+```html
+<a data-href="https://www.wisdomtree.eu/en-gb/global/etf-details/modals/all-holdings?id={8B845B79-F55C-4B6A-8D67-CA84E1C19C5B}">
+```
+
+**Extract modal URL** with regex:
+```regex
+data-href="([^"]*all-holdings[^"]*)"
+```
+
+**Fetch the modal page** via the same CycleTLS client. The modal contains an embedded JSON array:
+```regex
+var source = (\[\s*\{[^\]]*\}\s*\])
+```
+
+**JSON structure per holding**:
+```json
+{
+  "CountryCode": "US ",
+  "Weight": 0.1426250,
+  "COBDate": "2026-06-02T00:00:00",
+  "IdentifierName": "Nvidia Corp",
+  "IdentifierTicker": "NVDA UQ",
+  "SharesPar": "26576",
+  "MarketValue": 5921664.32
+}
+```
+
+**Ticker format**: Bloomberg-style with market suffix (e.g. `"NVDA UQ"`, `"MSFT US"`, `"LLY UN"`). Strip the suffix (everything after the first space) to get the clean ticker. Some entries have CUSIP instead of ticker (e.g. `"US5128073062"`) — keep as-is.
+
+**Weight format**: Fraction (e.g. `0.1426250` = 14.26%). Multiply by 100 for percentage.
+
+**Cash positions**: Same filtering rules apply — entries with `IdentifierName` containing "CASH W-O", currency names, etc. should be filtered out.
 
 ### 3. NAV/Market Data
 ```regex
@@ -402,6 +446,10 @@ Country allocation, market cap, and fund characteristics **ARE in the raw HTML**
 | Country allocation in raw HTML (CycleTLS response) | ✅ CONFIRMED — HTML table with actual data, not empty |
 | Market cap in raw HTML (CycleTLS response) | ✅ CONFIRMED — HTML table with actual data |
 | Fund characteristics in raw HTML (CycleTLS response) | ✅ CONFIRMED — HTML table with actual data |
+| Check main page CSV for ticker column | ❌ Only 3 columns: date, Weight, Security Description — no ticker |
+| Check "all-holdings" modal for ticker data | ✅ CONFIRMED — embedded JSON with `IdentifierTicker` (e.g. "NVDA UQ") |
+| `curl` on modal URL | ❌ Cloudflare blocked — same protection as main site |
+| CycleTLS on modal URL | ✅ CONFIRMED — 200 OK, full JSON with ticker data |
 
 ---
 
@@ -417,17 +465,21 @@ Country allocation, market cap, and fund characteristics **ARE in the raw HTML**
 
 5. **Existing infrastructure**: The project already uses CycleTLS (via go-yfinance) for Yahoo Finance. The same approach works for WisdomTree — **all data**, not just inline CSV variables.
 
+6. **Holdings ticker data**: The main page CSV has no ticker column. Ticker/symbol data is available only via the all-holdings modal page (separate URL extracted from `data-href` on main page). The modal contains an embedded JSON array with `IdentifierTicker` (Bloomberg-style, e.g. `"NVDA UQ"`), `IdentifierName`, `Weight`, `CountryCode`, etc. CycleTLS bypasses Cloudflare on the modal page as well.
+
 ## Next Steps for Go Implementation
 
 ### Phase 1: All Data (CycleTLS + regex/CSV + HTML table parsing)
 
 1. ~~Test CycleTLS against WisdomTree~~ — **✅ CONFIRMED: CycleTLS bypasses Cloudflare successfully**
-2. Implement HTTP fetcher using CycleTLS (same approach as go-yfinance for Yahoo)
-3. Implement regex extraction for each data variable (holdings, NAV, themes, sectors)
-4. Implement regex on HTML tables for country allocation, market cap, fund characteristics
-5. Write CSV parser for each data type
-6. Add unit tests using the sample files in `samples/`
+2. ~~Implement HTTP fetcher using CycleTLS~~ — ✅ Done
+3. ~~Implement regex extraction for each data variable~~ — ✅ Done
+4. ~~Implement regex on HTML tables for country allocation, market cap, fund characteristics~~ — ✅ Done
+5. ~~Write CSV parser for each data type~~ — ✅ Done
+6. ~~Add unit tests~~ — ✅ Done
+7. ~~Fetch all-holdings modal for ticker data~~ — ✅ Done (extract modal URL, fetch via CycleTLS, parse embedded JSON)
+8. ~~Strip Bloomberg market suffix from tickers~~ — ✅ Done (e.g. "NVDA UQ" → "NVDA")
 
 ### Decision Point
 
-**CycleTLS + HTML parsing is the complete solution.** No chromedp, no headless browser, no external service needed. All data (including country allocation, market cap, fund characteristics) is in the raw HTML.
+**CycleTLS + HTML parsing is the complete solution.** No chromedp, no headless browser, no external service needed. All data (including country allocation, market cap, fund characteristics, and holdings tickers) is extractable.
