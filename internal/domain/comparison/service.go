@@ -888,6 +888,9 @@ func (s *Service) buildModelHoldings(ctx context.Context, meta *modelPortfolioMe
 					holding.Name = details.ShortName
 				}
 				holding.TopHoldings = details.TopHoldings
+				holding.Sector = details.Sector
+				holding.SectorWeightings = details.SectorWeightings
+				holding.GeographicAllocations = details.GeographicAllocations
 			}
 		}
 
@@ -941,6 +944,9 @@ func (s *Service) buildRealHoldings(ctx context.Context, meta *realPortfolioMeta
 					holding.Name = details.ShortName
 				}
 				holding.TopHoldings = details.TopHoldings
+				holding.Sector = details.Sector
+				holding.SectorWeightings = details.SectorWeightings
+				holding.GeographicAllocations = details.GeographicAllocations
 			}
 		}
 

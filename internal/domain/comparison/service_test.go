@@ -1699,3 +1699,174 @@ func TestComputeReturnMetrics_ModelPortfolio_TWR(t *testing.T) {
 		t.Errorf("TWRPct = %.2f, want ~4.00", twrF)
 	}
 }
+
+// TestBuildModelHoldings_EnrichmentWithSectorAndGeo verifies that
+// buildModelHoldings populates Sector, SectorWeightings, and
+// GeographicAllocations from SymbolDetails.
+func TestBuildModelHoldings_EnrichmentWithSectorAndGeo(t *testing.T) {
+	meta := &modelPortfolioMeta{
+		ID:       1,
+		Name:     "Test Portfolio",
+		Currency: "USD",
+		Weights: []ModelPortfolioWeight{
+			{
+				Symbol:    "VOO",
+				Weight:    decimal.MustNew(5000, 2), // 0.50
+				Currency:  "USD",
+				MarketSym: "VOO",
+			},
+			{
+				Symbol:    "AAPL",
+				Weight:    decimal.MustNew(5000, 2), // 0.50
+				Currency:  "USD",
+				MarketSym: "AAPL",
+			},
+		},
+	}
+
+	svc := &Service{
+		symbolDetails: &mockSymbolDetailsSource{
+			details: map[string]*symbol.SymbolDetails{
+				"VOO": {
+					Currency:  "USD",
+					QuoteType: "ETF",
+					ShortName: "Vanguard S&P 500 ETF",
+					SectorWeightings: []symbol.SectorWeighting{
+						{Sector: "technology", Percent: 30.0},
+						{Sector: "healthcare", Percent: 15.0},
+					},
+					GeographicAllocations: []symbol.GeographicAllocation{
+						{Country: "United States", Percent: 95.0},
+						{Country: "Other", Percent: 5.0},
+					},
+				},
+				"AAPL": {
+					Currency:  "USD",
+					QuoteType: "EQUITY",
+					ShortName: "Apple Inc.",
+					Sector:    "Technology",
+				},
+			},
+		},
+	}
+
+	holdings, ok := svc.buildModelHoldings(ctx, meta)
+	if !ok {
+		t.Fatal("buildModelHoldings returned ok=false")
+	}
+
+	if len(holdings) != 2 {
+		t.Fatalf("got %d holdings, want 2", len(holdings))
+	}
+
+	// VOO (ETF) should have SectorWeightings and GeographicAllocations.
+	voo := holdings[0]
+	if voo.Symbol != "VOO" {
+		t.Errorf("holding[0].Symbol = %q, want %q", voo.Symbol, "VOO")
+	}
+	if len(voo.SectorWeightings) != 2 {
+		t.Errorf("VOO SectorWeightings len = %d, want 2", len(voo.SectorWeightings))
+	}
+	if len(voo.SectorWeightings) >= 1 && voo.SectorWeightings[0].Sector != "technology" {
+		t.Errorf("VOO SectorWeightings[0].Sector = %q, want %q", voo.SectorWeightings[0].Sector, "technology")
+	}
+	if len(voo.GeographicAllocations) != 2 {
+		t.Errorf("VOO GeographicAllocations len = %d, want 2", len(voo.GeographicAllocations))
+	}
+	if len(voo.GeographicAllocations) >= 1 && voo.GeographicAllocations[0].Country != "United States" {
+		t.Errorf("VOO GeographicAllocations[0].Country = %q, want %q", voo.GeographicAllocations[0].Country, "United States")
+	}
+
+	// AAPL (stock) should have primary Sector.
+	aapl := holdings[1]
+	if aapl.Symbol != "AAPL" {
+		t.Errorf("holding[1].Symbol = %q, want %q", aapl.Symbol, "AAPL")
+	}
+	if aapl.Sector != "Technology" {
+		t.Errorf("AAPL Sector = %q, want %q", aapl.Sector, "Technology")
+	}
+	// Stocks should NOT have SectorWeightings from symbol details.
+	if len(aapl.SectorWeightings) != 0 {
+		t.Errorf("AAPL SectorWeightings len = %d, want 0", len(aapl.SectorWeightings))
+	}
+}
+
+// TestBuildRealHoldings_EnrichmentWithSectorAndGeo verifies that
+// buildRealHoldings populates Sector, SectorWeightings, and
+// GeographicAllocations from SymbolDetails.
+func TestBuildRealHoldings_EnrichmentWithSectorAndGeo(t *testing.T) {
+	allocPct60 := decimal.MustNew(6000, 2)
+	allocPct40 := decimal.MustNew(4000, 2)
+
+	meta := &realPortfolioMeta{
+		ID:           1,
+		Name:         "Real Portfolio",
+		BaseCurrency: "USD",
+	}
+
+	svc := &Service{
+		allocation: &mockAllocationSource{
+			results: map[int64]*allocation.AllocationResult{
+				1: {
+					Rows: []allocation.AllocationRow{
+						{Symbol: "VOO", AllocationPct: allocPct60, HasMarketData: true, Currency: "USD"},
+						{Symbol: "AAPL", AllocationPct: allocPct40, HasMarketData: true, Currency: "USD"},
+					},
+					MarketDataAvailable: true,
+					BaseCurrency:        "USD",
+				},
+			},
+		},
+		symbolDetails: &mockSymbolDetailsSource{
+			details: map[string]*symbol.SymbolDetails{
+				"VOO": {
+					Currency:  "USD",
+					QuoteType: "ETF",
+					ShortName: "Vanguard S&P 500 ETF",
+					SectorWeightings: []symbol.SectorWeighting{
+						{Sector: "technology", Percent: 30.0},
+					},
+					GeographicAllocations: []symbol.GeographicAllocation{
+						{Country: "United States", Percent: 95.0},
+					},
+				},
+				"AAPL": {
+					Currency:  "USD",
+					QuoteType: "EQUITY",
+					ShortName: "Apple Inc.",
+					Sector:    "Technology",
+				},
+			},
+		},
+	}
+
+	holdings, ok := svc.buildRealHoldings(ctx, meta)
+	if !ok {
+		t.Fatal("buildRealHoldings returned ok=false")
+	}
+
+	if len(holdings) != 2 {
+		t.Fatalf("got %d holdings, want 2", len(holdings))
+	}
+
+	// VOO (ETF) should have SectorWeightings and GeographicAllocations.
+	voo := holdings[0]
+	if voo.Symbol != "VOO" {
+		t.Errorf("holding[0].Symbol = %q, want %q", voo.Symbol, "VOO")
+	}
+	if len(voo.SectorWeightings) != 1 {
+		t.Errorf("VOO SectorWeightings len = %d, want 1", len(voo.SectorWeightings))
+	}
+	if len(voo.GeographicAllocations) != 1 {
+		t.Errorf("VOO GeographicAllocations len = %d, want 1", len(voo.GeographicAllocations))
+	}
+
+	// AAPL (stock) should have primary Sector.
+	aapl := holdings[1]
+	if aapl.Symbol != "AAPL" {
+		t.Errorf("holding[1].Symbol = %q, want %q", aapl.Symbol, "AAPL")
+	}
+	if aapl.Sector != "Technology" {
+		t.Errorf("AAPL Sector = %q, want %q", aapl.Sector, "Technology")
+	}
+}
