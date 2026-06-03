@@ -314,6 +314,16 @@ func TestParseAsOfDate(t *testing.T) {
 			want: time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC),
 		},
 		{
+			name: "abbreviated month",
+			html: `<th>Net Asset Value</th><th>02 Jun 2026</th>`,
+			want: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name: "abbreviated month single digit day",
+			html: `<th>Net Asset Value</th><th>1 Jun 2026</th>`,
+			want: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
 			name: "with whitespace",
 			html: `<th>  Net Asset Value  </th>  <th> 22 May 2026 </th>`,
 			want: time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC),
@@ -352,6 +362,7 @@ func TestParseFundProfile(t *testing.T) {
 		wantTER       float64
 		wantFamily    string
 		wantLegalType string
+		wantIsin      string
 		wantNil       bool
 		wantErr       bool
 	}{
@@ -363,11 +374,15 @@ func TestParseFundProfile(t *testing.T) {
 <tr><td class="key">Inception Date</td><td>01/06/2023</td></tr>
 <tr><td class="key">Fund Umbrella</td><td>WisdomTree Issuer ICAV</td></tr>
 <tr><td class="key">Legal Form</td><td>ICAV</td></tr>
+</table>
+<table>
+<tr><td>ISIN</td><td>IE000YGEAK03</td></tr>
 </table>`,
 			wantAUM:       60368055,
 			wantTER:       0.0040,
 			wantFamily:    "WisdomTree Issuer ICAV",
 			wantLegalType: "ICAV",
+			wantIsin:      "IE000YGEAK03",
 		},
 		{
 			name: "minimal profile (AUM only)",
@@ -428,6 +443,9 @@ func TestParseFundProfile(t *testing.T) {
 			}
 			if got.LegalType != tt.wantLegalType {
 				t.Errorf("LegalType = %q, want %q", got.LegalType, tt.wantLegalType)
+			}
+			if got.Isin != tt.wantIsin {
+				t.Errorf("Isin = %q, want %q", got.Isin, tt.wantIsin)
 			}
 		})
 	}

@@ -74,6 +74,12 @@ func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 		profile.LegalType = strings.TrimSpace(legalRaw)
 	}
 
+	// ISIN: from Listings & Codes table — <td>ISIN</td> ... <td>IE000YGEAK03</td>
+	isinRaw, err := parseTableRawValue(html, `<td>ISIN</td>`)
+	if err == nil {
+		profile.Isin = strings.TrimSpace(isinRaw)
+	}
+
 	if profile.TotalNetAssets == 0 && profile.AnnualExpenseRatio == 0 && profile.InceptionDate.IsZero() {
 		return nil, nil // optional section — not present on all pages
 	}
@@ -447,6 +453,8 @@ func parseDate(dateStr string) (time.Time, error) {
 	formats := []string{
 		"02 January 2006", // "22 May 2026"
 		"2 January 2006",  // "1 May 2026"
+		"02 Jan 2006",     // "02 Jun 2026" (abbreviated month)
+		"2 Jan 2006",      // "2 Jun 2026" (abbreviated month, single digit day)
 		"02/01/2006",      // "22/05/2026"
 		"01/02/2006",      // "05/22/2026"
 		"2/1/2006",        // "5/22/2026"
