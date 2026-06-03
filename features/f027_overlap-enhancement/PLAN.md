@@ -76,38 +76,38 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
 ### Task 2: Implement sector allocation computation for comparison
 **Files**: `internal/domain/comparison/allocation.go`, `internal/domain/comparison/allocation_test.go`
 
-- Create `ComputeSectorAllocationForHoldings(holdings []PortfolioHolding) *SectorAllocationResult`
-- Logic mirrors `analysis/allocation.go::ComputeSectorAllocation` but operates on `PortfolioHolding`:
+- [x] Create `ComputeSectorAllocationForHoldings(holdings []PortfolioHolding) *SectorAllocationResult`
+- [x] Logic mirrors `analysis/allocation.go::ComputeSectorAllocation` but operates on `PortfolioHolding`:
   - For ETFs: iterate SectorWeightings, weight = holding.Weight × sector.Percent/100
   - For stocks: use SymbolDetails.Sector (primary sector), full weight
   - Missing data → "Unknown" bucket + warning list
-- Return type: `SectorAllocationResult` with `Breakdown map[string]float64`, `UnknownWeightPct float64`, `Warnings []string`, `MissingSymbols []string`
-- Add `normalizeSector` function (reuse from analysis or copy)
+- [x] Return type: `SectorAllocationResult` with `Breakdown map[string]float64`, `UnknownWeightPct float64`, `Warnings []string`, `MissingSymbols []string`
+- [x] Add `normalizeSector` function (reuse from analysis or copy)
 
 **Tests**:
-- ETF with sector weightings → correct weighted breakdown
-- Stock with primary sector → full weight to that sector
-- Mixed ETF + stock portfolio
-- Missing sector data → Unknown bucket + warning
-- Empty holdings → empty result with message
+- [x] ETF with sector weightings → correct weighted breakdown
+- [x] Stock with primary sector → full weight to that sector
+- [x] Mixed ETF + stock portfolio
+- [x] Missing sector data → Unknown bucket + warning
+- [x] Empty holdings → empty result with message
 
 ---
 
 ### Task 3: Implement country allocation computation for comparison
 **Files**: `internal/domain/comparison/allocation.go`, `internal/domain/comparison/allocation_test.go`
 
-- Create `ComputeCountryAllocationForHoldings(holdings []PortfolioHolding) *CountryAllocationResult`
-- Logic mirrors `analysis/allocation.go::ComputeGeographicAllocation` but operates on `PortfolioHolding`:
+- [x] Create `ComputeCountryAllocationForHoldings(holdings []PortfolioHolding) *CountryAllocationResult`
+- [x] Logic mirrors `analysis/allocation.go::ComputeGeographicAllocation` but operates on `PortfolioHolding`:
   - For all holdings: iterate GeographicAllocations, weight = holding.Weight × country.Percent/100
   - Missing data → "Unknown" bucket + warning list
-- Return type: `CountryAllocationResult` with `Breakdown map[string]float64`, `UnknownWeightPct float64`, `Warnings []string`, `MissingSymbols []string`
+- [x] Return type: `CountryAllocationResult` with `Breakdown map[string]float64`, `UnknownWeightPct float64`, `Warnings []string`, `MissingSymbols []string`
 
 **Tests**:
-- ETF with geographic allocations → correct weighted breakdown
-- Stock with single country → full weight to that country
-- Mixed portfolio
-- Missing geographic data → Unknown bucket + warning
-- Empty holdings → empty result
+- [x] ETF with geographic allocations → correct weighted breakdown
+- [x] Stock with single country → full weight to that country
+- [x] Mixed portfolio
+- [x] Missing geographic data → Unknown bucket + warning
+- [x] Empty holdings → empty result
 
 ---
 
