@@ -2,6 +2,25 @@
 
 ## Implementation Notes
 
+### Task 8: Chart serialization for sector/country drift charts
+
+- **Drift chart data structure**: `driftChartData` with `Categories []string`, `Values []float64` (percentage points, positive = A overweight), `NameA`, `NameB`. Sorted by absolute difference descending, alphabetically for ties.
+- **`computeAllocationDrift` helper**: Takes two breakdown maps (fractions 0.0-1.0), computes union of categories, drift = (A-B)*100 in percentage points. Returns sorted `allocationDrift` struct.
+- **`roundTo2` helper**: Correctly handles negative numbers (Go's `int()` truncates toward zero, so `int(-5499.5) = -5499` not `-5500`). Uses sign extraction for correct rounding.
+- **`mergedHoldingsData`**: Converts `MergedHolding` domain types to display-ready rows with weights as percentages and overlap as percentage points.
+- **Wired into `buildPageData`**: Three new fields in `comparisonPageData` (`SectorDriftChart`, `CountryDriftChart`, `MergedHoldingsData`) populated alongside existing charts.
+- **Empty-state handling**: All three functions return `{}` when data is unavailable (nil result, nil overlap, nil allocation, or empty holdings).
+
+### Task 7: Wire enhanced overlap into the comparison service
+
+- **Enrichment already present**: The `buildModelHoldings()` and `buildRealHoldings()` functions in `service.go` already had the enrichment code for `Sector`, `SectorWeightings`, and `GeographicAllocations` from a previous session. Verified by reading the code.
+- **`computeOverlap` wiring**: The `computeOverlap` method already passes `PortfolioAName`/`PortfolioBName` to `CrossPortfolioOverlapInput`, which feeds into the sector/country warning prefixes.
+- **Service-level tests added**: Two new tests in `service_test.go`:
+  - `TestComputeComparison_EnhancedOverlap_FullPipeline` — model-vs-model with ETFs having sector/geographic/top holdings data, verifies full pipeline produces populated OverlapResult (sector allocations, country allocations, merged holdings, overweight/underweight)
+  - `TestComputeComparison_EnhancedOverlap_IdenticalPortfolios` — identical portfolios verify zero drift and all neutral holdings; overlap percentage reflects expanded top holdings proportion (not 100% since top holdings are a subset of full ETF holdings)
+- **Breakdown values are fractions**: `SectorAllocationResult.Breakdown` and `CountryAllocationResult.Breakdown` use fraction values (0.58 = 58%), not percentage values. Test assertions adjusted accordingly.
+- **`strings` import added**: Added `"strings"` to the import block in `service_test.go` for the warning prefix check.
+
 ### Task 6: Extend OverlapResult type and integrate in ComputeCrossPortfolioOverlap
 
 - **Types placement follows NOTES.md from Tasks 2–5**: `SectorAllocationResult`, `CountryAllocationResult`, and `AllocationEntry` live in `allocation.go` (not `types.go`). `MergedHolding` and `WeightDifferenceHolding` already live in `types.go` since `OverlapResult` references them directly.

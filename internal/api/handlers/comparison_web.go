@@ -69,6 +69,9 @@ type comparisonPageData struct {
 	AnnualHistogramChart    string
 	MonthlyHistogramChart   string
 	OverlapChartData        string
+	SectorDriftChart        string
+	CountryDriftChart       string
+	MergedHoldingsData      string
 	CorrelationMatrixAChart string
 	CorrelationMatrixBChart string
 	// Merged yearly returns for the table.
@@ -181,6 +184,9 @@ func (h *ComparisonWebHandler) buildPageData(
 	annualHist := serializeAnnualFrequencyHistogramCombined(result)
 	monthlyHist := serializeMonthlyHistogramCombined(result)
 	overlapChart := serializeOverlapChartData(result)
+	sectorDriftChart := serializeSectorDriftChart(result)
+	countryDriftChart := serializeCountryDriftChart(result)
+	mergedHoldings := serializeMergedHoldings(result)
 	corrMatrixA := serializeCorrelationMatrix(result, "A")
 	corrMatrixB := serializeCorrelationMatrix(result, "B")
 	mergedYearly := mergeYearlyReturns(result)
@@ -200,6 +206,9 @@ func (h *ComparisonWebHandler) buildPageData(
 		AnnualHistogramChart:    annualHist,
 		MonthlyHistogramChart:   monthlyHist,
 		OverlapChartData:        overlapChart,
+		SectorDriftChart:        sectorDriftChart,
+		CountryDriftChart:       countryDriftChart,
+		MergedHoldingsData:      mergedHoldings,
 		CorrelationMatrixAChart: corrMatrixA,
 		CorrelationMatrixBChart: corrMatrixB,
 		YearlyReturnsMerged:     mergedYearly,
@@ -859,6 +868,197 @@ func serializeOverlapChartData(result *comparison.ComparisonResult) string {
 		return "{}"
 	}
 	return string(b)
+}
+
+// driftChartData holds JSON data for a diverging bar chart showing the
+// allocation drift (Portfolio A - Portfolio B) for each category.
+type driftChartData struct {
+	Categories []string    `json:"categories"`
+	Values     []float64   `json:"values"` // positive = A > B, negative = B > A (percentage points)
+	NameA      string      `json:"name_a"`
+	NameB      string      `json:"name_b"`
+}
+
+// serializeSectorDriftChart produces a diverging bar chart JSON showing the
+// sector allocation drift between the two portfolios (A - B in percentage points).
+// Categories are sorted by absolute difference descending.
+func serializeSectorDriftChart(result *comparison.ComparisonResult) string {
+	if result == nil || result.CrossMetrics == nil || result.CrossMetrics.Overlap == nil {
+		return "{}"
+	}
+	overlap := result.CrossMetrics.Overlap
+	sectorA := overlap.SectorAllocationA
+	sectorB := overlap.SectorAllocationB
+	if sectorA == nil || sectorB == nil {
+		return "{}"
+	}
+
+	drift := computeAllocationDrift(sectorA.Breakdown, sectorB.Breakdown)
+	if len(drift.categories) == 0 {
+		return "{}"
+	}
+
+	data := driftChartData{
+		Categories: drift.categories,
+		Values:     drift.values,
+		NameA:      portfolioName(result.PortfolioA),
+		NameB:      portfolioName(result.PortfolioB),
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
+// serializeCountryDriftChart produces a diverging bar chart JSON showing the
+// country allocation drift between the two portfolios (A - B in percentage points).
+// Categories are sorted by absolute difference descending.
+func serializeCountryDriftChart(result *comparison.ComparisonResult) string {
+	if result == nil || result.CrossMetrics == nil || result.CrossMetrics.Overlap == nil {
+		return "{}"
+	}
+	overlap := result.CrossMetrics.Overlap
+	countryA := overlap.CountryAllocationA
+	countryB := overlap.CountryAllocationB
+	if countryA == nil || countryB == nil {
+		return "{}"
+	}
+
+	drift := computeAllocationDrift(countryA.Breakdown, countryB.Breakdown)
+	if len(drift.categories) == 0 {
+		return "{}"
+	}
+
+	data := driftChartData{
+		Categories: drift.categories,
+		Values:     drift.values,
+		NameA:      portfolioName(result.PortfolioA),
+		NameB:      portfolioName(result.PortfolioB),
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
+// allocationDriftEntry holds a category and its drift value.
+type allocationDriftEntry struct {
+	category string
+	value    float64 // percentage points (A - B)
+}
+
+// allocationDrift holds sorted drift data for chart serialization.
+type allocationDrift struct {
+	categories []string
+	values     []float64
+}
+
+// computeAllocationDrift computes the drift (A - B in percentage points) for
+// each category present in either breakdown, sorted by absolute difference descending.
+// Breakdown values are fractions (0.0-1.0); output is in percentage points.
+func computeAllocationDrift(breakdownA, breakdownB map[string]float64) allocationDrift {
+	// Union of categories.
+	catSet := make(map[string]bool)
+	for k := range breakdownA {
+		catSet[k] = true
+	}
+	for k := range breakdownB {
+		catSet[k] = true
+	}
+
+	entries := make([]allocationDriftEntry, 0, len(catSet))
+	for cat := range catSet {
+		valA := breakdownA[cat] * 100 // fraction → percentage
+		valB := breakdownB[cat] * 100
+		diff := valA - valB
+		entries = append(entries, allocationDriftEntry{category: cat, value: diff})
+	}
+
+	// Sort by absolute difference descending, then alphabetically for ties.
+	sort.Slice(entries, func(i, j int) bool {
+		absI := entries[i].value
+		if absI < 0 {
+			absI = -absI
+		}
+		absJ := entries[j].value
+		if absJ < 0 {
+			absJ = -absJ
+		}
+		if absI != absJ {
+			return absI > absJ
+		}
+		return entries[i].category < entries[j].category
+	})
+
+	categories := make([]string, len(entries))
+	values := make([]float64, len(entries))
+	for i, e := range entries {
+		categories[i] = e.category
+		values[i] = roundTo2(e.value)
+	}
+	return allocationDrift{categories: categories, values: values}
+}
+
+// mergedHoldingsData holds JSON data for the merged holdings table.
+type mergedHoldingsData struct {
+	Holdings []mergedHoldingRow `json:"holdings"`
+	NameA    string             `json:"name_a"`
+	NameB    string             `json:"name_b"`
+}
+
+type mergedHoldingRow struct {
+	Symbol     string  `json:"symbol"`
+	Name       string  `json:"name,omitempty"`
+	WeightAPct float64 `json:"weight_a_pct"` // percentage
+	WeightBPct float64 `json:"weight_b_pct"` // percentage
+	OverlapPct float64 `json:"overlap_pct"`  // percentage points
+}
+
+// serializeMergedHoldings converts merged holdings to JSON for the template.
+func serializeMergedHoldings(result *comparison.ComparisonResult) string {
+	if result == nil || result.CrossMetrics == nil || result.CrossMetrics.Overlap == nil {
+		return "{}"
+	}
+	overlap := result.CrossMetrics.Overlap
+	if len(overlap.MergedHoldings) == 0 {
+		return "{}"
+	}
+
+	holdings := make([]mergedHoldingRow, len(overlap.MergedHoldings))
+	for i, h := range overlap.MergedHoldings {
+		wA, _ := h.WeightA.Float64()
+		wB, _ := h.WeightB.Float64()
+		holdings[i] = mergedHoldingRow{
+			Symbol:     h.Symbol,
+			Name:       h.Name,
+			WeightAPct: roundTo2(wA * 100),
+			WeightBPct: roundTo2(wB * 100),
+			OverlapPct: h.OverlapPct,
+		}
+	}
+
+	data := mergedHoldingsData{
+		Holdings: holdings,
+		NameA:    portfolioName(result.PortfolioA),
+		NameB:    portfolioName(result.PortfolioB),
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
+// roundTo2 rounds a float64 to 2 decimal places.
+func roundTo2(v float64) float64 {
+	sign := 1.0
+	if v < 0 {
+		v = -v
+		sign = -1
+	}
+	return sign * float64(int(v*100+0.5)) / 100
 }
 
 // correlationMatrixData holds JSON data for the correlation matrix heatmap.

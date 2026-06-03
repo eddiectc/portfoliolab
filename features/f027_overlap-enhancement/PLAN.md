@@ -174,27 +174,42 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
 ### Task 7: Wire enhanced overlap into the comparison service
 **Files**: `internal/domain/comparison/service.go`, `internal/domain/comparison/service_test.go`
 
-- In `buildModelHoldings()` and `buildRealHoldings()`, enrich with `SectorWeightings` and `GeographicAllocations` from SymbolDetails
-- The `computeOverlap` method already passes `[]PortfolioHolding` to `ComputeCrossPortfolioOverlap`, so the enhanced computation is automatic
-- Verify that sector/country data flows through for both model and real portfolios
+- [x] In `buildModelHoldings()` and `buildRealHoldings()`, enrich with `SectorWeightings` and `GeographicAllocations` from SymbolDetails
+- [x] The `computeOverlap` method already passes `[]PortfolioHolding` to `ComputeCrossPortfolioOverlap`, so the enhanced computation is automatic
+- [x] Verify that sector/country data flows through for both model and real portfolios
 
 **Tests**:
-- Model portfolio with ETF having sector/geographic data → data present in holdings
-- Real portfolio with allocation source → data present in holdings
-- Service-level test verifying OverlapResult has sector/country fields populated
+- [x] Model portfolio with ETF having sector/geographic data → data present in holdings (`TestBuildModelHoldings_EnrichmentWithSectorAndGeo`)
+- [x] Real portfolio with allocation source → data present in holdings (`TestBuildRealHoldings_EnrichmentWithSectorAndGeo`)
+- [x] Service-level test verifying OverlapResult has sector/country fields populated (`TestComputeComparison_EnhancedOverlap_FullPipeline`)
+- [x] Identical portfolios → zero drift, all neutral (`TestComputeComparison_EnhancedOverlap_IdenticalPortfolios`)
 
 ---
 
 ### Task 8: Add chart serialization for sector/country drift charts
 **Files**: `internal/api/handlers/comparison_web.go`
 
-- Add `serializeSectorDriftChart(result *ComparisonResult) string` — produces diverging bar chart JSON
-- Add `serializeCountryDriftChart(result *ComparisonResult) string` — produces diverging bar chart JSON
-- Add `serializeMergedHoldings(result *ComparisonResult) string` — produces merged holdings data
-- Add corresponding JSON types for chart data
-- Add new fields to `comparisonPageData`: `SectorDriftChart`, `CountryDriftChart`, etc.
+- [x] Add `serializeSectorDriftChart(result *ComparisonResult) string` — produces diverging bar chart JSON
+- [x] Add `serializeCountryDriftChart(result *ComparisonResult) string` — produces diverging bar chart JSON
+- [x] Add `serializeMergedHoldings(result *ComparisonResult) string` — produces merged holdings data
+- [x] Add corresponding JSON types for chart data (`driftChartData`, `mergedHoldingsData`, `mergedHoldingRow`)
+- [x] Add new fields to `comparisonPageData`: `SectorDriftChart`, `CountryDriftChart`, `MergedHoldingsData`
+- [x] Wire into `buildPageData`
+- [x] Add `computeAllocationDrift` helper (union of categories, sorted by abs diff desc)
+- [x] Add `roundTo2` helper (correctly handles negative numbers)
 
-**Tests**: Unit tests for serialization functions (verify JSON structure and values).
+**Tests**:
+- [x] `TestSerializeSectorDriftChart` — verifies category union, drift values, sort order
+- [x] `TestSerializeSectorDriftChart_NilResult` — returns `{}`
+- [x] `TestSerializeSectorDriftChart_NoOverlap` — returns `{}`
+- [x] `TestSerializeSectorDriftChart_MissingSectorData` — returns `{}` when one side nil
+- [x] `TestSerializeCountryDriftChart` — verifies country drift values
+- [x] `TestSerializeCountryDriftChart_NilResult` — returns `{}`
+- [x] `TestSerializeMergedHoldings` — verifies weight conversion and overlap values
+- [x] `TestSerializeMergedHoldings_NilResult` — returns `{}`
+- [x] `TestSerializeMergedHoldings_EmptyHoldings` — returns `{}`
+- [x] `TestComputeAllocationDrift_SortedByAbsDiff` — verifies sort order
+- [x] `TestComputeAllocationDrift_EmptyBreakdowns` — returns empty
 
 ---
 
