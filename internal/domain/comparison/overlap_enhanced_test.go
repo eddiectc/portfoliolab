@@ -585,3 +585,382 @@ func TestComputeMergedHoldings_NameFieldPreserved(t *testing.T) {
 		t.Error("Name should not be empty")
 	}
 }
+
+// --- ComputeWeightDifferences ---
+
+func TestComputeWeightDifferences_ClearOverweightUnderweight(t *testing.T) {
+	// Portfolio A: 50% AAPL, 30% MSFT, 20% GOOGL
+	// Portfolio B: 20% AAPL, 40% MSFT, 40% JNJ
+	//
+	// AAPL: A=0.5, B=0.2, diff = +30pp → overweight
+	// MSFT: A=0.3, B=0.4, diff = -10pp → underweight
+	// GOOGL: A=0.2, B=0, diff = +20pp → overweight
+	// JNJ: A=0, B=0.4, diff = -40pp → underweight
+
+	holdingsA := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.5, "Apple"),
+		portfolioHoldingStock(t, "MSFT", 0.3, "Microsoft"),
+		portfolioHoldingStock(t, "GOOGL", 0.2, "Alphabet"),
+	}
+	holdingsB := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.2, "Apple"),
+		portfolioHoldingStock(t, "MSFT", 0.4, "Microsoft"),
+		portfolioHoldingStock(t, "JNJ", 0.4, "J&J"),
+	}
+
+	overweight, underweight, neutral := ComputeWeightDifferences(holdingsA, holdingsB, 10)
+
+	// Overweight: AAPL (+30pp), GOOGL (+20pp)
+	if len(overweight) != 2 {
+		t.Fatalf("overweight len = %d, want 2", len(overweight))
+	}
+	if overweight[0].Symbol != "AAPL" {
+		t.Errorf("overweight[0] = %s, want AAPL", overweight[0].Symbol)
+	}
+	if !floatEq(overweight[0].Difference, 30.0, 0.1) {
+		t.Errorf("overweight[0] diff = %.1f, want 30.0", overweight[0].Difference)
+	}
+	if overweight[1].Symbol != "GOOGL" {
+		t.Errorf("overweight[1] = %s, want GOOGL", overweight[1].Symbol)
+	}
+	if !floatEq(overweight[1].Difference, 20.0, 0.1) {
+		t.Errorf("overweight[1] diff = %.1f, want 20.0", overweight[1].Difference)
+	}
+
+	// Underweight: JNJ (-40pp), MSFT (-10pp)
+	if len(underweight) != 2 {
+		t.Fatalf("underweight len = %d, want 2", len(underweight))
+	}
+	if underweight[0].Symbol != "JNJ" {
+		t.Errorf("underweight[0] = %s, want JNJ", underweight[0].Symbol)
+	}
+	if !floatEq(underweight[0].Difference, -40.0, 0.1) {
+		t.Errorf("underweight[0] diff = %.1f, want -40.0", underweight[0].Difference)
+	}
+	if underweight[1].Symbol != "MSFT" {
+		t.Errorf("underweight[1] = %s, want MSFT", underweight[1].Symbol)
+	}
+	if !floatEq(underweight[1].Difference, -10.0, 0.1) {
+		t.Errorf("underweight[1] diff = %.1f, want -10.0", underweight[1].Difference)
+	}
+
+	// No neutral holdings (no holding has identical weight in both portfolios).
+	if len(neutral) != 0 {
+		t.Errorf("neutral len = %d, want 0", len(neutral))
+	}
+}
+
+func TestComputeWeightDifferences_IdenticalPortfolios(t *testing.T) {
+	// Both portfolios: 50% AAPL, 30% MSFT, 20% GOOGL
+	// All differences = 0, so all holdings are neutral.
+
+	holdings := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.5, "Apple"),
+		portfolioHoldingStock(t, "MSFT", 0.3, "Microsoft"),
+		portfolioHoldingStock(t, "GOOGL", 0.2, "Alphabet"),
+	}
+
+	overweight, underweight, neutral := ComputeWeightDifferences(holdings, holdings, 10)
+
+	if len(overweight) != 0 {
+		t.Errorf("overweight len = %d, want 0", len(overweight))
+	}
+	if len(underweight) != 0 {
+		t.Errorf("underweight len = %d, want 0", len(underweight))
+	}
+
+	// All 3 holdings are neutral (identical weights), sorted by weight desc.
+	if len(neutral) != 3 {
+		t.Fatalf("neutral len = %d, want 3", len(neutral))
+	}
+	if neutral[0].Symbol != "AAPL" {
+		t.Errorf("neutral[0] = %s, want AAPL", neutral[0].Symbol)
+	}
+	if !floatEq(neutral[0].Difference, 0.0, 0.01) {
+		t.Errorf("neutral[0] diff = %.1f, want 0.0", neutral[0].Difference)
+	}
+	if neutral[1].Symbol != "MSFT" {
+		t.Errorf("neutral[1] = %s, want MSFT", neutral[1].Symbol)
+	}
+	if neutral[2].Symbol != "GOOGL" {
+		t.Errorf("neutral[2] = %s, want GOOGL", neutral[2].Symbol)
+	}
+}
+
+func TestComputeWeightDifferences_OnePortfolioEmpty(t *testing.T) {
+	// Portfolio A: 60% AAPL, 40% MSFT
+	// Portfolio B: empty
+	// All holdings are overweight for A.
+
+	holdingsA := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.6, "Apple"),
+		portfolioHoldingStock(t, "MSFT", 0.4, "Microsoft"),
+	}
+
+	overweight, underweight, neutral := ComputeWeightDifferences(holdingsA, nil, 10)
+
+	if len(underweight) != 0 {
+		t.Errorf("underweight len = %d, want 0", len(underweight))
+	}
+	if len(overweight) != 2 {
+		t.Fatalf("overweight len = %d, want 2", len(overweight))
+	}
+	// AAPL (+60pp) first, then MSFT (+40pp).
+	if overweight[0].Symbol != "AAPL" {
+		t.Errorf("overweight[0] = %s, want AAPL", overweight[0].Symbol)
+	}
+	if !floatEq(overweight[0].Difference, 60.0, 0.1) {
+		t.Errorf("overweight[0] diff = %.1f, want 60.0", overweight[0].Difference)
+	}
+	if overweight[1].Symbol != "MSFT" {
+		t.Errorf("overweight[1] = %s, want MSFT", overweight[1].Symbol)
+	}
+	if !floatEq(overweight[1].Difference, 40.0, 0.1) {
+		t.Errorf("overweight[1] diff = %.1f, want 40.0", overweight[1].Difference)
+	}
+	if len(neutral) != 0 {
+		t.Errorf("neutral len = %d, want 0", len(neutral))
+	}
+
+	// Reverse: B empty, A has holdings → all underweight.
+	overweight2, underweight2, neutral2 := ComputeWeightDifferences(nil, holdingsA, 10)
+	if len(overweight2) != 0 {
+		t.Errorf("overweight len = %d, want 0", len(overweight2))
+	}
+	if len(underweight2) != 2 {
+		t.Fatalf("underweight len = %d, want 2", len(underweight2))
+	}
+	if len(neutral2) != 0 {
+		t.Errorf("neutral len = %d, want 0", len(neutral2))
+	}
+	// AAPL (-60pp) first (highest abs), then MSFT (-40pp).
+	if underweight2[0].Symbol != "AAPL" {
+		t.Errorf("underweight[0] = %s, want AAPL", underweight2[0].Symbol)
+	}
+	if !floatEq(underweight2[0].Difference, -60.0, 0.1) {
+		t.Errorf("underweight[0] diff = %.1f, want -60.0", underweight2[0].Difference)
+	}
+}
+
+func TestComputeWeightDifferences_LimitRespected(t *testing.T) {
+	// Portfolio A: 5 holdings, each 20%
+	// Portfolio B: 5 different holdings, each 20%
+	// limit = 2 → 2 overweight (A's holdings), 2 underweight (B's holdings)
+
+	holdingsA := []PortfolioHolding{
+		portfolioHoldingStock(t, "A1", 0.2, "A1"),
+		portfolioHoldingStock(t, "A2", 0.2, "A2"),
+		portfolioHoldingStock(t, "A3", 0.2, "A3"),
+		portfolioHoldingStock(t, "A4", 0.2, "A4"),
+		portfolioHoldingStock(t, "A5", 0.2, "A5"),
+	}
+	holdingsB := []PortfolioHolding{
+		portfolioHoldingStock(t, "B1", 0.2, "B1"),
+		portfolioHoldingStock(t, "B2", 0.2, "B2"),
+		portfolioHoldingStock(t, "B3", 0.2, "B3"),
+		portfolioHoldingStock(t, "B4", 0.2, "B4"),
+		portfolioHoldingStock(t, "B5", 0.2, "B5"),
+	}
+
+	overweight, underweight, neutral := ComputeWeightDifferences(holdingsA, holdingsB, 2)
+
+	if len(overweight) != 2 {
+		t.Errorf("overweight len = %d, want 2", len(overweight))
+	}
+	if len(underweight) != 2 {
+		t.Errorf("underweight len = %d, want 2", len(underweight))
+	}
+	if len(neutral) != 0 {
+		t.Errorf("neutral len = %d, want 0", len(neutral))
+	}
+	// With same diff (20pp each), sorted alphabetically.
+	if overweight[0].Symbol != "A1" {
+		t.Errorf("overweight[0] = %s, want A1", overweight[0].Symbol)
+	}
+	if overweight[1].Symbol != "A2" {
+		t.Errorf("overweight[1] = %s, want A2", overweight[1].Symbol)
+	}
+	if underweight[0].Symbol != "B1" {
+		t.Errorf("underweight[0] = %s, want B1", underweight[0].Symbol)
+	}
+	if underweight[1].Symbol != "B2" {
+		t.Errorf("underweight[1] = %s, want B2", underweight[1].Symbol)
+	}
+}
+
+func TestComputeWeightDifferences_ETFExpansion(t *testing.T) {
+	// Portfolio A: 100% VOO (holds AAPL 5%, MSFT 4%)
+	// Portfolio B: 100% IVV (holds AAPL 4.5%, MSFT 3.5%)
+	//
+	// AAPL: A=0.05, B=0.045, diff = +0.5pp → overweight
+	// MSFT: A=0.04, B=0.035, diff = +0.5pp → overweight
+
+	holdingsA := []PortfolioHolding{
+		portfolioHoldingETF(t, "VOO", 1.0, topHoldings(
+			[]string{"AAPL", "MSFT"},
+			[]float64{5, 4},
+			[]string{"Apple", "Microsoft"},
+		)),
+	}
+	holdingsB := []PortfolioHolding{
+		portfolioHoldingETF(t, "IVV", 1.0, topHoldings(
+			[]string{"AAPL", "MSFT"},
+			[]float64{4.5, 3.5},
+			[]string{"Apple", "Microsoft"},
+		)),
+	}
+
+	overweight, underweight, neutral := ComputeWeightDifferences(holdingsA, holdingsB, 10)
+
+	if len(underweight) != 0 {
+		t.Errorf("underweight len = %d, want 0", len(underweight))
+	}
+	if len(neutral) != 0 {
+		t.Errorf("neutral len = %d, want 0", len(neutral))
+	}
+	if len(overweight) != 2 {
+		t.Fatalf("overweight len = %d, want 2", len(overweight))
+	}
+
+	// Both have +0.5pp diff, so sorted alphabetically.
+	if overweight[0].Symbol != "AAPL" {
+		t.Errorf("overweight[0] = %s, want AAPL", overweight[0].Symbol)
+	}
+	aaplWA, _ := overweight[0].WeightA.Float64()
+	aaplWB, _ := overweight[0].WeightB.Float64()
+	if !floatEq(aaplWA, 0.05, 0.001) {
+		t.Errorf("AAPL WeightA = %.4f, want 0.05", aaplWA)
+	}
+	if !floatEq(aaplWB, 0.045, 0.001) {
+		t.Errorf("AAPL WeightB = %.4f, want 0.045", aaplWB)
+	}
+	if !floatEq(overweight[0].Difference, 0.5, 0.1) {
+		t.Errorf("AAPL diff = %.2f, want 0.5", overweight[0].Difference)
+	}
+
+	if overweight[1].Symbol != "MSFT" {
+		t.Errorf("overweight[1] = %s, want MSFT", overweight[1].Symbol)
+	}
+	msftWA, _ := overweight[1].WeightA.Float64()
+	msftWB, _ := overweight[1].WeightB.Float64()
+	if !floatEq(msftWA, 0.04, 0.001) {
+		t.Errorf("MSFT WeightA = %.4f, want 0.04", msftWA)
+	}
+	if !floatEq(msftWB, 0.035, 0.001) {
+		t.Errorf("MSFT WeightB = %.4f, want 0.035", msftWB)
+	}
+}
+
+func TestComputeWeightDifferences_MixedETFAndStocks(t *testing.T) {
+	// Portfolio A: 50% AAPL (stock), 50% VOO (ETF: AAPL 5%, MSFT 4%)
+	// Portfolio B: 30% MSFT (stock), 70% IVV (ETF: AAPL 4.5%, MSFT 3.5%)
+	//
+	// Expanded A: AAPL = 0.5 + 0.025 = 0.525, MSFT = 0.02
+	// Expanded B: MSFT = 0.3 + 0.0245 = 0.3245, AAPL = 0.0315
+	//
+	// AAPL: A=0.525, B=0.0315, diff = +49.35pp → overweight
+	// MSFT: A=0.02, B=0.3245, diff = -30.45pp → underweight
+
+	holdingsA := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.5, "Apple"),
+		portfolioHoldingETF(t, "VOO", 0.5, topHoldings(
+			[]string{"AAPL", "MSFT"},
+			[]float64{5, 4},
+			[]string{"Apple", "Microsoft"},
+		)),
+	}
+	holdingsB := []PortfolioHolding{
+		portfolioHoldingStock(t, "MSFT", 0.3, "Microsoft"),
+		portfolioHoldingETF(t, "IVV", 0.7, topHoldings(
+			[]string{"AAPL", "MSFT"},
+			[]float64{4.5, 3.5},
+			[]string{"Apple", "Microsoft"},
+		)),
+	}
+
+	overweight, underweight, neutral := ComputeWeightDifferences(holdingsA, holdingsB, 10)
+
+	if len(overweight) != 1 || len(underweight) != 1 {
+		t.Fatalf("overweight=%d underweight=%d, want 1 each", len(overweight), len(underweight))
+	}
+	if len(neutral) != 0 {
+		t.Errorf("neutral len = %d, want 0", len(neutral))
+	}
+
+	// AAPL overweight.
+	if overweight[0].Symbol != "AAPL" {
+		t.Errorf("overweight[0] = %s, want AAPL", overweight[0].Symbol)
+	}
+	aaplWA, _ := overweight[0].WeightA.Float64()
+	aaplWB, _ := overweight[0].WeightB.Float64()
+	if !floatEq(aaplWA, 0.525, 0.001) {
+		t.Errorf("AAPL WeightA = %.4f, want 0.525", aaplWA)
+	}
+	if !floatEq(aaplWB, 0.0315, 0.001) {
+		t.Errorf("AAPL WeightB = %.4f, want 0.0315", aaplWB)
+	}
+
+	// MSFT underweight.
+	if underweight[0].Symbol != "MSFT" {
+		t.Errorf("underweight[0] = %s, want MSFT", underweight[0].Symbol)
+	}
+	msftWA, _ := underweight[0].WeightA.Float64()
+	msftWB, _ := underweight[0].WeightB.Float64()
+	if !floatEq(msftWA, 0.02, 0.001) {
+		t.Errorf("MSFT WeightA = %.4f, want 0.02", msftWA)
+	}
+	if !floatEq(msftWB, 0.3245, 0.001) {
+		t.Errorf("MSFT WeightB = %.4f, want 0.3245", msftWB)
+	}
+}
+
+func TestComputeWeightDifferences_BothEmpty(t *testing.T) {
+	overweight, underweight, neutral := ComputeWeightDifferences(nil, nil, 10)
+	if overweight != nil {
+		t.Errorf("overweight = %d, want nil", len(overweight))
+	}
+	if underweight != nil {
+		t.Errorf("underweight = %d, want nil", len(underweight))
+	}
+	if neutral != nil {
+		t.Errorf("neutral = %d, want nil", len(neutral))
+	}
+}
+
+func TestComputeWeightDifferences_ZeroLimit(t *testing.T) {
+	holdingsA := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.5, "Apple"),
+	}
+	holdingsB := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.3, "Apple"),
+	}
+
+	overweight, underweight, neutral := ComputeWeightDifferences(holdingsA, holdingsB, 0)
+	if len(overweight) != 0 {
+		t.Errorf("overweight len = %d, want 0 (limit=0)", len(overweight))
+	}
+	if len(underweight) != 0 {
+		t.Errorf("underweight len = %d, want 0 (limit=0)", len(underweight))
+	}
+	if len(neutral) != 0 {
+		t.Errorf("neutral len = %d, want 0 (limit=0)", len(neutral))
+	}
+}
+
+func TestComputeWeightDifferences_NameFieldPreserved(t *testing.T) {
+	holdingsA := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.5, "Apple Inc"),
+	}
+	holdingsB := []PortfolioHolding{
+		portfolioHoldingStock(t, "AAPL", 0.3, "Apple"),
+	}
+
+	overweight, _, _ := ComputeWeightDifferences(holdingsA, holdingsB, 10)
+
+	if len(overweight) != 1 {
+		t.Fatalf("overweight len = %d, want 1", len(overweight))
+	}
+	if overweight[0].Name == "" {
+		t.Error("Name should not be empty")
+	}
+}

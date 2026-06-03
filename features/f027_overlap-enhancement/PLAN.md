@@ -130,21 +130,22 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
 
 ---
 
-### Task 5: Implement overweight/underweight holdings computation
+### Task 5: Implement overweight/underweight/neutral holdings computation
 **Files**: `internal/domain/comparison/overlap_enhanced.go`, `internal/domain/comparison/overlap_enhanced_test.go`
 
-- Create `ComputeWeightDifferences(holdingsA, holdingsB []PortfolioHolding, limit int) ([]WeightDifferenceHolding, []WeightDifferenceHolding)`
-- Expand both portfolios to underlying holdings
-- Compute difference = weightA - weightB for each holding
-- Positive differences → overweight (A > B), sorted by difference desc, limited to top N
-- Negative differences → underweight (B > A), sorted by abs(difference) desc, limited to top N
-- Include holdings where one weight is 0 (not present in one portfolio)
+- [x] Create `ComputeWeightDifferences(holdingsA, holdingsB []PortfolioHolding, limit int) ([]WeightDifferenceHolding, []WeightDifferenceHolding, []WeightDifferenceHolding)`
+- [x] Expand both portfolios to underlying holdings
+- [x] Compute difference = weightA - weightB for each holding
+- [x] Positive differences → overweight (A > B), sorted by difference desc, limited to top N
+- [x] Negative differences → underweight (B > A), sorted by abs(difference) desc, limited to top N
+- [x] Zero difference → neutral (A == B), sorted by weight desc, limited to top N
+- [x] Include holdings where one weight is 0 (not present in one portfolio)
 
 **Tests**:
-- Clear overweight/underweight cases
-- Identical portfolios → both lists empty
-- One portfolio empty → all holdings are overweight for the non-empty side
-- Limit respected
+- [x] Clear overweight/underweight cases
+- [x] Identical portfolios → all holdings neutral
+- [x] One portfolio empty → all holdings are overweight/underweight for the non-empty side
+- [x] Limit respected
 
 ---
 
@@ -157,6 +158,7 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
   - `MergedHoldings []MergedHolding`
   - `OverweightHoldings []WeightDifferenceHolding`
   - `UnderweightHoldings []WeightDifferenceHolding`
+  - `NeutralHoldings []WeightDifferenceHolding`
 - Add new types to `types.go`: `SectorAllocationResult`, `CountryAllocationResult`, `MergedHolding`, `WeightDifferenceHolding`, `AllocationEntry`
 - In `ComputeCrossPortfolioOverlap`, after computing existing overlap:
   - Call `ComputeSectorAllocationForHoldings` for both portfolios

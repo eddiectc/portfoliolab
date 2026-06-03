@@ -174,6 +174,141 @@ func ComputeMergedHoldings(holdingsA, holdingsB []PortfolioHolding, limit int) [
 	return result
 }
 
+// ComputeWeightDifferences computes the overweight, underweight, and neutral
+// holdings between two portfolios.
+//
+// It expands both portfolios to their underlying holdings, then computes
+// the difference (weightA - weightB) for each holding.
+//
+// Positive differences (A > B) are "overweight" — sorted by difference desc, limited to top N.
+// Negative differences (B > A) are "underweight" — sorted by abs(difference) desc, limited to top N.
+// Zero difference (A == B) are "neutral" — sorted by weight desc, limited to top N.
+// Holdings present in only one portfolio (other weight = 0) are included.
+func ComputeWeightDifferences(holdingsA, holdingsB []PortfolioHolding, limit int) ([]WeightDifferenceHolding, []WeightDifferenceHolding, []WeightDifferenceHolding) {
+	if len(holdingsA) == 0 && len(holdingsB) == 0 {
+		return nil, nil, nil
+	}
+
+	// Expand both portfolios to underlying holdings.
+	expandedA := expandETFHoldingsDisplay(holdingsA)
+	expandedB := expandETFHoldingsDisplay(holdingsB)
+
+	// Build unified key set.
+	allKeys := make(map[string]bool)
+	for key := range expandedA {
+		allKeys[key] = true
+	}
+	for key := range expandedB {
+		allKeys[key] = true
+	}
+
+	var overweight []WeightDifferenceHolding
+	var underweight []WeightDifferenceHolding
+	var neutral []WeightDifferenceHolding
+
+	for key := range allKeys {
+		infoA, hasA := expandedA[key]
+		infoB, hasB := expandedB[key]
+
+		weightA := decimal.Zero
+		weightB := decimal.Zero
+		if hasA {
+			weightA = infoA.weight
+		}
+		if hasB {
+			weightB = infoB.weight
+		}
+
+		// Compute difference as percentage points.
+		diff, _ := weightA.Sub(weightB)
+		diffF, _ := diff.Float64()
+		diffPct := stats.RoundTo2(diffF * 100.0)
+
+		// Resolve symbol and name.
+		symbol := key
+		name := ""
+		if hasA {
+			if infoA.symbol != "" {
+				symbol = infoA.symbol
+			}
+			if infoA.name != "" {
+				name = infoA.name
+			}
+		}
+		if hasB {
+			if symbol == key && infoB.symbol != "" {
+				symbol = infoB.symbol
+			}
+			if name == "" && infoB.name != "" {
+				name = infoB.name
+			}
+		}
+
+		holding := WeightDifferenceHolding{
+			Symbol:     symbol,
+			Name:       name,
+			WeightA:    weightA,
+			WeightB:    weightB,
+			Difference: diffPct,
+		}
+
+		if diffPct > 0 {
+			overweight = append(overweight, holding)
+		} else if diffPct < 0 {
+			underweight = append(underweight, holding)
+		} else {
+			neutral = append(neutral, holding)
+		}
+	}
+
+	// Sort overweight by difference desc, then symbol for stability.
+	sort.Slice(overweight, func(i, j int) bool {
+		if overweight[i].Difference != overweight[j].Difference {
+			return overweight[i].Difference > overweight[j].Difference
+		}
+		return overweight[i].Symbol < overweight[j].Symbol
+	})
+
+	// Sort underweight by abs(difference) desc, then symbol.
+	sort.Slice(underweight, func(i, j int) bool {
+		absI := underweight[i].Difference
+		if absI < 0 {
+			absI = -absI
+		}
+		absJ := underweight[j].Difference
+		if absJ < 0 {
+			absJ = -absJ
+		}
+		if absI != absJ {
+			return absI > absJ
+		}
+		return underweight[i].Symbol < underweight[j].Symbol
+	})
+
+	// Sort neutral by weight desc, then symbol.
+	sort.Slice(neutral, func(i, j int) bool {
+		wi, _ := neutral[i].WeightA.Float64()
+		wj, _ := neutral[j].WeightA.Float64()
+		if wi != wj {
+			return wi > wj
+		}
+		return neutral[i].Symbol < neutral[j].Symbol
+	})
+
+	// Apply limit.
+	if len(overweight) > limit {
+		overweight = overweight[:limit]
+	}
+	if len(underweight) > limit {
+		underweight = underweight[:limit]
+	}
+	if len(neutral) > limit {
+		neutral = neutral[:limit]
+	}
+
+	return overweight, underweight, neutral
+}
+
 // selectTopN selects the top N holdings from an expanded holdings map by weight.
 func selectTopN(expanded map[string]*holdingInfoDisplay, limit int) map[string]*holdingInfoDisplay {
 	if len(expanded) == 0 || limit <= 0 {

@@ -10,6 +10,13 @@
 - **`expandETFHoldingsWithKey` removed**: Was added as a variant accepting a `keyLevel` parameter but never called by `ComputeMergedHoldings` (which uses `expandETFHoldingsDisplay` with `keyBest` directly). Removed during implementation review as dead code.
 - **Overlap % rounding**: Uses `stats.RoundTo2` for consistency with other percentage calculations in the comparison domain.
 
+### Task 5: Overweight/underweight/neutral holdings computation
+
+- **`WeightDifferenceHolding` type in types.go**: Added alongside `MergedHolding` since both are display-oriented result types referenced by `OverlapResult` (Task 6).
+- **Difference as percentage points**: `Difference` field is `(weightA - weightB) * 100` in percentage points, using `stats.RoundTo2` for consistency with other percentage calculations.
+- **Three return values**: `overweight, underweight, neutral`. Zero-difference holdings (identical weights in both portfolios) go into `neutral`, sorted by weight desc. This shows where portfolios align — the point of the overlap analysis.
+- **Reuses `expandETFHoldingsDisplay`**: Same expansion pattern as Task 4 (merged holdings), using `keyBest` for matching.
+
 ### Task 2+3: Sector and country allocation computation
 
 ### Task 2+3: Sector and country allocation computation
