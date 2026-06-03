@@ -92,6 +92,7 @@
             <tr>
                 <th>#</th>
                 <th>ISIN</th>
+                <th>Symbol</th>
                 <th>Name</th>
                 <th>Sector</th>
                 <th>Type</th>
@@ -106,6 +107,7 @@
             <tr>
                 <td>{{add $i 1}}</td>
                 <td><strong>{{if $h.ISIN}}{{$h.ISIN}}{{else}}—{{end}}</strong></td>
+                <td>{{if $h.Symbol}}{{$h.Symbol}}{{else}}—{{end}}</td>
                 <td>{{$h.Name}}</td>
                 <td>{{if $h.Sector}}{{$h.Sector}}{{else}}—{{end}}</td>
                 <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
@@ -117,6 +119,7 @@
             <tr class="holding-extra" style="display:none;">
                 <td>{{add $i 1}}</td>
                 <td><strong>{{if $h.ISIN}}{{$h.ISIN}}{{else}}—{{end}}</strong></td>
+                <td>{{if $h.Symbol}}{{$h.Symbol}}{{else}}—{{end}}</td>
                 <td>{{$h.Name}}</td>
                 <td>{{if $h.Sector}}{{$h.Sector}}{{else}}—{{end}}</td>
                 <td>{{if $h.SecurityType}}{{$h.SecurityType}}{{else}}—{{end}}</td>
