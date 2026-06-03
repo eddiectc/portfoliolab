@@ -60,9 +60,23 @@ func (c *Client) Fetch(url string) (string, error) {
 	}
 
 	resp, err := c.cycleTLS.Do(url, cycletls.Options{
-		Ja3:       ja3Chrome129,
-		UserAgent: userAgentChrome129,
-		Timeout:   c.timeout,
+		Ja3:        ja3Chrome129,
+		UserAgent:  userAgentChrome129,
+		Timeout:    c.timeout,
+		ForceHTTP1: true,
+		Headers: map[string]string{
+			"Accept":              "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+			"Accept-Language":     "en-GB,en-US;q=0.9,en;q=0.8",
+			"Accept-Encoding":     "gzip, deflate, br",
+			"Sec-Ch-Ua":           "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"129\", \"Google Chrome\";v=\"129\"",
+			"Sec-Ch-Ua-Mobile":    "?0",
+			"Sec-Ch-Ua-Platform":  "\"Windows\"",
+			"Sec-Fetch-Dest":      "document",
+			"Sec-Fetch-Mode":      "navigate",
+			"Sec-Fetch-Site":      "none",
+			"Sec-Fetch-User":      "?1",
+			"Upgrade-Insecure-Requests": "1",
+		},
 	}, "GET")
 
 	if err != nil {
