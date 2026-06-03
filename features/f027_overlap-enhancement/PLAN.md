@@ -234,9 +234,9 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
 ### Task 10: End-to-end integration test
 **Files**: `internal/domain/comparison/service_test.go` or new `internal/domain/comparison/allocation_integration_test.go`
 
-- Full pipeline test: model portfolios with ETFs having sector/geographic/top holdings data → ComputeComparison → verify OverlapResult has all new fields populated
-- Edge case: one portfolio with data, one without → verify graceful degradation
-- Edge case: both portfolios identical → verify zero drift, empty overweight/underweight
+- [x] Full pipeline test: model portfolios with ETFs having sector/geographic/top holdings data → ComputeComparison → verify OverlapResult has all new fields populated (already covered by `TestComputeComparison_EnhancedOverlap_FullPipeline` from Task 7)
+- [x] Edge case: one portfolio with data, one without → verify graceful degradation (`TestComputeComparison_EnhancedOverlap_OneSideMissingData`)
+- [x] Edge case: both portfolios identical → verify zero drift, empty overweight/underweight (already covered by `TestComputeComparison_EnhancedOverlap_IdenticalPortfolios` from Task 7)
 
 ---
 

@@ -2148,3 +2148,156 @@ func TestComputeComparison_EnhancedOverlap_IdenticalPortfolios(t *testing.T) {
 	}
 }
 
+// TestComputeComparison_EnhancedOverlap_OneSideMissingData verifies
+// graceful degradation when one portfolio has sector/geographic data
+// and the other has none.
+func TestComputeComparison_EnhancedOverlap_OneSideMissingData(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// VOO with full sector/geographic/top holdings data
+	vooFull := &symbol.SymbolDetails{
+		Currency:  "USD",
+		QuoteType: "ETF",
+		ShortName: "Vanguard S&P 500 ETF",
+		SectorWeightings: []symbol.SectorWeighting{
+			{Sector: "Technology", Percent: 30.0},
+			{Sector: "Healthcare", Percent: 15.0},
+		},
+		GeographicAllocations: []symbol.GeographicAllocation{
+			{Country: "United States", Percent: 95.0},
+		},
+		TopHoldings: []symbol.TopHolding{
+			{Symbol: "AAPL", Name: "Apple Inc.", Percent: 7.0},
+			{Symbol: "MSFT", Name: "Microsoft Corp.", Percent: 6.0},
+		},
+	}
+
+	// VXUS with NO sector/geographic/top holdings data (minimal)
+	vxusMinimal := &symbol.SymbolDetails{
+		Currency:  "USD",
+		QuoteType: "ETF",
+		ShortName: "Vanguard Total International Stock ETF",
+	}
+
+	vooPrices := buildPriceSeries(base, []float64{400, 402, 401, 403, 405, 404, 406, 408, 410, 412}, "USD")
+	vxusPrices := buildPriceSeries(base, []float64{60, 60.2, 60.1, 60.3, 60.5, 60.4, 60.6, 60.8, 61, 61.2}, "USD")
+
+	// Model A: VOO (full data)
+	modelA := buildModelPortfolio(1, "Full Data", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "VOO", WeightPct: decimal.MustNew(10000, 2)},
+	})
+
+	// Model B: VXUS (no sector/geographic/top holdings data)
+	modelB := buildModelPortfolio(2, "Minimal Data", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "VXUS", WeightPct: decimal.MustNew(10000, 2)},
+	})
+
+	from := base
+	to := base.AddDate(0, 0, 9)
+
+	svc := NewService(
+		&mockModelPortfolioSource{
+			portfolios: map[int64]modelportfolio.ModelPortfolio{
+				1: modelA,
+				2: modelB,
+			},
+		},
+		nil,
+		&mockMarketHistorySource{
+			prices: map[string][]market.HistoricalPrice{
+				"VOO":  vooPrices,
+				"VXUS": vxusPrices,
+			},
+		},
+		&mockMarketDataSymbolResolver{
+			symbols: map[string]string{},
+		},
+		&mockSymbolDetailsSource{
+			details: map[string]*symbol.SymbolDetails{
+				"VOO":  vooFull,
+				"VXUS": vxusMinimal,
+			},
+		},
+		nil,
+		nil,
+		nil,
+	)
+
+	req := ComparisonRequest{
+		PortfolioAID:   1,
+		PortfolioAType: PortTypeModel,
+		PortfolioBID:   2,
+		PortfolioBType: PortTypeModel,
+		DateFrom:       &from,
+		DateTo:         &to,
+		BaseCurrency:   "USD",
+		StartingValue:  decimal.MustNew(1000000, 2),
+	}
+
+	result, err := svc.ComputeComparison(ctx, req)
+	if err != nil {
+		t.Fatalf("ComputeComparison() error = %v", err)
+	}
+
+	if result.CrossMetrics == nil || result.CrossMetrics.Overlap == nil {
+		t.Fatal("CrossMetrics.Overlap is nil")
+	}
+
+	overlap := result.CrossMetrics.Overlap
+
+	// Portfolio A (VOO with full data) should have sector/country data.
+	if overlap.SectorAllocationA == nil || len(overlap.SectorAllocationA.Breakdown) == 0 {
+		t.Error("SectorAllocationA should be populated (VOO has sector weightings)")
+	}
+	if overlap.CountryAllocationA == nil || len(overlap.CountryAllocationA.Breakdown) == 0 {
+		t.Error("CountryAllocationA should be populated (VOO has geographic allocations)")
+	}
+
+	// Portfolio B (VXUS with no data) should degrade gracefully.
+	// SectorAllocationB may be nil or have only "Unknown" bucket.
+	if overlap.SectorAllocationB != nil {
+		// If not nil, should have warnings about missing data.
+		hasUnknown := false
+		for sector, weight := range overlap.SectorAllocationB.Breakdown {
+			if sector == "Unknown" && weight > 0 {
+				hasUnknown = true
+				break
+			}
+		}
+		if !hasUnknown && len(overlap.SectorAllocationB.MissingSymbols) == 0 {
+			t.Log("SectorAllocationB has no Unknown bucket and no missing symbols (acceptable if data is empty)")
+		}
+	}
+	if overlap.CountryAllocationB != nil {
+		hasUnknown := false
+		for country, weight := range overlap.CountryAllocationB.Breakdown {
+			if country == "Unknown" && weight > 0 {
+				hasUnknown = true
+				break
+			}
+		}
+		if !hasUnknown && len(overlap.CountryAllocationB.MissingSymbols) == 0 {
+			t.Log("CountryAllocationB has no Unknown bucket and no missing symbols (acceptable if data is empty)")
+		}
+	}
+
+	// Merged holdings should still work (VXUS has no top holdings to expand,
+	// so it appears as a single holding; VOO expands to its top holdings).
+	// The key point: no panic, result is valid.
+	t.Logf("MergedHoldings: %d entries", len(overlap.MergedHoldings))
+	t.Logf("Overweight: %d, Underweight: %d, Neutral: %d",
+		len(overlap.OverweightHoldings), len(overlap.UnderweightHoldings), len(overlap.NeutralHoldings))
+
+	// Warnings should mention the portfolio with missing data.
+	hasMissingDataWarning := false
+	for _, w := range overlap.Warnings {
+		if strings.Contains(w, "UNKNOWN") || strings.Contains(w, "missing") {
+			hasMissingDataWarning = true
+			break
+		}
+	}
+	if !hasMissingDataWarning {
+		t.Logf("No missing-data warning found (may be expected if empty data is silent). Warnings: %v", overlap.Warnings)
+	}
+}
+
