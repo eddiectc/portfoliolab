@@ -2,6 +2,11 @@
 
 ## Implementation Notes
 
+### Task 2+3: Sector and country allocation computation
+
+- **Tasks 2 and 3 implemented together**: Both functions share the same file (`allocation.go`), test file, result type pattern, and `normalizeSector` helper. Combined them in one pass rather than splitting across two sessions.
+- **Result types in allocation.go, not types.go**: The plan placed `SectorAllocationResult` and `CountryAllocationResult` in `types.go` (TD-3). They live in `allocation.go` instead since they're only used by the allocation functions, not by other domain code. `AllocationEntry` and the sorted helper functions follow the same placement.
+
 ### Task 1: PortfolioHolding enrichment
 
 - **Sector field added alongside SectorWeightings**: The plan specified `SectorWeightings []symbol.SectorWeighting` and `GeographicAllocations []symbol.GeographicAllocation`, but stocks use `SymbolDetails.Sector` (a single primary sector string), not `SectorWeightings` (a slice used by ETFs). Added `Sector string` to `PortfolioHolding` to cover both cases, matching the pattern in `analysis/allocation.go`.
