@@ -1277,6 +1277,41 @@ Compare any two portfolios (model vs model, model vs real, or real vs real) on p
         {"symbol": "MSFT", "weight": 0.20}
       ],
       "overlap_pct": 45.00,
+      "sector_allocation_a": {
+        "breakdown": {"Technology": 0.58, "Healthcare": 0.15, "Financials": 0.12},
+        "unknown_weight_pct": 0.05,
+        "warnings": [],
+        "missing_symbols": []
+      },
+      "sector_allocation_b": {
+        "breakdown": {"Technology": 0.45, "Healthcare": 0.20, "Financials": 0.18},
+        "unknown_weight_pct": 0.02,
+        "warnings": [],
+        "missing_symbols": []
+      },
+      "country_allocation_a": {
+        "breakdown": {"United States": 0.72, "China": 0.08, "Japan": 0.05},
+        "unknown_weight_pct": 0.03,
+        "warnings": [],
+        "missing_symbols": []
+      },
+      "country_allocation_b": {
+        "breakdown": {"United States": 0.65, "China": 0.12, "Japan": 0.07},
+        "unknown_weight_pct": 0.01,
+        "warnings": [],
+        "missing_symbols": []
+      },
+      "merged_holdings": [
+        {"symbol": "AAPL", "name": "Apple Inc.", "weight_a": 0.30, "weight_b": 0.25, "overlap_pct": 25.00},
+        {"symbol": "MSFT", "name": "Microsoft Corp.", "weight_a": 0.20, "weight_b": 0.00, "overlap_pct": 0.00}
+      ],
+      "overweight_holdings": [
+        {"symbol": "AAPL", "name": "Apple Inc.", "weight_a": 0.30, "weight_b": 0.25, "difference": 5.00}
+      ],
+      "underweight_holdings": [
+        {"symbol": "GOOG", "name": "Alphabet Inc.", "weight_a": 0.10, "weight_b": 0.20, "difference": -10.00}
+      ],
+      "neutral_holdings": [],
       "warnings": []
     }
   },

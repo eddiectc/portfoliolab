@@ -444,6 +444,241 @@ function toggleCustomDates(e) {
         </div>
     </div>
 </div>
+
+{{/* ============================================ */}}
+{{/* SECTION: Sector Allocation                   */}}
+{{/* ============================================ */}}
+{{if and .Result.CrossMetrics.Overlap .Result.CrossMetrics.Overlap.SectorAllocationA .Result.CrossMetrics.Overlap.SectorAllocationB}}
+<div class="analysis-section">
+    <h2>Sector Allocation</h2>
+
+    {{if or .Result.CrossMetrics.Overlap.SectorAllocationA.Message .Result.CrossMetrics.Overlap.SectorAllocationB.Message}}
+    <p class="empty-state">
+        {{if .Result.CrossMetrics.Overlap.SectorAllocationA.Message}}{{.Result.CrossMetrics.Overlap.SectorAllocationA.Message}} {{end}}
+        {{if .Result.CrossMetrics.Overlap.SectorAllocationB.Message}}{{.Result.CrossMetrics.Overlap.SectorAllocationB.Message}}{{end}}
+    </p>
+    {{else}}
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Sector</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $key, $val := .Result.CrossMetrics.Overlap.SectorAllocationA.Breakdown}}
+            <tr>
+                <td>{{$key}}</td>
+                <td class="num">{{printf "%.2f" $val}}%</td>
+                <td class="num">
+                    {{with index $.Result.CrossMetrics.Overlap.SectorAllocationB.Breakdown $key}}{{printf "%.2f" .}}%{{else}}0.00%{{end}}
+                </td>
+            </tr>
+            {{end}}
+            {{range $key, $val := .Result.CrossMetrics.Overlap.SectorAllocationB.Breakdown}}
+            {{if not (index $.Result.CrossMetrics.Overlap.SectorAllocationA.Breakdown $key)}}
+            <tr>
+                <td>{{$key}}</td>
+                <td class="num">0.00%</td>
+                <td class="num">{{printf "%.2f" $val}}%</td>
+            </tr>
+            {{end}}
+            {{end}}
+            {{if or .Result.CrossMetrics.Overlap.SectorAllocationA.UnknownWeightPct .Result.CrossMetrics.Overlap.SectorAllocationB.UnknownWeightPct}}
+            <tr>
+                <td>Unknown</td>
+                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.SectorAllocationA.UnknownWeightPct}}%</td>
+                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.SectorAllocationB.UnknownWeightPct}}%</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+
+    {{if .SectorDriftChart}}
+    <div id="sector-drift-chart" style="width:100%;height:400px;margin-top:1rem;"></div>
+    {{end}}
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Country Allocation                  */}}
+{{/* ============================================ */}}
+{{if and .Result.CrossMetrics.Overlap .Result.CrossMetrics.Overlap.CountryAllocationA .Result.CrossMetrics.Overlap.CountryAllocationB}}
+<div class="analysis-section">
+    <h2>Country Allocation</h2>
+
+    {{if or .Result.CrossMetrics.Overlap.CountryAllocationA.Message .Result.CrossMetrics.Overlap.CountryAllocationB.Message}}
+    <p class="empty-state">
+        {{if .Result.CrossMetrics.Overlap.CountryAllocationA.Message}}{{.Result.CrossMetrics.Overlap.CountryAllocationA.Message}} {{end}}
+        {{if .Result.CrossMetrics.Overlap.CountryAllocationB.Message}}{{.Result.CrossMetrics.Overlap.CountryAllocationB.Message}}{{end}}
+    </p>
+    {{else}}
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Country</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $key, $val := .Result.CrossMetrics.Overlap.CountryAllocationA.Breakdown}}
+            <tr>
+                <td>{{$key}}</td>
+                <td class="num">{{printf "%.2f" $val}}%</td>
+                <td class="num">
+                    {{with index $.Result.CrossMetrics.Overlap.CountryAllocationB.Breakdown $key}}{{printf "%.2f" .}}%{{else}}0.00%{{end}}
+                </td>
+            </tr>
+            {{end}}
+            {{range $key, $val := .Result.CrossMetrics.Overlap.CountryAllocationB.Breakdown}}
+            {{if not (index $.Result.CrossMetrics.Overlap.CountryAllocationA.Breakdown $key)}}
+            <tr>
+                <td>{{$key}}</td>
+                <td class="num">0.00%</td>
+                <td class="num">{{printf "%.2f" $val}}%</td>
+            </tr>
+            {{end}}
+            {{end}}
+            {{if or .Result.CrossMetrics.Overlap.CountryAllocationA.UnknownWeightPct .Result.CrossMetrics.Overlap.CountryAllocationB.UnknownWeightPct}}
+            <tr>
+                <td>Unknown</td>
+                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.CountryAllocationA.UnknownWeightPct}}%</td>
+                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.CountryAllocationB.UnknownWeightPct}}%</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+
+    {{if .CountryDriftChart}}
+    <div id="country-drift-chart" style="width:100%;height:400px;margin-top:1rem;"></div>
+    {{end}}
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Merged Holdings                     */}}
+{{/* ============================================ */}}
+{{if and .Result.CrossMetrics.Overlap .Result.CrossMetrics.Overlap.MergedHoldings}}
+<div class="analysis-section">
+    <h2>Merged Holdings</h2>
+    <p class="section-note">Top holdings from both portfolios, merged. Shared holdings listed first by overlap %, then unique holdings by weight. Limited to top 10 from each portfolio.</p>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+                <th>Overlap</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.CrossMetrics.Overlap.MergedHoldings}}
+            <tr>
+                <td>{{if .Name}}{{.Name}}{{else}}{{.Symbol}}{{end}}</td>
+                <td class="num">{{weightPct .WeightA}}%</td>
+                <td class="num">{{weightPct .WeightB}}%</td>
+                <td class="num">{{printf "%.2f" .OverlapPct}}%</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Overweight Holdings                 */}}
+{{/* ============================================ */}}
+{{if and .Result.CrossMetrics.Overlap .Result.CrossMetrics.Overlap.OverweightHoldings}}
+<div class="analysis-section">
+    <h2>Overweight in {{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</h2>
+    <p class="section-note">Holdings where {{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}} has a higher weight than {{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}. Top 10 by difference.</p>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+                <th>Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.CrossMetrics.Overlap.OverweightHoldings}}
+            <tr>
+                <td>{{if .Name}}{{.Name}}{{else}}{{.Symbol}}{{end}}</td>
+                <td class="num">{{weightPct .WeightA}}%</td>
+                <td class="num">{{weightPct .WeightB}}%</td>
+                <td class="num heat-positive">+{{printf "%.2f" .Difference}}pp</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Underweight Holdings                */}}
+{{/* ============================================ */}}
+{{if and .Result.CrossMetrics.Overlap .Result.CrossMetrics.Overlap.UnderweightHoldings}}
+<div class="analysis-section">
+    <h2>Underweight in {{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</h2>
+    <p class="section-note">Holdings where {{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}} has a higher weight than {{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}. Top 10 by difference.</p>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+                <th>Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.CrossMetrics.Overlap.UnderweightHoldings}}
+            <tr>
+                <td>{{if .Name}}{{.Name}}{{else}}{{.Symbol}}{{end}}</td>
+                <td class="num">{{weightPct .WeightA}}%</td>
+                <td class="num">{{weightPct .WeightB}}%</td>
+                <td class="num heat-negative">{{printf "%.2f" .Difference}}pp</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+{{/* ============================================ */}}
+{{/* SECTION: Neutral Holdings                    */}}
+{{/* ============================================ */}}
+{{if and .Result.CrossMetrics.Overlap .Result.CrossMetrics.Overlap.NeutralHoldings}}
+<div class="analysis-section">
+    <h2>Neutral Holdings</h2>
+    <p class="section-note">Holdings where both portfolios have the same weight. Sorted by weight descending.</p>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}</th>
+                <th>{{if .Result.PortfolioB}}{{.Result.PortfolioB.Name}}{{end}}</th>
+                <th>Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Result.CrossMetrics.Overlap.NeutralHoldings}}
+            <tr>
+                <td>{{if .Name}}{{.Name}}{{else}}{{.Symbol}}{{end}}</td>
+                <td class="num">{{weightPct .WeightA}}%</td>
+                <td class="num">{{weightPct .WeightB}}%</td>
+                <td class="num heat-neutral">0.00pp</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
 {{end}}
 
 {{/* ============================================ */}}
@@ -467,7 +702,7 @@ function toggleCustomDates(e) {
 {{end}}
 
 {{/* ECharts scripts */}}
-{{if or .ValueGrowthChartData .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns .DrawdownChartData .CorrelationMatrixAChart .CorrelationMatrixBChart .AnnualHistogramChart .MonthlyHistogramChart}}
+{{if or .ValueGrowthChartData .Result.PortfolioA.YearlyReturns .Result.PortfolioB.YearlyReturns .DrawdownChartData .CorrelationMatrixAChart .CorrelationMatrixBChart .AnnualHistogramChart .MonthlyHistogramChart .SectorDriftChart .CountryDriftChart}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 {{end}}
 
@@ -921,6 +1156,102 @@ function toggleCustomDates(e) {
         window.addEventListener('resize', function() { chart.resize(); });
     } catch(e) {
         console.error('Correlation matrix B failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Sector drift chart (diverging bar) */}}
+{{if .SectorDriftChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.SectorDriftChart}}');
+        if (!data.categories || data.categories.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('sector-drift-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    var val = params[0].value;
+                    var sign = val >= 0 ? '+' : '';
+                    return params[0].name + '<br/>' + params[0].seriesName + ': ' + sign + val.toFixed(2) + 'pp';
+                }
+            },
+            legend: { data: ['Drift (' + data.name_a + ' - ' + data.name_b + ')'] },
+            grid: { left: '3%', right: '10%', bottom: '3%', top: '12%', containLabel: true },
+            xAxis: { type: 'value', axisLabel: { formatter: function(v) { return v + 'pp'; } } },
+            yAxis: { type: 'category', data: data.categories.reverse() },
+            series: [{
+                name: 'Drift (' + data.name_a + ' - ' + data.name_b + ')',
+                type: 'bar',
+                data: data.values.reverse(),
+                itemStyle: {
+                    color: function(params) {
+                        return params.value >= 0 ? '#4575b4' : '#d73027';
+                    }
+                },
+                label: {
+                    show: true,
+                    position: function(p) { return p.value >= 0 ? 'right' : 'left'; },
+                    formatter: function(p) { return (p.value >= 0 ? '+' : '') + p.value.toFixed(1) + 'pp'; },
+                    fontSize: 10
+                }
+            }]
+        });
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Sector drift chart failed:', e);
+    }
+})();
+</script>
+{{end}}
+
+{{/* Country drift chart (diverging bar) */}}
+{{if .CountryDriftChart}}
+<script>
+(function() {
+    try {
+        var data = JSON.parse('{{.CountryDriftChart}}');
+        if (!data.categories || data.categories.length === 0) return;
+
+        var chart = echarts.init(document.getElementById('country-drift-chart'));
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    var val = params[0].value;
+                    var sign = val >= 0 ? '+' : '';
+                    return params[0].name + '<br/>' + params[0].seriesName + ': ' + sign + val.toFixed(2) + 'pp';
+                }
+            },
+            legend: { data: ['Drift (' + data.name_a + ' - ' + data.name_b + ')'] },
+            grid: { left: '3%', right: '10%', bottom: '3%', top: '12%', containLabel: true },
+            xAxis: { type: 'value', axisLabel: { formatter: function(v) { return v + 'pp'; } } },
+            yAxis: { type: 'category', data: data.categories.reverse() },
+            series: [{
+                name: 'Drift (' + data.name_a + ' - ' + data.name_b + ')',
+                type: 'bar',
+                data: data.values.reverse(),
+                itemStyle: {
+                    color: function(params) {
+                        return params.value >= 0 ? '#4575b4' : '#d73027';
+                    }
+                },
+                label: {
+                    show: true,
+                    position: function(p) { return p.value >= 0 ? 'right' : 'left'; },
+                    formatter: function(p) { return (p.value >= 0 ? '+' : '') + p.value.toFixed(1) + 'pp'; },
+                    fontSize: 10
+                }
+            }]
+        });
+        window.addEventListener('resize', function() { chart.resize(); });
+    } catch(e) {
+        console.error('Country drift chart failed:', e);
     }
 })();
 </script>
