@@ -25,6 +25,19 @@ func portfolioHoldingETF(t *testing.T, sym string, weight float64, holdings []sy
 	}
 }
 
+func portfolioHoldingETFWithSector(t *testing.T, sym string, weight float64, holdings []symbol.TopHolding, sectors []symbol.SectorWeighting, geo []symbol.GeographicAllocation) PortfolioHolding {
+	t.Helper()
+	return PortfolioHolding{
+		Symbol:                sym,
+		Weight:                decF(weight),
+		Name:                  sym,
+		QuoteType:             "ETF",
+		TopHoldings:           holdings,
+		SectorWeightings:      sectors,
+		GeographicAllocations: geo,
+	}
+}
+
 func portfolioHoldingStock(t *testing.T, sym string, weight float64, name string) PortfolioHolding {
 	t.Helper()
 	return PortfolioHolding{
@@ -32,6 +45,17 @@ func portfolioHoldingStock(t *testing.T, sym string, weight float64, name string
 		Weight:    decF(weight),
 		Name:      name,
 		QuoteType: "EQUITY",
+	}
+}
+
+func portfolioHoldingStockWithSector(t *testing.T, sym string, weight float64, name string, sector string) PortfolioHolding {
+	t.Helper()
+	return PortfolioHolding{
+		Symbol:    sym,
+		Weight:    decF(weight),
+		Name:      name,
+		QuoteType: "EQUITY",
+		Sector:    sector,
 	}
 }
 
@@ -377,27 +401,27 @@ func TestComputeWeightedOverlap(t *testing.T) {
 		wantPct float64
 	}{
 		{
-			name: "identical weights",
-			setA: map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
-			setB: map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
+			name:    "identical weights",
+			setA:    map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
+			setB:    map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
 			wantPct: 9.0, // min(0.05,0.05) + min(0.04,0.04) = 0.09 = 9%
 		},
 		{
-			name: "different weights takes minimum",
-			setA: map[string]*holdingInfo{"AAPL": {weight: d(0.08)}, "MSFT": {weight: d(0.04)}},
-			setB: map[string]*holdingInfo{"AAPL": {weight: d(0.03)}, "MSFT": {weight: d(0.06)}},
+			name:    "different weights takes minimum",
+			setA:    map[string]*holdingInfo{"AAPL": {weight: d(0.08)}, "MSFT": {weight: d(0.04)}},
+			setB:    map[string]*holdingInfo{"AAPL": {weight: d(0.03)}, "MSFT": {weight: d(0.06)}},
 			wantPct: 7.0, // min(0.08,0.03) + min(0.04,0.06) = 0.03+0.04 = 0.07 = 7%
 		},
 		{
-			name: "no overlap",
-			setA: map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
-			setB: map[string]*holdingInfo{"JNJ": {weight: d(0.05)}, "PFE": {weight: d(0.03)}},
+			name:    "no overlap",
+			setA:    map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
+			setB:    map[string]*holdingInfo{"JNJ": {weight: d(0.05)}, "PFE": {weight: d(0.03)}},
 			wantPct: 0.0,
 		},
 		{
-			name: "partial overlap",
-			setA: map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
-			setB: map[string]*holdingInfo{"AAPL": {weight: d(0.03)}, "JNJ": {weight: d(0.06)}},
+			name:    "partial overlap",
+			setA:    map[string]*holdingInfo{"AAPL": {weight: d(0.05)}, "MSFT": {weight: d(0.04)}},
+			setB:    map[string]*holdingInfo{"AAPL": {weight: d(0.03)}, "JNJ": {weight: d(0.06)}},
 			wantPct: 3.0, // min(0.05,0.03) = 0.03 = 3%
 		},
 		{
@@ -431,9 +455,9 @@ func TestIsETF_WithTopHoldings(t *testing.T) {
 	// Holding with TopHoldings populated should be treated as ETF,
 	// regardless of QuoteType value.
 	tests := []struct {
-		name      string
-		holding   PortfolioHolding
-		wantETF   bool
+		name    string
+		holding PortfolioHolding
+		wantETF bool
 	}{
 		{
 			name: "quote_type_etf_with_holdings",
@@ -685,10 +709,10 @@ func topHoldingsWithISIN(symbols, isins []string, weights []float64, names []str
 	var holdings []symbol.TopHolding
 	for i := range symbols {
 		holdings = append(holdings, symbol.TopHolding{
-			Symbol: symbols[i],
-			ISIN:   isins[i],
+			Symbol:  symbols[i],
+			ISIN:    isins[i],
 			Percent: weights[i],
-			Name:   names[i],
+			Name:    names[i],
 		})
 	}
 	return holdings

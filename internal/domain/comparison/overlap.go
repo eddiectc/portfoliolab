@@ -13,11 +13,14 @@ import (
 // computation. It can be either a direct holding (stock) or an ETF entry
 // (with TopHoldings populated for expansion).
 type PortfolioHolding struct {
-	Symbol      string
-	Weight      decimal.Decimal // fraction of portfolio (0.0-1.0)
-	Name        string
-	QuoteType   string // "ETF" or "EQUITY" (or other)
-	TopHoldings []symbol.TopHolding
+	Symbol                string
+	Weight                decimal.Decimal // fraction of portfolio (0.0-1.0)
+	Name                  string
+	QuoteType             string // "ETF" or "EQUITY" (or other)
+	TopHoldings           []symbol.TopHolding
+	Sector                string                   // primary sector for individual stocks
+	SectorWeightings      []symbol.SectorWeighting // sector breakdown for ETFs
+	GeographicAllocations []symbol.GeographicAllocation
 }
 
 // CrossPortfolioOverlapInput holds the two portfolios to compare.
@@ -26,22 +29,6 @@ type CrossPortfolioOverlapInput struct {
 	PortfolioB []PortfolioHolding
 }
 
-// ComputeCrossPortfolioOverlap computes the holdings overlap between two
-// portfolios.
-//
-// For each portfolio:
-//   - ETF holdings are expanded to their underlying symbols (weight × percent)
-//   - Direct holdings (stocks) are kept as-is
-//   - The top-10 underlying holdings are returned
-//
-// Overlap percentage is the Jaccard similarity of underlying symbol sets:
-//
-//	overlap = |A ∩ B| / |A ∪ B| × 100
-//
-// Key resolution: ISIN → Symbol → Name (normalized). Both portfolios
-// are matched at the lowest common key level.
-//
-// Returns warnings when ETFs have no cached holdings data.
 // ComputeCrossPortfolioOverlap computes the holdings overlap between two
 // portfolios.
 //
