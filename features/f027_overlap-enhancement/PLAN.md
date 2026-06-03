@@ -114,19 +114,19 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
 ### Task 4: Implement merged holdings computation
 **Files**: `internal/domain/comparison/overlap_enhanced.go`, `internal/domain/comparison/overlap_enhanced_test.go`
 
-- Create `ComputeMergedHoldings(holdingsA, holdingsB []PortfolioHolding, limit int) []MergedHolding`
-- Expand both portfolios to underlying holdings (reuse `expandETFHoldingsDisplay`)
-- Merge into single list: shared holdings first (sorted by min-weight overlap % desc), then unique holdings (sorted by their weight desc, interleaved)
-- Limit to top N from A + top N from B (deduplicated)
-- Overlap % = min(weightA, weightB) × 100 (absolute percentage points)
-- For unique holdings: overlap % = 0
+- [x] Create `ComputeMergedHoldings(holdingsA, holdingsB []PortfolioHolding, limit int) []MergedHolding`
+- [x] Expand both portfolios to underlying holdings (reuse `expandETFHoldingsDisplay`)
+- [x] Merge into single list: shared holdings first (sorted by min-weight overlap % desc), then unique holdings (sorted by their weight desc, interleaved)
+- [x] Limit to top N from A + top N from B (deduplicated)
+- [x] Overlap % = min(weightA, weightB) × 100 (absolute percentage points)
+- [x] For unique holdings: overlap % = 0
 
 **Tests**:
-- Two portfolios with shared and unique holdings
-- All holdings shared (identical portfolios) → 100% overlap for all
-- No shared holdings → all unique, sorted by weight
-- Limit respected (top 10 + top 10 deduplicated)
-- ETF expansion works correctly
+- [x] Two portfolios with shared and unique holdings
+- [x] All holdings shared (identical portfolios) → 100% overlap for all
+- [x] No shared holdings → all unique, sorted by weight
+- [x] Limit respected (top 10 + top 10 deduplicated)
+- [x] ETF expansion works correctly
 
 ---
 
