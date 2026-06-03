@@ -216,16 +216,16 @@ Enhance the Holdings Overlap section on the portfolio comparison page with secto
 ### Task 9: Update comparison template with enhanced overlap sections
 **Files**: `templates/comparison/index.html`
 
-- Replace existing "Holdings Overlap" section with enhanced version:
+- [x] Replace existing "Holdings Overlap" section with enhanced version:
   1. **Sector Allocation** — side-by-side table (sector | Portfolio A % | Portfolio B %) + drift chart
   2. **Country Allocation** — side-by-side table (country | Portfolio A % | Portfolio B %) + drift chart
   3. **Merged Holdings** — single table (Name | Weight A | Weight B | Overlap %)
   4. **Overweight Holdings** — table (Name | Weight A | Weight B | Difference)
   5. **Underweight Holdings** — table (Name | Weight A | Weight B | Difference)
-- Add warning messages for missing sector/country data
-- Add empty-state messages when no allocation data available
-- Add ECharts script blocks for sector/country drift charts (diverging bar charts)
-- Use portfolio names (not "A"/"B") in all labels
+- [x] Add warning messages for missing sector/country data
+- [x] Add empty-state messages when no allocation data available
+- [x] Add ECharts script blocks for sector/country drift charts (diverging bar charts)
+- [x] Use portfolio names (not "A"/"B") in all labels
 
 **Tests**: Manual verification (template rendering). Integration test that verifies page renders without errors when overlap data is present.
 

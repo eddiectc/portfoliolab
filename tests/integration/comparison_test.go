@@ -815,6 +815,49 @@ func TestComparison_StartingValue(t *testing.T) {
 	}
 }
 
+func TestComparison_EnhancedOverlap_WebPageRendersSections(t *testing.T) {
+	skipIfTemplatesUnavailable(t)
+	db, router := setupComparison(t)
+
+	mpA := createModelPortfolio(t, router, "Enhanced A", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: mustDecimal("50.0")},
+		{Symbol: "MSFT", WeightPct: mustDecimal("50.0")},
+	})
+	mpB := createModelPortfolio(t, router, "Enhanced B", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: mustDecimal("30.0")},
+		{Symbol: "GOOGL", WeightPct: mustDecimal("70.0")},
+	})
+
+	insertComparisonMarketData(t, db, map[string]float64{
+		"AAPL":  175.0,
+		"MSFT":  400.0,
+		"GOOGL": 140.0,
+	}, 120)
+
+	req := httptest.NewRequest(http.MethodGet,
+		fmt.Sprintf("/comparison?portfolio_a_id=m%d&portfolio_b_id=m%d&period=3M&starting_value=10000", mpA, mpB), nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+
+	// Verify enhanced overlap sections are present in the rendered HTML.
+	sections := map[string]string{
+		"Sector Allocation":  "Sector Allocation",
+		"Country Allocation": "Country Allocation",
+		"Merged Holdings":    "Merged Holdings",
+		"Holdings Overlap":   "Holdings Overlap",
+	}
+	for section, expected := range sections {
+		if !bytes.Contains([]byte(body), []byte(expected)) {
+			t.Errorf("expected section %q in rendered page", section)
+		}
+	}
+}
+
 func TestComparison_RealVsModel_NoTransactionsOnReal(t *testing.T) {
 	db, router := setupComparison(t)
 

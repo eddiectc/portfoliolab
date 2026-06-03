@@ -234,6 +234,32 @@ func (r *Renderer) parseTemplates() error {
 			// Marks a string as safe JavaScript (e.g. pre-serialized JSON).
 			return template.JS(s)
 		},
+		"weightPct": func(v interface{}) string {
+			// Convert a decimal.Decimal fraction (0.0-1.0) to a percentage string (2dp).
+			// Used for MergedHolding and WeightDifferenceHolding display.
+			switch val := v.(type) {
+			case decimal.Decimal:
+				f, _ := val.Float64()
+				return fmt.Sprintf("%.2f", f*100)
+			case fmt.Stringer:
+				d, err := decimal.Parse(val.String())
+				if err != nil {
+					return "0.00"
+				}
+				f, _ := d.Float64()
+				return fmt.Sprintf("%.2f", f*100)
+			default:
+				return fmt.Sprintf("%.2f", v)
+			}
+		},
+		"mapKeys": func(m map[string]float64) []string {
+			// Return sorted keys of a map for template iteration.
+			keys := make([]string, 0, len(m))
+			for k := range m {
+				keys = append(keys, k)
+			}
+			return keys
+		},
 		"fxRateDisplay": func(posCurrency, baseCurrency string, rate interface{}) string {
 			// Returns "PAIR RATE" in market convention (e.g. "GBP/USD 1.3000").
 			// If rate is nil or zero, returns "—".

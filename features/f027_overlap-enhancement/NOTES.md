@@ -2,6 +2,17 @@
 
 ## Implementation Notes
 
+### Task 9: Update comparison template with enhanced overlap sections
+
+- **Template functions added**: `weightPct` (converts decimal.Decimal fraction to percentage string) and `mapKeys` (returns map keys for iteration) added to `internal/web/renderer.go` FuncMap.
+- **Sector/Country allocation tables**: Iterate Portfolio A's breakdown first, then add Portfolio B's unique keys. Each row shows both portfolios' percentages. "Unknown" row shown when either portfolio has unknown weight.
+- **Empty-state handling**: When either portfolio has a `Message` field (e.g. "no holdings"), the section shows the message text instead of the table.
+- **Merged holdings table**: Uses `weightPct` template function to convert decimal.Decimal weights to percentage display. Shows overlap % as pre-computed percentage points.
+- **Overweight/Underweight/Neutral tables**: Use `weightPct` for weight display. Overweight shows "+X.XXpp" (heat-positive), underweight shows "X.XXpp" (heat-negative), neutral shows "0.00pp" (heat-neutral). Difference column uses `printf "%.2f" .Difference` directly since `Difference` is already a float64 percentage point value.
+- **ECharts drift charts**: Two new chart scripts for sector and country drift. Diverging bar charts with blue (#4575b4) for positive (A overweight) and red (#d73027) for negative (B overweight). Labels show signed value with "pp" suffix. Y-axis reversed for top-to-bottom reading.
+- **ECharts script condition**: Updated to include `.SectorDriftChart` and `.CountryDriftChart` so the library is loaded when drift charts are present.
+- **Portfolio names throughout**: All section headers use `{{if .Result.PortfolioA}}{{.Result.PortfolioA.Name}}{{end}}` pattern for proper portfolio name display.
+
 ### Task 8: Chart serialization for sector/country drift charts
 
 - **Drift chart data structure**: `driftChartData` with `Categories []string`, `Values []float64` (percentage points, positive = A overweight), `NameA`, `NameB`, `Note` (optional truncation message). Sorted by absolute difference descending, alphabetically for ties.
