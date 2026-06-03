@@ -7,7 +7,7 @@
 - **MergedHolding type in types.go**: The plan placed `MergedHolding` in `types.go` (TD-4) and it was added there since `OverlapResult` (in Task 6) will reference it. This follows the cross-reference rule.
 - **Key resolution uses existing `expandETFHoldingsDisplay`**: Reuses the existing `keyBest` expansion from `overlap.go` rather than creating a separate key level resolution. Both portfolios use the same best-available key (ISIN > Symbol > Name) for matching.
 - **`selectTopN` helper**: Extracted as a standalone function for selecting top N holdings from an expanded map. Used by `ComputeMergedHoldings` to apply the per-portfolio limit before merging.
-- **`expandETFHoldingsWithKey`**: Added as a variant that accepts a `keyLevel` parameter for consistent cross-portfolio key resolution. Used internally but not exposed as a public API.
+- **`expandETFHoldingsWithKey` removed**: Was added as a variant accepting a `keyLevel` parameter but never called by `ComputeMergedHoldings` (which uses `expandETFHoldingsDisplay` with `keyBest` directly). Removed during implementation review as dead code.
 - **Overlap % rounding**: Uses `stats.RoundTo2` for consistency with other percentage calculations in the comparison domain.
 
 ### Task 2+3: Sector and country allocation computation
