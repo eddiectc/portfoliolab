@@ -151,6 +151,17 @@ type MergedHolding struct {
 	OverlapPct float64         `json:"overlap_pct"` // min(weightA, weightB) * 100, or 0 if unique
 }
 
+// WeightDifferenceHolding represents a holding with its weight difference
+// between two portfolios. Positive difference means overweight in A (A > B),
+// negative means underweight in A (B > A).
+type WeightDifferenceHolding struct {
+	Symbol     string          `json:"symbol"`
+	Name       string          `json:"name,omitempty"`
+	WeightA    decimal.Decimal `json:"weight_a"` // as fraction (0.0-1.0)
+	WeightB    decimal.Decimal `json:"weight_b"` // as fraction (0.0-1.0)
+	Difference float64         `json:"difference"` // (weightA - weightB) * 100, in percentage points
+}
+
 // HoldingWeight maps a symbol to its weight in a portfolio.
 type HoldingWeight struct {
 	ISIN   string          `json:"isin,omitempty"`
