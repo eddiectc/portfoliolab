@@ -141,6 +141,16 @@ type OverlapResult struct {
 	Warnings     []string         `json:"warnings,omitempty"`
 }
 
+// MergedHolding represents a single holding in the merged holdings table,
+// showing its weight in both portfolios and the overlap percentage.
+type MergedHolding struct {
+	Symbol     string          `json:"symbol"`
+	Name       string          `json:"name,omitempty"`
+	WeightA    decimal.Decimal `json:"weight_a"` // as fraction (0.0-1.0)
+	WeightB    decimal.Decimal `json:"weight_b"` // as fraction (0.0-1.0)
+	OverlapPct float64         `json:"overlap_pct"` // min(weightA, weightB) * 100, or 0 if unique
+}
+
 // HoldingWeight maps a symbol to its weight in a portfolio.
 type HoldingWeight struct {
 	ISIN   string          `json:"isin,omitempty"`
