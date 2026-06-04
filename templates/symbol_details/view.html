@@ -23,6 +23,12 @@
                 <th>Market Data Symbol</th>
                 <td>{{.Symbol.MarketDataSymbol}}</td>
             </tr>
+            {{if .Symbol.DataSourceURL}}
+            <tr>
+                <th>Source</th>
+                <td><a href="{{.Symbol.DataSourceURL}}" target="_blank" rel="noopener">{{.Symbol.DataSourceURL}}</a></td>
+            </tr>
+            {{end}}
             {{if .Details}}
             <tr>
                 <th>Name</th>
