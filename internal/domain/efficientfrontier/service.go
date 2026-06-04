@@ -348,7 +348,11 @@ func (s *Service) convertToBaseCurrency(ctx context.Context, prices map[string][
 		// Convert close prices.
 		for i := range hp {
 			if hp[i].Currency == targetCurrency {
-				closeFloat, _ := hp[i].Close.Float64()
+				closeFloat, ok := hp[i].Close.Float64()
+				if !ok {
+					warnings = append(warnings, fmt.Sprintf("%s: could not convert close price to float at %s, price left in %s", sym, hp[i].Date.Format("2006-01-02"), targetCurrency))
+					continue
+				}
 				converted := closeFloat * rate
 				// Set the converted price and mark currency as base.
 				closeDec, err := decimal.NewFromFloat64(converted)
