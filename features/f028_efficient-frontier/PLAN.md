@@ -76,19 +76,19 @@ Task 7 (nav + docs) — after all above
 
 **Description:** Create `efficientfrontier.go` and `efficientfrontier_test.go` in `internal/api/handlers/`. Follows the `analysis` pattern: handler defines a service interface, delegates computation, returns JSON.
 
-- [ ] Define `efficientFrontierService` interface (subset of methods the handler needs)
-- [ ] Implement `HandleComputeFrontier` (POST `/api/efficient-frontier/compute`):
+- [x] Define `efficientFrontierService` interface (subset of methods the handler needs)
+- [x] Implement `HandleComputeFrontier` (POST `/api/efficient-frontier/compute`):
   - Parse request: `[]string Symbols`, `string Period`, `float64 RiskFreeRate`
   - Validate: at least 2 symbols, max 10 symbols, valid period
   - Call service.ComputeFrontier
   - Return JSON response with frontier points, key portfolios, warnings
   - Error responses for: empty candidate set, numerical failure, all symbols missing data
-- [ ] Implement `HandleGetCandidateSymbols` (GET `/api/efficient-frontier/symbols`) — autocomplete source
-- [ ] Implement `HandleGetPortfolioSymbols` (GET `/api/efficient-frontier/portfolio/{id}/symbols`) — copy from real portfolio
-- [ ] Implement `HandleGetModelPortfolioSymbols` (GET `/api/efficient-frontier/model-portfolio/{id}/symbols`) — copy from model portfolio
-- [ ] Register routes in `RegisterRoutes`
-- [ ] Wire handler in `router.go`
-- [ ] Write handler tests: `efficientfrontier_test.go` with mock service
+- [x] Implement `HandleGetCandidateSymbols` (GET `/api/efficient-frontier/symbols`) — autocomplete source
+- [x] Implement `HandleGetPortfolioSymbols` (GET `/api/efficient-frontier/portfolio/{id}/symbols`) — copy from real portfolio
+- [x] Implement `HandleGetModelPortfolioSymbols` (GET `/api/efficient-frontier/model-portfolio/{id}/symbols`) — copy from model portfolio
+- [x] Register routes in `RegisterRoutes`
+- [x] Wire handler in `router.go`
+- [x] Write handler tests: `efficientfrontier_test.go` with mock service
 
 **Verification:** `go test ./internal/api/handlers/... -run Efficient` passes. API returns consistent error responses.
 

@@ -1,7 +1,12 @@
 # Notes: Efficient Frontier
 
 ## Decisions
-- 2026-06-04: `portfolioEval` struct placed in `types.go` at package level so it can be referenced by both `frontier.go` computation and `frontier_test.go` tests.
+- 2026-06-04: Handler `efficientFrontierService` interface defined locally in the handlers package, following the `modelPortfolioService` pattern (not imported from efficientfrontier domain package).
+- 2026-06-04: Data adapters (`SymbolListerImpl`, `PortfolioSymbolSourceImpl`, `ModelPortfolioSourceImpl`, `FxRateSourceImpl`) placed in `internal/data/efficient_frontier_adapters.go` to bridge existing services to the efficient frontier service interfaces. Uses concrete types (`*account.Service`, `*position.Service`, `*modelportfolio.Service`, `*marketservice.Service`) rather than additional abstraction layers.
+- 2026-06-04: `handleComputeError` uses a `switch` on sentinel error values (`ErrInsufficientSymbols`, etc.) rather than `errors.As`, since the service returns the exact same pointer values.
+- 2026-06-04: Period validation restricted to `1Y`, `3Y`, `5Y` (the spec's predefined periods) rather than the full set used by analysis (`3M`, `6M`, `10Y`).
+- 2026-06-04:
+ `portfolioEval` struct placed in `types.go` at package level so it can be referenced by both `frontier.go` computation and `frontier_test.go` tests.
 - 2026-06-04: Daily returns use simple returns `(close[t]/close[t-1]) - 1` rather than log returns, matching the existing `analysis` package convention (`correlation.go`).
 - 2026-06-04: Annualized return uses CAGR formula (compound) rather than arithmetic mean × 252, for mathematical correctness.
 - 2026-06-04: Annualized volatility uses sample standard deviation (n-1 denominator) × sqrt(252/n), standard financial convention.

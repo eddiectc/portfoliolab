@@ -18,6 +18,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/blackrock"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dimensional"
@@ -279,6 +280,18 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		// Comparison web pages
 		comparisonWebHandler := handlers.NewComparisonWebHandler(comparisonHandler, portfolioSvc, modelPortfolioSvc, renderer)
 		comparisonWebHandler.RegisterRoutes(r)
+
+		// Efficient Frontier service + API
+		efficientFrontierSvc := efficientfrontier.NewService(
+			marketSvc,
+			marketDataSymbolResolver,
+			data.NewSymbolLister(symbolMappingRepo),
+			data.NewPortfolioSymbolSource(accountSvc, positionSvc),
+			data.NewModelPortfolioSource(modelPortfolioSvc),
+			data.NewFxRateSource(marketSvc),
+		)
+		efficientFrontierHandler := handlers.NewEfficientFrontierHandler(efficientFrontierSvc)
+		efficientFrontierHandler.RegisterRoutes(r)
 
 		// Model Portfolio web pages
 		modelPortfolioWebHandler := handlers.NewModelPortfolioWebHandler(modelPortfolioSvc, symbolMappingSvc, renderer)
