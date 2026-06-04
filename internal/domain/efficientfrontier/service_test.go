@@ -660,6 +660,76 @@ func TestComputeFrontier_InsufficientData(t *testing.T) {
 	}
 }
 
+func TestComputeFrontier_SingularCovarianceMatrix(t *testing.T) {
+	// Two symbols with identical price series produce a singular covariance matrix.
+	// The engine should handle this via regularization and grid search fallback.
+	identicalPrices := makeSimplePriceSeries(100, 260, "USD")
+	prices := map[string][]market.HistoricalPrice{
+		"SYM_A": identicalPrices,
+		"SYM_B": identicalPrices,
+	}
+
+	historySource := &mockMarketDataHistorySource{prices: prices}
+	symResolver := &mockMarketDataSymbolResolver{
+		mappings: map[string]string{"SYM_A": "SYM_A", "SYM_B": "SYM_B"},
+	}
+
+	svc := NewService(historySource, symResolver, nil, nil, nil, nil)
+
+	req := ComputeFrontierRequest{
+		Symbols: []string{"SYM_A", "SYM_B"},
+		Period:  "1Y",
+	}
+
+	result, err := svc.ComputeFrontier(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The engine should still produce results via grid search,
+	// even though the covariance matrix is singular.
+	if result.Result == nil {
+		t.Fatal("result should not be nil")
+	}
+	if len(result.Result.FrontierPoints) == 0 && result.Result.Message == "" {
+		t.Error("expected frontier points or a message explaining the result")
+	}
+}
+
+func TestComputeFrontier_NumericalFailure(t *testing.T) {
+	// Constant prices produce zero returns → zero volatility → numerical failure.
+	constPrices := func() []market.HistoricalPrice {
+		prices := make([]market.HistoricalPrice, 100)
+		for i := range prices {
+			prices[i] = makePrice(i, 100.0, "USD") // all same price
+		}
+		return prices
+	}()
+
+	prices := map[string][]market.HistoricalPrice{
+		"SYM_A": constPrices,
+		"SYM_B": constPrices,
+	}
+
+	historySource := &mockMarketDataHistorySource{prices: prices}
+	symResolver := &mockMarketDataSymbolResolver{
+		mappings: map[string]string{"SYM_A": "SYM_A", "SYM_B": "SYM_B"},
+	}
+
+	svc := NewService(historySource, symResolver, nil, nil, nil, nil)
+
+	req := ComputeFrontierRequest{
+		Symbols: []string{"SYM_A", "SYM_B"},
+		Period:  "1Y",
+	}
+
+	_, err := svc.ComputeFrontier(ctx, req)
+	// Zero-volatility portfolios trigger ErrNumericalFailure in the engine.
+	if err == nil {
+		t.Error("expected error for zero-volatility (constant price) data")
+	}
+}
+
 func TestGetCandidateSymbols_HappyPath(t *testing.T) {
 	lister := &mockSymbolLister{symbols: []string{"VOO", "VEA", "AAPL", "MSFT"}}
 	svc := NewService(nil, nil, lister, nil, nil, nil)
