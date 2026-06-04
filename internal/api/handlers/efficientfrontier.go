@@ -181,8 +181,8 @@ func (h *EfficientFrontierHandler) HandleGetModelPortfolioSymbols(w http.Respons
 
 // saveModelPortfolioRequest is the JSON request body for POST /api/efficient-frontier/save.
 type saveModelPortfolioRequest struct {
-	Name    string                     `json:"name"`
-	Entries []saveModelPortfolioEntry  `json:"entries"`
+	Name    string                    `json:"name"`
+	Entries []saveModelPortfolioEntry `json:"entries"`
 }
 
 type saveModelPortfolioEntry struct {

@@ -42,3 +42,9 @@
 
 ## Known Issues
 - None.
+
+## Review Fixes (2026-06-04)
+- Renamed `TestEfficientFrontier_Error_EmptyCandidateSet` → `TestEfficientFrontier_Error_AllSymbolsNoData` to match actual behavior.
+- Added `TestEfficientFrontier_Error_NumericalFailure` integration test for singular covariance matrix (identical prices). Engine handles via regularization silently — returns 200 with frontier points, no warning.
+- Applied `gofmt -w` to 5 files that were not formatted: `efficientfrontier.go`, `efficientfrontier_web.go`, `efficientfrontier_web_test.go`, `efficient_frontier_adapters.go`, `efficient_frontier_test.go`.
+- Pre-existing `TestAlignReturns` failure in `internal/domain/analysis` blocks `go test ./...` — unrelated to this feature.

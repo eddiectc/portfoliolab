@@ -32,13 +32,13 @@ func TestFrontierTemplate_EmptyState(t *testing.T) {
 	renderer := newTestRenderer(t)
 
 	data := frontierPageData{
-		PageData:          web.PageData{Title: "Efficient Frontier"},
-		CandidateSymbols:  []string{},
-		Portfolios:        []portfolio.Portfolio{},
-		ModelPortfolios:   []modelportfolio.ModelPortfolioSummary{},
-		PortfoliosJSON:    "[]",
+		PageData:            web.PageData{Title: "Efficient Frontier"},
+		CandidateSymbols:    []string{},
+		Portfolios:          []portfolio.Portfolio{},
+		ModelPortfolios:     []modelportfolio.ModelPortfolioSummary{},
+		PortfoliosJSON:      "[]",
 		ModelPortfoliosJSON: "[]",
-		PeriodURLs:        map[string]string{"1Y": "/efficient-frontier"},
+		PeriodURLs:          map[string]string{"1Y": "/efficient-frontier"},
 	}
 
 	w := httptest.NewRecorder()
@@ -77,25 +77,25 @@ func TestFrontierTemplate_WithResults(t *testing.T) {
 			{ReturnPct: 12.0, VolatilityPct: 15.0, SharpeRatio: 0.6, Weights: []float64{0.8, 0.1, 0.1}},
 		},
 		MaxSharpe: &efficientfrontier.OptimizedPortfolio{
-			Name:        "Max Sharpe",
-			ReturnPct:   8.0,
+			Name:          "Max Sharpe",
+			ReturnPct:     8.0,
 			VolatilityPct: 8.0,
-			SharpeRatio: 0.7,
-			Weights:     []float64{0.5, 0.3, 0.2},
+			SharpeRatio:   0.7,
+			Weights:       []float64{0.5, 0.3, 0.2},
 		},
 		MinVariance: &efficientfrontier.OptimizedPortfolio{
-			Name:        "Min Variance",
-			ReturnPct:   5.0,
+			Name:          "Min Variance",
+			ReturnPct:     5.0,
 			VolatilityPct: 3.0,
-			SharpeRatio: 0.5,
-			Weights:     []float64{0.2, 0.3, 0.5},
+			SharpeRatio:   0.5,
+			Weights:       []float64{0.2, 0.3, 0.5},
 		},
 		HighestReturn: &efficientfrontier.OptimizedPortfolio{
-			Name:        "Highest Return",
-			ReturnPct:   12.0,
+			Name:          "Highest Return",
+			ReturnPct:     12.0,
 			VolatilityPct: 15.0,
-			SharpeRatio: 0.6,
-			Weights:     []float64{0.8, 0.1, 0.1},
+			SharpeRatio:   0.6,
+			Weights:       []float64{0.8, 0.1, 0.1},
 		},
 	}
 
@@ -110,10 +110,10 @@ func TestFrontierTemplate_WithResults(t *testing.T) {
 		ModelPortfolios: []modelportfolio.ModelPortfolioSummary{
 			{ID: 1, Name: "60/40", EntryCount: 2},
 		},
-		PortfoliosJSON:      "[{\"id\":1,\"name\":\"Test Portfolio\",\"currency\":\"USD\"}]",
-		ModelPortfoliosJSON: "[{\"id\":1,\"name\":\"60/40\",\"entry_count\":2}]",
-		SelectedSymbols:     []string{"SPY", "EFA", "BND"},
-		SelectedPeriod:      "3Y",
+		PortfoliosJSON:       "[{\"id\":1,\"name\":\"Test Portfolio\",\"currency\":\"USD\"}]",
+		ModelPortfoliosJSON:  "[{\"id\":1,\"name\":\"60/40\",\"entry_count\":2}]",
+		SelectedSymbols:      []string{"SPY", "EFA", "BND"},
+		SelectedPeriod:       "3Y",
 		SelectedRiskFreeRate: "4.5",
 		PeriodURLs: map[string]string{
 			"1Y": "/efficient-frontier?period=1Y",
@@ -157,15 +157,15 @@ func TestFrontierTemplate_Warnings(t *testing.T) {
 	renderer := newTestRenderer(t)
 
 	data := frontierPageData{
-		PageData:          web.PageData{Title: "Efficient Frontier"},
-		Warnings:          []string{"Symbol X: limited data available"},
-		ExcludedSymbols:   []string{"DELETED"},
-		CandidateSymbols:  []string{},
-		Portfolios:        []portfolio.Portfolio{},
-		ModelPortfolios:   []modelportfolio.ModelPortfolioSummary{},
-		PortfoliosJSON:    "[]",
+		PageData:            web.PageData{Title: "Efficient Frontier"},
+		Warnings:            []string{"Symbol X: limited data available"},
+		ExcludedSymbols:     []string{"DELETED"},
+		CandidateSymbols:    []string{},
+		Portfolios:          []portfolio.Portfolio{},
+		ModelPortfolios:     []modelportfolio.ModelPortfolioSummary{},
+		PortfoliosJSON:      "[]",
 		ModelPortfoliosJSON: "[]",
-		PeriodURLs:        map[string]string{"1Y": "/efficient-frontier"},
+		PeriodURLs:          map[string]string{"1Y": "/efficient-frontier"},
 	}
 
 	w := httptest.NewRecorder()
@@ -248,9 +248,9 @@ func TestSerializeFrontierChartData_Full(t *testing.T) {
 
 func TestParseFrontierSymbols(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		input string
-		want []string
+		want  []string
 	}{
 		{"empty", "", nil},
 		{"single", "SPY", []string{"SPY"}},
@@ -278,9 +278,9 @@ func TestParseFrontierSymbols(t *testing.T) {
 
 func TestParseRiskFreeRate(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		input string
-		want float64
+		want  float64
 	}{
 		{"empty", "", 4.5},
 		{"default", "4.5", 4.5},
@@ -333,8 +333,8 @@ func TestBuildFrontierPeriodURLs(t *testing.T) {
 
 // mockFrontierService implements efficientFrontierService for web handler tests.
 type mockFrontierService struct {
-	result *efficientfrontier.ServiceResult
-	err    error
+	result  *efficientfrontier.ServiceResult
+	err     error
 	symbols []string
 }
 
@@ -419,7 +419,7 @@ func TestHandleEfficientFrontier_WithSymbols(t *testing.T) {
 // Test that the handler shows error state when computation fails.
 func TestHandleEfficientFrontier_ComputeError(t *testing.T) {
 	mockSvc := &mockFrontierService{
-		err: efficientfrontier.ErrInsufficientData,
+		err:     efficientfrontier.ErrInsufficientData,
 		symbols: []string{"SPY"},
 	}
 	handler := NewEfficientFrontierHandler(mockSvc)
