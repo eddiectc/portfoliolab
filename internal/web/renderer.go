@@ -265,6 +265,11 @@ func (r *Renderer) parseTemplates() error {
 			// Format a float64 fraction (0.0-1.0) as a percentage string (2dp).
 			return fmt.Sprintf("%.2f", v*100)
 		},
+		"float2": func(v float64) string {
+			// Format a float64 value with 2 decimal places (no percentage conversion).
+			// Used for display values like Sharpe ratio that are not percentages.
+			return fmt.Sprintf("%.2f", v)
+		},
 		"allocationCompare": func(a, b map[string]float64) []AllocationCompareEntry {
 			// Merge two allocation breakdown maps into sorted comparison entries.
 			// Sorted by max(a, b) descending, then alphabetically for ties.

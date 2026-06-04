@@ -154,26 +154,31 @@ func TestEfficientFrontierHandleComputeFrontier_Validation(t *testing.T) {
 		name       string
 		body       string
 		wantStatus int
+		wantCode   string
 	}{
 		{
 			name:       "invalid body",
 			body:       "not json",
 			wantStatus: http.StatusBadRequest,
+			wantCode:   "INVALID_REQUEST",
 		},
 		{
-			name:       "too few symbols",
+			name:       "single symbol",
 			body:       `{"symbols": ["AAPL"]}`,
 			wantStatus: http.StatusBadRequest,
+			wantCode:   "INSUFFICIENT_SYMBOLS",
 		},
 		{
 			name:       "too many symbols",
 			body:       `{"symbols": ["A","B","C","D","E","F","G","H","I","J","K"]}`,
 			wantStatus: http.StatusBadRequest,
+			wantCode:   "TOO_MANY_SYMBOLS",
 		},
 		{
 			name:       "invalid period",
 			body:       `{"symbols": ["AAPL", "MSFT"], "period": "10Y"}`,
 			wantStatus: http.StatusBadRequest,
+			wantCode:   "INVALID_PERIOD",
 		},
 	}
 
@@ -188,6 +193,12 @@ func TestEfficientFrontierHandleComputeFrontier_Validation(t *testing.T) {
 
 			if w.Code != tc.wantStatus {
 				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)
+			}
+
+			var errResp APIError
+			json.NewDecoder(w.Body).Decode(&errResp)
+			if errResp.Code != tc.wantCode {
+				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
 			}
 		})
 	}

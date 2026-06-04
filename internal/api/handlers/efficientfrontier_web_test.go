@@ -226,6 +226,13 @@ func TestSerializeFrontierChartData_Full(t *testing.T) {
 	if len(data.FrontierPoints) != 1 {
 		t.Errorf("expected 1 frontier point, got %d", len(data.FrontierPoints))
 	}
+	// Verify frontier point includes weights.
+	if len(data.FrontierPoints[0].Weights) != 2 {
+		t.Errorf("expected 2 weights in frontier point, got %d", len(data.FrontierPoints[0].Weights))
+	}
+	if data.FrontierPoints[0].Volatility != 10.0 {
+		t.Errorf("expected volatility 10.0, got %f", data.FrontierPoints[0].Volatility)
+	}
 	if data.MaxSharpe == nil {
 		t.Error("missing max_sharpe")
 	}
@@ -432,5 +439,57 @@ func TestHandleEfficientFrontier_ComputeError(t *testing.T) {
 	body := w.Body.String()
 	if !strings.Contains(body, "error") && !strings.Contains(body, "Error") {
 		t.Error("expected error message in output")
+	}
+}
+
+// Test that the handler shows specific error messages for different error types.
+func TestHandleEfficientFrontier_ComputeErrorSpecific(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		wantText string
+	}{
+		{
+			name:     "insufficient data",
+			err:      efficientfrontier.ErrInsufficientData,
+			wantText: "Insufficient price data",
+		},
+		{
+			name:     "singular matrix",
+			err:      efficientfrontier.ErrSingularMatrix,
+			wantText: "covariance matrix is singular",
+		},
+		{
+			name:     "numerical failure",
+			err:      efficientfrontier.ErrNumericalFailure,
+			wantText: "numerical error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSvc := &mockFrontierService{
+				err:     tc.err,
+				symbols: []string{"SPY", "EFA"},
+			}
+			handler := NewEfficientFrontierHandler(mockSvc)
+			webHandler := NewEfficientFrontierWebHandler(handler, nil, nil, newTestRenderer(t))
+
+			r := chi.NewRouter()
+			webHandler.RegisterRoutes(r)
+
+			req := httptest.NewRequest("GET", "/efficient-frontier?symbols=SPY,EFA", nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Errorf("status = %d, want 200", w.Code)
+			}
+
+			body := w.Body.String()
+			if !strings.Contains(body, tc.wantText) {
+				t.Errorf("expected error message containing %q, got: %s", tc.wantText, body[:min(500, len(body))])
+			}
+		})
 	}
 }
