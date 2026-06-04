@@ -351,7 +351,11 @@ func (s *Service) convertToBaseCurrency(ctx context.Context, prices map[string][
 				closeFloat, _ := hp[i].Close.Float64()
 				converted := closeFloat * rate
 				// Set the converted price and mark currency as base.
-				closeDec, _ := decimal.NewFromFloat64(converted)
+				closeDec, err := decimal.NewFromFloat64(converted)
+				if err != nil {
+					warnings = append(warnings, fmt.Sprintf("%s: FX conversion produced invalid value at %s, price left in %s", sym, hp[i].Date.Format("2006-01-02"), targetCurrency))
+					continue
+				}
 				hp[i].Close = closeDec
 				hp[i].Currency = baseCurrency
 			}
