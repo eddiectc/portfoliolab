@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
@@ -124,7 +125,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 		serviceResult, err := h.apiHandler.svc.ComputeFrontier(r.Context(), serviceReq)
 		if err != nil {
 			data := h.buildPageData(w, r, symbols, period, riskFreeRate, portfolios, modelPortfolios, candidateSymbols, nil, nil, nil, nil)
-			data.Error = "An error occurred while computing the efficient frontier."
+			data.Error = frontierErrorMessage(err)
 			if err := h.renderer.Render(w, "efficient_frontier/index", data); err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 			}
@@ -215,7 +216,7 @@ func parseRiskFreeRate(s string) float64 {
 }
 
 // buildFrontierPeriodURLs pre-builds the URL for each period button.
-func buildFrontierPeriodURLs(symbols []string, selectedPeriod string, riskFreeRate float64) map[string]string {
+func buildFrontierPeriodURLs(symbols []string, _ string, riskFreeRate float64) map[string]string {
 	urls := make(map[string]string)
 	for _, p := range frontierPeriods {
 		url := "/efficient-frontier"
@@ -242,7 +243,6 @@ func buildFrontierPeriodURLs(symbols []string, selectedPeriod string, riskFreeRa
 		}
 		urls[p] = url
 	}
-	_ = selectedPeriod
 	return urls
 }
 
@@ -253,6 +253,7 @@ func (h *EfficientFrontierWebHandler) fetchPortfolios(ctx context.Context) []por
 	}
 	portfolios, err := h.portfolioSvc.List(ctx, 0, 0)
 	if err != nil {
+		slog.Error("efficient frontier: fetch portfolios", "error", err)
 		return []portfolio.Portfolio{}
 	}
 	if portfolios == nil {
@@ -268,6 +269,7 @@ func (h *EfficientFrontierWebHandler) fetchModelPortfolios(ctx context.Context) 
 	}
 	summaries, err := h.modelPortfolioSvc.GetAllForSelector(ctx)
 	if err != nil {
+		slog.Error("efficient frontier: fetch model portfolios", "error", err)
 		return []modelportfolio.ModelPortfolioSummary{}
 	}
 	if summaries == nil {
@@ -283,6 +285,7 @@ func (h *EfficientFrontierWebHandler) fetchCandidateSymbols(ctx context.Context)
 	}
 	symbols, err := h.apiHandler.svc.GetCandidateSymbols(ctx)
 	if err != nil {
+		slog.Error("efficient frontier: fetch candidate symbols", "error", err)
 		return []string{}
 	}
 	if symbols == nil {
@@ -291,10 +294,18 @@ func (h *EfficientFrontierWebHandler) fetchCandidateSymbols(ctx context.Context)
 	return symbols
 }
 
+// frontierPointData is a single frontier point with weights for click interaction.
+type frontierPointData struct {
+	Volatility  float64   `json:"volatility"`
+	Return      float64   `json:"return"`
+	SharpeRatio float64   `json:"sharpe_ratio"`
+	Weights     []float64 `json:"weights"`
+}
+
 // frontierChartData holds JSON data for the ECharts scatter plot.
 type frontierChartData struct {
-	// Frontier points as [volatility, return, sharpe] triplets.
-	FrontierPoints [][]float64 `json:"frontier_points"`
+	// Frontier points with weights for click interaction.
+	FrontierPoints []frontierPointData `json:"frontier_points"`
 	// Key portfolios.
 	MaxSharpe     *frontierKeyPortfolio `json:"max_sharpe,omitempty"`
 	MinVariance   *frontierKeyPortfolio `json:"min_variance,omitempty"`
@@ -318,10 +329,15 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult) string
 		return "{}"
 	}
 
-	// Build frontier points as [volatility, return, sharpe] triplets.
-	points := make([][]float64, 0, len(result.FrontierPoints))
+	// Build frontier points with weights for click interaction.
+	points := make([]frontierPointData, 0, len(result.FrontierPoints))
 	for _, pt := range result.FrontierPoints {
-		points = append(points, []float64{pt.VolatilityPct, pt.ReturnPct, pt.SharpeRatio})
+		points = append(points, frontierPointData{
+			Volatility:  pt.VolatilityPct,
+			Return:      pt.ReturnPct,
+			SharpeRatio: pt.SharpeRatio,
+			Weights:     pt.Weights,
+		})
 	}
 
 	data := frontierChartData{
@@ -427,6 +443,24 @@ func (h *EfficientFrontierWebHandler) HandleSaveAsModelPortfolio(w http.Response
 
 	setFlash(w, "Model portfolio \""+mp.Name+"\" created successfully")
 	http.Redirect(w, r, "/model-portfolios", http.StatusSeeOther)
+}
+
+// frontierErrorMessage maps a computation error to a user-facing message.
+func frontierErrorMessage(err error) string {
+	switch {
+	case err == efficientfrontier.ErrInsufficientSymbols:
+		return "At least 2 symbols are required for frontier computation."
+	case err == efficientfrontier.ErrTooManySymbols:
+		return "Too many symbols. Maximum 10 symbols supported."
+	case err == efficientfrontier.ErrInsufficientData:
+		return "Insufficient price data for the selected period. Try a shorter period or different symbols."
+	case err == efficientfrontier.ErrSingularMatrix:
+		return "The covariance matrix is singular — likely caused by perfectly correlated assets. Try removing duplicate or highly correlated symbols."
+	case err == efficientfrontier.ErrNumericalFailure:
+		return "The optimization failed due to a numerical error. Try different symbols or a shorter period."
+	default:
+		return "An unexpected error occurred while computing the efficient frontier."
+	}
 }
 
 // modelPortfolioCreator defines the method needed to create a model portfolio.

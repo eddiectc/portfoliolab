@@ -92,7 +92,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
     {{if .Result.MaxSharpe}}
     <div class="metric-card" onclick="selectPortfolio('max-sharpe')" style="cursor:pointer;">
         <h3>Max Sharpe Ratio</h3>
-        <div class="metric-value">{{floatPct .Result.MaxSharpe.SharpeRatio}}</div>
+        <div class="metric-value">{{float2 .Result.MaxSharpe.SharpeRatio}}</div>
         <div class="metric-detail">Return: {{floatPct .Result.MaxSharpe.ReturnPct}}% | Vol: {{floatPct .Result.MaxSharpe.VolatilityPct}}%</div>
     </div>
     {{end}}
@@ -100,14 +100,14 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
     <div class="metric-card" onclick="selectPortfolio('min-variance')" style="cursor:pointer;">
         <h3>Min Variance</h3>
         <div class="metric-value">{{floatPct .Result.MinVariance.VolatilityPct}}%</div>
-        <div class="metric-detail">Return: {{floatPct .Result.MinVariance.ReturnPct}}% | Sharpe: {{floatPct .Result.MinVariance.SharpeRatio}}</div>
+        <div class="metric-detail">Return: {{floatPct .Result.MinVariance.ReturnPct}}% | Sharpe: {{float2 .Result.MinVariance.SharpeRatio}}</div>
     </div>
     {{end}}
     {{if .Result.HighestReturn}}
     <div class="metric-card" onclick="selectPortfolio('highest-return')" style="cursor:pointer;">
         <h3>Highest Return</h3>
         <div class="metric-value">{{floatPct .Result.HighestReturn.ReturnPct}}%</div>
-        <div class="metric-detail">Vol: {{floatPct .Result.HighestReturn.VolatilityPct}}% | Sharpe: {{floatPct .Result.HighestReturn.SharpeRatio}}</div>
+        <div class="metric-detail">Vol: {{floatPct .Result.HighestReturn.VolatilityPct}}% | Sharpe: {{float2 .Result.HighestReturn.SharpeRatio}}</div>
     </div>
     {{end}}
 </div>
@@ -180,7 +180,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
         name: 'Efficient Frontier',
         type: 'scatter',
         symbolSize: 6,
-        data: frontierPoints.map(function(p) { return [p[0], p[1], p[2]]; }),
+        data: frontierPoints.map(function(p) { return [p.volatility, p['return'], p.sharpe_ratio]; }),
         itemStyle: { color: '#409EFF' },
         emphasis: {
             itemStyle: { color: '#E6A23C', symbolSize: 10 }
@@ -201,7 +201,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             name: chartData.max_sharpe.name,
             type: 'scatter',
             symbolSize: 16,
-            data: [[chartData.max_sharpe.volatility, chartData.max_sharpe.return, chartData.max_sharpe.sharpe_ratio]],
+            data: [[chartData.max_sharpe.volatility, chartData.max_sharpe['return'], chartData.max_sharpe.sharpe_ratio]],
             itemStyle: { color: markerColors.max_sharpe }
         });
     }
@@ -210,7 +210,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             name: chartData.min_variance.name,
             type: 'scatter',
             symbolSize: 14,
-            data: [[chartData.min_variance.volatility, chartData.min_variance.return, chartData.min_variance.sharpe_ratio]],
+            data: [[chartData.min_variance.volatility, chartData.min_variance['return'], chartData.min_variance.sharpe_ratio]],
             itemStyle: { color: markerColors.min_variance }
         });
     }
@@ -219,7 +219,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             name: chartData.highest_return.name,
             type: 'scatter',
             symbolSize: 14,
-            data: [[chartData.highest_return.volatility, chartData.highest_return.return, chartData.highest_return.sharpe_ratio]],
+            data: [[chartData.highest_return.volatility, chartData.highest_return['return'], chartData.highest_return.sharpe_ratio]],
             itemStyle: { color: markerColors.highest_return }
         });
     }
@@ -283,7 +283,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             var keyPortfolio = null;
             for (var key in keyPortfolios) {
                 var kp = keyPortfolios[key];
-                if (kp && Math.abs(kp.volatility - vol) < 0.01 && Math.abs(kp.return - ret) < 0.01) {
+                if (kp && Math.abs(kp.volatility - vol) < 0.01 && Math.abs(kp['return'] - ret) < 0.01) {
                     keyPortfolio = kp;
                     break;
                 }
@@ -292,19 +292,18 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             if (keyPortfolio) {
                 showAllocation(keyPortfolio.weights, keyPortfolio.name);
             } else {
-                // Find nearest frontier point
+                // Find nearest frontier point by distance
                 var minDist = Infinity;
                 var nearestIdx = 0;
                 for (var i = 0; i < frontierPoints.length; i++) {
-                    var dist = Math.pow(frontierPoints[i][0] - vol, 2) + Math.pow(frontierPoints[i][1] - ret, 2);
+                    var dist = Math.pow(frontierPoints[i].volatility - vol, 2) + Math.pow(frontierPoints[i]['return'] - ret, 2);
                     if (dist < minDist) {
                         minDist = dist;
                         nearestIdx = i;
                     }
                 }
-                // For frontier points, we need the weights from the original data
-                // Since we don't have weights in the chart data, show the key portfolio info
-                showAllocationInfo(frontierPoints[nearestIdx], 'Frontier Point');
+                var nearest = frontierPoints[nearestIdx];
+                showAllocation(nearest.weights, 'Frontier Point (Return: ' + nearest['return'].toFixed(2) + '%, Vol: ' + nearest.volatility.toFixed(2) + '%)');
             }
         }
     });
@@ -368,6 +367,20 @@ function selectPortfolio(key) {
     if (kp) {
         showAllocation(kp.weights, kp.name);
     }
+}
+
+// Helper to find nearest frontier point by (vol, return) coordinates
+function findNearestFrontierPoint(vol, ret) {
+    var minDist = Infinity;
+    var nearestIdx = 0;
+    for (var i = 0; i < frontierPoints.length; i++) {
+        var dist = Math.pow(frontierPoints[i].volatility - vol, 2) + Math.pow(frontierPoints[i]['return'] - ret, 2);
+        if (dist < minDist) {
+            minDist = dist;
+            nearestIdx = i;
+        }
+    }
+    return frontierPoints[nearestIdx];
 }
 
 function toggleCopySource() {

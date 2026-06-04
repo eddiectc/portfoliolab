@@ -841,6 +841,142 @@ DELETE /api/model-portfolios/{id}
 
 ---
 
+## Efficient Frontier
+
+Portfolio optimization via the efficient frontier method. Select candidate symbols, configure optimization parameters, and compute the efficient frontier — the set of allocations maximizing expected return for a given level of risk.
+
+### Compute Efficient Frontier
+
+```
+POST /api/efficient-frontier/compute
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `symbols` | string[] | yes | Candidate symbols (2–10) |
+| `period` | string | no | Lookback period: `1Y`, `3Y`, `5Y` (default: `1Y`) |
+| `risk_free_rate` | number | no | Annualized risk-free rate as decimal (default: `0.045`) |
+
+**Response:** `200 OK` — `ComputeFrontierResponse`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `INVALID_REQUEST` | 400 | Malformed request body |
+| `INSUFFICIENT_SYMBOLS` | 400 | Fewer than 2 symbols provided |
+| `TOO_MANY_SYMBOLS` | 400 | More than 10 symbols provided |
+| `INVALID_PERIOD` | 400 | Period not one of `1Y`, `3Y`, `5Y` |
+| `INSUFFICIENT_DATA` | 400 | Insufficient price data for computation |
+| `SINGULAR_MATRIX` | 400 | Covariance matrix is singular |
+| `NUMERICAL_FAILURE` | 400 | Optimization failed numerically |
+| `INTERNAL_ERROR` | 500 | Unexpected computation error |
+
+### Get Candidate Symbols
+
+```
+GET /api/efficient-frontier/symbols
+```
+
+Returns all known internal symbols for autocomplete.
+
+**Response:** `200 OK` — `{"symbols": ["AAPL", "MSFT", ...]}`
+
+### Get Portfolio Symbols
+
+```
+GET /api/efficient-frontier/portfolio/{id}/symbols
+```
+
+Returns the distinct symbols held in a real portfolio.
+
+**Response:** `200 OK` — `{"symbols": ["AAPL", "MSFT", ...]}`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `INVALID_ID` | 400 | Invalid portfolio ID |
+| `INTERNAL_ERROR` | 500 | Failed to retrieve symbols |
+
+### Get Model Portfolio Symbols
+
+```
+GET /api/efficient-frontier/model-portfolio/{id}/symbols
+```
+
+Returns the symbols in a model portfolio.
+
+**Response:** `200 OK` — `{"symbols": ["AAPL", "BND", ...]}`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `INVALID_ID` | 400 | Invalid model portfolio ID |
+| `INTERNAL_ERROR` | 500 | Failed to retrieve symbols |
+
+### Save as Model Portfolio
+
+```
+POST /api/efficient-frontier/save
+```
+
+Saves an optimized allocation from the frontier as a model portfolio.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Model portfolio name |
+| `entries` | array | yes | Array of `{symbol, weight}` entries |
+
+**Entries fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `symbol` | string | yes | Symbol |
+| `weight` | number | yes | Weight as fraction (0.0–1.0) |
+
+**Response:** `201 Created` — `ModelPortfolio`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `NOT_CONFIGURED` | 500 | Model portfolio creator not configured |
+| `INVALID_REQUEST` | 400 | Malformed request body |
+| `INVALID_NAME` | 400 | Name is empty |
+| `EMPTY_ENTRIES` | 400 | No entries provided |
+| `NAME_EXISTS` | 409 | Name already exists |
+| `WEIGHT_SUM_NOT_100` | 400 | Weights don't sum to 100% |
+| `INVALID_WEIGHT` | 400 | Invalid weight value |
+| `DUPLICATE_SYMBOL` | 400 | Duplicate symbol in entries |
+
+### ComputeFrontierResponse
+
+```json
+{
+  "result": {
+    "frontier_points": [
+      {"return_pct": 8.0, "volatility_pct": 10.0, "sharpe_ratio": 0.5, "weights": [0.6, 0.4]}
+    ],
+    "max_sharpe": {"name": "Max Sharpe", "return_pct": 8.0, "volatility_pct": 10.0, "sharpe_ratio": 0.5, "weights": [0.6, 0.4]},
+    "min_variance": {"name": "Min Variance", "return_pct": 5.0, "volatility_pct": 5.0, "sharpe_ratio": 0.3, "weights": [0.3, 0.7]},
+    "highest_return": {"name": "Highest Return", "return_pct": 12.0, "volatility_pct": 15.0, "sharpe_ratio": 0.6, "weights": [0.8, 0.1, 0.1]},
+    "symbols": ["SPY", "EFA", "BND"],
+    "trading_days": 252,
+    "computed_at": "2024-01-15T12:00:00Z"
+  },
+  "warnings": ["Symbol X: limited data available"],
+  "excluded_symbols": ["DELETED"]
+}
+```
+
+---
+
 ## Type Reference
 
 ### Portfolio
