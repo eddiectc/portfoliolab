@@ -247,10 +247,10 @@ func TestSectorAllocationSorted(t *testing.T) {
 	}
 
 	// Should be sorted by weight descending.
-	if entries[0].Category != "Technology" || !floatEq(entries[0].WeightPct, 0.40, 0.01) {
+	if entries[0].Category != "Technology" || !floatEq(entries[0].Weight, 0.40, 0.01) {
 		t.Errorf("[0] = %+v, want Technology 0.40", entries[0])
 	}
-	if entries[3].Category != "Energy" || !floatEq(entries[3].WeightPct, 0.10, 0.01) {
+	if entries[3].Category != "Energy" || !floatEq(entries[3].Weight, 0.10, 0.01) {
 		t.Errorf("[3] = %+v, want Energy 0.10", entries[3])
 	}
 }

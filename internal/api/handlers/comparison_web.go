@@ -1065,6 +1065,9 @@ func serializeMergedHoldings(result *comparison.ComparisonResult) string {
 }
 
 // roundTo2 rounds a float64 to 2 decimal places.
+// The sign-extraction pattern is needed because Go's int() truncates toward
+// zero, so int(-5499.5) == -5499 (not -5500). By extracting the sign first,
+// we always round the absolute value, then reapply the sign.
 func roundTo2(v float64) float64 {
 	sign := 1.0
 	if v < 0 {
