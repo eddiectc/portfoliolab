@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -264,6 +265,42 @@ func (r *Renderer) parseTemplates() error {
 			// Format a float64 fraction (0.0-1.0) as a percentage string (2dp).
 			return fmt.Sprintf("%.2f", v*100)
 		},
+		"allocationCompare": func(a, b map[string]float64) []AllocationCompareEntry {
+			// Merge two allocation breakdown maps into sorted comparison entries.
+			// Sorted by max(a, b) descending, then alphabetically for ties.
+			catSet := make(map[string]bool)
+			for k := range a {
+				catSet[k] = true
+			}
+			for k := range b {
+				catSet[k] = true
+			}
+			entries := make([]AllocationCompareEntry, 0, len(catSet))
+			for cat := range catSet {
+				va := a[cat]
+				vb := b[cat]
+				entries = append(entries, AllocationCompareEntry{
+					Category: cat,
+					ValueA:   va,
+					ValueB:   vb,
+				})
+			}
+			sort.Slice(entries, func(i, j int) bool {
+				maxI := entries[i].ValueA
+				if entries[i].ValueB > maxI {
+					maxI = entries[i].ValueB
+				}
+				maxJ := entries[j].ValueA
+				if entries[j].ValueB > maxJ {
+					maxJ = entries[j].ValueB
+				}
+				if maxI != maxJ {
+					return maxI > maxJ
+				}
+				return entries[i].Category < entries[j].Category
+			})
+			return entries
+		},
 		"fxRateDisplay": func(posCurrency, baseCurrency string, rate interface{}) string {
 			// Returns "PAIR RATE" in market convention (e.g. "GBP/USD 1.3000").
 			// If rate is nil or zero, returns "—".
@@ -371,6 +408,15 @@ func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) 
 	// Execute by the base filename - e.g., "list.html"
 	baseName := filepath.Base(name) + ".html"
 	return t.ExecuteTemplate(w, baseName, data)
+}
+
+// AllocationCompareEntry holds a single row in a sorted allocation comparison
+// (e.g. sector or country allocation between two portfolios).
+// Values are fractions (0.0-1.0); use floatPct for display.
+type AllocationCompareEntry struct {
+	Category string
+	ValueA   float64
+	ValueB   float64
 }
 
 // FilterEncoder is implemented by filter structs that need their fields
