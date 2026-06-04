@@ -470,9 +470,9 @@ function toggleCustomDates(e) {
             {{range $key, $val := .Result.CrossMetrics.Overlap.SectorAllocationA.Breakdown}}
             <tr>
                 <td>{{$key}}</td>
-                <td class="num">{{printf "%.2f" $val}}%</td>
+                <td class="num">{{floatPct $val}}%</td>
                 <td class="num">
-                    {{with index $.Result.CrossMetrics.Overlap.SectorAllocationB.Breakdown $key}}{{printf "%.2f" .}}%{{else}}0.00%{{end}}
+                    {{with index $.Result.CrossMetrics.Overlap.SectorAllocationB.Breakdown $key}}{{floatPct .}}%{{else}}0.00%{{end}}
                 </td>
             </tr>
             {{end}}
@@ -481,15 +481,15 @@ function toggleCustomDates(e) {
             <tr>
                 <td>{{$key}}</td>
                 <td class="num">0.00%</td>
-                <td class="num">{{printf "%.2f" $val}}%</td>
+                <td class="num">{{floatPct $val}}%</td>
             </tr>
             {{end}}
             {{end}}
             {{if or .Result.CrossMetrics.Overlap.SectorAllocationA.UnknownWeightPct .Result.CrossMetrics.Overlap.SectorAllocationB.UnknownWeightPct}}
             <tr>
                 <td>Unknown</td>
-                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.SectorAllocationA.UnknownWeightPct}}%</td>
-                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.SectorAllocationB.UnknownWeightPct}}%</td>
+                <td class="num">{{floatPct .Result.CrossMetrics.Overlap.SectorAllocationA.UnknownWeightPct}}%</td>
+                <td class="num">{{floatPct .Result.CrossMetrics.Overlap.SectorAllocationB.UnknownWeightPct}}%</td>
             </tr>
             {{end}}
         </tbody>
@@ -527,9 +527,9 @@ function toggleCustomDates(e) {
             {{range $key, $val := .Result.CrossMetrics.Overlap.CountryAllocationA.Breakdown}}
             <tr>
                 <td>{{$key}}</td>
-                <td class="num">{{printf "%.2f" $val}}%</td>
+                <td class="num">{{floatPct $val}}%</td>
                 <td class="num">
-                    {{with index $.Result.CrossMetrics.Overlap.CountryAllocationB.Breakdown $key}}{{printf "%.2f" .}}%{{else}}0.00%{{end}}
+                    {{with index $.Result.CrossMetrics.Overlap.CountryAllocationB.Breakdown $key}}{{floatPct .}}%{{else}}0.00%{{end}}
                 </td>
             </tr>
             {{end}}
@@ -538,15 +538,15 @@ function toggleCustomDates(e) {
             <tr>
                 <td>{{$key}}</td>
                 <td class="num">0.00%</td>
-                <td class="num">{{printf "%.2f" $val}}%</td>
+                <td class="num">{{floatPct $val}}%</td>
             </tr>
             {{end}}
             {{end}}
             {{if or .Result.CrossMetrics.Overlap.CountryAllocationA.UnknownWeightPct .Result.CrossMetrics.Overlap.CountryAllocationB.UnknownWeightPct}}
             <tr>
                 <td>Unknown</td>
-                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.CountryAllocationA.UnknownWeightPct}}%</td>
-                <td class="num">{{printf "%.2f" .Result.CrossMetrics.Overlap.CountryAllocationB.UnknownWeightPct}}%</td>
+                <td class="num">{{floatPct .Result.CrossMetrics.Overlap.CountryAllocationA.UnknownWeightPct}}%</td>
+                <td class="num">{{floatPct .Result.CrossMetrics.Overlap.CountryAllocationB.UnknownWeightPct}}%</td>
             </tr>
             {{end}}
         </tbody>
