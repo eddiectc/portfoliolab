@@ -260,6 +260,10 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return keys
 		},
+		"floatPct": func(v float64) string {
+			// Format a float64 fraction (0.0-1.0) as a percentage string (2dp).
+			return fmt.Sprintf("%.2f", v*100)
+		},
 		"fxRateDisplay": func(posCurrency, baseCurrency string, rate interface{}) string {
 			// Returns "PAIR RATE" in market convention (e.g. "GBP/USD 1.3000").
 			// If rate is nil or zero, returns "—".

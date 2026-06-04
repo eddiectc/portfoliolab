@@ -27,6 +27,7 @@
 - Domain models: singular nouns (`Portfolio`, `Transaction`, `Position`)
 - DTOs: suffixed with `Request`/`Response` (e.g., `CreateTransactionRequest`)
 - Interfaces: suffixed with `er` where natural (`Fetcher`, `Repository`) or descriptive (`PositionAggregator`)
+- **Numeric values**: Fields storing fractions (0.0–1.0) use the base name (e.g. `Breakdown`, `Weight`). Fields storing percentages (0–100) are suffixed with `Pct` (e.g. `BreakdownPct`, `WeightPct`). Template functions handle fraction→percentage display conversion.
 
 ## Testing
 - **Co-locate tests**: `calculator_test.go` next to `calculator.go`
