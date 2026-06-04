@@ -858,6 +858,111 @@ func TestComparison_EnhancedOverlap_WebPageRendersSections(t *testing.T) {
 	}
 }
 
+func TestComparison_EnhancedOverlap_FullStackWithData(t *testing.T) {
+	skipIfTemplatesUnavailable(t)
+	db := setupTestDB(t)
+	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+
+	// Seed symbol_details with sector and geographic data for test symbols.
+	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
+	for _, sd := range []struct {
+		symbol, sector, shortName string
+		geoAlloc                  string
+	}{
+		{"AAPL", "Technology", "Apple Inc.", `[{"Country":"United States","Percent":100.0}]`},
+		{"MSFT", "Technology", "Microsoft Corp.", `[{"Country":"United States","Percent":100.0}]`},
+		{"GOOGL", "Consumer Cyclical", "Alphabet Inc.", `[{"Country":"United States","Percent":100.0}]`},
+		{"JPM", "Financial Services", "JPMorgan Chase", `[{"Country":"United States","Percent":100.0}]`},
+		{"UNH", "Healthcare", "UnitedHealth Group", `[{"Country":"United States","Percent":100.0}]`},
+	} {
+		_, err := db.Exec(
+			`INSERT OR REPLACE INTO symbol_details (
+				internal_symbol, short_name, sector, geographic_allocations,
+				quote_type, currency, fetched_at, updated_at
+			) VALUES (?, ?, ?, ?, 'EQUITY', 'USD', ?, ?)`,
+			sd.symbol, sd.shortName, sd.sector, sd.geoAlloc, now, now,
+		)
+		if err != nil {
+			t.Fatalf("seed symbol_details %s: %v", sd.symbol, err)
+		}
+	}
+
+	// Create two model portfolios with different sector exposure.
+	mpA := createModelPortfolio(t, router, "Tech Heavy", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: mustDecimal("50.0")},
+		{Symbol: "MSFT", WeightPct: mustDecimal("50.0")},
+	})
+	mpB := createModelPortfolio(t, router, "Diversified", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "GOOGL", WeightPct: mustDecimal("30.0")},
+		{Symbol: "JPM", WeightPct: mustDecimal("30.0")},
+		{Symbol: "UNH", WeightPct: mustDecimal("40.0")},
+	})
+
+	// Insert market data so the comparison has return metrics.
+	insertComparisonMarketData(t, db, map[string]float64{
+		"AAPL":  175.0,
+		"MSFT":  400.0,
+		"GOOGL": 140.0,
+		"JPM":   170.0,
+		"UNH":   520.0,
+	}, 120)
+
+	// Hit the web page.
+	req := httptest.NewRequest(http.MethodGet,
+		fmt.Sprintf("/comparison?portfolio_a_id=m%d&portfolio_b_id=m%d&period=3M&starting_value=10000", mpA, mpB), nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+
+	// Verify sector allocation section renders with actual sector names.
+	if !bytes.Contains([]byte(body), []byte("Sector Allocation")) {
+		t.Error("missing 'Sector Allocation' section")
+	}
+	// Portfolio A is 100% Technology, so "Technology" should appear in the table.
+	if !bytes.Contains([]byte(body), []byte("Technology")) {
+		t.Error("missing 'Technology' sector in rendered page")
+	}
+	// Portfolio B has Financial Services and Healthcare.
+	if !bytes.Contains([]byte(body), []byte("Financial Services")) {
+		t.Error("missing 'Financial Services' sector in rendered page")
+	}
+	if !bytes.Contains([]byte(body), []byte("Healthcare")) {
+		t.Error("missing 'Healthcare' sector in rendered page")
+	}
+
+	// Verify country allocation section renders with country names.
+	if !bytes.Contains([]byte(body), []byte("Country Allocation")) {
+		t.Error("missing 'Country Allocation' section")
+	}
+	if !bytes.Contains([]byte(body), []byte("United States")) {
+		t.Error("missing 'United States' country in rendered page")
+	}
+
+	// Verify merged holdings section.
+	if !bytes.Contains([]byte(body), []byte("Merged Holdings")) {
+		t.Error("missing 'Merged Holdings' section")
+	}
+
+	// Verify holdings overlap section (overweight/underweight/neutral).
+	if !bytes.Contains([]byte(body), []byte("Holdings Overlap")) {
+		t.Error("missing 'Holdings Overlap' section")
+	}
+	// AAPL and MSFT are only in portfolio A, so they should appear as overweight in A.
+	// GOOGL, JPM, UNH are only in portfolio B.
+	// Since there's no overlap in symbols, the "Neutral" section should be empty or absent.
+	// The "Overweight" and "Underweight" sections should have data.
+	if !bytes.Contains([]byte(body), []byte("Overweight")) {
+		t.Error("missing 'Overweight' section in holdings overlap")
+	}
+	if !bytes.Contains([]byte(body), []byte("Underweight")) {
+		t.Error("missing 'Underweight' section in holdings overlap")
+	}
+}
+
 func TestComparison_RealVsModel_NoTransactionsOnReal(t *testing.T) {
 	db, router := setupComparison(t)
 

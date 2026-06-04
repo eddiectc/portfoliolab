@@ -149,7 +149,9 @@ func ComputeCountryAllocationForHoldings(holdings []PortfolioHolding) *CountryAl
 }
 
 // normalizeSector converts a sector name to a consistent display format.
-// Handles common Yahoo Finance sector name variations.
+// Currently a pass-through; Yahoo Finance sectors are already reasonably
+// consistent (e.g. "Technology", "Healthcare"). Can be extended with a
+// lookup table if multiple data sources with varying naming conventions are added.
 func normalizeSector(sector string) string {
 	return sector
 }
@@ -158,17 +160,17 @@ func normalizeSector(sector string) string {
 // slice of entries, ordered by weight descending.
 type AllocationEntry struct {
 	Category string
-	WeightPct float64
+	Weight   float64 // fraction 0.0-1.0, not percentage
 }
 
 func SectorAllocationSorted(result *SectorAllocationResult) []AllocationEntry {
 	entries := make([]AllocationEntry, 0, len(result.Breakdown))
 	for cat, weight := range result.Breakdown {
-		entries = append(entries, AllocationEntry{Category: cat, WeightPct: weight})
+		entries = append(entries, AllocationEntry{Category: cat, Weight: weight})
 	}
 	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].WeightPct != entries[j].WeightPct {
-			return entries[i].WeightPct > entries[j].WeightPct
+		if entries[i].Weight != entries[j].Weight {
+			return entries[i].Weight > entries[j].Weight
 		}
 		return entries[i].Category < entries[j].Category
 	})
@@ -178,11 +180,11 @@ func SectorAllocationSorted(result *SectorAllocationResult) []AllocationEntry {
 func CountryAllocationSorted(result *CountryAllocationResult) []AllocationEntry {
 	entries := make([]AllocationEntry, 0, len(result.Breakdown))
 	for cat, weight := range result.Breakdown {
-		entries = append(entries, AllocationEntry{Category: cat, WeightPct: weight})
+		entries = append(entries, AllocationEntry{Category: cat, Weight: weight})
 	}
 	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].WeightPct != entries[j].WeightPct {
-			return entries[i].WeightPct > entries[j].WeightPct
+		if entries[i].Weight != entries[j].Weight {
+			return entries[i].Weight > entries[j].Weight
 		}
 		return entries[i].Category < entries[j].Category
 	})
