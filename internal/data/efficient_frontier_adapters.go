@@ -145,7 +145,10 @@ func (s *FxRateSourceImpl) GetCurrentFxRate(ctx context.Context, baseCurrency, q
 	if fx == nil {
 		return nil, nil
 	}
-	rate, _ := fx.Rate.Float64()
+	rate, ok := fx.Rate.Float64()
+	if !ok {
+		return nil, fmt.Errorf("convert FX rate %s/%s to float64", fx.BaseCurrency, fx.QuoteCurrency)
+	}
 	return &efficientfrontier.FxRate{
 		BaseCurrency:  fx.BaseCurrency,
 		QuoteCurrency: fx.QuoteCurrency,
