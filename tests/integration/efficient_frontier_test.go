@@ -266,8 +266,8 @@ func TestEfficientFrontier_ComputeTwoSymbols(t *testing.T) {
 
 	// Verify key portfolio weights sum to ~1.0.
 	for name, port := range map[string]*optimizedPortfolio{
-		"max_sharpe":    resp.Result.MaxSharpe,
-		"min_variance":  resp.Result.MinVariance,
+		"max_sharpe":     resp.Result.MaxSharpe,
+		"min_variance":   resp.Result.MinVariance,
 		"highest_return": resp.Result.HighestReturn,
 	} {
 		if port == nil {
@@ -330,8 +330,8 @@ func TestEfficientFrontier_ComputeThreePlusSymbols(t *testing.T) {
 
 	// Key portfolios should also have 3 weights.
 	for name, port := range map[string]*optimizedPortfolio{
-		"max_sharpe":    resp.Result.MaxSharpe,
-		"min_variance":  resp.Result.MinVariance,
+		"max_sharpe":     resp.Result.MaxSharpe,
+		"min_variance":   resp.Result.MinVariance,
 		"highest_return": resp.Result.HighestReturn,
 	} {
 		if port == nil {
@@ -347,7 +347,7 @@ func TestEfficientFrontier_ComputeThreePlusSymbols(t *testing.T) {
 	}
 }
 
-func TestEfficientFrontier_Error_EmptyCandidateSet(t *testing.T) {
+func TestEfficientFrontier_Error_AllSymbolsNoData(t *testing.T) {
 	symbols := []string{"AAPL", "MSFT"}
 	_, router := setupEfficientFrontier(t, symbols)
 	// Don't insert any market data — symbols exist but no price data.
@@ -481,6 +481,72 @@ func TestEfficientFrontier_Error_AllSymbolsMissingData(t *testing.T) {
 	}
 }
 
+func TestEfficientFrontier_Error_NumericalFailure(t *testing.T) {
+	symbols := []string{"SYM_A", "SYM_B"}
+	db, router := setupEfficientFrontier(t, symbols)
+
+	// Insert identical price data for both symbols — this produces a
+	// perfectly correlated (singular) covariance matrix.
+	now := time.Now().UTC()
+	baseDate := now.AddDate(0, 0, -320)
+	for i := 0; i <= 320; i++ {
+		date := baseDate.AddDate(0, 0, i)
+		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
+			continue
+		}
+		dateStr := date.Format("2006-01-02")
+		// Both symbols get the exact same price — correlation = 1.0.
+		price := fmt.Sprintf("%.2f", 100.0+float64(i)*0.5)
+		for _, sym := range symbols {
+			_, err := db.Exec(
+				`INSERT OR REPLACE INTO market_data (symbol, price, currency, data_type, source, date)
+				 VALUES (?, ?, 'USD', 'stock', 'yahoo', ?)`,
+				sym, price, dateStr,
+			)
+			if err != nil {
+				t.Fatalf("insert market data %s %s: %v", sym, dateStr, err)
+			}
+		}
+	}
+
+	w, resp := callComputeFrontier(t, router, computeFrontierRequest{
+		Symbols: symbols,
+		Period:  "1Y",
+	})
+
+	// The engine handles singular matrices via regularization (epsilon on diagonal)
+	// and grid search fallback. It succeeds silently — no hard error or warning.
+	// This verifies the full stack doesn't crash on perfectly correlated assets.
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if resp.Result == nil {
+		t.Fatal("expected result to be non-nil")
+	}
+
+	// Frontier should still be computed (regularization makes the matrix invertible).
+	if len(resp.Result.FrontierPoints) == 0 {
+		t.Error("expected frontier points even with perfectly correlated assets")
+	}
+
+	// Key portfolios should be present.
+	if resp.Result.MaxSharpe == nil {
+		t.Error("expected max_sharpe portfolio")
+	}
+	if resp.Result.MinVariance == nil {
+		t.Error("expected min_variance portfolio")
+	}
+
+	// Weights should sum to ~1.0.
+	for i, pt := range resp.Result.FrontierPoints {
+		sum := sumWeights(pt.Weights)
+		if !almostEqual(sum, 1.0, 0.01) {
+			t.Errorf("frontier point %d: weights sum to %f, expected ~1.0", i, sum)
+		}
+	}
+}
+
 func TestEfficientFrontier_SaveAsModelPortfolio(t *testing.T) {
 	symbols := []string{"AAPL", "MSFT"}
 	db, router := setupEfficientFrontier(t, symbols)
@@ -527,7 +593,7 @@ func TestEfficientFrontier_SaveAsModelPortfolio(t *testing.T) {
 	}
 
 	saveReq := struct {
-		Name    string     `json:"name"`
+		Name    string      `json:"name"`
 		Entries []saveEntry `json:"entries"`
 	}{
 		Name:    "Efficient Frontier Max Sharpe",
@@ -777,5 +843,3 @@ func TestEfficientFrontier_SaveAsModelPortfolio_DuplicateName(t *testing.T) {
 		t.Errorf("expected error code NAME_EXISTS, got %q", errResp.Code)
 	}
 }
-
-
