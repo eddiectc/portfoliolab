@@ -147,58 +147,47 @@ func TestEfficientFrontierHandleComputeFrontier_DefaultPeriod(t *testing.T) {
 	}
 }
 
-func TestEfficientFrontierHandleComputeFrontier_InvalidBody(t *testing.T) {
-	handler, _ := setupEfficientFrontierHandler(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/compute", bytes.NewBufferString("not json"))
-	w := httptest.NewRecorder()
-
-	handler.HandleComputeFrontier(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+func TestEfficientFrontierHandleComputeFrontier_Validation(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "invalid body",
+			body:       "not json",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "too few symbols",
+			body:       `{"symbols": ["AAPL"]}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "too many symbols",
+			body:       `{"symbols": ["A","B","C","D","E","F","G","H","I","J","K"]}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid period",
+			body:       `{"symbols": ["AAPL", "MSFT"], "period": "10Y"}`,
+			wantStatus: http.StatusBadRequest,
+		},
 	}
-}
 
-func TestEfficientFrontierHandleComputeFrontier_TooFewSymbols(t *testing.T) {
-	handler, _ := setupEfficientFrontierHandler(t)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, _ := setupEfficientFrontierHandler(t)
 
-	body := `{"symbols": ["AAPL"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/compute", bytes.NewBufferString(body))
-	w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/compute", bytes.NewBufferString(tc.body))
+			w := httptest.NewRecorder()
 
-	handler.HandleComputeFrontier(w, req)
+			handler.HandleComputeFrontier(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
-	}
-}
-
-func TestEfficientFrontierHandleComputeFrontier_TooManySymbols(t *testing.T) {
-	handler, _ := setupEfficientFrontierHandler(t)
-
-	body := `{"symbols": ["A","B","C","D","E","F","G","H","I","J","K"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/compute", bytes.NewBufferString(body))
-	w := httptest.NewRecorder()
-
-	handler.HandleComputeFrontier(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
-	}
-}
-
-func TestEfficientFrontierHandleComputeFrontier_InvalidPeriod(t *testing.T) {
-	handler, _ := setupEfficientFrontierHandler(t)
-
-	body := `{"symbols": ["AAPL", "MSFT"], "period": "10Y"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/compute", bytes.NewBufferString(body))
-	w := httptest.NewRecorder()
-
-	handler.HandleComputeFrontier(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+			if w.Code != tc.wantStatus {
+				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)
+			}
+		})
 	}
 }
 
