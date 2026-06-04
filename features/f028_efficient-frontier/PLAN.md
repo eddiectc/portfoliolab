@@ -52,21 +52,21 @@ Task 7 (nav + docs) — after all above
 
 **Description:** Create `Service` in `internal/domain/efficientfrontier/` that orchestrates data fetching and delegates to the computation functions. Follows the `analysis.Service` pattern: defines interfaces for dependencies, fetches data, collects warnings, returns structured result.
 
-- [ ] Define service interfaces: `MarketDataHistorySource` (reuse from `marketservice`), `MarketDataSymbolResolver`, `SymbolLister` (for autocomplete)
-- [ ] Implement `ComputeFrontier(ctx, request) (*ServiceResult, error)`:
+- [x] Define service interfaces: `MarketDataHistorySource`, `MarketDataSymbolResolver`, `SymbolLister`, `PortfolioSymbolSource`, `ModelPortfolioSource`, `FxRateSource`
+- [x] Implement `ComputeFrontier(ctx, request) (*ServiceResult, error)`:
   - Resolve market data symbols for each candidate
   - Fetch historical prices for the selected period (1Y/3Y/5Y → date range)
   - Check data sufficiency per symbol (minimum ~60 trading days)
   - Build aligned price map, pass to `ComputeFrontier` engine
   - Collect warnings for symbols with limited/missing data
   - Return `ServiceResult` with frontier data + warnings + excluded symbols
-- [ ] Implement `GetCandidateSymbols(ctx) ([]string, error)` — distinct symbols from symbol map for autocomplete
-- [ ] Implement `GetSymbolsFromPortfolio(ctx, portfolioID) ([]string, error)` — copy from real portfolio
-- [ ] Implement `GetSymbolsFromModelPortfolio(ctx, modelPortfolioID) ([]string, error)` — copy from model portfolio
-- [ ] Handle currency conversion: if symbols have different currencies, convert prices to base currency using cached FX rates (warn if FX data missing)
-- [ ] Write unit tests: `service_test.go` with hand-written mocks for all interfaces
+- [x] Implement `GetCandidateSymbols(ctx) ([]string, error)` — distinct symbols from symbol map for autocomplete
+- [x] Implement `GetSymbolsFromPortfolio(ctx, portfolioID) ([]string, error)` — copy from real portfolio
+- [x] Implement `GetSymbolsFromModelPortfolio(ctx, modelPortfolioID) ([]string, error)` — copy from model portfolio
+- [x] Handle currency conversion: if symbols have different currencies, convert prices to base currency using cached FX rates (warn if FX data missing)
+- [x] Write unit tests: `service_test.go` with hand-written mocks for all interfaces
 
-**Verification:** `go test ./internal/domain/efficientfrontier/...` passes. Service correctly collects warnings for partial data and returns explicit errors for complete failure.
+**Verification:** `go test ./internal/domain/efficientfrontier/...` passes with 93.3% coverage. Service correctly collects warnings for partial data and returns explicit errors for complete failure.
 
 ---
 

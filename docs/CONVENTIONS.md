@@ -5,6 +5,7 @@
 - Run `errcheck` — never ignore errors silently
 - Prefer composition over embedding in domain models
 - Use interfaces sparingly — define them where needed (e.g., repositories, fetchers)
+- **Interfaces defined by the consumer** — the package that *uses* a dependency defines the interface. The provider package just has a concrete type that implicitly satisfies it. (Go principle: "the provider should not know about the interface".) See `analysis.Service` and `efficientfrontier.Service` for the reference pattern: each defines interfaces for its own dependencies, not for itself.
 - Struct tags: `json` for API, `db` for sqlc, `yaml` for config
 
 ## File Organization
