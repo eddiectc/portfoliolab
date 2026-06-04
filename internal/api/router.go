@@ -291,7 +291,18 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 			data.NewFxRateSource(marketSvc),
 		)
 		efficientFrontierHandler := handlers.NewEfficientFrontierHandler(efficientFrontierSvc)
+		efficientFrontierHandler.WithModelPortfolioCreator(modelPortfolioSvc)
 		efficientFrontierHandler.RegisterRoutes(r)
+
+		// Efficient Frontier web pages
+		efficientFrontierWebHandler := handlers.NewEfficientFrontierWebHandler(
+			efficientFrontierHandler,
+			portfolioSvc,
+			modelPortfolioSvc,
+			renderer,
+		)
+		efficientFrontierWebHandler.WithModelPortfolioCreator(modelPortfolioSvc)
+		efficientFrontierWebHandler.RegisterRoutes(r)
 
 		// Model Portfolio web pages
 		modelPortfolioWebHandler := handlers.NewModelPortfolioWebHandler(modelPortfolioSvc, symbolMappingSvc, renderer)

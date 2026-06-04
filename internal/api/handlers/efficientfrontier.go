@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 )
 
 // validFrontierPeriods is the set of accepted period values.
@@ -30,7 +33,8 @@ type efficientFrontierService interface {
 
 // EfficientFrontierHandler handles HTTP requests for efficient frontier computation.
 type EfficientFrontierHandler struct {
-	svc efficientFrontierService
+	svc                   efficientFrontierService
+	modelPortfolioCreator modelPortfolioCreator
 }
 
 // NewEfficientFrontierHandler creates a new efficient frontier HTTP handler.
@@ -38,9 +42,16 @@ func NewEfficientFrontierHandler(svc efficientFrontierService) *EfficientFrontie
 	return &EfficientFrontierHandler{svc: svc}
 }
 
+// WithModelPortfolioCreator sets the model portfolio creator for saving
+// optimized allocations as model portfolios.
+func (h *EfficientFrontierHandler) WithModelPortfolioCreator(creator modelPortfolioCreator) {
+	h.modelPortfolioCreator = creator
+}
+
 // RegisterRoutes mounts efficient frontier routes on the given router.
 func (h *EfficientFrontierHandler) RegisterRoutes(r *chi.Mux) {
 	r.Post("/api/efficient-frontier/compute", h.HandleComputeFrontier)
+	r.Post("/api/efficient-frontier/save", h.HandleSaveAsModelPortfolio)
 	r.Get("/api/efficient-frontier/symbols", h.HandleGetCandidateSymbols)
 	r.Get("/api/efficient-frontier/portfolio/{id}/symbols", h.HandleGetPortfolioSymbols)
 	r.Get("/api/efficient-frontier/model-portfolio/{id}/symbols", h.HandleGetModelPortfolioSymbols)
@@ -166,6 +177,84 @@ func (h *EfficientFrontierHandler) HandleGetModelPortfolioSymbols(w http.Respons
 	}
 
 	writeJSON(w, http.StatusOK, symbolsResponse{Symbols: symbols})
+}
+
+// saveModelPortfolioRequest is the JSON request body for POST /api/efficient-frontier/save.
+type saveModelPortfolioRequest struct {
+	Name    string                     `json:"name"`
+	Entries []saveModelPortfolioEntry  `json:"entries"`
+}
+
+type saveModelPortfolioEntry struct {
+	Symbol string  `json:"symbol"`
+	Weight float64 `json:"weight"`
+}
+
+// HandleSaveAsModelPortfolio handles POST /api/efficient-frontier/save.
+// Saves an optimized allocation from the frontier as a model portfolio.
+// Request body: {"name": "My Portfolio", "entries": [{"symbol": "AAPL", "weight": 0.5}, ...]}
+// Response: created model portfolio.
+func (h *EfficientFrontierHandler) HandleSaveAsModelPortfolio(w http.ResponseWriter, r *http.Request) {
+	if h.modelPortfolioCreator == nil {
+		writeJSONError(w, http.StatusInternalServerError, "NOT_CONFIGURED", "model portfolio creator not configured")
+		return
+	}
+
+	var req saveModelPortfolioRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body: "+err.Error())
+		return
+	}
+
+	if strings.TrimSpace(req.Name) == "" {
+		writeJSONError(w, http.StatusBadRequest, "INVALID_NAME", "name is required")
+		return
+	}
+	if len(req.Entries) == 0 {
+		writeJSONError(w, http.StatusBadRequest, "EMPTY_ENTRIES", "at least one entry is required")
+		return
+	}
+
+	// Convert fraction weights (0.0-1.0) to percentages for model portfolio.
+	entries := make([]modelportfolio.ModelPortfolioEntry, 0, len(req.Entries))
+	for _, e := range req.Entries {
+		entries = append(entries, modelportfolio.ModelPortfolioEntry{
+			Symbol:    e.Symbol,
+			WeightPct: decimal.MustParse(strconv.FormatFloat(e.Weight*100, 'f', 2, 64)),
+		})
+	}
+
+	createReq := modelportfolio.CreateRequest{
+		Name:    req.Name,
+		Entries: entries,
+	}
+
+	mp, err := h.modelPortfolioCreator.Create(r.Context(), createReq)
+	if err != nil {
+		h.handleSaveError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, mp)
+}
+
+func (h *EfficientFrontierHandler) handleSaveError(w http.ResponseWriter, err error) {
+	switch {
+	case err == modelportfolio.ErrNameExists:
+		writeJSONError(w, http.StatusConflict, "NAME_EXISTS", err.Error())
+	case err == modelportfolio.ErrInvalidName:
+		writeJSONError(w, http.StatusBadRequest, "INVALID_NAME", err.Error())
+	case err == modelportfolio.ErrWeightSumNot100:
+		writeJSONError(w, http.StatusBadRequest, "WEIGHT_SUM_NOT_100", err.Error())
+	case err == modelportfolio.ErrInvalidWeight:
+		writeJSONError(w, http.StatusBadRequest, "INVALID_WEIGHT", err.Error())
+	case err == modelportfolio.ErrDuplicateSymbol:
+		writeJSONError(w, http.StatusBadRequest, "DUPLICATE_SYMBOL", err.Error())
+	case err == modelportfolio.ErrEmptyEntries:
+		writeJSONError(w, http.StatusBadRequest, "EMPTY_ENTRIES", err.Error())
+	default:
+		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save model portfolio")
+	}
 }
 
 func (h *EfficientFrontierHandler) handleComputeError(w http.ResponseWriter, err error) {

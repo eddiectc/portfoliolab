@@ -1,0 +1,427 @@
+{{define "content"}}
+<div class="page-header">
+    <h1>Efficient Frontier</h1>
+</div>
+
+{{/* Error state */}}
+{{if .Error}}
+<div class="alert alert-error">{{.Error}}</div>
+{{end}}
+
+{{/* Input form: symbol selection + compute */}}
+<form id="frontier-form" class="filter-bar" method="GET" action="/efficient-frontier">
+    <div class="filter-row">
+        <div class="filter-group">
+            <label for="symbols">Candidate Symbols</label>
+            <input type="text" id="symbols" name="symbols" list="symbol-list"
+                value="{{if .SelectedSymbols}}{{range $i, $s := .SelectedSymbols}}{{if $i}}, {{end}}{{$s}}{{end}}{{end}}"
+                placeholder="e.g. SPY, EFA, BND, VNQ"
+                style="width: 400px;">
+            <datalist id="symbol-list">
+                {{range .CandidateSymbols}}
+                <option value="{{.}}"></option>
+                {{end}}
+            </datalist>
+            <small class="form-hint">Comma-separated symbols. Min 2, max 10.</small>
+        </div>
+
+        <div class="filter-group">
+            <label>Copy from</label>
+            <div class="copy-from-row">
+                <select id="copy-source-type" onchange="toggleCopySource()">
+                    <option value="">—</option>
+                    <option value="portfolio">Real Portfolio</option>
+                    <option value="model-portfolio">Model Portfolio</option>
+                </select>
+                <select id="copy-source-id" style="display:none;">
+                    <option value="">—</option>
+                </select>
+                <button type="button" class="btn btn-sm" onclick="copySymbols()" style="display:none;" id="copy-btn">Copy</button>
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>Period</label>
+            <div class="period-buttons">
+                {{range $p := slice "1Y" "3Y" "5Y"}}
+                <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label for="risk_free_rate">Risk-Free Rate (%)</label>
+            <input type="number" id="risk_free_rate" name="risk_free_rate"
+                value="{{.SelectedRiskFreeRate}}" step="0.1" min="0" max="50" style="width: 80px;">
+        </div>
+
+        <div class="filter-group filter-actions">
+            <button type="submit" class="btn">Compute Frontier</button>
+        </div>
+    </div>
+</form>
+
+{{/* Store portfolio/model-portfolio data for JS */}}
+<script>
+var portfolios = {{.PortfoliosJSON | safeJS}};
+var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
+</script>
+
+{{/* Warnings */}}
+{{if .Warnings}}
+<div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;">
+    {{range .Warnings}}
+    <span>⚠ {{.}}</span><br>
+    {{end}}
+</div>
+{{end}}
+
+{{/* Excluded symbols */}}
+{{if .ExcludedSymbols}}
+<div class="alert alert-error" style="background:#f8d7da;color:#721c24;border-color:#f5c6cb;">
+    <strong>Excluded symbols (no data):</strong>
+    {{range .ExcludedSymbols}}{{.}} {{end}}
+</div>
+{{end}}
+
+{{/* Results section */}}
+{{if .Result}}
+
+{{/* Key portfolios summary cards */}}
+<div class="key-portfolios">
+    {{if .Result.MaxSharpe}}
+    <div class="metric-card" onclick="selectPortfolio('max-sharpe')" style="cursor:pointer;">
+        <h3>Max Sharpe Ratio</h3>
+        <div class="metric-value">{{floatPct .Result.MaxSharpe.SharpeRatio}}</div>
+        <div class="metric-detail">Return: {{floatPct .Result.MaxSharpe.ReturnPct}}% | Vol: {{floatPct .Result.MaxSharpe.VolatilityPct}}%</div>
+    </div>
+    {{end}}
+    {{if .Result.MinVariance}}
+    <div class="metric-card" onclick="selectPortfolio('min-variance')" style="cursor:pointer;">
+        <h3>Min Variance</h3>
+        <div class="metric-value">{{floatPct .Result.MinVariance.VolatilityPct}}%</div>
+        <div class="metric-detail">Return: {{floatPct .Result.MinVariance.ReturnPct}}% | Sharpe: {{floatPct .Result.MinVariance.SharpeRatio}}</div>
+    </div>
+    {{end}}
+    {{if .Result.HighestReturn}}
+    <div class="metric-card" onclick="selectPortfolio('highest-return')" style="cursor:pointer;">
+        <h3>Highest Return</h3>
+        <div class="metric-value">{{floatPct .Result.HighestReturn.ReturnPct}}%</div>
+        <div class="metric-detail">Vol: {{floatPct .Result.HighestReturn.VolatilityPct}}% | Sharpe: {{floatPct .Result.HighestReturn.SharpeRatio}}</div>
+    </div>
+    {{end}}
+</div>
+
+{{/* Frontier chart */}}
+<div class="chart-container" style="height: 500px; margin: 20px 0;">
+    <div id="frontier-chart" style="width: 100%; height: 100%;"></div>
+</div>
+
+{{/* Allocation weights table */}}
+<div id="allocation-section">
+    <h2>Allocation Weights</h2>
+    <p class="form-hint" id="selected-portfolio-label">Showing: Max Sharpe Ratio</p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Weight (%)</th>
+                <th>Return Contribution (%)</th>
+            </tr>
+        </thead>
+        <tbody id="allocation-table-body">
+            <!-- Filled by JS -->
+        </tbody>
+    </table>
+
+    {{/* Save as model portfolio form */}}
+    <div class="save-section" style="margin-top: 20px;">
+        <form id="save-form" method="POST" action="/efficient-frontier/save">
+            <h3>Save as Model Portfolio</h3>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="mp-name">Name</label>
+                    <input type="text" id="mp-name" name="name" value="Optimized Portfolio" style="width: 300px;">
+                </div>
+                <div class="filter-group filter-actions">
+                    <button type="submit" class="btn">Save Model Portfolio</button>
+                </div>
+            </div>
+            <!-- Hidden fields for allocation weights -->
+            <div id="save-hidden-fields"></div>
+        </form>
+    </div>
+</div>
+
+{{else if .SelectedSymbols}}
+<p class="empty-state">Select at least 2 symbols to compute the efficient frontier.</p>
+{{else}}
+<p class="empty-state">Enter candidate symbols above and click "Compute Frontier" to begin.</p>
+{{end}}
+
+{{/* ECharts script */}}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>
+(function() {
+    var chartData = _frontierChartData;
+    var frontierChart = echarts.init(document.getElementById('frontier-chart'));
+
+    // Store data for interaction
+    var symbols = chartData.symbols || [];
+    var frontierPoints = chartData.frontier_points || [];
+    var keyPortfolios = {
+        'max-sharpe': chartData.max_sharpe,
+        'min-variance': chartData.min_variance,
+        'highest-return': chartData.highest_return
+    };
+
+    // Build series data
+    var frontierSeries = {
+        name: 'Efficient Frontier',
+        type: 'scatter',
+        symbolSize: 6,
+        data: frontierPoints.map(function(p) { return [p[0], p[1], p[2]]; }),
+        itemStyle: { color: '#409EFF' },
+        emphasis: {
+            itemStyle: { color: '#E6A23C', symbolSize: 10 }
+        }
+    };
+
+    var series = [frontierSeries];
+
+    // Add key portfolio markers
+    var markerColors = {
+        'max_sharpe': '#67C23A',
+        'min_variance': '#E6A23C',
+        'highest_return': '#F56C6C'
+    };
+
+    if (chartData.max_sharpe) {
+        series.push({
+            name: chartData.max_sharpe.name,
+            type: 'scatter',
+            symbolSize: 16,
+            data: [[chartData.max_sharpe.volatility, chartData.max_sharpe.return, chartData.max_sharpe.sharpe_ratio]],
+            itemStyle: { color: markerColors.max_sharpe }
+        });
+    }
+    if (chartData.min_variance) {
+        series.push({
+            name: chartData.min_variance.name,
+            type: 'scatter',
+            symbolSize: 14,
+            data: [[chartData.min_variance.volatility, chartData.min_variance.return, chartData.min_variance.sharpe_ratio]],
+            itemStyle: { color: markerColors.min_variance }
+        });
+    }
+    if (chartData.highest_return) {
+        series.push({
+            name: chartData.highest_return.name,
+            type: 'scatter',
+            symbolSize: 14,
+            data: [[chartData.highest_return.volatility, chartData.highest_return.return, chartData.highest_return.sharpe_ratio]],
+            itemStyle: { color: markerColors.highest_return }
+        });
+    }
+
+    var option = {
+        title: {
+            text: 'Efficient Frontier',
+            left: 'center',
+            textStyle: { fontSize: 16 }
+        },
+        tooltip: {
+            trigger: 'item',
+            formatter: function(params) {
+                if (params.dataIndex !== undefined && params.data.length > 0) {
+                    var p = params.data;
+                    return '<strong>' + params.seriesName + '</strong><br/>' +
+                        'Return: ' + p[1].toFixed(2) + '%<br/>' +
+                        'Volatility: ' + p[0].toFixed(2) + '%<br/>' +
+                        'Sharpe: ' + p[2].toFixed(3);
+                }
+                return params.seriesName;
+            }
+        },
+        legend: {
+            data: series.map(function(s) { return s.name; }),
+            top: 30
+        },
+        grid: {
+            left: '10%',
+            right: '10%',
+            bottom: '15%',
+            top: '80px'
+        },
+        xAxis: {
+            name: 'Volatility (%)',
+            nameLocation: 'middle',
+            nameGap: 30,
+            type: 'value',
+            splitLine: { lineStyle: { type: 'dashed' } }
+        },
+        yAxis: {
+            name: 'Return (%)',
+            nameLocation: 'middle',
+            nameGap: 35,
+            type: 'value',
+            splitLine: { lineStyle: { type: 'dashed' } }
+        },
+        series: series
+    };
+
+    frontierChart.setOption(option);
+
+    // Click handler: show allocation weights for clicked point
+    frontierChart.on('click', function(params) {
+        if (params.data && params.data.length >= 2) {
+            // Find the closest frontier point and its weights
+            var vol = params.data[0];
+            var ret = params.data[1];
+
+            // Check if it's a key portfolio
+            var keyPortfolio = null;
+            for (var key in keyPortfolios) {
+                var kp = keyPortfolios[key];
+                if (kp && Math.abs(kp.volatility - vol) < 0.01 && Math.abs(kp.return - ret) < 0.01) {
+                    keyPortfolio = kp;
+                    break;
+                }
+            }
+
+            if (keyPortfolio) {
+                showAllocation(keyPortfolio.weights, keyPortfolio.name);
+            } else {
+                // Find nearest frontier point
+                var minDist = Infinity;
+                var nearestIdx = 0;
+                for (var i = 0; i < frontierPoints.length; i++) {
+                    var dist = Math.pow(frontierPoints[i][0] - vol, 2) + Math.pow(frontierPoints[i][1] - ret, 2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestIdx = i;
+                    }
+                }
+                // For frontier points, we need the weights from the original data
+                // Since we don't have weights in the chart data, show the key portfolio info
+                showAllocationInfo(frontierPoints[nearestIdx], 'Frontier Point');
+            }
+        }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        frontierChart.resize();
+    });
+
+    // Initialize with default portfolio (Max Sharpe)
+    if (keyPortfolios['max-sharpe']) {
+        showAllocation(keyPortfolios['max-sharpe'].weights, keyPortfolios['max-sharpe'].name);
+    }
+})();
+
+function showAllocation(weights, name) {
+    var tbody = document.getElementById('allocation-table-body');
+    var label = document.getElementById('selected-portfolio-label');
+    label.textContent = 'Showing: ' + name;
+
+    var html = '';
+    for (var i = 0; i < weights.length; i++) {
+        var weightPct = (weights[i] * 100).toFixed(2);
+        html += '<tr>';
+        html += '<td>' + symbols[i] + '</td>';
+        html += '<td>' + weightPct + '%</td>';
+        html += '<td>—</td>';
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+
+    // Update hidden fields for save form
+    updateSaveFields(weights);
+}
+
+function showAllocationInfo(point, name) {
+    var label = document.getElementById('selected-portfolio-label');
+    label.textContent = 'Showing: ' + name + ' (Return: ' + point[1].toFixed(2) + '%, Vol: ' + point[0].toFixed(2) + '%)';
+}
+
+function updateSaveFields(weights) {
+    var container = document.getElementById('save-hidden-fields');
+    var html = '';
+    for (var i = 0; i < weights.length; i++) {
+        html += '<input type="hidden" name="symbol" value="' + symbols[i] + '">';
+        html += '<input type="hidden" name="weight" value="' + weights[i].toFixed(6) + '">';
+    }
+    container.innerHTML = html;
+}
+
+// Global chart data reference for selectPortfolio
+var _frontierChartData = {{.FrontierChartData | safeJS}};
+
+function selectPortfolio(key) {
+    var chartData = _frontierChartData;
+    var kp = null;
+    if (key === 'max-sharpe') kp = chartData.max_sharpe;
+    else if (key === 'min-variance') kp = chartData.min_variance;
+    else if (key === 'highest-return') kp = chartData.highest_return;
+
+    if (kp) {
+        showAllocation(kp.weights, kp.name);
+    }
+}
+
+function toggleCopySource() {
+    var type = document.getElementById('copy-source-type').value;
+    var idSelect = document.getElementById('copy-source-id');
+    var copyBtn = document.getElementById('copy-btn');
+
+    idSelect.innerHTML = '<option value="">—</option>';
+
+    if (type === 'portfolio') {
+        for (var i = 0; i < portfolios.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = portfolios[i].id;
+            opt.textContent = portfolios[i].name + ' (' + portfolios[i].currency + ')';
+            idSelect.appendChild(opt);
+        }
+    } else if (type === 'model-portfolio') {
+        for (var i = 0; i < modelPortfolios.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = modelPortfolios[i].id;
+            opt.textContent = modelPortfolios[i].name + ' (' + modelPortfolios[i].entry_count + ' entries)';
+            idSelect.appendChild(opt);
+        }
+    }
+
+    idSelect.style.display = type ? 'inline-block' : 'none';
+    copyBtn.style.display = type ? 'inline-block' : 'none';
+}
+
+async function copySymbols() {
+    var type = document.getElementById('copy-source-type').value;
+    var id = document.getElementById('copy-source-id').value;
+
+    if (!type || !id) return;
+
+    var url = '';
+    if (type === 'portfolio') {
+        url = '/api/efficient-frontier/portfolio/' + id + '/symbols';
+    } else if (type === 'model-portfolio') {
+        url = '/api/efficient-frontier/model-portfolio/' + id + '/symbols';
+    }
+
+    try {
+        var resp = await fetch(url);
+        var data = await resp.json();
+        if (data.symbols && data.symbols.length > 0) {
+            document.getElementById('symbols').value = data.symbols.join(', ');
+        }
+    } catch (e) {
+        alert('Failed to fetch symbols: ' + e.message);
+    }
+}
+</script>
+
+{{end}}
+
+{{template "base" .}}

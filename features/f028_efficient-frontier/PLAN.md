@@ -100,27 +100,33 @@ Task 7 (nav + docs) — after all above
 
 **Description:** Create `efficientfrontier_web.go` and `efficientfrontier_web_test.go` in `internal/api/handlers/`. Create template `templates/efficient_frontier/index.html`. Follows the `analysis_web.go` pattern: web handler delegates to API handler for computation, adds presentation concerns.
 
-- [ ] Create `EfficientFrontierWebHandler` with routes: `GET /efficient-frontier`
-- [ ] Implement `HandleEfficientFrontier` (GET `/efficient-frontier`):
-  - Parse query params: symbols (comma-separated), period, risk-free rate, source portfolio/model-portfolio ID
-  - Call API handler for computation
+- [x] Create `EfficientFrontierWebHandler` with routes: `GET /efficient-frontier`, `POST /efficient-frontier/save`
+- [x] Implement `HandleEfficientFrontier` (GET `/efficient-frontier`):
+  - Parse query params: symbols (comma-separated), period, risk-free rate
+  - Call service for computation
   - Serialize frontier data as JSON for ECharts scatter chart
   - Build template data: candidate symbols list, period buttons, URLs
   - Render template
-- [ ] Create template `templates/efficient_frontier/index.html`:
+- [x] Create template `templates/efficient_frontier/index.html`:
   - Symbol input with autocomplete (datalist from symbol map)
-  - "Copy from portfolio" / "Copy from model portfolio" dropdowns
+  - "Copy from portfolio" / "Copy from model portfolio" dropdowns (JS fetches via API)
   - Period selector buttons (1Y, 3Y, 5Y)
-  - Risk-free rate input field (default: current US Treasury rate, e.g. 4.5%)
+  - Risk-free rate input field (default: 4.5%)
   - Compute button
-  - ECharts scatter plot: x-axis = volatility (%), y-axis = return (%), frontier curve + max Sharpe + min variance markers
+  - Key portfolio summary cards (Max Sharpe, Min Variance, Highest Return)
+  - ECharts scatter plot: x-axis = volatility (%), y-axis = return (%), frontier curve + key portfolio markers
   - Click handler on chart points → show allocation weights table
-  - Allocation weights table (symbol, weight %, return contribution)
+  - Allocation weights table (symbol, weight %)
   - Warning/error display area
-  - "Save as Model Portfolio" button (pre-fills model portfolio form)
-- [ ] Register web handler in `router.go`
-- [ ] Add nav link in `templates/partials/nav.html`
-- [ ] Write web handler tests: `efficientfrontier_web_test.go`
+  - "Save as Model Portfolio" form (name input + save button, hidden weight fields)
+- [x] Implement `HandleSaveAsModelPortfolio` (POST `/efficient-frontier/save`):
+  - Parse form: name + hidden symbol/weight fields
+  - Convert fraction weights to percentages
+  - Call model portfolio service.Create
+  - Redirect to model portfolios list with flash message
+- [x] Register web handler in `router.go` (with `WithModelPortfolioCreator` wiring)
+- [x] Add nav link in `templates/partials/nav.html`
+- [x] Write web handler tests: `efficientfrontier_web_test.go`
 
 **Verification:** Page renders correctly. Chart displays frontier curve. Clicking points shows allocation weights. Copy from portfolio/model-portfolio pre-fills symbols.
 
@@ -130,19 +136,19 @@ Task 7 (nav + docs) — after all above
 
 **Corresponds to:** Scenario: save optimized allocation as a model portfolio
 
-**Description:** Add a POST endpoint and web form to save the currently displayed frontier portfolio as a model portfolio. Reuses existing `modelportfolio` service.
+**Description:** Add a POST API endpoint to save the currently displayed frontier portfolio as a model portfolio. The web form layer was implemented in Task 4 (POST `/efficient-frontier/save`), but a dedicated API endpoint is still needed for future mobile app support.
 
-- [ ] Implement `HandleSaveAsModelPortfolio` (POST `/api/efficient-frontier/save`):
+- [x] Implement `HandleSaveAsModelPortfolio` (POST `/api/efficient-frontier/save`):
   - Parse request: `string Name`, `[]FrontierAllocation Entries`
   - Map to `modelportfolio.CreateRequest`
   - Call existing model portfolio service.Create
   - Return created model portfolio
-- [ ] Add web form section in template: name input + save button, appears after frontier is computed
-- [ ] On save success, redirect to model portfolio list with flash message
-- [ ] Wire handler in `router.go`
-- [ ] Write tests
+- [x] Wire handler in `router.go`
+- [x] Write tests
 
-**Verification:** Selecting a frontier point and saving creates a model portfolio visible in `/model-portfolios`.
+**Note:** Web form layer already implemented in Task 4 (POST `/efficient-frontier/save` via web handler). Only the API endpoint remains.
+
+**Verification:** `go test ./internal/api/handlers/... -run EfficientFrontier` passes. API returns 201 with created model portfolio.
 
 ---
 

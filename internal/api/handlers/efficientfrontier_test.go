@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 )
 
 // testEfficientFrontierService is a minimal in-memory mock service for handler tests.
@@ -470,6 +472,7 @@ func TestEfficientFrontierRoutesRegistered(t *testing.T) {
 		method, path string
 	}{
 		{http.MethodPost, "/api/efficient-frontier/compute"},
+		{http.MethodPost, "/api/efficient-frontier/save"},
 		{http.MethodGet, "/api/efficient-frontier/symbols"},
 		{http.MethodGet, "/api/efficient-frontier/portfolio/1/symbols"},
 		{http.MethodGet, "/api/efficient-frontier/model-portfolio/1/symbols"},
@@ -485,3 +488,188 @@ func TestEfficientFrontierRoutesRegistered(t *testing.T) {
 		}
 	}
 }
+
+// --- Mock model portfolio creator ---
+
+type testModelPortfolioCreator struct {
+	created modelportfolio.ModelPortfolio
+	err     error
+}
+
+func (m *testModelPortfolioCreator) Create(_ context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
+	if m.err != nil {
+		return modelportfolio.ModelPortfolio{}, m.err
+	}
+	m.created = modelportfolio.ModelPortfolio{
+		ID:        1,
+		Name:      req.Name,
+		Entries:   req.Entries,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	return m.created, nil
+}
+
+// --- HandleSaveAsModelPortfolio tests ---
+
+func TestEfficientFrontierHandleSaveAsModelPortfolio_Success(t *testing.T) {
+	handler, _ := setupEfficientFrontierHandler(t)
+	creator := &testModelPortfolioCreator{}
+	handler.WithModelPortfolioCreator(creator)
+
+	body := `{
+		"name": "Max Sharpe Portfolio",
+		"entries": [
+			{"symbol": "AAPL", "weight": 0.7},
+			{"symbol": "MSFT", "weight": 0.3}
+		]
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/save", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.HandleSaveAsModelPortfolio(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d body: %s", w.Code, w.Body.String())
+	}
+
+	var resp modelportfolio.ModelPortfolio
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Name != "Max Sharpe Portfolio" {
+		t.Errorf("expected name 'Max Sharpe Portfolio', got %q", resp.Name)
+	}
+	if len(resp.Entries) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(resp.Entries))
+	}
+	// Verify fraction weights were converted to percentages.
+	if !resp.Entries[0].WeightPct.Equal(decimal.MustParse("70.00")) {
+		t.Errorf("expected weight 70.00, got %s", resp.Entries[0].WeightPct.String())
+	}
+	if !resp.Entries[1].WeightPct.Equal(decimal.MustParse("30.00")) {
+		t.Errorf("expected weight 30.00, got %s", resp.Entries[1].WeightPct.String())
+	}
+}
+
+func TestEfficientFrontierHandleSaveAsModelPortfolio_NoCreator(t *testing.T) {
+	handler, _ := setupEfficientFrontierHandler(t)
+	// Don't set creator.
+
+	body := `{"name": "Test", "entries": [{"symbol": "AAPL", "weight": 1.0}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/save", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+
+	handler.HandleSaveAsModelPortfolio(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+
+	var errResp APIError
+	json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "NOT_CONFIGURED" {
+		t.Errorf("expected NOT_CONFIGURED, got %q", errResp.Code)
+	}
+}
+
+func TestEfficientFrontierHandleSaveAsModelPortfolio_Validation(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+		wantCode   string
+	}{
+		{
+			name:       "invalid body",
+			body:       "not json",
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "INVALID_REQUEST",
+		},
+		{
+			name:       "empty name",
+			body:       `{"name": "", "entries": [{"symbol": "AAPL", "weight": 1.0}]}`,
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "INVALID_NAME",
+		},
+		{
+			name:       "whitespace name",
+			body:       `{"name": "   ", "entries": [{"symbol": "AAPL", "weight": 1.0}]}`,
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "INVALID_NAME",
+		},
+		{
+			name:       "empty entries",
+			body:       `{"name": "Test", "entries": []}`,
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "EMPTY_ENTRIES",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, _ := setupEfficientFrontierHandler(t)
+			creator := &testModelPortfolioCreator{}
+			handler.WithModelPortfolioCreator(creator)
+
+			req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/save", bytes.NewBufferString(tc.body))
+			w := httptest.NewRecorder()
+
+			handler.HandleSaveAsModelPortfolio(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)
+			}
+
+			var errResp APIError
+			json.NewDecoder(w.Body).Decode(&errResp)
+			if errResp.Code != tc.wantCode {
+				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
+			}
+		})
+	}
+}
+
+func TestEfficientFrontierHandleSaveAsModelPortfolio_ServiceError(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{"name exists", modelportfolio.ErrNameExists, http.StatusConflict, "NAME_EXISTS"},
+		{"weight sum not 100", modelportfolio.ErrWeightSumNot100, http.StatusBadRequest, "WEIGHT_SUM_NOT_100"},
+		{"invalid weight", modelportfolio.ErrInvalidWeight, http.StatusBadRequest, "INVALID_WEIGHT"},
+		{"duplicate symbol", modelportfolio.ErrDuplicateSymbol, http.StatusBadRequest, "DUPLICATE_SYMBOL"},
+		{"empty entries", modelportfolio.ErrEmptyEntries, http.StatusBadRequest, "EMPTY_ENTRIES"},
+		{"unknown error", assertErr{msg: "db down"}, http.StatusInternalServerError, "INTERNAL_ERROR"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, _ := setupEfficientFrontierHandler(t)
+			creator := &testModelPortfolioCreator{err: tc.err}
+			handler.WithModelPortfolioCreator(creator)
+
+			body := `{"name": "Test", "entries": [{"symbol": "AAPL", "weight": 1.0}]}`
+			req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/save", bytes.NewBufferString(body))
+			w := httptest.NewRecorder()
+
+			handler.HandleSaveAsModelPortfolio(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)
+			}
+
+			var errResp APIError
+			json.NewDecoder(w.Body).Decode(&errResp)
+			if errResp.Code != tc.wantCode {
+				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
+			}
+		})
+	}
+}
+
+// assertErr is a simple error implementation for testing unknown errors.
+type assertErr struct{ msg string }
+
+func (e assertErr) Error() string { return e.msg }
