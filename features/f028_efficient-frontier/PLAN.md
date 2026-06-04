@@ -158,17 +158,21 @@ Task 7 (nav + docs) — after all above
 
 **Description:** Integration tests using in-memory SQLite with real schema, exercising the full stack.
 
-- [ ] Create `tests/integration/efficient_frontier_test.go`
-- [ ] Test: compute frontier with 2 symbols (happy path) — verify frontier points, key portfolios
-- [ ] Test: compute frontier with 3+ symbols — verify weights sum to 1.0
-- [ ] Test: error — empty candidate set
-- [ ] Test: error — single symbol
-- [ ] Test: warning — some symbols missing data (partial optimization)
-- [ ] Test: error — all symbols missing data
-- [ ] Test: save as model portfolio (full path: compute → save → verify in DB)
-- [ ] Use shared test helper `tests/integration/db.go` for in-memory DB
+- [x] Create `tests/integration/efficient_frontier_test.go`
+- [x] Test: compute frontier with 2 symbols (happy path) — verify frontier points, key portfolios
+- [x] Test: compute frontier with 3+ symbols — verify weights sum to 1.0
+- [x] Test: error — empty candidate set
+- [x] Test: error — single symbol
+- [x] Test: warning — some symbols missing data (partial optimization)
+- [x] Test: error — all symbols missing data
+- [x] Test: save as model portfolio (full path: compute → save → verify in DB)
+- [x] Use shared test helper `tests/integration/db.go` for in-memory DB
 
 **Verification:** `go test ./tests/integration/... -run Efficient` passes.
+
+**Notes:**
+- The engine checks min trading days across ALL symbols (not per-symbol). When any symbol has < 60 days, the whole computation returns a warning with no frontier points.
+- The save-as-model-portfolio test filters zero-weight entries and normalizes remaining weights, since the max-Sharpe portfolio for 2 correlated symbols often concentrates 100% in one asset.
 
 ---
 

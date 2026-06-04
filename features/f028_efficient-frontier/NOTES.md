@@ -34,5 +34,11 @@
 - `testDec` in `testhelpers.go` duplicates `dec` in `returns_test.go`. This is unavoidable: `makeTestPrices` (in non-test `testhelpers.go`) needs a `float64→decimal.Decimal` helper, but `dec` lives in a `_test.go` file that is not compiled during regular builds. Both functions are identical; see `testhelpers.go` comment.
 - **FX conversion precision**: `convertToBaseCurrency` uses `decimal.NewFromFloat64` which goes through a float64 intermediate. For production use with large amounts, consider a string-based conversion path to avoid floating-point rounding.
 
+## Integration Test Notes (Task 6)
+- **Engine checks min data across ALL symbols**: The `ComputeFrontier` engine checks `minReturns < minTradingDays (60)` across all symbols. If ANY symbol has fewer than 60 trading days, the whole computation returns a warning with no frontier points — it does NOT exclude individual symbols and proceed with the rest. This differs from the service layer's `fetchPricesForSymbols`, which excludes symbols with zero data.
+- **Partial data test**: `insertPartialMarketData` must `DELETE` existing data for partial symbols before inserting limited-range data, because both full and partial symbols share the same `market_data` table.
+- **Zero-weight entries in save**: The max-Sharpe portfolio for 2 correlated symbols (same upward trend) concentrates 100% in one asset. The save-as-model-portfolio test filters zero-weight entries and normalizes remaining weights, since the model portfolio validator requires each weight > 0%.
+- **Response body consumed by helper**: The `callComputeFrontier` helper decodes the response body, so subsequent tests must use the returned `computeFrontierResponse` rather than re-decoding `w.Body`.
+
 ## Known Issues
 - None.
