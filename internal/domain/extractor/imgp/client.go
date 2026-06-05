@@ -130,6 +130,11 @@ func (c *Client) SetFetchPDFFunc(fn fetchPDFFunc) {
 	c.fetchPDF = fn
 }
 
+// SetMinDelay sets the minimum delay between requests (for testing).
+func (c *Client) SetMinDelay(d time.Duration) {
+	c.minDelay = d
+}
+
 // wait enforces the minimum delay between requests.
 func (c *Client) wait() {
 	c.mu.Lock()

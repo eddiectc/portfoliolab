@@ -2,7 +2,6 @@ package integration
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -26,22 +25,18 @@ func TestVanguard_ExtractorDispatch_Routing(t *testing.T) {
 		t.Fatalf("register vanguard extractor: %v", err)
 	}
 
-	dispatcher := extractor.NewDispatcher(reg)
-
-	// Vanguard URL should find the extractor (may fail on network, but not on routing)
-	_, err := dispatcher.Dispatch(context.Background(),
+	// Vanguard URL should find the extractor (test routing without network calls)
+	found, err := reg.FindByURL(
 		"https://www.vanguardinvestor.co.uk/investments/vanguard-ftse-all-world-ucits-etf-usd-distributing")
 	if err != nil {
-		errStr := err.Error()
-		if len(errStr) > 20 && errStr[:20] == "no extractor registere" {
-			t.Fatalf("routing failed: %v", err)
-		}
-		// Any other error (network, API) is expected in test environment
+		t.Fatalf("routing failed: %v", err)
+	}
+	if found.Name() != "vanguard" {
+		t.Errorf("expected vanguard extractor, got %q", found.Name())
 	}
 
 	// Non-matching URL should fail with "no extractor" error
-	_, err = dispatcher.Dispatch(context.Background(),
-		"https://finance.yahoo.com/quote/SPY")
+	_, err = reg.FindByURL("https://finance.yahoo.com/quote/SPY")
 	if err == nil {
 		t.Error("expected error for non-vanguard URL")
 	}
@@ -678,10 +673,9 @@ func TestVanguard_Dispatcher_UnregisteredProvider(t *testing.T) {
 	reg := extractor.NewRegistry()
 	// Register only WisdomTree — Vanguard is NOT registered
 	reg.Register(wisdomtree.NewExtractor())
-	dispatcher := extractor.NewDispatcher(reg)
 
-	// Dispatch to a Vanguard URL — should fail with explicit error
-	_, err := dispatcher.Dispatch(context.Background(),
+	// Vanguard URL — should fail with explicit error
+	_, err := reg.FindByURL(
 		"https://www.vanguardinvestor.co.uk/investments/vanguard-ftse-all-world-ucits-etf-usd-distributing")
 	if err == nil {
 		t.Fatal("expected error for unregistered provider, got nil")
@@ -696,15 +690,13 @@ func TestVanguard_Dispatcher_UnregisteredProvider(t *testing.T) {
 		t.Errorf("expected URL in error message, got: %s", errStr)
 	}
 
-	// Verify a registered provider (WisdomTree) still works (may fail on network but not on routing)
-	_, err = dispatcher.Dispatch(context.Background(),
-		"https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/")
+	// Verify a registered provider (WisdomTree) still works (test routing only)
+	found, err := reg.FindByURL("https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/")
 	if err != nil {
-		errStr := err.Error()
-		if containsString(errStr, "no extractor registered") {
-			t.Errorf("WisdomTree extractor should be registered, got routing error: %s", errStr)
-		}
-		// Network/API errors are expected in test environment
+		t.Errorf("WisdomTree extractor should be registered, got routing error: %s", err)
+	}
+	if found.Name() != "wisdomtree" {
+		t.Errorf("expected wisdomtree extractor, got %q", found.Name())
 	}
 }
 
@@ -777,20 +769,16 @@ func TestVanguard_ProviderSwitch_YahooToVanguard(t *testing.T) {
 		t.Errorf("expected vanguard data_source_url in stale query, got %q", staleURL)
 	}
 
-	// Step 4: Verify the dispatcher routes the URL to the Vanguard extractor
+	// Step 4: Verify the registry routes the URL to the Vanguard extractor
 	reg := extractor.NewRegistry()
 	reg.Register(vanguard.NewExtractor())
-	dispatcher := extractor.NewDispatcher(reg)
 
-	// The dispatcher should find the Vanguard extractor for this URL
-	// (may fail on network, but not on routing)
-	_, err = dispatcher.Dispatch(context.Background(), staleURL)
+	found, err := reg.FindByURL(staleURL)
 	if err != nil {
-		errStr := err.Error()
-		if containsString(errStr, "no extractor registered") {
-			t.Errorf("Vanguard extractor should be registered for %q, got routing error: %s", staleURL, errStr)
-		}
-		// Network/API errors are expected in test environment
+		t.Errorf("Vanguard extractor should be registered for %q, got routing error: %s", staleURL, err)
+	}
+	if found.Name() != "vanguard" {
+		t.Errorf("expected vanguard extractor, got %q", found.Name())
 	}
 }
 

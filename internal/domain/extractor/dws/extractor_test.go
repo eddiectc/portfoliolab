@@ -9,7 +9,8 @@ import (
 
 func TestExtractor_Extract_Success(t *testing.T) {
 	ext := NewExtractor()
-	
+	ext.client.SetMinDelay(0) // disable rate limiting in tests
+
 	// Mock responses
 	responses := map[string]string{
 		"test-slug/pdpSettings":      `{"productType": "ETF", "internalId": "ID123", "fundFamily": "Xtrackers", "costsAndFees": {"totalOngoingCosts": "0.20%"}}`,
@@ -87,6 +88,7 @@ func TestExtractor_Extract_AtomicFailure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ext := NewExtractor()
+			ext.client.SetMinDelay(0) // disable rate limiting in tests
 			ext.client.SetFetchFunc(func(url string) (string, error) {
 				for k, v := range tt.mockResponses {
 					if strings.HasSuffix(url, k) {

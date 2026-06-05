@@ -1,3 +1,5 @@
+//go:build integration
+
 package dws
 
 import (
@@ -46,6 +48,9 @@ func TestRealExtractor(t *testing.T) {
 }
 
 func TestRealExtractor_InvalidSlug(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live API test in short mode")
+	}
 	ext := NewExtractor()
 	
 	slug := "non-existent-slug-12345"

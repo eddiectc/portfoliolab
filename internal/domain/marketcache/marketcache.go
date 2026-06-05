@@ -89,10 +89,11 @@ type MarketCache struct {
 	refreshAllInProgress bool
 	totalSymbols         int
 
-	fetchCh chan fetchRequest
-	ctx     context.Context
-	cancel  context.CancelFunc
-	wg      sync.WaitGroup
+	fetchCh    chan fetchRequest
+	fetchDone  chan string // test-only: signals when a fetch completes (symbol name)
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
 }
 
 // New creates a new MarketCache.
@@ -109,6 +110,13 @@ func New(fetcher MarketDataFetcher, repo MarketDataRepository, discoverer Symbol
 		fetchCh:          make(chan fetchRequest, 100),
 		historicalFrom:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
+}
+
+// WithFetchDone sets a channel that receives a signal when a fetch completes.
+// Used in tests to avoid time.Sleep.
+func (m *MarketCache) WithFetchDone(ch chan string) *MarketCache {
+	m.fetchDone = ch
+	return m
 }
 
 // WithSymbolDetailsRefresh sets the symbol details refresh source for
@@ -279,6 +287,12 @@ func (m *MarketCache) processFetch(req fetchRequest) {
 		m.mu.Lock()
 		delete(m.inProgress, req.symbol)
 		m.mu.Unlock()
+		if m.fetchDone != nil {
+			select {
+			case m.fetchDone <- req.symbol:
+			default:
+			}
+		}
 	}()
 
 	if req.isFx {
