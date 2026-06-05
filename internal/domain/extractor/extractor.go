@@ -125,7 +125,7 @@ type Holding struct {
 
 // NavPoint is a single NAV data point.
 type NavPoint struct {
-	Date     string
+	Date     time.Time
 	NAV      decimal.Decimal
 	Currency string // currency of the NAV value; empty means use the symbol's currency
 }

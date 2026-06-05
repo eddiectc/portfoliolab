@@ -157,11 +157,11 @@ func (s *Service) storeNavHistory(ctx context.Context, internalSymbol, currency 
 			Currency:  currencyToUse,
 			DataType:  "nav",
 			Source:    source,
-			Date:      np.Date,
+			Date:      np.Date.Format("2006-01-02"),
 			FetchedAt: now,
 		}
 		if err := s.marketDataRepo.Upsert(ctx, md); err != nil {
-			return fmt.Errorf("upsert NAV for %s on %s: %w", internalSymbol, np.Date, err)
+			return fmt.Errorf("upsert NAV for %s on %s: %w", internalSymbol, np.Date.Format("2006-01-02"), err)
 		}
 	}
 	return nil

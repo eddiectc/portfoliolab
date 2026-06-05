@@ -230,7 +230,7 @@ func ParseNavHistory(data string) ([]extractor.NavPoint, error) {
 		}
 
 		navs = append(navs, extractor.NavPoint{
-			Date: timestamp.Format(time.RFC3339),
+			Date: timestamp,
 			NAV:  decimal.MustNew(int64(navVal*1000000), 6),
 		})
 	}
