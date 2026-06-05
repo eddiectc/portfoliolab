@@ -81,6 +81,12 @@ func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 		profile.Isin = strings.TrimSpace(isinRaw)
 	}
 
+	// Base Currency: <td>Base Currency</td> ... <td>USD</td>
+	baseCurrencyRaw, err := parseTableRawValue(html, `<td>Base Currency</td>`)
+	if err == nil {
+		profile.BaseCurrency = strings.TrimSpace(baseCurrencyRaw)
+	}
+
 	if profile.TotalNetAssets == 0 && profile.AnnualExpenseRatio == 0 && profile.InceptionDate.IsZero() {
 		return nil, nil // optional section — not present on all pages
 	}

@@ -326,6 +326,7 @@ func extractResultToSymbolDetails(result *extractor.ExtractResult, internalSymbo
 			AssetClassification:    result.FundProfile.AssetClassification,
 			DistributionStrategy:   result.FundProfile.DistributionStrategy,
 			MarketRegionFocus:      result.FundProfile.MarketRegionFocus,
+			BaseCurrency:           result.FundProfile.BaseCurrency,
 			SFDRClassification:     result.FundProfile.SFDRClassification,
 			Domicile:               result.FundProfile.Domicile,
 			RebalanceFrequency:     result.FundProfile.RebalanceFrequency,

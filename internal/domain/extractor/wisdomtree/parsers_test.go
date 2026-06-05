@@ -385,6 +385,7 @@ func TestParseFundProfile(t *testing.T) {
 		wantFamily    string
 		wantLegalType string
 		wantIsin      string
+		wantBaseCurrency string
 		wantNil       bool
 		wantErr       bool
 	}{
@@ -396,6 +397,7 @@ func TestParseFundProfile(t *testing.T) {
 <tr><td class="key">Inception Date</td><td>01/06/2023</td></tr>
 <tr><td class="key">Fund Umbrella</td><td>WisdomTree Issuer ICAV</td></tr>
 <tr><td class="key">Legal Form</td><td>ICAV</td></tr>
+<tr><td>Base Currency</td><td>USD</td></tr>
 </table>
 <table>
 <tr><td>ISIN</td><td>IE000YGEAK03</td></tr>
@@ -405,6 +407,7 @@ func TestParseFundProfile(t *testing.T) {
 			wantFamily:    "WisdomTree Issuer ICAV",
 			wantLegalType: "ICAV",
 			wantIsin:      "IE000YGEAK03",
+			wantBaseCurrency: "USD",
 		},
 		{
 			name: "minimal profile (AUM only)",
@@ -468,6 +471,9 @@ func TestParseFundProfile(t *testing.T) {
 			}
 			if got.Isin != tt.wantIsin {
 				t.Errorf("Isin = %q, want %q", got.Isin, tt.wantIsin)
+			}
+			if got.BaseCurrency != tt.wantBaseCurrency {
+				t.Errorf("BaseCurrency = %q, want %q", got.BaseCurrency, tt.wantBaseCurrency)
 			}
 		})
 	}

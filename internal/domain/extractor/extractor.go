@@ -89,6 +89,7 @@ type FundProfile struct {
 	AssetClassification    string  // asset class (e.g. "Equity", "Fixed Income")
 	DistributionStrategy   string  // distribution strategy (e.g. "INCM", "ACUM")
 	MarketRegionFocus      string  // market region focus (e.g. "Global", "Europe")
+	BaseCurrency           string  // base currency of the fund (e.g. "USD", "EUR", "GBP")
 	// BlackRock/iShares-specific fields
 	SFDRClassification string // e.g. "Other", "Article 6", "Article 8", "Article 9"
 	Domicile           string // e.g. "Ireland", "Luxembourg"
