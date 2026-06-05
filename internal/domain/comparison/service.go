@@ -183,8 +183,8 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 	}
 
 	// Compute per-portfolio metrics.
-	result.PortfolioA = s.computePortfolioMetrics(aCurve, aData, baseCurrency)
-	result.PortfolioB = s.computePortfolioMetrics(bCurve, bData, baseCurrency)
+	result.PortfolioA = s.computePortfolioMetrics(aCurve, aData, baseCurrency, req.RiskFreeRatePct)
+	result.PortfolioB = s.computePortfolioMetrics(bCurve, bData, baseCurrency, req.RiskFreeRatePct)
 
 	// Compute cross-portfolio metrics (only if both have sufficient data).
 	if len(aCurve) >= 2 && len(bCurve) >= 2 {
@@ -587,7 +587,7 @@ func (s *Service) emptyPortfolioComparison(meta portfolioMeta, message string) *
 }
 
 // computePortfolioMetrics computes all per-portfolio metrics from an equity curve.
-func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfolioMeta, baseCurrency string) *PortfolioComparison {
+func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfolioMeta, baseCurrency string, riskFreeRatePct *decimal.Decimal) *PortfolioComparison {
 	pc := &PortfolioComparison{
 		ID:   meta.getID(),
 		Name: meta.getName(),
@@ -618,7 +618,7 @@ func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfol
 	pc.ReturnMetrics = s.computeReturnMetrics(navCurve)
 
 	// --- Risk metrics ---
-	pc.RiskMetrics = s.computeRiskMetrics(navCurve)
+	pc.RiskMetrics = s.computeRiskMetrics(navCurve, riskFreeRatePct)
 
 	// --- Drawdown ---
 	pc.Drawdown = s.computeDrawdown(navCurve)
@@ -680,7 +680,7 @@ func (s *Service) computeReturnMetrics(curve []EquityCurvePoint) *ReturnMetrics 
 }
 
 // computeRiskMetrics computes volatility, Sharpe, Sortino from daily returns.
-func (s *Service) computeRiskMetrics(curve []EquityCurvePoint) *RiskMetrics {
+func (s *Service) computeRiskMetrics(curve []EquityCurvePoint, riskFreeRatePct *decimal.Decimal) *RiskMetrics {
 	// Convert to performance.DailyReturn-compatible format.
 	perfCurve := make([]performance.EquityCurvePoint, len(curve))
 	for i, p := range curve {
@@ -691,8 +691,7 @@ func (s *Service) computeRiskMetrics(curve []EquityCurvePoint) *RiskMetrics {
 	}
 
 	dailyReturns := performance.ComputeDailyReturns(perfCurve)
-	riskFreePct := decimal.MustParse("0") // 0% risk-free rate
-	perfRisk := performance.ComputeRiskMetrics(dailyReturns, &riskFreePct)
+	perfRisk := performance.ComputeRiskMetrics(dailyReturns, riskFreeRatePct)
 
 	return &RiskMetrics{
 		AnnualizedVolatilityPct: perfRisk.AnnualizedVolatilityPct,

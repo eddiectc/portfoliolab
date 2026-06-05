@@ -49,6 +49,7 @@ type comparisonFilter struct {
 	DateTo         string
 	BaseCurrency   string
 	StartingValue  string
+	RiskFreeRate   string
 }
 
 // yearlyReturnRow holds a merged yearly return for template display.
@@ -89,6 +90,7 @@ type comparisonPageData struct {
 	SelectedDateTo         string
 	SelectedBaseCurrency   string
 	SelectedStartingValue  string
+	SelectedRiskFreeRate   string
 	// Effective period (intersection of both portfolios' data ranges).
 	EffectiveDateFrom *time.Time
 	EffectiveDateTo   *time.Time
@@ -197,6 +199,12 @@ func (h *ComparisonWebHandler) buildPageData(
 		startingValue = "10000"
 	}
 
+	// Default risk-free rate for display.
+	riskFreeRate := filter.RiskFreeRate
+	if riskFreeRate == "" {
+		riskFreeRate = "0"
+	}
+
 	pd := comparisonPageData{
 		PageData:                web.PageData{Title: "Portfolio Comparison", Flash: getFlash(w, r)},
 		Result:                  result,
@@ -223,7 +231,8 @@ func (h *ComparisonWebHandler) buildPageData(
 		SelectedDateTo:          filter.DateTo,
 		SelectedBaseCurrency:    filter.BaseCurrency,
 		SelectedStartingValue:   startingValue,
-		PeriodURLs:              buildComparisonPeriodURLs(filter, period),
+		SelectedRiskFreeRate:    riskFreeRate,
+		PeriodURLs:              buildComparisonPeriodURLs(filter, period, riskFreeRate),
 	}
 	// Compute effective period as intersection of both portfolios' data ranges.
 	if result != nil {
@@ -343,13 +352,16 @@ func parseComparisonFilter(query map[string][]string) comparisonFilter {
 	if vals, ok := query["starting_value"]; ok && len(vals) > 0 && vals[0] != "" {
 		filter.StartingValue = vals[0]
 	}
+	if vals, ok := query["risk_free_rate"]; ok && len(vals) > 0 && vals[0] != "" {
+		filter.RiskFreeRate = vals[0]
+	}
 
 	return filter
 }
 
 // buildComparisonRequest converts a web filter to a domain ComparisonRequest.
 func buildComparisonRequest(f comparisonFilter) comparison.ComparisonRequest {
-	return comparison.ComparisonRequest{
+	req := comparison.ComparisonRequest{
 		PortfolioAID:   f.PortfolioAID,
 		PortfolioAType: f.PortfolioAType,
 		PortfolioBID:   f.PortfolioBID,
@@ -358,6 +370,12 @@ func buildComparisonRequest(f comparisonFilter) comparison.ComparisonRequest {
 		BaseCurrency:   f.BaseCurrency,
 		StartingValue:  parseStartingValue(f.StartingValue),
 	}
+	if f.RiskFreeRate != "" {
+		if d, err := decimal.Parse(f.RiskFreeRate); err == nil {
+			req.RiskFreeRatePct = &d
+		}
+	}
+	return req
 }
 
 // parseStartingValue parses a starting value string, defaulting to 10000.
@@ -404,7 +422,7 @@ func (h *ComparisonWebHandler) fetchModelPortfolios(ctx context.Context) []model
 }
 
 // buildComparisonPeriodURLs pre-builds the URL for each period button.
-func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string) map[string]string {
+func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string, riskFreeRate string) map[string]string {
 	urls := make(map[string]string)
 	periods := []string{"1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"}
 	// Combined portfolio selector format: m123 = model, r456 = real.
@@ -432,6 +450,9 @@ func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string) m
 		}
 		if filter.StartingValue != "" {
 			url += "&starting_value=" + filter.StartingValue
+		}
+		if riskFreeRate != "0" {
+			url += "&risk_free_rate=" + riskFreeRate
 		}
 		urls[p] = url
 	}

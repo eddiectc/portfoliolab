@@ -32,6 +32,9 @@ type ComparisonRequest struct {
 	// StartingValue is the initial investment amount for model portfolio
 	// simulation. Ignored for real portfolios (which use actual cash flows).
 	StartingValue decimal.Decimal
+	// RiskFreeRatePct is the annual risk-free rate as a percentage (e.g. 4.5 = 4.5%).
+	// Used for Sharpe and Sortino ratios. Zero means no risk-free rate.
+	RiskFreeRatePct *decimal.Decimal
 }
 
 // ComparisonResult is the top-level envelope returned by ComputeComparison.

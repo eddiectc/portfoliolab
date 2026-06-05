@@ -36,6 +36,9 @@ type FrontierResult struct {
 	// Symbols is the ordered list of symbols used in the computation.
 	// Weights in each portfolio are indexed by this slice.
 	Symbols []string `json:"symbols"`
+	// ExpectedReturns is the annualized expected return for each symbol
+	// as a percentage (e.g. 15.0 = 15%). Indexed by Symbols.
+	ExpectedReturns []float64 `json:"expected_returns,omitempty"`
 	// TradingDays is the number of trading days used for annualization.
 	TradingDays int `json:"trading_days"`
 	// ComputedAt is the time the frontier was computed.
