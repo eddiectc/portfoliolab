@@ -71,6 +71,12 @@ Feature index: `features/README.md`.
 - **User-facing features include web UI by default** — any feature that involves user interaction gets server-rendered web pages (`*_web.go` + templates + nav link) alongside the API. The plan must include tasks for both layers. If a feature is API-only or backend-only, explicitly state why in the spec's Non-Goals.
 - **Spec user stories are medium-agnostic** — write "I want to create X" not "I want to POST to /api/X". The plan decomposes into API + web tasks.
 
+## Boundaries
+
+- **Do NOT start the server** (`go run cmd/server/main.go`) — the user manages the server lifecycle
+- **Do NOT connect to the production database** (`data/portfoliolab.db`) to inspect, modify, or delete data — use tests with in-memory SQLite instead
+- **Do NOT run `sqlite3` against `data/portfoliolab.db`** — any data issues should be fixed through the application's API/UI, not direct DB manipulation
+
 ## Best Practices
 
 ### Unit Testing
