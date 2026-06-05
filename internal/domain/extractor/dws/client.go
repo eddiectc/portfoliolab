@@ -83,3 +83,8 @@ func (c *Client) Fetch(slug, endpoint string) (string, error) {
 func (c *Client) SetFetchFunc(fn fetchFunc) {
 	c.fetch = fn
 }
+
+// SetMinDelay sets the minimum delay between requests (for testing).
+func (c *Client) SetMinDelay(d time.Duration) {
+	c.minDelay = d
+}

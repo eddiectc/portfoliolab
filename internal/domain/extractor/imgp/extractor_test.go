@@ -364,9 +364,11 @@ type mockClient struct {
 }
 
 func newMockClient() *mockClient {
-	return &mockClient{
+	mc := &mockClient{
 		Client: NewClient(),
 	}
+	mc.SetMinDelay(0) // disable rate limiting in tests
+	return mc
 }
 
 func (m *mockClient) setupPageFetch(html string, err error) {

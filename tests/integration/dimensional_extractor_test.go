@@ -2,7 +2,6 @@ package integration
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -26,23 +25,18 @@ func TestDimensional_ExtractorDispatch_Routing(t *testing.T) {
 		t.Fatalf("register dimensional extractor: %v", err)
 	}
 
-	dispatcher := extractor.NewDispatcher(reg)
-
-	// Dimensional URL should find the extractor (may fail on network, but not on routing)
-	_, err := dispatcher.Dispatch(context.Background(),
+	// Dimensional URL should find the extractor (test routing without network calls)
+	found, err := reg.FindByURL(
 		"https://www.dimensional.com/gb-en/funds/ie000eggfvg6/global-core-equity-ucits-etf-acc")
-	// Network error is expected (no real API), but should NOT be "no extractor registered"
 	if err != nil {
-		errStr := err.Error()
-		if len(errStr) > 20 && errStr[:20] == "no extractor registere" {
-			t.Fatalf("routing failed: %v", err)
-		}
-		// Any other error (network, API) is expected in test environment
+		t.Fatalf("routing failed: %v", err)
+	}
+	if found.Name() != "dimensional" {
+		t.Errorf("expected dimensional extractor, got %q", found.Name())
 	}
 
 	// Non-matching URL should fail with "no extractor" error
-	_, err = dispatcher.Dispatch(context.Background(),
-		"https://finance.yahoo.com/quote/SPY")
+	_, err = reg.FindByURL("https://finance.yahoo.com/quote/SPY")
 	if err == nil {
 		t.Error("expected error for non-dimensional URL")
 	}
