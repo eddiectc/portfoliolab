@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 )
 
 // --- Test ComputeFrontier ---
@@ -218,7 +219,7 @@ func TestPortfolioReturn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := portfolioReturn(tt.returns, tt.weights)
+			got := stats.PortfolioReturn(tt.returns, tt.weights)
 			if math.Abs(got-tt.want) > tt.epsilon {
 				t.Errorf("got %.4f, want %.4f", got, tt.want)
 			}
@@ -260,7 +261,7 @@ func TestPortfolioVolatility(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := portfolioVolatility(tt.covMatrix, tt.weights)
+			got := stats.PortfolioVolatility(tt.covMatrix, tt.weights)
 			if got < tt.wantMin || got > tt.wantMax {
 				t.Errorf("got %.4f, want [%.4f, %.4f]", got, tt.wantMin, tt.wantMax)
 			}
