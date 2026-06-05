@@ -69,6 +69,7 @@ type computeFrontierResponse struct {
 	Result          *efficientfrontier.FrontierResult `json:"result"`
 	Warnings        []string                          `json:"warnings,omitempty"`
 	ExcludedSymbols []string                          `json:"excluded_symbols,omitempty"`
+	SymbolDataSpan  map[string]efficientfrontier.DataSpan `json:"symbol_data_span,omitempty"`
 }
 
 // symbolsResponse is the JSON response for symbol list endpoints.
@@ -126,6 +127,7 @@ func (h *EfficientFrontierHandler) HandleComputeFrontier(w http.ResponseWriter, 
 		Result:          result.Result,
 		Warnings:        result.Warnings,
 		ExcludedSymbols: result.ExcludedSymbols,
+		SymbolDataSpan:  result.SymbolDataSpan,
 	}
 
 	writeJSON(w, http.StatusOK, resp)

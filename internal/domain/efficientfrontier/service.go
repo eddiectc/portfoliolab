@@ -64,6 +64,18 @@ type ServiceResult struct {
 	Warnings []string
 	// ExcludedSymbols are symbols that could not be resolved or had no data.
 	ExcludedSymbols []string
+	// SymbolDataSpan is the actual data coverage per symbol.
+	// Populated for symbols that made it into the computation.
+	SymbolDataSpan map[string]DataSpan
+}
+
+// DataSpan describes the actual date range and trading day count for a symbol.
+type DataSpan struct {
+	StartDate    string `json:"start_date"`    // "2025-12-05"
+	EndDate      string `json:"end_date"`      // "2026-06-04"
+	TradingDays  int    `json:"trading_days"`
+	RequestedPeriod string `json:"requested_period"` // e.g. "1Y"
+	ActualPeriod   string `json:"actual_period"`  // e.g. "3M" (approximate label)
 }
 
 // --- Service ---
@@ -190,10 +202,14 @@ func (s *Service) ComputeFrontier(ctx context.Context, req ComputeFrontierReques
 		warnings = append(warnings, result.Warnings...)
 	}
 
+	// Compute actual data span per symbol.
+	dataSpan := s.computeDataSpan(pricesBySymbol, period)
+
 	return &ServiceResult{
 		Result:          result,
 		Warnings:        warnings,
 		ExcludedSymbols: excluded,
+		SymbolDataSpan:  dataSpan,
 	}, nil
 }
 
@@ -395,3 +411,40 @@ func periodCutoff(period string) (time.Time, string) {
 
 // defaultRiskFreeRate is the default annualized risk-free rate (4.5%).
 const defaultRiskFreeRate = 0.045
+
+// computeDataSpan returns the actual data coverage per symbol.
+func (s *Service) computeDataSpan(pricesBySymbol map[string][]market.HistoricalPrice, requestedPeriod string) map[string]DataSpan {
+	span := make(map[string]DataSpan, len(pricesBySymbol))
+	for sym, hp := range pricesBySymbol {
+		if len(hp) == 0 {
+			continue
+		}
+		span[sym] = DataSpan{
+			StartDate:       hp[0].Date.Format("2006-01-02"),
+			EndDate:         hp[len(hp)-1].Date.Format("2006-01-02"),
+			TradingDays:     len(hp),
+			RequestedPeriod: requestedPeriod,
+			ActualPeriod:    approximatePeriodLabel(hp[0].Date, hp[len(hp)-1].Date),
+		}
+	}
+	return span
+}
+
+// approximatePeriodLabel returns a human-readable label for the date range
+// (e.g. "3M", "6M", "1Y", "2Y").
+func approximatePeriodLabel(start, end time.Time) string {
+	days := int(end.Sub(start).Hours() / 24)
+	if days < 30 {
+		return fmt.Sprintf("%dD", days)
+	}
+	months := days / 30
+	if months < 12 {
+		return fmt.Sprintf("%dM", months)
+	}
+	years := months / 12
+	remainingMonths := months % 12
+	if remainingMonths == 0 {
+		return fmt.Sprintf("%dY", years)
+	}
+	return fmt.Sprintf("%dY%dM", years, remainingMonths)
+}
