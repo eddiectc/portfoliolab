@@ -63,7 +63,22 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		}
 	}
 
-	return extractFromHTMLWithModal(html, modalHTML)
+	// Fetch NAV history modal for funds where main page doesn't embed fundMarketData
+	navModalURL := ExtractNavHistoryModalURL(html)
+	var navModalHTML string
+	if navModalURL != "" {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		navModalHTML, err = e.client.Fetch(navModalURL)
+		if err != nil {
+			return nil, fmt.Errorf("fetch nav history modal: %w", err)
+		}
+	}
+
+	return extractFromHTMLWithModals(html, modalHTML, navModalHTML)
 }
 
 // SetClient sets the HTTP client for fetching pages.
@@ -73,14 +88,15 @@ func (e *Extractor) SetClient(c *Client) {
 
 // extractFromHTML parses all sections from pre-fetched HTML.
 // Used for testing and when renderer is not available.
-// Prefer extractFromHTMLWithModal for holdings with ticker data.
+// Prefer extractFromHTMLWithModals for holdings with ticker data.
 func extractFromHTML(html string) (*extractor.ExtractResult, error) {
-	return extractFromHTMLWithModal(html, "")
+	return extractFromHTMLWithModals(html, "", "")
 }
 
-// extractFromHTMLWithModal parses all sections from pre-fetched HTML,
-// using the optional modalHTML for holdings with ticker/symbol data.
-func extractFromHTMLWithModal(html, modalHTML string) (*extractor.ExtractResult, error) {
+// extractFromHTMLWithModals parses all sections from pre-fetched HTML,
+// using the optional modalHTML for holdings with ticker/symbol data,
+// and navModalHTML for NAV history when main page doesn't embed fundMarketData.
+func extractFromHTMLWithModals(html, modalHTML, navModalHTML string) (*extractor.ExtractResult, error) {
 	fundInfo, err := ParseFundInfo(html)
 	if err != nil {
 		return nil, fmt.Errorf("parse fund info: %w", err)
@@ -108,6 +124,14 @@ func extractFromHTMLWithModal(html, modalHTML string) (*extractor.ExtractResult,
 	navHistory, err := ParseNavHistory(html)
 	if err != nil {
 		return nil, fmt.Errorf("parse nav history: %w", err)
+	}
+	// Some funds don't embed fundMarketData on the main page —
+	// fall back to the nav-history modal.
+	if navHistory == nil && navModalHTML != "" {
+		navHistory, err = ParseNavHistory(navModalHTML)
+		if err != nil {
+			return nil, fmt.Errorf("parse nav history from modal: %w", err)
+		}
 	}
 
 	themes, err := ParseThemes(html)
