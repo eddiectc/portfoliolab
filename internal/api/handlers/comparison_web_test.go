@@ -838,7 +838,7 @@ func TestBuildComparisonPeriodURLs(t *testing.T) {
 		PortfolioBType: "real",
 		BaseCurrency:   "EUR",
 	}
-	urls := buildComparisonPeriodURLs(filter, "1Y")
+	urls := buildComparisonPeriodURLs(filter, "1Y", "0")
 	if len(urls) != 8 {
 		t.Errorf("expected 8 period URLs, got %d", len(urls))
 	}

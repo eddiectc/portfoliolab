@@ -57,7 +57,7 @@
             <label>To <input type="date" id="date_to" name="date_to" value="{{.SelectedDateTo}}" /></label>
         </div>
 
-        {{/* Currency + Start Value inline */}}
+        {{/* Currency + Start Value + Risk-Free Rate inline */}}
         <div class="filter-group compact-inline">
             <label>Currency <select id="base_currency" name="base_currency">
                 {{range $c := slice "USD" "EUR" "GBP" "JPY" "CHF" "CAD" "AUD" "CNY"}}
@@ -65,6 +65,7 @@
                 {{end}}
             </select></label>
             <label>Start <input type="number" id="starting_value" name="starting_value" value="{{.SelectedStartingValue}}" min="1" class="compact-input" /></label>
+            <label>Rf% <input type="number" id="risk_free_rate" name="risk_free_rate" value="{{.SelectedRiskFreeRate}}" step="0.1" min="0" max="50" class="compact-input" title="Risk-free rate (%)" /></label>
         </div>
 
         <div class="filter-group filter-actions">

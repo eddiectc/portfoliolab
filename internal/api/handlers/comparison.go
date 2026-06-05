@@ -57,7 +57,7 @@ func (h *ComparisonHandler) RegisterRoutes(r *chi.Mux) {
 
 // HandleComparison handles GET /api/comparison.
 // Query params: portfolio_a_id, portfolio_a_type, portfolio_b_id, portfolio_b_type,
-// period, date_from, date_to, base_currency, starting_value.
+// period, date_from, date_to, base_currency, starting_value, risk_free_rate.
 func (h *ComparisonHandler) HandleComparison(w http.ResponseWriter, r *http.Request) {
 	req, parseErr := parseComparisonRequest(r.URL.Query())
 	if parseErr != nil {
@@ -179,6 +179,15 @@ func parseComparisonRequest(query url.Values) (comparison.ComparisonRequest, *AP
 	// Validate starting value > 0
 	if req.StartingValue.IsNeg() || req.StartingValue.Equal(decimal.Zero) {
 		return req, &APIError{Code: "INVALID_STARTING_VALUE", Error: "starting_value must be greater than 0"}
+	}
+
+	// --- Risk-free rate ---
+	if v := query.Get("risk_free_rate"); v != "" {
+		if d, err := decimal.Parse(v); err == nil {
+			req.RiskFreeRatePct = &d
+		} else {
+			return req, &APIError{Code: "INVALID_RISK_FREE_RATE", Error: "invalid risk_free_rate: " + v + ", must be a number"}
+		}
 	}
 
 	return req, nil

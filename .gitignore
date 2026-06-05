@@ -38,3 +38,4 @@ coverage.html
 *.tmp
 .ctags
 .ctags.d/
+server

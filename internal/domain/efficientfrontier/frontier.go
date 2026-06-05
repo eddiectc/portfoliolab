@@ -187,11 +187,18 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	highestRetIdx := len(efficient) - 1 // last in sorted-by-vol order has highest return
 
 	// Build result.
+	// Convert expected returns from ratios to percentages.
+	expectedReturnsPct := make([]float64, len(expectedReturns))
+	for i, r := range expectedReturns {
+		expectedReturnsPct[i] = roundTo2(r * 100)
+	}
+
 	result := &FrontierResult{
-		FrontierPoints: make([]FrontierPoint, len(frontierPoints)),
-		Symbols:        symbols,
-		TradingDays:    tradingDays,
-		ComputedAt:     time.Now().UTC(),
+		FrontierPoints:   make([]FrontierPoint, len(frontierPoints)),
+		Symbols:          symbols,
+		ExpectedReturns:  expectedReturnsPct,
+		TradingDays:      tradingDays,
+		ComputedAt:       time.Now().UTC(),
 	}
 
 	// Convert ratios to percentages for output.

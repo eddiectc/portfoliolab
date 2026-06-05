@@ -243,7 +243,7 @@ func TestComparison_ModelVsModel(t *testing.T) {
 
 	// Call comparison API — 3M period.
 	result := callComparison(t, router,
-		fmt.Sprintf("/api/comparison?portfolio_a_id=%d&portfolio_a_type=model&portfolio_b_id=%d&portfolio_b_type=model&period=3M&starting_value=10000", mpA, mpB))
+		fmt.Sprintf("/api/comparison?portfolio_a_id=%d&portfolio_a_type=model&portfolio_b_id=%d&portfolio_b_type=model&period=3M&starting_value=10000&risk_free_rate=4.5", mpA, mpB))
 
 	// Verify top-level structure.
 	if result.ComputedAt == "" {

@@ -821,12 +821,14 @@ func TestComputeComparison_RiskMetrics(t *testing.T) {
 		nil, // allocation not needed
 	)
 
+	rf := decimal.MustParse("4.5")
 	req := ComparisonRequest{
 		PortfolioAID:   1,
 		PortfolioAType: PortTypeReal,
 		PortfolioBID:   1,
 		PortfolioBType: PortTypeReal,
 		BaseCurrency:   "USD",
+		RiskFreeRatePct: &rf,
 	}
 
 	result, err := svc.ComputeComparison(ctx, req)
@@ -842,7 +844,7 @@ func TestComputeComparison_RiskMetrics(t *testing.T) {
 		t.Error("AnnualizedVolatilityPct is nil")
 	}
 	if result.PortfolioA.RiskMetrics.SharpeRatio == nil {
-		t.Error("SharpeRatio is nil (risk-free rate = 0%)")
+		t.Error("SharpeRatio is nil (risk-free rate = 4.5%)")
 	}
 }
 

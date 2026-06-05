@@ -93,21 +93,21 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
     <div class="metric-card" onclick="selectPortfolio('max-sharpe')" style="cursor:pointer;">
         <h3>Max Sharpe Ratio</h3>
         <div class="metric-value">{{float2 .Result.MaxSharpe.SharpeRatio}}</div>
-        <div class="metric-detail">Return: {{floatPct .Result.MaxSharpe.ReturnPct}}% | Vol: {{floatPct .Result.MaxSharpe.VolatilityPct}}%</div>
+        <div class="metric-detail">Return: {{float2 .Result.MaxSharpe.ReturnPct}}% | Vol: {{float2 .Result.MaxSharpe.VolatilityPct}}%</div>
     </div>
     {{end}}
     {{if .Result.MinVariance}}
     <div class="metric-card" onclick="selectPortfolio('min-variance')" style="cursor:pointer;">
         <h3>Min Variance</h3>
-        <div class="metric-value">{{floatPct .Result.MinVariance.VolatilityPct}}%</div>
-        <div class="metric-detail">Return: {{floatPct .Result.MinVariance.ReturnPct}}% | Sharpe: {{float2 .Result.MinVariance.SharpeRatio}}</div>
+        <div class="metric-value">{{float2 .Result.MinVariance.VolatilityPct}}%</div>
+        <div class="metric-detail">Return: {{float2 .Result.MinVariance.ReturnPct}}% | Sharpe: {{float2 .Result.MinVariance.SharpeRatio}}</div>
     </div>
     {{end}}
     {{if .Result.HighestReturn}}
     <div class="metric-card" onclick="selectPortfolio('highest-return')" style="cursor:pointer;">
         <h3>Highest Return</h3>
-        <div class="metric-value">{{floatPct .Result.HighestReturn.ReturnPct}}%</div>
-        <div class="metric-detail">Vol: {{floatPct .Result.HighestReturn.VolatilityPct}}% | Sharpe: {{float2 .Result.HighestReturn.SharpeRatio}}</div>
+        <div class="metric-value">{{float2 .Result.HighestReturn.ReturnPct}}%</div>
+        <div class="metric-detail">Vol: {{float2 .Result.HighestReturn.VolatilityPct}}% | Sharpe: {{float2 .Result.HighestReturn.SharpeRatio}}</div>
     </div>
     {{end}}
 </div>
@@ -121,7 +121,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
 <div id="allocation-section">
     <h2>Allocation Weights</h2>
     <p class="form-hint" id="selected-portfolio-label">Showing: Max Sharpe Ratio</p>
-    <table class="data-table">
+    <table class="data-table comparison-table">
         <thead>
             <tr>
                 <th>Symbol</th>
@@ -174,6 +174,7 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
 
     // Store data for interaction
     var symbols = chartData.symbols || [];
+    var expectedReturns = chartData.expected_returns || [];
     var frontierPoints = chartData.frontier_points || [];
     var keyPortfolios = {
         'max-sharpe': chartData.max_sharpe,
@@ -296,7 +297,7 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
             }
 
             if (keyPortfolio) {
-                showAllocation(keyPortfolio.weights, keyPortfolio.name);
+                showAllocation(keyPortfolio.weights, keyPortfolio.name, symbols, expectedReturns);
             } else {
                 // Find nearest frontier point by distance
                 var minDist = Infinity;
@@ -309,7 +310,7 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
                     }
                 }
                 var nearest = frontierPoints[nearestIdx];
-                showAllocation(nearest.weights, 'Frontier Point (Return: ' + nearest['return'].toFixed(2) + '%, Vol: ' + nearest.volatility.toFixed(2) + '%)');
+                showAllocation(nearest.weights, 'Frontier Point (Return: ' + nearest['return'].toFixed(2) + '%, Vol: ' + nearest.volatility.toFixed(2) + '%)', symbols, expectedReturns);
             }
         }
     });
@@ -321,11 +322,11 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
 
     // Initialize with default portfolio (Max Sharpe)
     if (keyPortfolios['max-sharpe']) {
-        showAllocation(keyPortfolios['max-sharpe'].weights, keyPortfolios['max-sharpe'].name);
+        showAllocation(keyPortfolios['max-sharpe'].weights, keyPortfolios['max-sharpe'].name, symbols, expectedReturns);
     }
 })();
 
-function showAllocation(weights, name) {
+function showAllocation(weights, name, symbols, expectedReturns) {
     var tbody = document.getElementById('allocation-table-body');
     var label = document.getElementById('selected-portfolio-label');
     label.textContent = 'Showing: ' + name;
@@ -333,16 +334,19 @@ function showAllocation(weights, name) {
     var html = '';
     for (var i = 0; i < weights.length; i++) {
         var weightPct = (weights[i] * 100).toFixed(2);
+        var retContrib = expectedReturns && expectedReturns[i]
+            ? (weights[i] * expectedReturns[i]).toFixed(2) + '%'
+            : '—';
         html += '<tr>';
-        html += '<td>' + symbols[i] + '</td>';
+        html += '<td>' + (symbols && symbols[i] ? symbols[i] : '—') + '</td>';
         html += '<td>' + weightPct + '%</td>';
-        html += '<td>—</td>';
+        html += '<td>' + retContrib + '</td>';
         html += '</tr>';
     }
     tbody.innerHTML = html;
 
     // Update hidden fields for save form
-    updateSaveFields(weights);
+    updateSaveFields(weights, symbols);
 }
 
 function showAllocationInfo(point, name) {
@@ -350,11 +354,11 @@ function showAllocationInfo(point, name) {
     label.textContent = 'Showing: ' + name + ' (Return: ' + point[1].toFixed(2) + '%, Vol: ' + point[0].toFixed(2) + '%)';
 }
 
-function updateSaveFields(weights) {
+function updateSaveFields(weights, symbols) {
     var container = document.getElementById('save-hidden-fields');
     var html = '';
     for (var i = 0; i < weights.length; i++) {
-        html += '<input type="hidden" name="symbol" value="' + symbols[i] + '">';
+        html += '<input type="hidden" name="symbol" value="' + (symbols && symbols[i] ? symbols[i] : '') + '">';
         html += '<input type="hidden" name="weight" value="' + weights[i].toFixed(6) + '">';
     }
     container.innerHTML = html;
@@ -362,13 +366,15 @@ function updateSaveFields(weights) {
 
 function selectPortfolio(key) {
     var chartData = _frontierChartData;
+    var symbols = chartData.symbols || [];
+    var expectedReturns = chartData.expected_returns || [];
     var kp = null;
     if (key === 'max-sharpe') kp = chartData.max_sharpe;
     else if (key === 'min-variance') kp = chartData.min_variance;
     else if (key === 'highest-return') kp = chartData.highest_return;
 
     if (kp) {
-        showAllocation(kp.weights, kp.name);
+        showAllocation(kp.weights, kp.name, symbols, expectedReturns);
     }
 }
 

@@ -312,6 +312,8 @@ type frontierChartData struct {
 	HighestReturn *frontierKeyPortfolio `json:"highest_return,omitempty"`
 	// Symbol names for allocation weight display.
 	Symbols []string `json:"symbols"`
+	// Expected returns per symbol as percentages (e.g. 15.0 = 15%).
+	ExpectedReturns []float64 `json:"expected_returns,omitempty"`
 }
 
 // frontierKeyPortfolio is a key portfolio point for the chart.
@@ -341,8 +343,9 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult) string
 	}
 
 	data := frontierChartData{
-		FrontierPoints: points,
-		Symbols:        result.Symbols,
+		FrontierPoints:    points,
+		Symbols:           result.Symbols,
+		ExpectedReturns:   result.ExpectedReturns,
 	}
 
 	if result.MaxSharpe != nil {
