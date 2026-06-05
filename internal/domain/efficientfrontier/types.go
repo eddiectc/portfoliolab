@@ -36,10 +36,11 @@ type FrontierResult struct {
 	// Symbols is the ordered list of symbols used in the computation.
 	// Weights in each portfolio are indexed by this slice.
 	Symbols []string `json:"symbols"`
-	// ExpectedReturns is the annualized expected return for each symbol
-	// as a percentage (e.g. 15.0 = 15%). Indexed by Symbols.
+	// ExpectedReturns is the expected return over the actual data period
+	// for each symbol as a percentage (e.g. 12.4 = 12.4% over 60 trading days).
+	// Indexed by Symbols.
 	ExpectedReturns []float64 `json:"expected_returns,omitempty"`
-	// TradingDays is the number of trading days used for annualization.
+	// TradingDays is the number of trading days the data covers.
 	TradingDays int `json:"trading_days"`
 	// ComputedAt is the time the frontier was computed.
 	ComputedAt time.Time `json:"computed_at"`
@@ -51,9 +52,9 @@ type FrontierResult struct {
 
 // FrontierPoint is a single point on the efficient frontier curve.
 type FrontierPoint struct {
-	// ReturnPct is the annualized expected return as a percentage.
+	// ReturnPct is the expected return over the actual data period as a percentage.
 	ReturnPct float64 `json:"return_pct"`
-	// VolatilityPct is the annualized volatility as a percentage.
+	// VolatilityPct is the volatility over the actual data period as a percentage.
 	VolatilityPct float64 `json:"volatility_pct"`
 	// SharpeRatio is the Sharpe ratio (return - riskFree) / volatility.
 	SharpeRatio float64 `json:"sharpe_ratio"`
@@ -65,9 +66,9 @@ type FrontierPoint struct {
 type OptimizedPortfolio struct {
 	// Name is a display label (e.g. "Max Sharpe", "Min Variance").
 	Name string `json:"name"`
-	// ReturnPct is the annualized expected return as a percentage.
+	// ReturnPct is the expected return over the actual data period as a percentage.
 	ReturnPct float64 `json:"return_pct"`
-	// VolatilityPct is the annualized volatility as a percentage.
+	// VolatilityPct is the volatility over the actual data period as a percentage.
 	VolatilityPct float64 `json:"volatility_pct"`
 	// SharpeRatio is the Sharpe ratio.
 	SharpeRatio float64 `json:"sharpe_ratio"`

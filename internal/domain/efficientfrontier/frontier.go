@@ -187,10 +187,16 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	highestRetIdx := len(efficient) - 1 // last in sorted-by-vol order has highest return
 
 	// Build result.
-	// Convert expected returns from ratios to percentages.
+	// Convert annualized ratios to period values.
+	// annualizedReturn = mean(daily) * 252, so periodReturn = annualized / 252 * tradingDays
+	// annualizedVol = stddev(daily) * sqrt(252), so periodVol = annualized / sqrt(252) * sqrt(tradingDays)
+	// Sharpe ratio is invariant (both return and vol scale by sqrt factor, cancels out).
+	retScale := float64(tradingDays) / float64(stats.TradingDaysPerYear)
+	volScale := math.Sqrt(float64(tradingDays)) / math.Sqrt(float64(stats.TradingDaysPerYear))
+
 	expectedReturnsPct := make([]float64, len(expectedReturns))
 	for i, r := range expectedReturns {
-		expectedReturnsPct[i] = roundTo2(r * 100)
+		expectedReturnsPct[i] = roundTo2(r*retScale*100)
 	}
 
 	result := &FrontierResult{
@@ -201,12 +207,10 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		ComputedAt:       time.Now().UTC(),
 	}
 
-	// Convert ratios to percentages for output.
-	// stats functions return ratios (e.g. 0.15 = 15%); result fields expect percentages.
 	for i, p := range frontierPoints {
 		result.FrontierPoints[i] = FrontierPoint{
-			ReturnPct:     roundTo2(p.return_ * 100),
-			VolatilityPct: roundTo2(p.volatility * 100),
+			ReturnPct:     roundTo2(p.return_*retScale*100),
+			VolatilityPct: roundTo2(p.volatility*volScale*100),
 			SharpeRatio:   roundTo4(p.sharpe),
 			Weights:       roundWeights(p.weights),
 		}
@@ -215,8 +219,8 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	if minVarWeights != nil && minVarVol > 0 {
 		result.MinVariance = &OptimizedPortfolio{
 			Name:          "Min Variance",
-			ReturnPct:     roundTo2(minVarReturn * 100),
-			VolatilityPct: roundTo2(minVarVol * 100),
+			ReturnPct:     roundTo2(minVarReturn*retScale*100),
+			VolatilityPct: roundTo2(minVarVol*volScale*100),
 			SharpeRatio:   roundTo4(stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)),
 			Weights:       roundWeights(minVarWeights),
 		}
@@ -224,8 +228,8 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	result.MaxSharpe = &OptimizedPortfolio{
 		Name:          "Max Sharpe",
-		ReturnPct:     roundTo2(best.return_ * 100),
-		VolatilityPct: roundTo2(best.volatility * 100),
+		ReturnPct:     roundTo2(best.return_*retScale*100),
+		VolatilityPct: roundTo2(best.volatility*volScale*100),
 		SharpeRatio:   roundTo4(best.sharpe),
 		Weights:       roundWeights(best.weights),
 	}
@@ -233,8 +237,8 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	highest := efficient[highestRetIdx]
 	result.HighestReturn = &OptimizedPortfolio{
 		Name:          "Highest Return",
-		ReturnPct:     roundTo2(highest.return_ * 100),
-		VolatilityPct: roundTo2(highest.volatility * 100),
+		ReturnPct:     roundTo2(highest.return_*retScale*100),
+		VolatilityPct: roundTo2(highest.volatility*volScale*100),
 		SharpeRatio:   roundTo4(highest.sharpe),
 		Weights:       roundWeights(highest.weights),
 	}

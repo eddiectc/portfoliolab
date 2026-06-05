@@ -314,6 +314,8 @@ type frontierChartData struct {
 	Symbols []string `json:"symbols"`
 	// Expected returns per symbol as percentages (e.g. 15.0 = 15%).
 	ExpectedReturns []float64 `json:"expected_returns,omitempty"`
+	// TradingDays is the number of trading days the data covers.
+	TradingDays int `json:"trading_days"`
 }
 
 // frontierKeyPortfolio is a key portfolio point for the chart.
@@ -346,6 +348,7 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult) string
 		FrontierPoints:    points,
 		Symbols:           result.Symbols,
 		ExpectedReturns:   result.ExpectedReturns,
+		TradingDays:       result.TradingDays,
 	}
 
 	if result.MaxSharpe != nil {
