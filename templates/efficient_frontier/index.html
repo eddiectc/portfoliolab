@@ -87,30 +87,41 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
 {{/* Results section */}}
 {{if .Result}}
 
-{{/* Key portfolios summary cards */}}
-<div class="key-portfolios">
-    {{if .Result.MaxSharpe}}
-    <div class="metric-card" onclick="selectPortfolio('max-sharpe')" style="cursor:pointer;">
-        <h3>Max Sharpe Ratio</h3>
-        <div class="metric-value">{{float2 .Result.MaxSharpe.SharpeRatio}}</div>
-        <div class="metric-detail">Return: {{float2 .Result.MaxSharpe.ReturnPct}}% | Vol: {{float2 .Result.MaxSharpe.VolatilityPct}}%</div>
-    </div>
-    {{end}}
-    {{if .Result.MinVariance}}
-    <div class="metric-card" onclick="selectPortfolio('min-variance')" style="cursor:pointer;">
-        <h3>Min Variance</h3>
-        <div class="metric-value">{{float2 .Result.MinVariance.VolatilityPct}}%</div>
-        <div class="metric-detail">Return: {{float2 .Result.MinVariance.ReturnPct}}% | Sharpe: {{float2 .Result.MinVariance.SharpeRatio}}</div>
-    </div>
-    {{end}}
-    {{if .Result.HighestReturn}}
-    <div class="metric-card" onclick="selectPortfolio('highest-return')" style="cursor:pointer;">
-        <h3>Highest Return</h3>
-        <div class="metric-value">{{float2 .Result.HighestReturn.ReturnPct}}%</div>
-        <div class="metric-detail">Vol: {{float2 .Result.HighestReturn.VolatilityPct}}% | Sharpe: {{float2 .Result.HighestReturn.SharpeRatio}}</div>
-    </div>
-    {{end}}
-</div>
+{{/* Key portfolios summary table */}}
+{{if .Result.MaxSharpe}}
+<table class="data-table comparison-table">
+    <thead>
+        <tr>
+            <th>Portfolio</th>
+            <th>Return (%)</th>
+            <th>Volatility (%)</th>
+            <th>Sharpe Ratio</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr onclick="selectPortfolio('max-sharpe')" style="cursor:pointer;">
+            <td>Max Sharpe</td>
+            <td>{{float2 .Result.MaxSharpe.ReturnPct}}</td>
+            <td>{{float2 .Result.MaxSharpe.VolatilityPct}}</td>
+            <td>{{float2 .Result.MaxSharpe.SharpeRatio}}</td>
+        </tr>
+        {{if .Result.MinVariance}}
+        <tr onclick="selectPortfolio('min-variance')" style="cursor:pointer;">
+            <td>Min Variance</td>
+            <td>{{float2 .Result.MinVariance.ReturnPct}}</td>
+            <td>{{float2 .Result.MinVariance.VolatilityPct}}</td>
+            <td>{{float2 .Result.MinVariance.SharpeRatio}}</td>
+        </tr>
+        {{end}}
+        <tr onclick="selectPortfolio('highest-return')" style="cursor:pointer;">
+            <td>Highest Return</td>
+            <td>{{float2 .Result.HighestReturn.ReturnPct}}</td>
+            <td>{{float2 .Result.HighestReturn.VolatilityPct}}</td>
+            <td>{{float2 .Result.HighestReturn.SharpeRatio}}</td>
+        </tr>
+    </tbody>
+</table>
+{{end}}
 
 {{/* Frontier chart */}}
 <div class="chart-container" style="height: 500px; margin: 20px 0;">
