@@ -162,9 +162,15 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
 {{/* ECharts script */}}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <script>
+// Global chart data — must be declared before the IIFE that uses it.
+var _frontierChartData = {{.FrontierChartData | safeJS}};
+
 (function() {
+    var chartEl = document.getElementById('frontier-chart');
+    if (!chartEl) return; // no result on this page, skip chart init
+
     var chartData = _frontierChartData;
-    var frontierChart = echarts.init(document.getElementById('frontier-chart'));
+    var frontierChart = echarts.init(chartEl);
 
     // Store data for interaction
     var symbols = chartData.symbols || [];
@@ -354,9 +360,6 @@ function updateSaveFields(weights) {
     container.innerHTML = html;
 }
 
-// Global chart data reference for selectPortfolio
-var _frontierChartData = {{.FrontierChartData | safeJS}};
-
 function selectPortfolio(key) {
     var chartData = _frontierChartData;
     var kp = null;
@@ -383,6 +386,10 @@ function findNearestFrontierPoint(vol, ret) {
     return frontierPoints[nearestIdx];
 }
 
+</script>
+
+{{/* Copy-from functions — must be outside the {{if .Result}} block so they exist on initial page load */}}
+<script>
 function toggleCopySource() {
     var type = document.getElementById('copy-source-type').value;
     var idSelect = document.getElementById('copy-source-id');
