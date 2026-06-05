@@ -121,7 +121,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
         </tr>
     </tbody>
 </table>
-<p class="form-hint">Metrics over {{.Result.TradingDays}} trading days ({{.SelectedPeriod}} requested)</p>
+<p class="form-hint">Period return/volatility over {{.Result.TradingDays}} trading days ({{.SelectedPeriod}} requested, not annualized)</p>
 {{end}}
 
 {{/* Frontier chart */}}
@@ -273,14 +273,14 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
             top: '80px'
         },
         xAxis: {
-            name: 'Volatility (%) — ' + chartData.trading_days + ' trading days',
+            name: 'Volatility (%) — period, not annualized',
             nameLocation: 'middle',
             nameGap: 30,
             type: 'value',
             splitLine: { lineStyle: { type: 'dashed' } }
         },
         yAxis: {
-            name: 'Return (%) — ' + chartData.trading_days + ' trading days',
+            name: 'Return (%) — period, not annualized',
             nameLocation: 'middle',
             nameGap: 35,
             type: 'value',
