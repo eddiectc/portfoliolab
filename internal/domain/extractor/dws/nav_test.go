@@ -37,8 +37,8 @@ func TestParseNavHistory(t *testing.T) {
 		t.Fatalf("expected 2 nav points, got %d", len(navs))
 	}
 
-	expectedDate := time.UnixMilli(1611187200000).Format(time.RFC3339)
-	if navs[0].Date != expectedDate {
+	expectedDate := time.UnixMilli(1611187200000)
+	if !navs[0].Date.Equal(expectedDate) {
 		t.Errorf("expected date %s, got %s", expectedDate, navs[0].Date)
 	}
 

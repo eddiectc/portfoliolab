@@ -64,10 +64,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	if len(navHistory) == 0 {
 		return nil, fmt.Errorf("no NAV history found for ISIN %s", isin)
 	}
-	asOfDate, err := time.Parse("2006-01-02", navHistory[0].Date)
-	if err != nil {
-		return nil, fmt.Errorf("parse as-of date from nav history: %w", err)
-	}
+	asOfDate := navHistory[0].Date
 
 	// 3. Fetch detailed fund data via POST request
 	headers := map[string]string{"x-selected-country": "GB"}
@@ -169,8 +166,12 @@ func (e *Extractor) getPortfolioNumberAndNavHistory(ctx context.Context, isin st
 							continue
 						}
 
+						date, parseErr := time.Parse("2006-01-02", price.Date.Value)
+						if parseErr != nil {
+							continue
+						}
 						navHistory = append(navHistory, extractor.NavPoint{
-							Date: price.Date.Value,
+							Date: date,
 							NAV:  decimal.MustParse(fmt.Sprintf("%.4f", navVal)),
 						})
 					}

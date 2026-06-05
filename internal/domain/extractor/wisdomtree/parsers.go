@@ -243,7 +243,7 @@ func ParseNavHistory(html string) ([]extractor.NavPoint, error) {
 			continue
 		}
 
-		date := strings.TrimSpace(record[0])
+		dateStr := strings.TrimSpace(record[0])
 		navStr := strings.TrimSpace(record[4])
 		if navStr == "" {
 			continue
@@ -252,6 +252,11 @@ func ParseNavHistory(html string) ([]extractor.NavPoint, error) {
 		nav, err := strconv.ParseFloat(navStr, 64)
 		if err != nil || nav == 0 {
 			continue
+		}
+
+		date, err := parseDate(dateStr)
+		if err != nil {
+			return nil, fmt.Errorf("row %d: parse date %q: %w", i, dateStr, err)
 		}
 
 		points = append(points, extractor.NavPoint{
@@ -535,10 +540,8 @@ func parseDate(dateStr string) (time.Time, error) {
 		"2 January 2006",  // "1 May 2026"
 		"02 Jan 2006",     // "02 Jun 2026" (abbreviated month)
 		"2 Jan 2006",      // "2 Jun 2026" (abbreviated month, single digit day)
-		"02/01/2006",      // "22/05/2026"
-		"01/02/2006",      // "05/22/2026"
-		"2/1/2006",        // "5/22/2026"
-		"1/2/2006",        // "22/5/2026"
+		"02/01/2006",      // "22/05/2026" (dd/mm/YYYY)
+		"2/1/2006",        // "2/5/2026" (d/m/YYYY)
 		"2006-01-02",      // "2026-05-22"
 	}
 

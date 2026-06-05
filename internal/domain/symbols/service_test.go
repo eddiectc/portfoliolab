@@ -296,8 +296,8 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 				FieldsPresent:            extractor.CharacteristicPriceToEarnings | extractor.CharacteristicEstimatedPriceToEarnings | extractor.CharacteristicPriceToBook,
 			},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
-				{Date: "2024-01-16", NAV: decimal.MustNew(4550, 2)},
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4520, 2)},
+				{Date: time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4550, 2)},
 			},
 		},
 	}
@@ -495,9 +495,9 @@ func TestService_FetchAndStore_NAVHistoryStored(t *testing.T) {
 		result: &extractor.ExtractResult{
 			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
-				{Date: "2024-01-16", NAV: decimal.MustNew(4550, 2)},
-				{Date: "2024-01-17", NAV: decimal.MustNew(4600, 2)},
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4520, 2)},
+				{Date: time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4550, 2)},
+				{Date: time.Date(2024, 1, 17, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4600, 2)},
 			},
 		},
 	}
@@ -557,7 +557,7 @@ func TestService_FetchAndStore_NAVHistoryNotStored_WhenNoMarketDataRepo(t *testi
 		result: &extractor.ExtractResult{
 			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4520, 2)},
 			},
 		},
 	}
@@ -622,7 +622,7 @@ func TestService_FetchAndStore_NAVHistoryStoreFails(t *testing.T) {
 		result: &extractor.ExtractResult{
 			FundInfo: &extractor.FundInfo{Name: "Test Fund"},
 			NavHistory: []extractor.NavPoint{
-				{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
+				{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4520, 2)},
 			},
 		},
 	}
@@ -1846,8 +1846,8 @@ func TestService_storeNavHistory_DecimalConversion(t *testing.T) {
 	svc.WithMarketDataRepo(marketDataRepo)
 
 	navPoints := []extractor.NavPoint{
-		{Date: "2024-01-15", NAV: decimal.MustNew(4520, 2)},
-		{Date: "2024-01-16", NAV: decimal.MustNew(100005, 3)},
+		{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(4520, 2)},
+		{Date: time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(100005, 3)},
 	}
 
 	err := svc.storeNavHistory(context.Background(), "WMGG.L", "GBP", navPoints, "wisdomtree")
@@ -1887,9 +1887,9 @@ func TestService_storeNavHistory_CurrencyFromNavPoint(t *testing.T) {
 	// NAV points carry their own currency (e.g. Vanguard returns NAV in
 	// the fund's base currency USD, even though the symbol lists in GBP)
 	navPoints := []extractor.NavPoint{
-		{Date: "2024-01-15", NAV: decimal.MustNew(10500, 2), Currency: "USD"},
-		{Date: "2024-01-16", NAV: decimal.MustNew(10550, 2), Currency: "USD"},
-		{Date: "2024-01-17", NAV: decimal.MustNew(10600, 2)}, // no currency — should fallback
+		{Date: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(10500, 2), Currency: "USD"},
+		{Date: time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(10550, 2), Currency: "USD"},
+		{Date: time.Date(2024, 1, 17, 0, 0, 0, 0, time.UTC), NAV: decimal.MustNew(10600, 2)}, // no currency — should fallback
 	}
 
 	// Symbol currency is GBP (from Yahoo Finance listing)

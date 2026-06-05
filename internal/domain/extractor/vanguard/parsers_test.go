@@ -3,6 +3,7 @@ package vanguard
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
@@ -763,11 +764,13 @@ func TestParseNavHistory(t *testing.T) {
 			}),
 			wantCount: 2,
 			check: func(t *testing.T, points []extractor.NavPoint) {
-				if points[0].Date != "2026-05-30" {
-					t.Errorf("Date: got %q, want %q", points[0].Date, "2026-05-30")
+				want0 := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
+				if !points[0].Date.Equal(want0) {
+					t.Errorf("Date: got %q, want %q", points[0].Date, want0)
 				}
-				if points[1].Date != "2026-05-29" {
-					t.Errorf("Date: got %q, want %q", points[1].Date, "2026-05-29")
+				want1 := time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC)
+				if !points[1].Date.Equal(want1) {
+					t.Errorf("Date: got %q, want %q", points[1].Date, want1)
 				}
 				if points[0].Currency != "USD" {
 					t.Errorf("Currency: got %q, want %q", points[0].Currency, "USD")

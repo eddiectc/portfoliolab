@@ -566,8 +566,12 @@ func ParseNavHistory(data []byte) ([]extractor.NavPoint, error) {
 		if item.Price == 0 || item.AsOfDate == "" {
 			continue
 		}
+		date := parseDate(item.AsOfDate)
+		if date.IsZero() {
+			continue
+		}
 		points = append(points, extractor.NavPoint{
-			Date:     item.AsOfDate,
+			Date:     date,
 			NAV:      decimal.MustParse(fmt.Sprintf("%.4f", item.Price)),
 			Currency: item.CurrencyCode,
 		})
