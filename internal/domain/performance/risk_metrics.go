@@ -1,8 +1,7 @@
 package performance
 
 import (
-	"math"
-
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"github.com/govalues/decimal"
 )
 
@@ -41,29 +40,16 @@ func ComputeRiskMetrics(dailyReturns []DailyReturn, riskFreeRatePct *decimal.Dec
 		return RiskMetrics{}
 	}
 
-	// Convert return percentages to ratios for computation.
-	n := float64(len(dailyReturns))
+	// Convert return percentages to ratios for stats functions.
 	var returns []float64
-	var sum float64
-
 	for _, dr := range dailyReturns {
 		rF, _ := dr.ReturnPct.Float64()
 		ratio := rF / 100.0 // percentage → ratio
 		returns = append(returns, ratio)
-		sum += ratio
 	}
 
-	mean := sum / n
-
-	// --- Annualized volatility ---
-	var varianceSum float64
-	for _, r := range returns {
-		diff := r - mean
-		varianceSum += diff * diff
-	}
-	stdDev := math.Sqrt(varianceSum / n)
-	annualizedVol := stdDev * math.Sqrt(252.0)
-
+	// Use shared stats functions (sample stddev, consistent with efficient frontier).
+	annualizedVol := stats.AnnualizedVolatility(returns)
 	annualizedVolPct, _ := decimal.NewFromFloat64(annualizedVol * 100.0)
 	annualizedVolPct = annualizedVolPct.Round(2)
 
@@ -79,39 +65,25 @@ func ComputeRiskMetrics(dailyReturns []DailyReturn, riskFreeRatePct *decimal.Dec
 	riskFreeF, _ := riskFreeRatePct.Float64()
 	riskFreeRatio := riskFreeF / 100.0 // annual percentage → annual ratio
 
-	annualizedReturn := mean * 252.0
-	excessReturn := annualizedReturn - riskFreeRatio
-
-	// Daily risk-free rate for downside deviation comparison.
-	dailyRiskFree := riskFreeRatio / 252.0
+	annualizedReturn := stats.AnnualizedReturn(returns)
 
 	// --- Sharpe ratio ---
-	if annualizedVol > 0 {
-		sharpe := excessReturn / annualizedVol
+	sharpe := stats.SharpeRatio(annualizedReturn, annualizedVol, riskFreeRatio)
+	if sharpe != 0 {
 		sharpeDec, _ := decimal.NewFromFloat64(sharpe)
 		sharpeDec = sharpeDec.Round(4)
 		metrics.SharpeRatio = ptrDec(sharpeDec)
 	}
 
 	// --- Sortino ratio ---
-	var negSum float64
-	negCount := 0.0
-	for _, r := range returns {
-		if r < dailyRiskFree {
-			diff := dailyRiskFree - r
-			negSum += diff * diff
-			negCount++
-		}
-	}
-
-	if negCount > 0 {
-		downsideDev := math.Sqrt(negSum/n) * math.Sqrt(252.0)
-		if downsideDev > 0 {
-			sortino := excessReturn / downsideDev
-			sortinoDec, _ := decimal.NewFromFloat64(sortino)
-			sortinoDec = sortinoDec.Round(4)
-			metrics.SortinoRatio = ptrDec(sortinoDec)
-		}
+	// Daily risk-free rate for downside deviation comparison.
+	dailyRiskFree := riskFreeRatio / float64(stats.TradingDaysPerYear)
+	downsideDev := stats.DownsideDeviation(returns, dailyRiskFree)
+	sortino := stats.SortinoRatio(annualizedReturn, downsideDev, riskFreeRatio)
+	if sortino != 0 {
+		sortinoDec, _ := decimal.NewFromFloat64(sortino)
+		sortinoDec = sortinoDec.Round(4)
+		metrics.SortinoRatio = ptrDec(sortinoDec)
 	}
 
 	return metrics

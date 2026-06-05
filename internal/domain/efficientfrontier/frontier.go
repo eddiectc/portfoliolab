@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"sort"
 	"time"
+
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 )
 
 const (
@@ -88,6 +90,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	}
 
 	// Compute covariance matrix and aligned symbols.
+	// ComputeCovarianceMatrix returns annualized covariance (via stats.AnnualizedCovarianceMatrix).
 	covMatrix, alignedSymbols, err := ComputeCovarianceMatrix(request.Prices)
 	if err != nil {
 		return nil, err
@@ -104,6 +107,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	}
 
 	// Compute expected annualized returns (μ) for each symbol.
+	// stats.AnnualizedReturn returns a ratio (e.g. 0.15 = 15%).
 	expectedReturns := make([]float64, n)
 	for i, sym := range symbols {
 		rets := returnsBySymbol[sym]
@@ -113,15 +117,15 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		if len(alignedRet) > minReturns {
 			alignedRet = alignedRet[:minReturns]
 		}
-		expectedReturns[i] = ComputeAnnualizedReturn(alignedRet, tradingDaysPerYear)
+		expectedReturns[i] = stats.AnnualizedReturn(alignedRet)
 	}
 
 	// Analytical minimum variance portfolio.
 	minVarWeights := ComputeMinVariance(covMatrix, n)
 	var minVarReturn, minVarVol float64
 	if minVarWeights != nil {
-		minVarReturn = portfolioReturn(expectedReturns, minVarWeights)
-		minVarVol = portfolioVolatility(covMatrix, minVarWeights)
+		minVarReturn = stats.PortfolioReturn(expectedReturns, minVarWeights)
+		minVarVol = stats.PortfolioVolatility(covMatrix, minVarWeights)
 	}
 
 	// Grid search: sample random portfolios on the simplex.
@@ -129,12 +133,13 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	var evaluated []portfolioEval
 	for _, w := range candidates {
-		ret := portfolioReturn(expectedReturns, w)
-		vol := portfolioVolatility(covMatrix, w)
+		ret := stats.PortfolioReturn(expectedReturns, w)
+		vol := stats.PortfolioVolatility(covMatrix, w)
 		if vol <= 0 {
 			continue
 		}
-		sharpe := (ret - request.RiskFreeRate) / vol
+		// All inputs are annualized ratios; risk-free rate is already a ratio (e.g. 0.045).
+		sharpe := stats.SharpeRatio(ret, vol, request.RiskFreeRate)
 		evaluated = append(evaluated, portfolioEval{
 			weights:    w,
 			return_:    ret,
@@ -149,7 +154,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	// Add analytical min-variance portfolio to evaluated set.
 	if minVarWeights != nil && minVarVol > 0 {
-		sharpe := (minVarReturn - request.RiskFreeRate) / minVarVol
+		sharpe := stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)
 		evaluated = append(evaluated, portfolioEval{minVarWeights, minVarReturn, minVarVol, sharpe})
 	}
 
@@ -189,29 +194,31 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		ComputedAt:     time.Now().UTC(),
 	}
 
+	// Convert ratios to percentages for output.
+	// stats functions return ratios (e.g. 0.15 = 15%); result fields expect percentages.
 	for i, p := range frontierPoints {
 		result.FrontierPoints[i] = FrontierPoint{
-			ReturnPct:     roundTo2(p.return_),
-			VolatilityPct: roundTo2(p.volatility),
+			ReturnPct:     roundTo2(p.return_ * 100),
+			VolatilityPct: roundTo2(p.volatility * 100),
 			SharpeRatio:   roundTo4(p.sharpe),
 			Weights:       roundWeights(p.weights),
 		}
 	}
 
-	if minVarWeights != nil {
+	if minVarWeights != nil && minVarVol > 0 {
 		result.MinVariance = &OptimizedPortfolio{
 			Name:          "Min Variance",
-			ReturnPct:     roundTo2(minVarReturn),
-			VolatilityPct: roundTo2(minVarVol),
-			SharpeRatio:   roundTo4((minVarReturn - request.RiskFreeRate) / minVarVol),
+			ReturnPct:     roundTo2(minVarReturn * 100),
+			VolatilityPct: roundTo2(minVarVol * 100),
+			SharpeRatio:   roundTo4(stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)),
 			Weights:       roundWeights(minVarWeights),
 		}
 	}
 
 	result.MaxSharpe = &OptimizedPortfolio{
 		Name:          "Max Sharpe",
-		ReturnPct:     roundTo2(best.return_),
-		VolatilityPct: roundTo2(best.volatility),
+		ReturnPct:     roundTo2(best.return_ * 100),
+		VolatilityPct: roundTo2(best.volatility * 100),
 		SharpeRatio:   roundTo4(best.sharpe),
 		Weights:       roundWeights(best.weights),
 	}
@@ -219,8 +226,8 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	highest := efficient[highestRetIdx]
 	result.HighestReturn = &OptimizedPortfolio{
 		Name:          "Highest Return",
-		ReturnPct:     roundTo2(highest.return_),
-		VolatilityPct: roundTo2(highest.volatility),
+		ReturnPct:     roundTo2(highest.return_ * 100),
+		VolatilityPct: roundTo2(highest.volatility * 100),
 		SharpeRatio:   roundTo4(highest.sharpe),
 		Weights:       roundWeights(highest.weights),
 	}
@@ -228,26 +235,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	return result, nil
 }
 
-// portfolioReturn computes the expected return of a portfolio: w'μ.
-func portfolioReturn(expectedReturns []float64, weights []float64) float64 {
-	ret := 0.0
-	for i, w := range weights {
-		ret += w * expectedReturns[i]
-	}
-	return ret
-}
 
-// portfolioVolatility computes the portfolio volatility: sqrt(w'Σw).
-func portfolioVolatility(covMatrix [][]float64, weights []float64) float64 {
-	n := len(weights)
-	variance := 0.0
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
-			variance += weights[i] * weights[j] * covMatrix[i][j]
-		}
-	}
-	return math.Sqrt(variance)
-}
 
 // samplePortfolios generates n-dimensional portfolios on the simplex
 // using the Dirichlet(1,1,...,1) method (uniform on simplex).

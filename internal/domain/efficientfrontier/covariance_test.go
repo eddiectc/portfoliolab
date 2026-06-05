@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 )
 
 // makePriceSeries creates a price series with daily changes.
@@ -183,8 +184,8 @@ func TestComputeCovariance(t *testing.T) {
 			},
 			i:       0,
 			j:       1,
-			want:    1.6667, // sample covariance of (1,2,3,4) and (2,3,4,5)
-			epsilon: 0.01,
+			want:    1.6667 * 252, // daily sample cov × 252 = annualized
+			epsilon: 1.0,
 		},
 		{
 			name: "negative covariance",
@@ -196,8 +197,8 @@ func TestComputeCovariance(t *testing.T) {
 			},
 			i:       0,
 			j:       1,
-			want:    -1.6667,
-			epsilon: 0.01,
+			want:    -1.6667 * 252,
+			epsilon: 1.0,
 		},
 		{
 			name: "variance (covariance with self)",
@@ -209,14 +210,15 @@ func TestComputeCovariance(t *testing.T) {
 			},
 			i:       0,
 			j:       0,
-			want:    1.6667, // sample variance of (1,2,3,4)
-			epsilon: 0.01,
+			want:    1.6667 * 252, // daily sample var × 252 = annualized
+			epsilon: 1.0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeCovariance(tt.aligned, tt.i, tt.j, len(tt.aligned))
+			covMatrix := stats.AnnualizedCovarianceMatrix(tt.aligned)
+			got := covMatrix[tt.i][tt.j]
 			if math.Abs(got-tt.want) > tt.epsilon {
 				t.Errorf("got %.6f, want %.6f (±%.6f)", got, tt.want, tt.epsilon)
 			}

@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 )
 
 // ComputeCovarianceMatrix computes the sample covariance matrix from aligned
@@ -97,20 +98,8 @@ func ComputeCovarianceMatrix(pricesBySymbol map[string][]market.HistoricalPrice)
 		return nil, symbols, ErrInsufficientData
 	}
 
-	// Compute sample covariance matrix.
-	covMatrix := make([][]float64, n)
-	for i := range covMatrix {
-		covMatrix[i] = make([]float64, n)
-	}
-
-	m := len(aligned)
-	for i := 0; i < n; i++ {
-		for j := i; j < n; j++ {
-			cov := computeCovariance(aligned, i, j, m)
-			covMatrix[i][j] = cov
-			covMatrix[j][i] = cov // symmetric
-		}
-	}
+	// Compute annualized covariance matrix using shared stats function.
+	covMatrix := stats.AnnualizedCovarianceMatrix(aligned)
 
 	return covMatrix, symbols, nil
 }
@@ -131,24 +120,4 @@ func symbolIndex(symbols []string, sym string) int {
 	return -1
 }
 
-// computeCovariance computes the sample covariance between columns i and j
-// of the aligned returns matrix.
-func computeCovariance(aligned [][]float64, i, j, n int) float64 {
-	// Compute means.
-	sumI, sumJ := 0.0, 0.0
-	for k := 0; k < n; k++ {
-		sumI += aligned[k][i]
-		sumJ += aligned[k][j]
-	}
-	meanI := sumI / float64(n)
-	meanJ := sumJ / float64(n)
 
-	// Compute covariance.
-	sum := 0.0
-	for k := 0; k < n; k++ {
-		di := aligned[k][i] - meanI
-		dj := aligned[k][j] - meanJ
-		sum += di * dj
-	}
-	return sum / float64(n-1) // sample covariance
-}
