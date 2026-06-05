@@ -171,6 +171,48 @@ func ExtractNavHistoryModalURL(html string) string {
 	return match[1]
 }
 
+// ParseNavHistoryFromModal extracts NAV history from the nav-history modal page.
+// The modal contains an HTML table with Date/Nav rows.
+func ParseNavHistoryFromModal(html string) ([]extractor.NavPoint, error) {
+	// Match <tr>...</tr> blocks with date and nav cells
+	re := regexp.MustCompile(`<tr>\s*<td class="key">([^<]+)</td>\s*<td class="value">([^<]+)</td>\s*</tr>`)
+	matches := re.FindAllStringSubmatch(html, -1)
+	if len(matches) == 0 {
+		return nil, nil
+	}
+
+	points := make([]extractor.NavPoint, 0, len(matches))
+	for _, m := range matches {
+		dateStr := strings.TrimSpace(m[1])
+		navStr := strings.TrimSpace(m[2])
+
+		date, err := time.Parse("02 Jan 2006", dateStr)
+		if err != nil {
+			continue
+		}
+
+		if navStr == "" {
+			continue
+		}
+
+		if strings.Contains(navStr, ",") {
+			navStr = strings.ReplaceAll(navStr, ",", "")
+		}
+
+		nav, err := decimal.Parse(navStr)
+		if err != nil {
+			continue
+		}
+
+		points = append(points, extractor.NavPoint{
+			Date: date,
+			NAV:  nav,
+		})
+	}
+
+	return points, nil
+}
+
 // ParseHoldingsFromModal extracts holdings from the all-holdings modal page.
 // The modal contains an embedded JSON array with ticker data.
 // Ticker format is "NVDA UQ" (Bloomberg-style with market suffix); the suffix is stripped.
