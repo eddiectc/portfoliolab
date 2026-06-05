@@ -126,9 +126,9 @@ func extractFromHTMLWithModals(html, modalHTML, navModalHTML string) (*extractor
 		return nil, fmt.Errorf("parse nav history: %w", err)
 	}
 	// Some funds don't embed fundMarketData on the main page —
-	// fall back to the nav-history modal.
+	// fall back to the nav-history modal (HTML table format).
 	if navHistory == nil && navModalHTML != "" {
-		navHistory, err = ParseNavHistory(navModalHTML)
+		navHistory, err = ParseNavHistoryFromModal(navModalHTML)
 		if err != nil {
 			return nil, fmt.Errorf("parse nav history from modal: %w", err)
 		}

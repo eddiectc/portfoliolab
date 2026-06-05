@@ -823,3 +823,66 @@ func TestUnescapeJSString(t *testing.T) {
 		})
 	}
 }
+
+func TestParseNavHistoryFromModal(t *testing.T) {
+	tests := []struct {
+		name    string
+		html    string
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name: "basic nav table",
+			html: `<table>
+	<tbody>
+		<tr><td class="key">04 Jun 2026</td><td class="value">42.7375</td></tr>
+		<tr><td class="key">03 Jun 2026</td><td class="value">42.7419</td></tr>
+	</tbody>
+</table>`,
+			wantLen: 2,
+		},
+		{
+			name: "empty html",
+			html: "",
+			wantLen: 0,
+		},
+		{
+			name: "no matching table",
+			html: `<table><tr><td>something else</td></tr></table>`,
+			wantLen: 0,
+		},
+		{
+			name: "with whitespace",
+			html: `<tr>
+				<td class="key">  04 Jun 2026  </td>
+				<td class="value">  42.7375  </td>
+			</tr>`,
+			wantLen: 1,
+		},
+		{
+			name: "empty nav skipped",
+			html: `<tr><td class="key">04 Jun 2026</td><td class="value">42.7375</td></tr>
+<tr><td class="key">03 Jun 2026</td><td class="value"></td></tr>`,
+			wantLen: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseNavHistoryFromModal(tt.html)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseNavHistoryFromModal() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(got) != tt.wantLen {
+				t.Errorf("got %d points, want %d", len(got), tt.wantLen)
+			}
+			if len(got) > 0 && tt.wantLen > 0 {
+				expectedDate := time.Date(2026, 6, 4, 0, 0, 0, 0, time.UTC)
+				if !got[0].Date.Equal(expectedDate) {
+					t.Errorf("got date %v, want %v", got[0].Date, expectedDate)
+				}
+			}
+		})
+	}
+}
