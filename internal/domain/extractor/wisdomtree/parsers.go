@@ -160,6 +160,17 @@ func ExtractModalURL(html string) string {
 	return match[1]
 }
 
+// ExtractNavHistoryModalURL extracts the NAV history modal URL from the main page HTML.
+// Pattern: data-href="https://www.wisdomtree.eu/en-gb/global/etf-details/modals/nav-history?id={GUID}"
+func ExtractNavHistoryModalURL(html string) string {
+	re := regexp.MustCompile(`data-href="([^"]*nav-history[^"]*)"`)
+	match := re.FindStringSubmatch(html)
+	if match == nil || len(match) < 2 {
+		return ""
+	}
+	return match[1]
+}
+
 // ParseHoldingsFromModal extracts holdings from the all-holdings modal page.
 // The modal contains an embedded JSON array with ticker data.
 // Ticker format is "NVDA UQ" (Bloomberg-style with market suffix); the suffix is stripped.
