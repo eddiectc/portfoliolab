@@ -257,7 +257,7 @@ func ParseNavHistory(html string) ([]extractor.NavPoint, error) {
 		// WisdomTree's fundMarketData CSV uses US M/D/YYYY format (month first),
 		// despite the site being wisdomtree.eu/en-gb. The 12/13/2023 entry (Dec 13)
 		// is unambiguous — day 13 can't be a month.
-		date, err := time.Parse("2/1/2006", dateStr)
+		date, err := time.Parse("1/2/2006", dateStr)
 		if err != nil {
 			return nil, fmt.Errorf("row %d: parse date %q: %w", i, dateStr, err)
 		}

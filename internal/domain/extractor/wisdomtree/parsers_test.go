@@ -121,11 +121,12 @@ func TestParseHoldings(t *testing.T) {
 
 func TestParseNavHistory(t *testing.T) {
 	tests := []struct {
-		name    string
-		html    string
-		wantLen int
-		wantNil bool
-		wantErr bool
+		name      string
+		html      string
+		wantLen   int
+		wantNil   bool
+		wantErr   bool
+		checkDate func(t *testing.T, got []extractor.NavPoint)
 	}{
 		{
 			name: "basic nav history",
@@ -146,6 +147,24 @@ func TestParseNavHistory(t *testing.T) {
 			name: "nav with hash suffix",
 			html: `var fundMarketDataB123 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846'`,
 			wantLen: 1,
+		},
+		{
+			// fundMarketData CSV uses US M/D/YYYY (month first) despite wisdomtree.eu.
+			// 12/13/2023 is unambiguous — day 13 can't be a month.
+			name: "us month-first format",
+			html: `var fundMarketDataX1 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n12/13/2023,WMGT LN,,,26.169\n1/2/2024,WMGT LN,,,26.834\n2/16/2026,WMGT LN,,,40.109'`,
+			wantLen: 3,
+			checkDate: func(t *testing.T, got []extractor.NavPoint) {
+				if !got[0].Date.Equal(time.Date(2023, 12, 13, 0, 0, 0, 0, time.UTC)) {
+					t.Errorf("got %s, want 2023-12-13", got[0].Date)
+				}
+				if !got[1].Date.Equal(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)) {
+					t.Errorf("got %s, want 2024-01-02", got[1].Date)
+				}
+				if !got[2].Date.Equal(time.Date(2026, 2, 16, 0, 0, 0, 0, time.UTC)) {
+					t.Errorf("got %s, want 2026-02-16", got[2].Date)
+				}
+			},
 		},
 	}
 
@@ -172,6 +191,9 @@ func TestParseNavHistory(t *testing.T) {
 			}
 			if len(got) != tt.wantLen {
 				t.Errorf("got %d nav points, want %d", len(got), tt.wantLen)
+			}
+			if tt.checkDate != nil {
+				tt.checkDate(t, got)
 			}
 		})
 	}
