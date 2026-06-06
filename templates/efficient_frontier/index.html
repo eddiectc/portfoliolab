@@ -131,7 +131,7 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
         </tr>
     </tbody>
 </table>
-<p class="form-hint">Period return/volatility over {{.Result.TradingDays}} trading days ({{.SelectedPeriod}} requested, not annualized)</p>
+<p class="form-hint">Period return/volatility over {{.Result.TradingDays}} trading days ({{.SelectedPeriod}} requested, not annualized){{if .LeastDataSymbol}}; least data: {{.LeastDataSymbol}} ({{.LeastDataDays}} days){{end}}</p>
 {{end}}
 
 {{/* Frontier chart */}}
