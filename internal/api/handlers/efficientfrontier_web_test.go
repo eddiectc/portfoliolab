@@ -102,7 +102,7 @@ func TestFrontierTemplate_WithResults(t *testing.T) {
 	data := frontierPageData{
 		PageData:          web.PageData{Title: "Efficient Frontier"},
 		Result:            result,
-		FrontierChartData: serializeFrontierChartData(result),
+		FrontierChartData: serializeFrontierChartData(result, false),
 		CandidateSymbols:  []string{"SPY", "EFA", "BND", "VNQ"},
 		Portfolios: []portfolio.Portfolio{
 			{ID: 1, Name: "Test Portfolio", Currency: "USD"},
@@ -188,14 +188,14 @@ func TestFrontierTemplate_Warnings(t *testing.T) {
 // --- Serialization Tests ---
 
 func TestSerializeFrontierChartData_Nil(t *testing.T) {
-	got := serializeFrontierChartData(nil)
+	got := serializeFrontierChartData(nil, false)
 	if got != "{}" {
 		t.Errorf("serializeFrontierChartData(nil) = %q, want {}", got)
 	}
 }
 
 func TestSerializeFrontierChartData_EmptyPoints(t *testing.T) {
-	got := serializeFrontierChartData(&efficientfrontier.FrontierResult{})
+	got := serializeFrontierChartData(&efficientfrontier.FrontierResult{}, false)
 	if got != "{}" {
 		t.Errorf("serializeFrontierChartData(empty) = %q, want {}", got)
 	}
@@ -217,7 +217,7 @@ func TestSerializeFrontierChartData_Full(t *testing.T) {
 		},
 	}
 
-	got := serializeFrontierChartData(result)
+	got := serializeFrontierChartData(result, false)
 	var data frontierChartData
 	if err := json.Unmarshal([]byte(got), &data); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
