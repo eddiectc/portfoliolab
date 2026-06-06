@@ -84,6 +84,7 @@ type frontierPageData struct {
 	SelectedSymbols      []string
 	SelectedPeriod       string
 	SelectedRiskFreeRate string
+	SelectedBaseCurrency string
 	// Period button URLs.
 	PeriodURLs map[string]string
 	// Selected key portfolio (for display after clicking a point).
@@ -106,6 +107,12 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 	// Parse risk-free rate.
 	riskFreeRate := parseRiskFreeRate(query.Get("risk_free_rate"))
 
+	// Parse base currency.
+	baseCurrency := query.Get("base_currency")
+	if baseCurrency != "" && !validBaseCurrencies[baseCurrency] {
+		baseCurrency = ""
+	}
+
 	// Fetch selectors.
 	portfolios := h.fetchPortfolios(r.Context())
 	modelPortfolios := h.fetchModelPortfolios(r.Context())
@@ -121,10 +128,11 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 			Symbols:      symbols,
 			Period:       period,
 			RiskFreeRate: riskFreeRate / 100.0,
+			BaseCurrency: baseCurrency,
 		}
 		serviceResult, err := h.apiHandler.svc.ComputeFrontier(r.Context(), serviceReq)
 		if err != nil {
-			data := h.buildPageData(w, r, symbols, period, riskFreeRate, portfolios, modelPortfolios, candidateSymbols, nil, nil, nil, nil)
+				data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, nil, nil, nil, nil)
 			data.Error = frontierErrorMessage(err)
 			if err := h.renderer.Render(w, "efficient_frontier/index", data); err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -143,7 +151,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 		}
 	}
 
-	data := h.buildPageData(w, r, symbols, period, riskFreeRate, portfolios, modelPortfolios, candidateSymbols, result, warnings, excludedSymbols, selectedPortfolio)
+	data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, result, warnings, excludedSymbols, selectedPortfolio)
 
 	if err := h.renderer.Render(w, "efficient_frontier/index", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -153,7 +161,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 // buildPageData assembles the frontier page data struct with serialized chart data.
 func (h *EfficientFrontierWebHandler) buildPageData(
 	w http.ResponseWriter, r *http.Request,
-	symbols []string, period string, riskFreeRate float64,
+	symbols []string, period string, riskFreeRate float64, baseCurrency string,
 	portfolios []portfolio.Portfolio,
 	modelPortfolios []modelportfolio.ModelPortfolioSummary,
 	candidateSymbols []string,
@@ -180,7 +188,8 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 		SelectedSymbols:      symbols,
 		SelectedPeriod:       period,
 		SelectedRiskFreeRate: strconv.FormatFloat(riskFreeRate, 'f', 1, 64),
-		PeriodURLs:           buildFrontierPeriodURLs(symbols, period, riskFreeRate),
+		SelectedBaseCurrency: baseCurrency,
+		PeriodURLs:           buildFrontierPeriodURLs(symbols, period, riskFreeRate, baseCurrency),
 		SelectedPortfolio:    selectedPortfolio,
 	}
 }
@@ -216,7 +225,12 @@ func parseRiskFreeRate(s string) float64 {
 }
 
 // buildFrontierPeriodURLs pre-builds the URL for each period button.
-func buildFrontierPeriodURLs(symbols []string, _ string, riskFreeRate float64) map[string]string {
+var validBaseCurrencies = map[string]bool{
+	"USD": true, "EUR": true, "GBP": true, "JPY": true,
+	"CHF": true, "CAD": true, "AUD": true, "CNY": true,
+}
+
+func buildFrontierPeriodURLs(symbols []string, _ string, riskFreeRate float64, baseCurrency string) map[string]string {
 	urls := make(map[string]string)
 	for _, p := range frontierPeriods {
 		url := "/efficient-frontier"
@@ -239,6 +253,14 @@ func buildFrontierPeriodURLs(symbols []string, _ string, riskFreeRate float64) m
 				url += "&risk_free_rate=" + rfr
 			} else {
 				url += "?risk_free_rate=" + rfr
+				hasQuery = true
+			}
+		}
+		if baseCurrency != "" {
+			if hasQuery {
+				url += "&base_currency=" + baseCurrency
+			} else {
+				url += "?base_currency=" + baseCurrency
 			}
 		}
 		urls[p] = url
