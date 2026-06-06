@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -90,12 +91,26 @@ type frontierPageData struct {
 	PeriodURLs map[string]string
 	// Selected key portfolio (for display after clicking a point).
 	SelectedPortfolio *efficientfrontier.OptimizedPortfolio
+	// Key portfolio display values (annualized when Annualized is true).
+	DisplayMaxSharpe     *displayPortfolio
+	DisplayMinVariance   *displayPortfolio
+	DisplayHighestReturn *displayPortfolio
 	// LeastDataSymbol is the symbol with the fewest trading days in the result.
 	LeastDataSymbol string
 	// LeastDataDays is the trading day count of the symbol with least data.
 	LeastDataDays int
 	// ExpectedTradingDays is the approximate expected trading days for the selected period.
 	ExpectedTradingDays int
+	// Annualized is true when return/volatility are displayed as annualized figures.
+	Annualized bool
+}
+
+// displayPortfolio holds annualized or period return/vol for template display.
+type displayPortfolio struct {
+	Name        string
+	ReturnPct   float64
+	VolatilityPct float64
+	SharpeRatio float64
 }
 
 // HandleEfficientFrontier renders GET /efficient-frontier.
@@ -185,9 +200,23 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 	// Compute expected trading days from the actual data date range.
 	expectedDays := computeExpectedTradingDays(symbolDataSpan)
 
+	// Determine whether to annualize: data must be at least 90% of expected.
+	annualized := false
+	retFactor, volFactor := 1.0, 1.0
+	if expectedDays > 0 && result != nil {
+		if float64(leastDataDays)/float64(expectedDays) >= 0.90 {
+			annualized = true
+			if result.TradingDays > 0 {
+				retFactor = 252.0 / float64(result.TradingDays)
+				volFactor = math.Sqrt(retFactor)
+			}
+		}
+	}
+
 	// Build chart data.
-	frontierChart := serializeFrontierChartData(result)
-	return frontierPageData{
+	frontierChart := serializeFrontierChartData(result, annualized)
+
+	data := frontierPageData{
 		PageData: web.PageData{
 			Title: "Efficient Frontier",
 			Flash: getFlash(w, r),
@@ -210,6 +239,42 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 		LeastDataSymbol:      leastDataSymbol,
 		LeastDataDays:        leastDataDays,
 		ExpectedTradingDays:  expectedDays,
+		Annualized:           annualized,
+	}
+
+	// Populate display portfolios with annualized values.
+	populateDisplayPortfolios(&data, result, retFactor, volFactor)
+
+	return data
+}
+
+func populateDisplayPortfolios(data *frontierPageData, result *efficientfrontier.FrontierResult, retFactor, volFactor float64) {
+	if result == nil {
+		return
+	}
+	if result.MaxSharpe != nil {
+		data.DisplayMaxSharpe = &displayPortfolio{
+			Name:          result.MaxSharpe.Name,
+			ReturnPct:     result.MaxSharpe.ReturnPct * retFactor,
+			VolatilityPct: result.MaxSharpe.VolatilityPct * volFactor,
+			SharpeRatio:   result.MaxSharpe.SharpeRatio,
+		}
+	}
+	if result.MinVariance != nil {
+		data.DisplayMinVariance = &displayPortfolio{
+			Name:          result.MinVariance.Name,
+			ReturnPct:     result.MinVariance.ReturnPct * retFactor,
+			VolatilityPct: result.MinVariance.VolatilityPct * volFactor,
+			SharpeRatio:   result.MinVariance.SharpeRatio,
+		}
+	}
+	if result.HighestReturn != nil {
+		data.DisplayHighestReturn = &displayPortfolio{
+			Name:          result.HighestReturn.Name,
+			ReturnPct:     result.HighestReturn.ReturnPct * retFactor,
+			VolatilityPct: result.HighestReturn.VolatilityPct * volFactor,
+			SharpeRatio:   result.HighestReturn.SharpeRatio,
+		}
 	}
 }
 
@@ -432,34 +497,47 @@ type frontierKeyPortfolio struct {
 }
 
 // serializeFrontierChartData converts the frontier result to JSON for ECharts.
-func serializeFrontierChartData(result *efficientfrontier.FrontierResult) string {
+// If annualized is true, return and volatility are scaled to annual figures
+// using the standard 252 trading days convention.
+func serializeFrontierChartData(result *efficientfrontier.FrontierResult, annualized bool) string {
 	if result == nil || len(result.FrontierPoints) == 0 {
 		return "{}"
+	}
+
+	retFactor, volFactor := 1.0, 1.0
+	if annualized && result.TradingDays > 0 {
+		retFactor = 252.0 / float64(result.TradingDays)
+		volFactor = math.Sqrt(retFactor)
 	}
 
 	// Build frontier points with weights for click interaction.
 	points := make([]frontierPointData, 0, len(result.FrontierPoints))
 	for _, pt := range result.FrontierPoints {
 		points = append(points, frontierPointData{
-			Volatility:  pt.VolatilityPct,
-			Return:      pt.ReturnPct,
+			Volatility:  pt.VolatilityPct * volFactor,
+			Return:      pt.ReturnPct * retFactor,
 			SharpeRatio: pt.SharpeRatio,
 			Weights:     pt.Weights,
 		})
 	}
 
+	expectedReturns := make([]float64, len(result.ExpectedReturns))
+	for i, r := range result.ExpectedReturns {
+		expectedReturns[i] = r * retFactor
+	}
+
 	data := frontierChartData{
 		FrontierPoints:    points,
 		Symbols:           result.Symbols,
-		ExpectedReturns:   result.ExpectedReturns,
+		ExpectedReturns:   expectedReturns,
 		TradingDays:       result.TradingDays,
 	}
 
 	if result.MaxSharpe != nil {
 		data.MaxSharpe = &frontierKeyPortfolio{
 			Name:        result.MaxSharpe.Name,
-			Volatility:  result.MaxSharpe.VolatilityPct,
-			Return:      result.MaxSharpe.ReturnPct,
+			Volatility:  result.MaxSharpe.VolatilityPct * volFactor,
+			Return:      result.MaxSharpe.ReturnPct * retFactor,
 			SharpeRatio: result.MaxSharpe.SharpeRatio,
 			Weights:     result.MaxSharpe.Weights,
 		}
@@ -467,8 +545,8 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult) string
 	if result.MinVariance != nil {
 		data.MinVariance = &frontierKeyPortfolio{
 			Name:        result.MinVariance.Name,
-			Volatility:  result.MinVariance.VolatilityPct,
-			Return:      result.MinVariance.ReturnPct,
+			Volatility:  result.MinVariance.VolatilityPct * volFactor,
+			Return:      result.MinVariance.ReturnPct * retFactor,
 			SharpeRatio: result.MinVariance.SharpeRatio,
 			Weights:     result.MinVariance.Weights,
 		}
@@ -476,8 +554,8 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult) string
 	if result.HighestReturn != nil {
 		data.HighestReturn = &frontierKeyPortfolio{
 			Name:        result.HighestReturn.Name,
-			Volatility:  result.HighestReturn.VolatilityPct,
-			Return:      result.HighestReturn.ReturnPct,
+			Volatility:  result.HighestReturn.VolatilityPct * volFactor,
+			Return:      result.HighestReturn.ReturnPct * retFactor,
 			SharpeRatio: result.HighestReturn.SharpeRatio,
 			Weights:     result.HighestReturn.Weights,
 		}
