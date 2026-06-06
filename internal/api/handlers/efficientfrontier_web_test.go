@@ -304,8 +304,8 @@ func TestParseRiskFreeRate(t *testing.T) {
 // --- URL Building Tests ---
 
 func TestBuildFrontierPeriodURLs(t *testing.T) {
-	// No symbols, default rate.
-	urls := buildFrontierPeriodURLs(nil, "1Y", 4.5)
+	// No symbols, default rate, no currency.
+	urls := buildFrontierPeriodURLs(nil, "1Y", 4.5, "")
 	if urls["1Y"] != "/efficient-frontier" {
 		t.Errorf("1Y = %q, want /efficient-frontier", urls["1Y"])
 	}
@@ -314,7 +314,7 @@ func TestBuildFrontierPeriodURLs(t *testing.T) {
 	}
 
 	// With symbols.
-	urls2 := buildFrontierPeriodURLs([]string{"SPY", "EFA"}, "3Y", 4.5)
+	urls2 := buildFrontierPeriodURLs([]string{"SPY", "EFA"}, "3Y", 4.5, "")
 	if urls2["1Y"] != "/efficient-frontier?symbols=SPY,EFA" {
 		t.Errorf("1Y = %q, want /efficient-frontier?symbols=SPY,EFA", urls2["1Y"])
 	}
@@ -323,9 +323,18 @@ func TestBuildFrontierPeriodURLs(t *testing.T) {
 	}
 
 	// With custom risk-free rate.
-	urls3 := buildFrontierPeriodURLs(nil, "1Y", 3.0)
+	urls3 := buildFrontierPeriodURLs(nil, "1Y", 3.0, "")
 	if urls3["1Y"] != "/efficient-frontier?risk_free_rate=3.0" {
 		t.Errorf("1Y = %q, want /efficient-frontier?risk_free_rate=3.0", urls3["1Y"])
+	}
+
+	// With base currency.
+	urls4 := buildFrontierPeriodURLs([]string{"SPY"}, "1Y", 4.5, "EUR")
+	if urls4["1Y"] != "/efficient-frontier?symbols=SPY&base_currency=EUR" {
+		t.Errorf("1Y = %q, want /efficient-frontier?symbols=SPY&base_currency=EUR", urls4["1Y"])
+	}
+	if urls4["3Y"] != "/efficient-frontier?symbols=SPY&period=3Y&base_currency=EUR" {
+		t.Errorf("3Y = %q, want /efficient-frontier?symbols=SPY&period=3Y&base_currency=EUR", urls4["3Y"])
 	}
 }
 
