@@ -89,6 +89,10 @@ type frontierPageData struct {
 	PeriodURLs map[string]string
 	// Selected key portfolio (for display after clicking a point).
 	SelectedPortfolio *efficientfrontier.OptimizedPortfolio
+	// LeastDataSymbol is the symbol with the fewest trading days in the result.
+	LeastDataSymbol string
+	// LeastDataDays is the trading day count of the symbol with least data.
+	LeastDataDays int
 }
 
 // HandleEfficientFrontier renders GET /efficient-frontier.
@@ -122,6 +126,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 	var result *efficientfrontier.FrontierResult
 	var warnings, excludedSymbols []string
 	var selectedPortfolio *efficientfrontier.OptimizedPortfolio
+	var symbolDataSpan map[string]efficientfrontier.DataSpan
 
 	if len(symbols) >= 2 {
 		serviceReq := efficientfrontier.ComputeFrontierRequest{
@@ -132,7 +137,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 		}
 		serviceResult, err := h.apiHandler.svc.ComputeFrontier(r.Context(), serviceReq)
 		if err != nil {
-				data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, nil, nil, nil, nil)
+				data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, nil, nil, nil, nil, nil)
 			data.Error = frontierErrorMessage(err)
 			if err := h.renderer.Render(w, "efficient_frontier/index", data); err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -142,6 +147,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 		result = serviceResult.Result
 		warnings = serviceResult.Warnings
 		excludedSymbols = serviceResult.ExcludedSymbols
+		symbolDataSpan = serviceResult.SymbolDataSpan
 
 		// Default selected portfolio is Max Sharpe.
 		if result.MaxSharpe != nil {
@@ -151,7 +157,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 		}
 	}
 
-	data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, result, warnings, excludedSymbols, selectedPortfolio)
+	data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, result, warnings, excludedSymbols, selectedPortfolio, symbolDataSpan)
 
 	if err := h.renderer.Render(w, "efficient_frontier/index", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -168,9 +174,13 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 	result *efficientfrontier.FrontierResult,
 	warnings, excludedSymbols []string,
 	selectedPortfolio *efficientfrontier.OptimizedPortfolio,
+	symbolDataSpan map[string]efficientfrontier.DataSpan,
 ) frontierPageData {
-	frontierChart := serializeFrontierChartData(result)
+	// Find symbol with least data.
+	leastDataSymbol, leastDataDays := findLeastDataSymbol(symbolDataSpan)
 
+	// Build chart data.
+	frontierChart := serializeFrontierChartData(result)
 	return frontierPageData{
 		PageData: web.PageData{
 			Title: "Efficient Frontier",
@@ -191,7 +201,26 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 		SelectedBaseCurrency: baseCurrency,
 		PeriodURLs:           buildFrontierPeriodURLs(symbols, period, riskFreeRate, baseCurrency),
 		SelectedPortfolio:    selectedPortfolio,
+		LeastDataSymbol:      leastDataSymbol,
+		LeastDataDays:        leastDataDays,
 	}
+}
+
+// findLeastDataSymbol returns the symbol with the fewest trading days
+// and its trading day count from the data span map.
+func findLeastDataSymbol(dataSpan map[string]efficientfrontier.DataSpan) (string, int) {
+	if len(dataSpan) == 0 {
+		return "", 0
+	}
+	var leastSymbol string
+	leastDays := 1<<31 - 1 // max int32
+	for sym, span := range dataSpan {
+		if span.TradingDays < leastDays {
+			leastDays = span.TradingDays
+			leastSymbol = sym
+		}
+	}
+	return leastSymbol, leastDays
 }
 
 // parseFrontierSymbols parses comma-separated symbols from query params.
