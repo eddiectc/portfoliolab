@@ -93,6 +93,8 @@ type frontierPageData struct {
 	LeastDataSymbol string
 	// LeastDataDays is the trading day count of the symbol with least data.
 	LeastDataDays int
+	// ExpectedTradingDays is the approximate expected trading days for the selected period.
+	ExpectedTradingDays int
 }
 
 // HandleEfficientFrontier renders GET /efficient-frontier.
@@ -179,6 +181,9 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 	// Find symbol with least data.
 	leastDataSymbol, leastDataDays := findLeastDataSymbol(symbolDataSpan)
 
+	// Compute expected trading days for the period.
+	expectedDays := expectedTradingDays(period)
+
 	// Build chart data.
 	frontierChart := serializeFrontierChartData(result)
 	return frontierPageData{
@@ -203,6 +208,7 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 		SelectedPortfolio:    selectedPortfolio,
 		LeastDataSymbol:      leastDataSymbol,
 		LeastDataDays:        leastDataDays,
+		ExpectedTradingDays:  expectedDays,
 	}
 }
 
@@ -221,6 +227,27 @@ func findLeastDataSymbol(dataSpan map[string]efficientfrontier.DataSpan) (string
 		}
 	}
 	return leastSymbol, leastDays
+}
+
+// expectedTradingDays returns the approximate number of trading days
+// for a given lookback period (5 days/week, ~4.33 weeks/month).
+func expectedTradingDays(period string) int {
+	switch period {
+	case "3M":
+		return 66
+	case "6M":
+		return 130
+	case "1Y":
+		return 252
+	case "3Y":
+		return 756
+	case "5Y":
+		return 1260
+	case "10Y":
+		return 2520
+	default:
+		return 252 // default to 1Y
+	}
 }
 
 // parseFrontierSymbols parses comma-separated symbols from query params.
