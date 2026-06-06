@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
@@ -181,8 +182,8 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 	// Find symbol with least data.
 	leastDataSymbol, leastDataDays := findLeastDataSymbol(symbolDataSpan)
 
-	// Compute expected trading days for the period.
-	expectedDays := expectedTradingDays(period)
+	// Compute expected trading days from the actual data date range.
+	expectedDays := computeExpectedTradingDays(symbolDataSpan)
 
 	// Build chart data.
 	frontierChart := serializeFrontierChartData(result)
@@ -229,25 +230,50 @@ func findLeastDataSymbol(dataSpan map[string]efficientfrontier.DataSpan) (string
 	return leastSymbol, leastDays
 }
 
-// expectedTradingDays returns the approximate number of trading days
-// for a given lookback period (5 days/week, ~4.33 weeks/month).
-func expectedTradingDays(period string) int {
-	switch period {
-	case "3M":
-		return 66
-	case "6M":
-		return 130
-	case "1Y":
-		return 252
-	case "3Y":
-		return 756
-	case "5Y":
-		return 1260
-	case "10Y":
-		return 2520
-	default:
-		return 252 // default to 1Y
+// computeExpectedTradingDays counts the weekdays (Mon-Fri) between
+// the earliest start and latest end date across all symbol data spans.
+// This gives the upper bound of trading days before accounting for holidays.
+func computeExpectedTradingDays(dataSpan map[string]efficientfrontier.DataSpan) int {
+	if len(dataSpan) == 0 {
+		return 0
 	}
+	var earliestStart, latestEnd time.Time
+	first := true
+	for _, span := range dataSpan {
+		start, err1 := time.Parse("2006-01-02", span.StartDate)
+		end, err2 := time.Parse("2006-01-02", span.EndDate)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		if first {
+			earliestStart = start
+			latestEnd = end
+			first = false
+		} else {
+			if start.Before(earliestStart) {
+				earliestStart = start
+			}
+			if end.After(latestEnd) {
+				latestEnd = end
+			}
+		}
+	}
+	if first {
+		return 0
+	}
+	return countWeekdays(earliestStart, latestEnd)
+}
+
+// countWeekdays counts the number of weekdays (Mon-Fri) between start and end inclusive.
+func countWeekdays(start, end time.Time) int {
+	count := 0
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		weekday := d.Weekday()
+		if weekday != time.Saturday && weekday != time.Sunday {
+			count++
+		}
+	}
+	return count
 }
 
 // parseFrontierSymbols parses comma-separated symbols from query params.
