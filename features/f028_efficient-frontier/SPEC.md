@@ -1,7 +1,7 @@
 # Feature: Efficient Frontier
 
 ## Description
-Portfolio optimization via the efficient frontier method. The user selects a set of candidate symbols, configures optimization parameters (time period, risk-free rate), and the system computes the efficient frontier — the set of allocations that maximize expected return for a given level of risk. Key portfolios (maximum Sharpe ratio, minimum variance) are highlighted. The user can save any optimized allocation as a new model portfolio for later comparison.
+Portfolio optimization via the efficient frontier method. The user selects a set of candidate symbols, configures optimization parameters (time period, risk-free rate), and the system computes the efficient frontier — the set of allocations that maximize expected return for a given level of risk. Key portfolios (maximum Sharpe ratio, minimum variance, highest return, maximum Sortino ratio, minimum drawdown) are highlighted. A correlation matrix heatmap shows pairwise relationships between candidate assets. The user can save any optimized allocation as a new model portfolio for later comparison.
 
 This helps investors answer: "Given these assets, what is the best risk/return allocation?"
 
@@ -9,7 +9,8 @@ This helps investors answer: "Given these assets, what is the best risk/return a
 
 - **As an investor**, I want to select candidate symbols for optimization (via autocomplete or by copying from an existing portfolio/model portfolio), so that I can define the asset universe for my analysis.
 - **As an investor**, I want to compute the efficient frontier for my candidate symbols over a chosen historical period, so that I can see the risk/return trade-offs across all possible allocations.
-- **As an investor**, I want to see key portfolios (maximum Sharpe ratio, minimum variance) highlighted on the frontier, so that I can quickly identify the most attractive allocations.
+- **As an investor**, I want to see key portfolios (maximum Sharpe ratio, minimum variance, highest return, maximum Sortino ratio, minimum drawdown) highlighted on the frontier, so that I can quickly identify the most attractive allocations.
+- **As an investor**, I want to see a correlation matrix heatmap of my candidate symbols, so that I can understand diversification benefits and concentration risk.
 - **As an investor**, I want to view the target allocation weights for any portfolio on the frontier, so that I know how to construct the portfolio.
 - **As an investor**, I want to save an optimized allocation as a new model portfolio, so that I can track and compare it against my actual portfolios over time.
 
@@ -35,7 +36,8 @@ This helps investors answer: "Given these assets, what is the best risk/return a
 **When** I request the optimization with default settings
 **Then** the system computes the efficient frontier using a default historical period (3 years), a default risk-free rate, and long-only fully-invested constraints (weights sum to 100%, no negative weights)
 **And** the frontier is displayed as a risk/return chart
-**And** the maximum Sharpe ratio portfolio and minimum variance portfolio are highlighted
+**And** key portfolios (maximum Sharpe ratio, minimum variance, highest return, maximum Sortino ratio, minimum drawdown) are highlighted
+**And** a correlation matrix heatmap is displayed for the candidate symbols
 
 ### Scenario: Compute efficient frontier with custom period
 **Given** I have selected candidate symbols
@@ -52,6 +54,7 @@ This helps investors answer: "Given these assets, what is the best risk/return a
 **When** I select any point on the frontier curve
 **Then** I see a table of target allocation weights (as percentages) for each candidate symbol
 **And** the weights sum to 100%
+**And** I see risk metrics including Sharpe ratio, Sortino ratio, and maximum drawdown
 
 ### Scenario: Save optimized allocation as a model portfolio
 **Given** I have computed the efficient frontier and selected a portfolio
