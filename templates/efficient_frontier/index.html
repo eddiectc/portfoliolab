@@ -105,7 +105,9 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             <th>Portfolio</th>
             <th>Return (%){{if .Annualized}} (annualized){{end}}</th>
             <th>Volatility (%){{if .Annualized}} (annualized){{end}}</th>
-            <th>Sharpe Ratio</th>
+            <th>Sharpe</th>
+            <th>Sortino</th>
+            <th>Max Drawdown (%)</th>
         </tr>
     </thead>
     <tbody>
@@ -114,6 +116,8 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             <td>{{float2 .DisplayMaxSharpe.ReturnPct}}</td>
             <td>{{float2 .DisplayMaxSharpe.VolatilityPct}}</td>
             <td>{{float2 .DisplayMaxSharpe.SharpeRatio}}</td>
+            <td>{{float2 .DisplayMaxSharpe.SortinoRatio}}</td>
+            <td>{{float2 .DisplayMaxSharpe.MaxDrawdownPct}}</td>
         </tr>
         {{if .DisplayMinVariance}}
         <tr onclick="selectPortfolio('min-variance')" style="cursor:pointer;">
@@ -121,6 +125,8 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             <td>{{float2 .DisplayMinVariance.ReturnPct}}</td>
             <td>{{float2 .DisplayMinVariance.VolatilityPct}}</td>
             <td>{{float2 .DisplayMinVariance.SharpeRatio}}</td>
+            <td>{{float2 .DisplayMinVariance.SortinoRatio}}</td>
+            <td>{{float2 .DisplayMinVariance.MaxDrawdownPct}}</td>
         </tr>
         {{end}}
         <tr onclick="selectPortfolio('highest-return')" style="cursor:pointer;">
@@ -128,21 +134,45 @@ var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
             <td>{{float2 .DisplayHighestReturn.ReturnPct}}</td>
             <td>{{float2 .DisplayHighestReturn.VolatilityPct}}</td>
             <td>{{float2 .DisplayHighestReturn.SharpeRatio}}</td>
+            <td>{{float2 .DisplayHighestReturn.SortinoRatio}}</td>
+            <td>{{float2 .DisplayHighestReturn.MaxDrawdownPct}}</td>
+        </tr>
+        <tr onclick="selectPortfolio('max-sortino')" style="cursor:pointer;">
+            <td>Max Sortino</td>
+            <td>{{float2 .DisplayMaxSortino.ReturnPct}}</td>
+            <td>{{float2 .DisplayMaxSortino.VolatilityPct}}</td>
+            <td>{{float2 .DisplayMaxSortino.SharpeRatio}}</td>
+            <td>{{float2 .DisplayMaxSortino.SortinoRatio}}</td>
+            <td>{{float2 .DisplayMaxSortino.MaxDrawdownPct}}</td>
+        </tr>
+        <tr onclick="selectPortfolio('min-drawdown')" style="cursor:pointer;">
+            <td>Min Drawdown</td>
+            <td>{{float2 .DisplayMinDrawdown.ReturnPct}}</td>
+            <td>{{float2 .DisplayMinDrawdown.VolatilityPct}}</td>
+            <td>{{float2 .DisplayMinDrawdown.SharpeRatio}}</td>
+            <td>{{float2 .DisplayMinDrawdown.SortinoRatio}}</td>
+            <td>{{float2 .DisplayMinDrawdown.MaxDrawdownPct}}</td>
         </tr>
     </tbody>
 </table>
 <p class="form-hint">{{if .Annualized}}Annualized{{else}}Period{{end}} return/volatility over {{.Result.TradingDays}} trading days ({{.SelectedPeriod}} requested){{if .LeastDataSymbol}}; shortest series: {{.LeastDataSymbol}} with {{.LeastDataDays}} of ~{{.ExpectedTradingDays}} expected days{{end}}</p>
 {{end}}
 
-{{/* Frontier chart */}}
-<div class="chart-container" style="height: 500px; margin: 20px 0;">
-    <div id="frontier-chart" style="width: 100%; height: 100%;"></div>
+{{/* Frontier chart + correlation heatmap */}}
+<div style="display:flex; gap: 20px; margin: 20px 0; flex-wrap: wrap;">
+    <div class="chart-container" style="flex: 2; min-width: 400px; height: 500px;">
+        <div id="frontier-chart" style="width: 100%; height: 100%;"></div>
+    </div>
+    <div class="chart-container" style="flex: 1; min-width: 300px; height: 500px;">
+        <div id="correlation-chart" style="width: 100%; height: 100%;"></div>
+    </div>
 </div>
 
 {{/* Allocation weights table */}}
 <div id="allocation-section">
     <h2>Allocation Weights</h2>
     <p class="form-hint" id="selected-portfolio-label">Showing: Max Sharpe Ratio</p>
+    <p class="form-hint" id="portfolio-metrics" style="display:inline;"></p>
     <table class="data-table comparison-table">
         <thead>
             <tr>
@@ -201,7 +231,9 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
     var keyPortfolios = {
         'max-sharpe': chartData.max_sharpe,
         'min-variance': chartData.min_variance,
-        'highest-return': chartData.highest_return
+        'highest-return': chartData.highest_return,
+        'max-sortino': chartData.max_sortino,
+        'min-drawdown': chartData.min_drawdown
     };
 
     // Build series data
@@ -222,7 +254,9 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
     var markerColors = {
         'max_sharpe': '#67C23A',
         'min_variance': '#E6A23C',
-        'highest_return': '#F56C6C'
+        'highest_return': '#F56C6C',
+        'max_sortino': '#9B59B6',
+        'min_drawdown': '#1ABC9C'
     };
 
     if (chartData.max_sharpe) {
@@ -252,7 +286,27 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
             itemStyle: { color: markerColors.highest_return }
         });
     }
+    if (chartData.max_sortino) {
+        series.push({
+            name: chartData.max_sortino.name,
+            type: 'scatter',
+            symbolSize: 14,
+            data: [[chartData.max_sortino.volatility, chartData.max_sortino['return'], chartData.max_sortino.sharpe_ratio]],
+            itemStyle: { color: markerColors.max_sortino }
+        });
+    }
+    if (chartData.min_drawdown) {
+        series.push({
+            name: chartData.min_drawdown.name,
+            type: 'scatter',
+            symbolSize: 14,
+            data: [[chartData.min_drawdown.volatility, chartData.min_drawdown['return'], chartData.min_drawdown.sharpe_ratio]],
+            itemStyle: { color: markerColors.min_drawdown }
+        });
+    }
 
+    // Pass annualized flag for axis labels.
+    var isAnnualized = {{if .Annualized}}true{{else}}false{{end}};
     var option = {
         title: {
             text: 'Efficient Frontier',
@@ -272,6 +326,20 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
                 return params.seriesName;
             }
         },
+        xAxis: {
+            name: 'Volatility (%)' + (isAnnualized ? ' (annualized)' : ''),
+            nameLocation: 'middle',
+            nameGap: 30,
+            type: 'value',
+            splitLine: { lineStyle: { type: 'dashed' } }
+        },
+        yAxis: {
+            name: 'Return (%)' + (isAnnualized ? ' (annualized)' : ''),
+            nameLocation: 'middle',
+            nameGap: 35,
+            type: 'value',
+            splitLine: { lineStyle: { type: 'dashed' } }
+        },
         legend: {
             data: series.map(function(s) { return s.name; }),
             top: 30
@@ -281,20 +349,6 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
             right: '10%',
             bottom: '15%',
             top: '80px'
-        },
-        xAxis: {
-            name: 'Volatility (%) — period, not annualized',
-            nameLocation: 'middle',
-            nameGap: 30,
-            type: 'value',
-            splitLine: { lineStyle: { type: 'dashed' } }
-        },
-        yAxis: {
-            name: 'Return (%) — period, not annualized',
-            nameLocation: 'middle',
-            nameGap: 35,
-            type: 'value',
-            splitLine: { lineStyle: { type: 'dashed' } }
         },
         series: series
     };
@@ -320,6 +374,7 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
 
             if (keyPortfolio) {
                 showAllocation(keyPortfolio.weights, keyPortfolio.name, symbols, expectedReturns);
+                showPortfolioMetrics(keyPortfolio.sortino_ratio || 0, keyPortfolio.max_drawdown_pct || 0);
             } else {
                 // Find nearest frontier point by distance
                 var minDist = Infinity;
@@ -333,6 +388,7 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
                 }
                 var nearest = frontierPoints[nearestIdx];
                 showAllocation(nearest.weights, 'Frontier Point (Return: ' + nearest['return'].toFixed(2) + '%, Vol: ' + nearest.volatility.toFixed(2) + '%)', symbols, expectedReturns);
+                showPortfolioMetrics(nearest.sortino_ratio || 0, nearest.max_drawdown_pct || 0);
             }
         }
     });
@@ -340,11 +396,93 @@ var _frontierChartData = {{.FrontierChartData | safeJS}};
     // Handle window resize
     window.addEventListener('resize', function() {
         frontierChart.resize();
+        corrChart.resize();
     });
+
+    // === Correlation Heatmap ===
+    var corrEl = document.getElementById('correlation-chart');
+    if (corrEl && chartData.correlation_matrix && chartData.symbols) {
+        var corrChart = echarts.init(corrEl);
+        var symbols = chartData.symbols;
+        var corrMatrix = chartData.correlation_matrix;
+        var n = symbols.length;
+
+        // Build heatmap data: [x, y, value]
+        var heatmapData = [];
+        for (var i = 0; i < n; i++) {
+            for (var j = 0; j < n; j++) {
+                heatmapData.push([j, i, corrMatrix[i][j]]);
+            }
+        }
+
+        var corrOption = {
+            title: {
+                text: 'Correlation Matrix',
+                left: 'center',
+                textStyle: { fontSize: 14 }
+            },
+            tooltip: {
+                position: 'top',
+                formatter: function(params) {
+                    return symbols[params.value[1]] + ' / ' + symbols[params.value[0]] + '<br/>' +
+                        'Correlation: ' + params.value[2].toFixed(3);
+                }
+            },
+            grid: {
+                left: '18%',
+                right: '10%',
+                bottom: '15%',
+                top: '60px'
+            },
+            xAxis: {
+                type: 'category',
+                data: symbols,
+                position: 'bottom',
+                axisLabel: {
+                    rotate: 30,
+                    fontSize: 11
+                }
+            },
+            yAxis: {
+                type: 'category',
+                data: symbols,
+                axisLabel: { fontSize: 11 }
+            },
+            visualMap: {
+                min: -1,
+                max: 1,
+                calculable: true,
+                orient: 'horizontal',
+                left: 'center',
+                bottom: '5%',
+                inRange: {
+                    color: ['#2563eb', '#ffffff', '#dc2626']
+                },
+                textStyle: { fontSize: 10 }
+            },
+            series: [{
+                type: 'heatmap',
+                data: heatmapData,
+                label: {
+                    show: true,
+                    fontSize: 10,
+                    formatter: function(params) {
+                        return params.value[2].toFixed(2);
+                    }
+                },
+                emphasis: {
+                    itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' }
+                }
+            }]
+        };
+
+        corrChart.setOption(corrOption);
+    }
 
     // Initialize with default portfolio (Max Sharpe)
     if (keyPortfolios['max-sharpe']) {
         showAllocation(keyPortfolios['max-sharpe'].weights, keyPortfolios['max-sharpe'].name, symbols, expectedReturns);
+        showPortfolioMetrics(keyPortfolios['max-sharpe'].sortino_ratio || 0, keyPortfolios['max-sharpe'].max_drawdown_pct || 0);
     }
 })();
 
@@ -371,6 +509,15 @@ function showAllocation(weights, name, symbols, expectedReturns) {
     updateSaveFields(weights, symbols);
 }
 
+function showPortfolioMetrics(sortino, maxDD) {
+    var metricsEl = document.getElementById('portfolio-metrics');
+    if (metricsEl) {
+        metricsEl.innerHTML =
+            '<span>Sortino: <strong>' + sortino.toFixed(2) + '</strong></span>' +
+            '<span>Max Drawdown: <strong>' + maxDD.toFixed(2) + '%</strong></span>';
+    }
+}
+
 function showAllocationInfo(point, name) {
     var label = document.getElementById('selected-portfolio-label');
     label.textContent = 'Showing: ' + name + ' (Return: ' + point[1].toFixed(2) + '%, Vol: ' + point[0].toFixed(2) + '%)';
@@ -394,9 +541,12 @@ function selectPortfolio(key) {
     if (key === 'max-sharpe') kp = chartData.max_sharpe;
     else if (key === 'min-variance') kp = chartData.min_variance;
     else if (key === 'highest-return') kp = chartData.highest_return;
+    else if (key === 'max-sortino') kp = chartData.max_sortino;
+    else if (key === 'min-drawdown') kp = chartData.min_drawdown;
 
     if (kp) {
         showAllocation(kp.weights, kp.name, symbols, expectedReturns);
+        showPortfolioMetrics(kp.sortino_ratio || 0, kp.max_drawdown_pct || 0);
     }
 }
 
