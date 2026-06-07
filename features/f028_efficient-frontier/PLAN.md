@@ -25,6 +25,7 @@ Task 7 (nav + docs) — after all above
 **Description:** Create `internal/domain/efficientfrontier/` with the pure-Go optimization engine. This package has no dependencies on databases, HTTP, or external services — it operates on `[]float64` slices and produces typed results.
 
 - [x] Define types: `FrontierRequest`, `FrontierResult`, `FrontierPoint`, `OptimizedPortfolio` (with `Symbol`, `Weight` as fraction 0.0–1.0), `FrontierError`
+- [x] Add `CorrelationMatrix` (N×N Pearson), `SortinoRatio`, `MaxDrawdownPct` to `FrontierResult`, `FrontierPoint`, `OptimizedPortfolio`
 - [x] Implement `ComputeReturns(prices []market.HistoricalPrice) ([]float64, error)` — daily log returns from close prices
 - [x] Implement `ComputeAnnualizedReturn(returns []float64, tradingDays int) float64`
 - [x] Implement `ComputeAnnualizedVolatility(returns []float64, tradingDays int) float64`
@@ -32,12 +33,14 @@ Task 7 (nav + docs) — after all above
 - [x] Implement `ComputeMinVariance(covMatrix [][]float64, n int) ([]float64, error)` — analytical global minimum variance portfolio via `w = Σ⁻¹·1 / (1'·Σ⁻¹·1)`; falls back to nil on singular matrix
 - [x] Implement `ComputeFrontier(request FrontierRequest) (*FrontierResult, error)` — the main entry point:
   - Compute expected returns and covariance from aligned price data
+  - Compute correlation matrix (N×N Pearson) from covariance matrix
   - Analytical min-variance portfolio (exact anchor point via matrix inversion)
   - Grid search: sample ~2000 random portfolios on the simplex (Dirichlet distribution)
-  - Evaluate each: portfolio return = w'μ, portfolio volatility = sqrt(w'Σw)
+  - Evaluate each: portfolio return = w'μ, portfolio volatility = sqrt(w'Σw), Sortino ratio
   - Filter to Pareto frontier (efficient points only); merge analytical min-variance point
-  - Identify max Sharpe ratio portfolio from combined set
-  - Return frontier points (20–30 sampled from the efficient set) + key portfolios
+  - Identify max Sharpe ratio, max Sortino ratio portfolios from combined set
+  - Compute max drawdown for final frontier points + key portfolios (expensive, so only for final set)
+  - Return frontier points (20–30 sampled from the efficient set) + key portfolios (Max Sharpe, Min Variance, Highest Return, Max Sortino, Min Drawdown)
   - Cap candidate symbols at 10; reject with error if more than 10 provided
 - [x] Handle edge cases: singular covariance matrix, insufficient data, single symbol
 - [x] Write unit tests: `types_test.go`, `returns_test.go`, `covariance_test.go`, `minvariance_test.go`, `frontier_test.go` (table-driven, no DB, no network)
@@ -113,9 +116,10 @@ Task 7 (nav + docs) — after all above
   - Period selector buttons (1Y, 3Y, 5Y)
   - Risk-free rate input field (default: 4.5%)
   - Compute button
-  - Key portfolio summary cards (Max Sharpe, Min Variance, Highest Return)
+  - Key portfolio summary table (Max Sharpe, Min Variance, Highest Return, Max Sortino, Min Drawdown) with Return, Volatility, Sharpe, Sortino, Max Drawdown columns
   - ECharts scatter plot: x-axis = volatility (%), y-axis = return (%), frontier curve + key portfolio markers
-  - Click handler on chart points → show allocation weights table
+  - Correlation matrix heatmap (ECharts heatmap, blue-white-red scale)
+  - Click handler on chart points → show allocation weights table + Sortino/max drawdown metrics
   - Allocation weights table (symbol, weight %)
   - Warning/error display area
   - "Save as Model Portfolio" form (name input + save button, hidden weight fields)
@@ -201,7 +205,8 @@ Task 7 (nav + docs) — after all above
 | **Package location** | `internal/domain/efficientfrontier/` | Matches existing domain package pattern (analysis, comparison, modelportfolio). Self-contained with engine + service + types. |
 | **Service interfaces** | Define new interfaces in efficientfrontier package | Follows `analysis.Service` pattern: service defines what it needs via interfaces, concrete implementations wired in `router.go`. Keeps package boundaries clean. |
 | **Currency handling** | Convert to base currency using cached FX rates; warn if missing | Spec requires handling multi-currency symbols. Reuses existing FX infrastructure from `marketservice`. Warns rather than fails if FX data unavailable. |
-| **Frontier point count** | 20–30 points on the efficient curve | Enough for smooth chart rendering without overwhelming the user. Max Sharpe + min variance always included. |
+| **Frontier point count** | 20–30 points on the efficient curve | Enough for smooth chart rendering without overwhelming the user. All 5 key portfolios (Max Sharpe, Min Variance, Highest Return, Max Sortino, Min Drawdown) always included. |
+| **Additional metrics** | Correlation matrix, Sortino ratio, Max drawdown | Correlation matrix from covariance (cheap). Sortino uses downside deviation (computed for all 2000 candidates). Max drawdown from aligned daily returns (expensive, so only computed for final 25-30 frontier points + 5 key portfolios). |
 | **Default risk-free rate** | 4.5% (configurable) | Approximate current US Treasury yield. User can override. Stored as a constant with comment noting it should be updated periodically. |
 | **Data sufficiency threshold** | Minimum 60 trading days (~3 months) | Enough for meaningful return/volatility estimates. Below this, results are unreliable. Spec notes "very short time period" edge case. |
 | **Chart library** | ECharts scatter series | Consistent with existing analytics pages (analysis, comparison). Supports click callbacks for showing allocation weights. |
