@@ -106,6 +106,9 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		return nil, ErrInsufficientData
 	}
 
+	// Compute correlation matrix from covariance matrix.
+	corrMatrix := ComputeCorrelationMatrix(covMatrix, n)
+
 	// Compute expected annualized returns (μ) for each symbol.
 	// stats.AnnualizedReturn returns a ratio (e.g. 0.15 = 15%).
 	expectedReturns := make([]float64, n)
@@ -119,6 +122,9 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		}
 		expectedReturns[i] = stats.AnnualizedReturn(alignedRet)
 	}
+
+	// Align daily returns for Sortino and max drawdown computation.
+	alignedReturns := alignReturnsBySymbol(request.Prices, symbols)
 
 	// Analytical minimum variance portfolio.
 	minVarWeights := ComputeMinVariance(covMatrix, n)
@@ -140,11 +146,13 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		}
 		// All inputs are annualized ratios; risk-free rate is already a ratio (e.g. 0.045).
 		sharpe := stats.SharpeRatio(ret, vol, request.RiskFreeRate)
+		sortino := ComputePortfolioSortino(ret, alignedReturns, w, request.RiskFreeRate)
 		evaluated = append(evaluated, portfolioEval{
 			weights:    w,
 			return_:    ret,
 			volatility: vol,
 			sharpe:     sharpe,
+			sortino:    sortino,
 		})
 	}
 
@@ -155,7 +163,10 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	// Add analytical min-variance portfolio to evaluated set.
 	if minVarWeights != nil && minVarVol > 0 {
 		sharpe := stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)
-		evaluated = append(evaluated, portfolioEval{minVarWeights, minVarReturn, minVarVol, sharpe})
+		sortino := ComputePortfolioSortino(minVarReturn, alignedReturns, minVarWeights, request.RiskFreeRate)
+		evaluated = append(evaluated, portfolioEval{
+			weights: minVarWeights, return_: minVarReturn, volatility: minVarVol, sharpe: sharpe, sortino: sortino,
+		})
 	}
 
 	// Filter to Pareto frontier (efficient points).
@@ -174,6 +185,11 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	// Sample frontier points (uniformly by volatility range).
 	frontierPoints := sampleFrontierPoints(efficient, frontierSampleSize)
 
+	// Compute max drawdown for frontier points (expensive, so only for final set).
+	for i := range frontierPoints {
+		frontierPoints[i].maxDrawdownPct = ComputePortfolioMaxDrawdown(alignedReturns, frontierPoints[i].weights)
+	}
+
 	// Find max Sharpe ratio portfolio.
 	maxSharpeIdx := 0
 	for i, p := range evaluated {
@@ -182,6 +198,19 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		}
 	}
 	best := evaluated[maxSharpeIdx]
+	// Compute max drawdown for max Sharpe portfolio.
+	best.maxDrawdownPct = ComputePortfolioMaxDrawdown(alignedReturns, best.weights)
+
+	// Find max Sortino ratio portfolio.
+	maxSortinoIdx := 0
+	for i, p := range evaluated {
+		if p.sortino > evaluated[maxSortinoIdx].sortino {
+			maxSortinoIdx = i
+		}
+	}
+	bestSortino := evaluated[maxSortinoIdx]
+	// Compute max drawdown for max Sortino portfolio.
+	bestSortino.maxDrawdownPct = ComputePortfolioMaxDrawdown(alignedReturns, bestSortino.weights)
 
 	// Find highest return on efficient frontier.
 	highestRetIdx := len(efficient) - 1 // last in sorted-by-vol order has highest return
@@ -199,48 +228,104 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		expectedReturnsPct[i] = roundTo2(r*retScale*100)
 	}
 
+	// Round correlation matrix to 4 decimal places.
+	corrMatrixRounded := make([][]float64, n)
+	for i := 0; i < n; i++ {
+		corrMatrixRounded[i] = make([]float64, n)
+		for j := 0; j < n; j++ {
+			corrMatrixRounded[i][j] = roundTo4(corrMatrix[i][j])
+		}
+	}
+
 	result := &FrontierResult{
-		FrontierPoints:   make([]FrontierPoint, len(frontierPoints)),
-		Symbols:          symbols,
-		ExpectedReturns:  expectedReturnsPct,
-		TradingDays:      tradingDays,
-		ComputedAt:       time.Now().UTC(),
+		FrontierPoints:    make([]FrontierPoint, len(frontierPoints)),
+		Symbols:           symbols,
+		ExpectedReturns:   expectedReturnsPct,
+		CorrelationMatrix: corrMatrixRounded,
+		TradingDays:       tradingDays,
+		ComputedAt:        time.Now().UTC(),
 	}
 
 	for i, p := range frontierPoints {
 		result.FrontierPoints[i] = FrontierPoint{
-			ReturnPct:     roundTo2(p.return_*retScale*100),
-			VolatilityPct: roundTo2(p.volatility*volScale*100),
-			SharpeRatio:   roundTo4(p.sharpe),
-			Weights:       roundWeights(p.weights),
+			ReturnPct:      roundTo2(p.return_*retScale*100),
+			VolatilityPct:  roundTo2(p.volatility*volScale*100),
+			SharpeRatio:    roundTo4(p.sharpe),
+			SortinoRatio:   roundTo4(p.sortino),
+			MaxDrawdownPct: roundTo2(p.maxDrawdownPct * 100),
+			Weights:        roundWeights(p.weights),
 		}
 	}
 
+	// Compute max drawdown for min variance and highest return portfolios.
+	var minVarSortino, minVarDD float64
+	if minVarWeights != nil && minVarVol > 0 {
+		minVarSortino = ComputePortfolioSortino(minVarReturn, alignedReturns, minVarWeights, request.RiskFreeRate)
+		minVarDD = ComputePortfolioMaxDrawdown(alignedReturns, minVarWeights)
+	}
+	highest := efficient[highestRetIdx]
+	highestDD := ComputePortfolioMaxDrawdown(alignedReturns, highest.weights)
+
 	if minVarWeights != nil && minVarVol > 0 {
 		result.MinVariance = &OptimizedPortfolio{
-			Name:          "Min Variance",
-			ReturnPct:     roundTo2(minVarReturn*retScale*100),
-			VolatilityPct: roundTo2(minVarVol*volScale*100),
-			SharpeRatio:   roundTo4(stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)),
-			Weights:       roundWeights(minVarWeights),
+			Name:           "Min Variance",
+			ReturnPct:      roundTo2(minVarReturn*retScale*100),
+			VolatilityPct:  roundTo2(minVarVol*volScale*100),
+			SharpeRatio:    roundTo4(stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)),
+			SortinoRatio:   roundTo4(minVarSortino),
+			MaxDrawdownPct: roundTo2(minVarDD*100),
+			Weights:        roundWeights(minVarWeights),
 		}
 	}
 
 	result.MaxSharpe = &OptimizedPortfolio{
-		Name:          "Max Sharpe",
-		ReturnPct:     roundTo2(best.return_*retScale*100),
-		VolatilityPct: roundTo2(best.volatility*volScale*100),
-		SharpeRatio:   roundTo4(best.sharpe),
-		Weights:       roundWeights(best.weights),
+		Name:           "Max Sharpe",
+		ReturnPct:      roundTo2(best.return_*retScale*100),
+		VolatilityPct:  roundTo2(best.volatility*volScale*100),
+		SharpeRatio:    roundTo4(best.sharpe),
+		SortinoRatio:   roundTo4(best.sortino),
+		MaxDrawdownPct: roundTo2(best.maxDrawdownPct*100),
+		Weights:        roundWeights(best.weights),
 	}
 
-	highest := efficient[highestRetIdx]
 	result.HighestReturn = &OptimizedPortfolio{
-		Name:          "Highest Return",
-		ReturnPct:     roundTo2(highest.return_*retScale*100),
-		VolatilityPct: roundTo2(highest.volatility*volScale*100),
-		SharpeRatio:   roundTo4(highest.sharpe),
-		Weights:       roundWeights(highest.weights),
+		Name:           "Highest Return",
+		ReturnPct:      roundTo2(highest.return_*retScale*100),
+		VolatilityPct:  roundTo2(highest.volatility*volScale*100),
+		SharpeRatio:    roundTo4(highest.sharpe),
+		SortinoRatio:   roundTo4(highest.sortino),
+		MaxDrawdownPct: roundTo2(highestDD*100),
+		Weights:        roundWeights(highest.weights),
+	}
+
+	// Max Sortino portfolio.
+	result.MaxSortino = &OptimizedPortfolio{
+		Name:           "Max Sortino",
+		ReturnPct:      roundTo2(bestSortino.return_*retScale*100),
+		VolatilityPct:  roundTo2(bestSortino.volatility*volScale*100),
+		SharpeRatio:    roundTo4(bestSortino.sharpe),
+		SortinoRatio:   roundTo4(bestSortino.sortino),
+		MaxDrawdownPct: roundTo2(bestSortino.maxDrawdownPct*100),
+		Weights:        roundWeights(bestSortino.weights),
+	}
+
+	// Min drawdown portfolio (smallest max drawdown among frontier points).
+	minDDIdx := 0
+	for i, p := range frontierPoints {
+		// maxDrawdownPct is negative (e.g. -15.3), so "min drawdown" = closest to zero = largest value
+		if p.maxDrawdownPct > frontierPoints[minDDIdx].maxDrawdownPct {
+			minDDIdx = i
+		}
+	}
+	minDD := frontierPoints[minDDIdx]
+	result.MinDrawdown = &OptimizedPortfolio{
+		Name:           "Min Drawdown",
+		ReturnPct:      roundTo2(minDD.return_*retScale*100),
+		VolatilityPct:  roundTo2(minDD.volatility*volScale*100),
+		SharpeRatio:    roundTo4(minDD.sharpe),
+		SortinoRatio:   roundTo4(minDD.sortino),
+		MaxDrawdownPct: roundTo2(minDD.maxDrawdownPct * 100),
+		Weights:        roundWeights(minDD.weights),
 	}
 
 	return result, nil

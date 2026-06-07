@@ -95,6 +95,8 @@ type frontierPageData struct {
 	DisplayMaxSharpe     *displayPortfolio
 	DisplayMinVariance   *displayPortfolio
 	DisplayHighestReturn *displayPortfolio
+	DisplayMaxSortino    *displayPortfolio
+	DisplayMinDrawdown   *displayPortfolio
 	// LeastDataSymbol is the symbol with the fewest trading days in the result.
 	LeastDataSymbol string
 	// LeastDataDays is the trading day count of the symbol with least data.
@@ -107,10 +109,12 @@ type frontierPageData struct {
 
 // displayPortfolio holds annualized or period return/vol for template display.
 type displayPortfolio struct {
-	Name        string
-	ReturnPct   float64
-	VolatilityPct float64
-	SharpeRatio float64
+	Name           string
+	ReturnPct      float64
+	VolatilityPct  float64
+	SharpeRatio    float64
+	SortinoRatio   float64
+	MaxDrawdownPct float64
 }
 
 // HandleEfficientFrontier renders GET /efficient-frontier.
@@ -254,26 +258,52 @@ func populateDisplayPortfolios(data *frontierPageData, result *efficientfrontier
 	}
 	if result.MaxSharpe != nil {
 		data.DisplayMaxSharpe = &displayPortfolio{
-			Name:          result.MaxSharpe.Name,
-			ReturnPct:     result.MaxSharpe.ReturnPct * retFactor,
-			VolatilityPct: result.MaxSharpe.VolatilityPct * volFactor,
-			SharpeRatio:   result.MaxSharpe.SharpeRatio,
+			Name:           result.MaxSharpe.Name,
+			ReturnPct:      result.MaxSharpe.ReturnPct * retFactor,
+			VolatilityPct:  result.MaxSharpe.VolatilityPct * volFactor,
+			SharpeRatio:    result.MaxSharpe.SharpeRatio,
+			SortinoRatio:   result.MaxSharpe.SortinoRatio,
+			MaxDrawdownPct: result.MaxSharpe.MaxDrawdownPct,
 		}
 	}
 	if result.MinVariance != nil {
 		data.DisplayMinVariance = &displayPortfolio{
-			Name:          result.MinVariance.Name,
-			ReturnPct:     result.MinVariance.ReturnPct * retFactor,
-			VolatilityPct: result.MinVariance.VolatilityPct * volFactor,
-			SharpeRatio:   result.MinVariance.SharpeRatio,
+			Name:           result.MinVariance.Name,
+			ReturnPct:      result.MinVariance.ReturnPct * retFactor,
+			VolatilityPct:  result.MinVariance.VolatilityPct * volFactor,
+			SharpeRatio:    result.MinVariance.SharpeRatio,
+			SortinoRatio:   result.MinVariance.SortinoRatio,
+			MaxDrawdownPct: result.MinVariance.MaxDrawdownPct,
 		}
 	}
 	if result.HighestReturn != nil {
 		data.DisplayHighestReturn = &displayPortfolio{
-			Name:          result.HighestReturn.Name,
-			ReturnPct:     result.HighestReturn.ReturnPct * retFactor,
-			VolatilityPct: result.HighestReturn.VolatilityPct * volFactor,
-			SharpeRatio:   result.HighestReturn.SharpeRatio,
+			Name:           result.HighestReturn.Name,
+			ReturnPct:      result.HighestReturn.ReturnPct * retFactor,
+			VolatilityPct:  result.HighestReturn.VolatilityPct * volFactor,
+			SharpeRatio:    result.HighestReturn.SharpeRatio,
+			SortinoRatio:   result.HighestReturn.SortinoRatio,
+			MaxDrawdownPct: result.HighestReturn.MaxDrawdownPct,
+		}
+	}
+	if result.MaxSortino != nil {
+		data.DisplayMaxSortino = &displayPortfolio{
+			Name:           result.MaxSortino.Name,
+			ReturnPct:      result.MaxSortino.ReturnPct * retFactor,
+			VolatilityPct:  result.MaxSortino.VolatilityPct * volFactor,
+			SharpeRatio:    result.MaxSortino.SharpeRatio,
+			SortinoRatio:   result.MaxSortino.SortinoRatio,
+			MaxDrawdownPct: result.MaxSortino.MaxDrawdownPct,
+		}
+	}
+	if result.MinDrawdown != nil {
+		data.DisplayMinDrawdown = &displayPortfolio{
+			Name:           result.MinDrawdown.Name,
+			ReturnPct:      result.MinDrawdown.ReturnPct * retFactor,
+			VolatilityPct:  result.MinDrawdown.VolatilityPct * volFactor,
+			SharpeRatio:    result.MinDrawdown.SharpeRatio,
+			SortinoRatio:   result.MinDrawdown.SortinoRatio,
+			MaxDrawdownPct: result.MinDrawdown.MaxDrawdownPct,
 		}
 	}
 }
@@ -465,10 +495,12 @@ func (h *EfficientFrontierWebHandler) fetchCandidateSymbols(ctx context.Context)
 
 // frontierPointData is a single frontier point with weights for click interaction.
 type frontierPointData struct {
-	Volatility  float64   `json:"volatility"`
-	Return      float64   `json:"return"`
-	SharpeRatio float64   `json:"sharpe_ratio"`
-	Weights     []float64 `json:"weights"`
+	Volatility     float64   `json:"volatility"`
+	Return         float64   `json:"return"`
+	SharpeRatio    float64   `json:"sharpe_ratio"`
+	SortinoRatio   float64   `json:"sortino_ratio"`
+	MaxDrawdownPct float64   `json:"max_drawdown_pct"`
+	Weights        []float64 `json:"weights"`
 }
 
 // frontierChartData holds JSON data for the ECharts scatter plot.
@@ -479,21 +511,27 @@ type frontierChartData struct {
 	MaxSharpe     *frontierKeyPortfolio `json:"max_sharpe,omitempty"`
 	MinVariance   *frontierKeyPortfolio `json:"min_variance,omitempty"`
 	HighestReturn *frontierKeyPortfolio `json:"highest_return,omitempty"`
+	MaxSortino    *frontierKeyPortfolio `json:"max_sortino,omitempty"`
+	MinDrawdown   *frontierKeyPortfolio `json:"min_drawdown,omitempty"`
 	// Symbol names for allocation weight display.
 	Symbols []string `json:"symbols"`
 	// Expected returns per symbol as percentages (e.g. 15.0 = 15%).
 	ExpectedReturns []float64 `json:"expected_returns,omitempty"`
+	// CorrelationMatrix is the N×N correlation matrix for the heatmap.
+	CorrelationMatrix [][]float64 `json:"correlation_matrix,omitempty"`
 	// TradingDays is the number of trading days the data covers.
 	TradingDays int `json:"trading_days"`
 }
 
 // frontierKeyPortfolio is a key portfolio point for the chart.
 type frontierKeyPortfolio struct {
-	Name        string    `json:"name"`
-	Volatility  float64   `json:"volatility"`
-	Return      float64   `json:"return"`
-	SharpeRatio float64   `json:"sharpe_ratio"`
-	Weights     []float64 `json:"weights"`
+	Name           string    `json:"name"`
+	Volatility     float64   `json:"volatility"`
+	Return         float64   `json:"return"`
+	SharpeRatio    float64   `json:"sharpe_ratio"`
+	SortinoRatio   float64   `json:"sortino_ratio"`
+	MaxDrawdownPct float64   `json:"max_drawdown_pct"`
+	Weights        []float64 `json:"weights"`
 }
 
 // serializeFrontierChartData converts the frontier result to JSON for ECharts.
@@ -514,10 +552,12 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult, annual
 	points := make([]frontierPointData, 0, len(result.FrontierPoints))
 	for _, pt := range result.FrontierPoints {
 		points = append(points, frontierPointData{
-			Volatility:  pt.VolatilityPct * volFactor,
-			Return:      pt.ReturnPct * retFactor,
-			SharpeRatio: pt.SharpeRatio,
-			Weights:     pt.Weights,
+			Volatility:     pt.VolatilityPct * volFactor,
+			Return:         pt.ReturnPct * retFactor,
+			SharpeRatio:    pt.SharpeRatio,
+			SortinoRatio:   pt.SortinoRatio,
+			MaxDrawdownPct: pt.MaxDrawdownPct,
+			Weights:        pt.Weights,
 		})
 	}
 
@@ -527,37 +567,66 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult, annual
 	}
 
 	data := frontierChartData{
-		FrontierPoints:    points,
-		Symbols:           result.Symbols,
-		ExpectedReturns:   expectedReturns,
-		TradingDays:       result.TradingDays,
+		FrontierPoints:      points,
+		Symbols:             result.Symbols,
+		ExpectedReturns:     expectedReturns,
+		CorrelationMatrix:   result.CorrelationMatrix,
+		TradingDays:         result.TradingDays,
 	}
 
 	if result.MaxSharpe != nil {
 		data.MaxSharpe = &frontierKeyPortfolio{
-			Name:        result.MaxSharpe.Name,
-			Volatility:  result.MaxSharpe.VolatilityPct * volFactor,
-			Return:      result.MaxSharpe.ReturnPct * retFactor,
-			SharpeRatio: result.MaxSharpe.SharpeRatio,
-			Weights:     result.MaxSharpe.Weights,
+			Name:           result.MaxSharpe.Name,
+			Volatility:     result.MaxSharpe.VolatilityPct * volFactor,
+			Return:         result.MaxSharpe.ReturnPct * retFactor,
+			SharpeRatio:    result.MaxSharpe.SharpeRatio,
+			SortinoRatio:   result.MaxSharpe.SortinoRatio,
+			MaxDrawdownPct: result.MaxSharpe.MaxDrawdownPct,
+			Weights:        result.MaxSharpe.Weights,
 		}
 	}
 	if result.MinVariance != nil {
 		data.MinVariance = &frontierKeyPortfolio{
-			Name:        result.MinVariance.Name,
-			Volatility:  result.MinVariance.VolatilityPct * volFactor,
-			Return:      result.MinVariance.ReturnPct * retFactor,
-			SharpeRatio: result.MinVariance.SharpeRatio,
-			Weights:     result.MinVariance.Weights,
+			Name:           result.MinVariance.Name,
+			Volatility:     result.MinVariance.VolatilityPct * volFactor,
+			Return:         result.MinVariance.ReturnPct * retFactor,
+			SharpeRatio:    result.MinVariance.SharpeRatio,
+			SortinoRatio:   result.MinVariance.SortinoRatio,
+			MaxDrawdownPct: result.MinVariance.MaxDrawdownPct,
+			Weights:        result.MinVariance.Weights,
 		}
 	}
 	if result.HighestReturn != nil {
 		data.HighestReturn = &frontierKeyPortfolio{
-			Name:        result.HighestReturn.Name,
-			Volatility:  result.HighestReturn.VolatilityPct * volFactor,
-			Return:      result.HighestReturn.ReturnPct * retFactor,
-			SharpeRatio: result.HighestReturn.SharpeRatio,
-			Weights:     result.HighestReturn.Weights,
+			Name:           result.HighestReturn.Name,
+			Volatility:     result.HighestReturn.VolatilityPct * volFactor,
+			Return:         result.HighestReturn.ReturnPct * retFactor,
+			SharpeRatio:    result.HighestReturn.SharpeRatio,
+			SortinoRatio:   result.HighestReturn.SortinoRatio,
+			MaxDrawdownPct: result.HighestReturn.MaxDrawdownPct,
+			Weights:        result.HighestReturn.Weights,
+		}
+	}
+	if result.MaxSortino != nil {
+		data.MaxSortino = &frontierKeyPortfolio{
+			Name:           result.MaxSortino.Name,
+			Volatility:     result.MaxSortino.VolatilityPct * volFactor,
+			Return:         result.MaxSortino.ReturnPct * retFactor,
+			SharpeRatio:    result.MaxSortino.SharpeRatio,
+			SortinoRatio:   result.MaxSortino.SortinoRatio,
+			MaxDrawdownPct: result.MaxSortino.MaxDrawdownPct,
+			Weights:        result.MaxSortino.Weights,
+		}
+	}
+	if result.MinDrawdown != nil {
+		data.MinDrawdown = &frontierKeyPortfolio{
+			Name:           result.MinDrawdown.Name,
+			Volatility:     result.MinDrawdown.VolatilityPct * volFactor,
+			Return:         result.MinDrawdown.ReturnPct * retFactor,
+			SharpeRatio:    result.MinDrawdown.SharpeRatio,
+			SortinoRatio:   result.MinDrawdown.SortinoRatio,
+			MaxDrawdownPct: result.MinDrawdown.MaxDrawdownPct,
+			Weights:        result.MinDrawdown.Weights,
 		}
 	}
 

@@ -33,6 +33,11 @@ type FrontierResult struct {
 	// HighestReturn is the portfolio with the highest expected return
 	// on the efficient frontier.
 	HighestReturn *OptimizedPortfolio `json:"highest_return,omitempty"`
+	// MaxSortino is the portfolio with the highest Sortino ratio.
+	MaxSortino *OptimizedPortfolio `json:"max_sortino,omitempty"`
+	// MinDrawdown is the portfolio with the smallest maximum drawdown
+	// (i.e. the least peak-to-trough decline).
+	MinDrawdown *OptimizedPortfolio `json:"min_drawdown,omitempty"`
 	// Symbols is the ordered list of symbols used in the computation.
 	// Weights in each portfolio are indexed by this slice.
 	Symbols []string `json:"symbols"`
@@ -40,6 +45,10 @@ type FrontierResult struct {
 	// for each symbol as a percentage (e.g. 12.4 = 12.4% over 60 trading days).
 	// Indexed by Symbols.
 	ExpectedReturns []float64 `json:"expected_returns,omitempty"`
+	// CorrelationMatrix is the N×N Pearson correlation matrix (row-major)
+	// between candidate symbols. Values are -1.0 to 1.0.
+	// Indexed by Symbols.
+	CorrelationMatrix [][]float64 `json:"correlation_matrix,omitempty"`
 	// TradingDays is the number of trading days the data covers.
 	TradingDays int `json:"trading_days"`
 	// ComputedAt is the time the frontier was computed.
@@ -58,6 +67,11 @@ type FrontierPoint struct {
 	VolatilityPct float64 `json:"volatility_pct"`
 	// SharpeRatio is the Sharpe ratio (return - riskFree) / volatility.
 	SharpeRatio float64 `json:"sharpe_ratio"`
+	// SortinoRatio is the Sortino ratio (return - riskFree) / downside deviation.
+	SortinoRatio float64 `json:"sortino_ratio"`
+	// MaxDrawdownPct is the maximum drawdown as a negative percentage
+	// (e.g. -15.3 = 15.3% peak-to-trough decline).
+	MaxDrawdownPct float64 `json:"max_drawdown_pct"`
 	// Weights are the portfolio weights as fractions (0.0-1.0), one per symbol.
 	Weights []float64 `json:"weights"`
 }
@@ -72,6 +86,11 @@ type OptimizedPortfolio struct {
 	VolatilityPct float64 `json:"volatility_pct"`
 	// SharpeRatio is the Sharpe ratio.
 	SharpeRatio float64 `json:"sharpe_ratio"`
+	// SortinoRatio is the Sortino ratio.
+	SortinoRatio float64 `json:"sortino_ratio"`
+	// MaxDrawdownPct is the maximum drawdown as a negative percentage
+	// (e.g. -15.3 = 15.3% peak-to-trough decline).
+	MaxDrawdownPct float64 `json:"max_drawdown_pct"`
 	// Weights are the portfolio weights as fractions (0.0-1.0), one per symbol.
 	Weights []float64 `json:"weights"`
 }
@@ -116,10 +135,12 @@ var ErrSingularMatrix = &FrontierError{
 // portfolioEval is an evaluated candidate portfolio used internally
 // during frontier computation.
 type portfolioEval struct {
-	weights    []float64
-	return_    float64
-	volatility float64
-	sharpe     float64
+	weights        []float64
+	return_        float64
+	volatility     float64
+	sharpe         float64
+	sortino        float64
+	maxDrawdownPct float64 // populated only for efficient/frontier points
 }
 
 // ErrNumericalFailure is returned when the optimization fails numerically.
