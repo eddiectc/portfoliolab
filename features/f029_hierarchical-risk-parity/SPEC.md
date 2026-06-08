@@ -59,9 +59,8 @@ This helps investors answer: "Given these assets, what does a hierarchical risk-
 ### Scenario: View allocation weights table
 **Given** the HRP allocations have been computed and displayed
 **When** I view the results
-**Then** I see a table listing each candidate symbol with four target weight columns (single, complete, average, Ward)
+**Then** I see a table listing each candidate symbol (ticker only) with four target weight columns (single, complete, average, Ward)
 **And** each column's weights sum to 100%
-**And** the table includes the symbol's name/description alongside the ticker
 
 ### Scenario: View clustering dendrograms
 **Given** the HRP allocations have been computed and displayed

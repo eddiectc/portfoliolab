@@ -552,3 +552,103 @@ func TestHandleHrp_ComputeErrorSpecific(t *testing.T) {
 		})
 	}
 }
+
+// --- Save Handler Tests ---
+
+// Test that the save handler creates a model portfolio and redirects.
+func TestHandleSaveAsModelPortfolio_Success(t *testing.T) {
+	mockSvc := &mockHrpService{symbols: []string{"SPY", "EFA"}}
+	handler := NewHrpHandler(mockSvc)
+	webHandler := NewHrpWebHandler(handler, nil, nil, newTestRenderer(t))
+	webHandler.WithModelPortfolioCreator(&mockModelPortfolioCreator{
+		createFn: func(_ context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
+			return modelportfolio.ModelPortfolio{
+				ID:    1,
+				Name:  req.Name,
+				Entries: req.Entries,
+			}, nil
+		},
+	})
+
+	r := chi.NewRouter()
+	webHandler.RegisterRoutes(r)
+
+	body := strings.NewReader("name=HRP Test&symbol=SPY&weight=0.6&symbol=EFA&weight=0.4")
+	req := httptest.NewRequest("POST", "/hrp/save", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("status = %d, want 303", w.Code)
+	}
+
+	location := w.Header().Get("Location")
+	if location != "/model-portfolios" {
+		t.Errorf("Location = %q, want /model-portfolios", location)
+	}
+}
+
+// Test that the save handler rejects empty allocation data.
+func TestHandleSaveAsModelPortfolio_NoData(t *testing.T) {
+	mockSvc := &mockHrpService{symbols: []string{"SPY"}}
+	handler := NewHrpHandler(mockSvc)
+	webHandler := NewHrpWebHandler(handler, nil, nil, newTestRenderer(t))
+
+	r := chi.NewRouter()
+	webHandler.RegisterRoutes(r)
+
+	body := strings.NewReader("name=HRP Test")
+	req := httptest.NewRequest("POST", "/hrp/save", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("status = %d, want 303", w.Code)
+	}
+
+	location := w.Header().Get("Location")
+	if location != "/hrp" {
+		t.Errorf("Location = %q, want /hrp", location)
+	}
+}
+
+// Test that the save handler uses default name when name is empty.
+func TestHandleSaveAsModelPortfolio_DefaultName(t *testing.T) {
+	var receivedName string
+	mockSvc := &mockHrpService{symbols: []string{"SPY"}}
+	handler := NewHrpHandler(mockSvc)
+	webHandler := NewHrpWebHandler(handler, nil, nil, newTestRenderer(t))
+	webHandler.WithModelPortfolioCreator(&mockModelPortfolioCreator{
+		createFn: func(_ context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
+			receivedName = req.Name
+			return modelportfolio.ModelPortfolio{ID: 1, Name: req.Name}, nil
+		},
+	})
+
+	r := chi.NewRouter()
+	webHandler.RegisterRoutes(r)
+
+	body := strings.NewReader("name=&symbol=SPY&weight=0.5")
+	req := httptest.NewRequest("POST", "/hrp/save", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if receivedName != "HRP Portfolio" {
+		t.Errorf("received name = %q, want HRP Portfolio", receivedName)
+	}
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("status = %d, want 303", w.Code)
+	}
+}
+
+// mockModelPortfolioCreator implements modelPortfolioCreator for tests.
+type mockModelPortfolioCreator struct {
+	createFn func(context.Context, modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error)
+}
+
+func (m *mockModelPortfolioCreator) Create(ctx context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
+	return m.createFn(ctx, req)
+}
