@@ -13,7 +13,7 @@
             <li><a href="/model-portfolios">Model Portfolios</a></li>
             <li><a href="/comparison">Comparison</a></li>
             <li class="nav-dropdown">
-                <span class="nav-dropdown-toggle">Optimization ▾</span>
+                <span class="nav-dropdown-toggle" onclick="toggleNavDropdown(this)">Optimization ▾</span>
                 <ul class="nav-dropdown-menu">
                     <li><a href="/efficient-frontier">Efficient Frontier</a></li>
                     <li><a href="/hrp">Hierarchical Risk Parity</a></li>
@@ -22,4 +22,18 @@
         </ul>
     </div>
 </nav>
+<script>
+function toggleNavDropdown(el) {
+    var parent = el.parentElement;
+    parent.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+    var dropdowns = document.querySelectorAll('.nav-dropdown');
+    for (var i = 0; i < dropdowns.length; i++) {
+        if (!dropdowns[i].contains(e.target)) {
+            dropdowns[i].classList.remove('open');
+        }
+    }
+});
+</script>
 {{end}}
