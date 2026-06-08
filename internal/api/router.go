@@ -19,6 +19,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/hierarchicalriskparity"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/blackrock"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dimensional"
@@ -303,6 +304,29 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		)
 		efficientFrontierWebHandler.WithModelPortfolioCreator(modelPortfolioSvc)
 		efficientFrontierWebHandler.RegisterRoutes(r)
+
+		// HRP service + API
+		hrpSvc := hierarchicalriskparity.NewService(
+			marketSvc,
+			marketDataSymbolResolver,
+			data.NewHrpSymbolLister(data.NewSymbolLister(symbolMappingRepo)),
+			data.NewHrpPortfolioSymbolSource(data.NewPortfolioSymbolSource(accountSvc, positionSvc)),
+			data.NewHrpModelPortfolioSource(data.NewModelPortfolioSource(modelPortfolioSvc)),
+			data.NewHrpFxRateSource(data.NewFxRateSource(marketSvc)),
+		)
+		hrpHandler := handlers.NewHrpHandler(hrpSvc)
+		hrpHandler.WithModelPortfolioCreator(modelPortfolioSvc)
+		hrpHandler.RegisterRoutes(r)
+
+		// HRP web pages
+		hrpWebHandler := handlers.NewHrpWebHandler(
+			hrpHandler,
+			portfolioSvc,
+			modelPortfolioSvc,
+			renderer,
+		)
+		hrpWebHandler.WithModelPortfolioCreator(modelPortfolioSvc)
+		hrpWebHandler.RegisterRoutes(r)
 
 		// Model Portfolio web pages
 		modelPortfolioWebHandler := handlers.NewModelPortfolioWebHandler(modelPortfolioSvc, symbolMappingSvc, renderer)

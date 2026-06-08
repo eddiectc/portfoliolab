@@ -227,12 +227,12 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** All scenarios (integration)
 **Description:** Wire HRP into the application router and add navigation link.
 
-- [ ] Add HRP service instantiation in `internal/api/router.go`
-- [ ] Add HRP handler registration in `internal/api/router.go`
-- [ ] Add HRP web handler registration in `internal/api/router.go`
-- [ ] Add "Hierarchical Risk Parity" link to `templates/partials/nav.html`
-- [ ] Verify the application builds cleanly (`go build ./...`)
-- [ ] Run full test suite (`go test ./...`)
+- [x] Add HRP service instantiation in `internal/api/router.go`
+- [x] Add HRP handler registration in `internal/api/router.go`
+- [x] Add HRP web handler registration in `internal/api/router.go`
+- [x] Add "Hierarchical Risk Parity" link to `templates/partials/nav.html`
+- [x] Verify the application builds cleanly (`go build ./...`)
+- [x] Run full test suite (`go test ./...`)
 
 **Verification:** `go build ./...` succeeds; `go test ./...` passes; nav link appears in rendered pages.
 
