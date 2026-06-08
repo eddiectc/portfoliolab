@@ -206,18 +206,18 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: View allocation weights table, Scenario: View clustering dendrograms, Scenario: Save an HRP allocation as a model portfolio, Scenario: Error — insufficient candidate symbols
 **Description:** Server-rendered HTML template with symbol input, period selector, weights table, four ECharts dendrograms, and save form.
 
-- [ ] Create `templates/hierarchical_risk_parity/index.html`
-- [ ] Symbol input with datalist autocomplete (same pattern as efficient frontier)
-- [ ] "Copy from" dropdown for real portfolios and model portfolios
-- [ ] Period buttons (1Y, 3Y, 5Y)
-- [ ] Currency selector (USD, EUR, GBP, JPY, CHF, CAD, AUD, CNY)
-- [ ] Compute button
-- [ ] Error/warning display sections
-- [ ] Weights table: rows = symbols, columns = four linkage methods (single, complete, average, Ward), weights as percentages
-- [ ] Four ECharts tree charts (dendrograms), one per linkage method
-- [ ] Save form: name input + hidden fields for selected allocation weights
-- [ ] JavaScript for: copy-from functionality, dendrogram rendering (ECharts tree chart), save form population
-- [ ] Follow efficient frontier template as reference for layout and conventions
+- [x] Create `templates/hierarchical_risk_parity/index.html`
+- [x] Symbol input with datalist autocomplete (same pattern as efficient frontier)
+- [x] "Copy from" dropdown for real portfolios and model portfolios
+- [x] Period buttons (1Y, 3Y, 5Y)
+- [x] Currency selector (USD, EUR, GBP, JPY, CHF, CAD, AUD, CNY)
+- [x] Compute button
+- [x] Error/warning display sections
+- [x] Weights table: rows = symbols, columns = four linkage methods (single, complete, average, Ward), weights as percentages
+- [x] Four ECharts tree charts (dendrograms), one per linkage method
+- [x] Save form: name input + hidden fields for selected allocation weights
+- [x] JavaScript for: copy-from functionality, dendrogram rendering (ECharts tree chart), save form population
+- [x] Follow efficient frontier template as reference for layout and conventions
 
 **Verification:** Page renders without errors; weights table displays four columns; dendrograms render with correct leaf labels.
 
