@@ -65,10 +65,10 @@ type computeHrpRequest struct {
 
 // computeHrpResponse is the JSON response for POST /api/hrp/compute.
 type computeHrpResponse struct {
-	Result          *hierarchicalriskparity.HrpResult             `json:"result"`
-	Warnings        []string                                      `json:"warnings,omitempty"`
-	ExcludedSymbols []string                                      `json:"excluded_symbols,omitempty"`
-	SymbolDataSpan  map[string]hierarchicalriskparity.DataSpan    `json:"symbol_data_span,omitempty"`
+	Result          *hierarchicalriskparity.HrpResult          `json:"result"`
+	Warnings        []string                                   `json:"warnings,omitempty"`
+	ExcludedSymbols []string                                   `json:"excluded_symbols,omitempty"`
+	SymbolDataSpan  map[string]hierarchicalriskparity.DataSpan `json:"symbol_data_span,omitempty"`
 }
 
 // HandleComputeHrp handles POST /api/hrp/compute.

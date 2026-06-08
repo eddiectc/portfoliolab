@@ -977,6 +977,161 @@ Saves an optimized allocation from the frontier as a model portfolio.
 
 ---
 
+## Hierarchical Risk Parity
+
+Portfolio optimization via the Hierarchical Risk Parity (HRP) method. Select candidate symbols and a historical period, and the system computes four HRP allocations (one per linkage method: single, complete, average, Ward) using hierarchical clustering and recursive bisection. Results include four target allocation weight columns and four clustering dendrograms.
+
+### Compute HRP
+
+```
+POST /api/hrp/compute
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `symbols` | string[] | yes | Candidate symbols (2–20) |
+| `period` | string | no | Lookback period: `1Y`, `3Y`, `5Y` (default: `3Y`) |
+| `base_currency` | string | no | Base currency for multi-currency symbols (e.g. `USD`, `EUR`) |
+
+**Response:** `200 OK` — `ComputeHrpResponse`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `INVALID_REQUEST` | 400 | Malformed request body |
+| `INSUFFICIENT_SYMBOLS` | 400 | Fewer than 2 symbols provided |
+| `TOO_MANY_SYMBOLS` | 400 | More than 20 symbols provided |
+| `INVALID_PERIOD` | 400 | Period not one of `1Y`, `3Y`, `5Y` |
+| `INSUFFICIENT_DATA` | 400 | Insufficient price data for computation |
+| `NUMERICAL_FAILURE` | 400 | Numerical computation failed |
+| `INTERNAL_ERROR` | 500 | Unexpected computation error |
+
+### Get Candidate Symbols
+
+```
+GET /api/hrp/symbols
+```
+
+Returns all known internal symbols for autocomplete.
+
+**Response:** `200 OK` — `{"symbols": ["AAPL", "MSFT", ...]}`
+
+### Get Portfolio Symbols
+
+```
+GET /api/hrp/portfolio/{id}/symbols
+```
+
+Returns the distinct symbols held in a real portfolio.
+
+**Response:** `200 OK` — `{"symbols": ["AAPL", "MSFT", ...]}`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `INVALID_ID` | 400 | Invalid portfolio ID |
+| `INTERNAL_ERROR` | 500 | Failed to retrieve symbols |
+
+### Get Model Portfolio Symbols
+
+```
+GET /api/hrp/model-portfolio/{id}/symbols
+```
+
+Returns the symbols in a model portfolio.
+
+**Response:** `200 OK` — `{"symbols": ["AAPL", "BND", ...]}`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `INVALID_ID` | 400 | Invalid model portfolio ID |
+| `INTERNAL_ERROR` | 500 | Failed to retrieve symbols |
+
+### Save as Model Portfolio
+
+```
+POST /api/hrp/save
+```
+
+Saves an HRP allocation as a model portfolio.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Model portfolio name |
+| `entries` | array | yes | Array of `{symbol, weight}` entries |
+
+**Entries fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `symbol` | string | yes | Symbol |
+| `weight` | number | yes | Weight as fraction (0.0–1.0) |
+
+**Response:** `201 Created` — `ModelPortfolio`
+
+**Errors:**
+
+| Code | Status | Description |
+|---|---|---|
+| `NOT_CONFIGURED` | 500 | Model portfolio creator not configured |
+| `INVALID_REQUEST` | 400 | Malformed request body |
+| `INVALID_NAME` | 400 | Name is empty |
+| `EMPTY_ENTRIES` | 400 | No entries provided |
+| `NAME_EXISTS` | 409 | Name already exists |
+| `WEIGHT_SUM_NOT_100` | 400 | Weights don't sum to 100% |
+| `INVALID_WEIGHT` | 400 | Invalid weight value |
+| `DUPLICATE_SYMBOL` | 400 | Duplicate symbol in entries |
+
+### ComputeHrpResponse
+
+```json
+{
+  "result": {
+    "allocations": [
+      {
+        "method": "single",
+        "weights": {"AAPL": 0.40, "MSFT": 0.60},
+        "dendrogram": {"name": "root", "children": [...], "distance": 1.2}
+      },
+      {
+        "method": "complete",
+        "weights": {"AAPL": 0.50, "MSFT": 0.50},
+        "dendrogram": {"name": "root", "children": [...], "distance": 1.5}
+      },
+      {
+        "method": "average",
+        "weights": {"AAPL": 0.45, "MSFT": 0.55},
+        "dendrogram": {"name": "root", "children": [...], "distance": 1.3}
+      },
+      {
+        "method": "ward",
+        "weights": {"AAPL": 0.52, "MSFT": 0.48},
+        "dendrogram": {"name": "root", "children": [...], "distance": 1.4}
+      }
+    ],
+    "symbols": ["AAPL", "MSFT"],
+    "trading_days": 756,
+    "computed_at": "2024-01-15T12:00:00Z"
+  },
+  "warnings": ["Symbol X: limited data available"],
+  "excluded_symbols": ["DELETED"],
+  "symbol_data_span": {
+    "AAPL": {"start": "2021-01-01", "end": "2024-01-15", "days": 756},
+    "MSFT": {"start": "2021-01-01", "end": "2024-01-15", "days": 756}
+  }
+}
+```
+
+---
+
 ## Type Reference
 
 ### Portfolio
