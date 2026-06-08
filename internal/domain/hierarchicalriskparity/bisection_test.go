@@ -1,363 +1,344 @@
 package hierarchicalriskparity
 
 import (
-	"math"
 	"testing"
 )
 
 // --- Test findBisectionPoint ---
 
-func TestFindBisectionPointTwoAssets(t *testing.T) {
-	// Two assets: only one possible split (after index 0).
-	cov := [][]float64{
-		{0.04, 0.01},
-		{0.01, 0.09},
+func TestFindBisectionPoint(t *testing.T) {
+	tests := []struct {
+		name    string
+		indices []int
+		cov     [][]float64
+		want    int
+	}{
+		{
+			name:    "two assets — only one split",
+			indices: []int{0, 1},
+			cov: [][]float64{
+				{0.04, 0.01},
+				{0.01, 0.09},
+			},
+			want: 1,
+		},
+		{
+			name:    "three assets — isolate C from correlated A,B",
+			indices: []int{0, 1, 2},
+			cov: [][]float64{
+				{0.04, 0.03, 0.001},
+				{0.03, 0.09, 0.001},
+				{0.001, 0.001, 0.01},
+			},
+			want: 2,
+		},
+		{
+			name:    "four assets — two clear clusters",
+			indices: []int{0, 1, 2, 3},
+			cov: [][]float64{
+				{0.04, 0.03, 0.001, 0.001},
+				{0.03, 0.09, 0.001, 0.001},
+				{0.001, 0.001, 0.01, 0.008},
+				{0.001, 0.001, 0.008, 0.02},
+			},
+			want: 2,
+		},
 	}
-	indices := []int{0, 1}
 
-	split := findBisectionPoint(indices, cov)
-	if split != 1 {
-		t.Errorf("split = %d, want 1", split)
-	}
-}
-
-func TestFindBisectionPointThreeAssets(t *testing.T) {
-	// Three assets: A(0) correlated with B(1), both uncorrelated with C(2).
-	// Best split should be after A,B (split=2) to isolate C.
-	cov := [][]float64{
-		{0.04, 0.03, 0.001},
-		{0.03, 0.09, 0.001},
-		{0.001, 0.001, 0.01},
-	}
-	indices := []int{0, 1, 2}
-
-	split := findBisectionPoint(indices, cov)
-	if split != 2 {
-		t.Errorf("split = %d, want 2 (isolate C from A,B)", split)
-	}
-}
-
-func TestFindBisectionPointFourAssetsTwoClusters(t *testing.T) {
-	// Four assets: A(0), B(1) correlated; C(2), D(3) correlated;
-	// cross-cluster covariance is small.
-	// Best split should be after B (split=2).
-	cov := [][]float64{
-		{0.04, 0.03, 0.001, 0.001},
-		{0.03, 0.09, 0.001, 0.001},
-		{0.001, 0.001, 0.01, 0.008},
-		{0.001, 0.001, 0.008, 0.02},
-	}
-	indices := []int{0, 1, 2, 3}
-
-	split := findBisectionPoint(indices, cov)
-	if split != 2 {
-		t.Errorf("split = %d, want 2", split)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := findBisectionPoint(tt.indices, tt.cov)
+			if got != tt.want {
+				t.Errorf("split = %d, want %d", got, tt.want)
+			}
+		})
 	}
 }
 
 // --- Test minVarianceWeights ---
 
-func TestMinVarianceWeightsTwoAssets(t *testing.T) {
-	// Two uncorrelated assets with different variances.
-	// Min variance should weight the lower-variance asset more.
-	cov := [][]float64{
-		{0.04, 0.0},
-		{0.0, 0.01},
-	}
-	indices := []int{0, 1}
-
-	weights := minVarianceWeights(indices, cov)
-	if len(weights) != 2 {
-		t.Fatalf("len = %d, want 2", len(weights))
-	}
-
-	// For diagonal covariance: w_i ∝ 1/var_i
-	// w_0 ∝ 1/0.04 = 25, w_1 ∝ 1/0.01 = 100
-	// w_0 = 25/125 = 0.2, w_1 = 100/125 = 0.8
-	almostEqual(t, weights[0], 0.2, 1e-6, "weight[0]")
-	almostEqual(t, weights[1], 0.8, 1e-6, "weight[1]")
-
-	// Weights should sum to 1.
-	sum := weights[0] + weights[1]
-	almostEqual(t, sum, 1.0, 1e-6, "weight sum")
-}
-
-func TestMinVarianceWeightsEqualVariance(t *testing.T) {
-	// Two identical uncorrelated assets → equal weights.
-	cov := [][]float64{
-		{0.04, 0.0},
-		{0.0, 0.04},
-	}
-	indices := []int{0, 1}
-
-	weights := minVarianceWeights(indices, cov)
-	almostEqual(t, weights[0], 0.5, 1e-6, "weight[0]")
-	almostEqual(t, weights[1], 0.5, 1e-6, "weight[1]")
-}
-
-func TestMinVarianceWeightsSingleAsset(t *testing.T) {
-	cov := [][]float64{
-		{0.04, 0.01},
-		{0.01, 0.09},
-	}
-	indices := []int{0}
-
-	weights := minVarianceWeights(indices, cov)
-	if len(weights) != 1 || math.Abs(weights[0]-1.0) > 1e-9 {
-		t.Errorf("got %v, want [1.0]", weights)
-	}
-}
-
-func TestMinVarianceWeightsSubset(t *testing.T) {
-	// Use a 4x4 covariance matrix but only indices [1, 3].
-	cov := [][]float64{
-		{0.04, 0.01, 0.005, 0.002},
-		{0.01, 0.09, 0.02, 0.01},
-		{0.005, 0.02, 0.01, 0.003},
-		{0.002, 0.01, 0.003, 0.02},
-	}
-	indices := []int{1, 3}
-
-	weights := minVarianceWeights(indices, cov)
-	if len(weights) != 2 {
-		t.Fatalf("len = %d, want 2", len(weights))
+func TestMinVarianceWeights(t *testing.T) {
+	tests := []struct {
+		name    string
+		indices []int
+		cov     [][]float64
+		wantLen int
+		wantW   []float64 // nil = don't check exact values
+		wantSum float64   // 0 = don't check sum
+	}{
+		{
+			name:    "two uncorrelated assets — different variances",
+			indices: []int{0, 1},
+			cov: [][]float64{
+				{0.04, 0.0},
+				{0.0, 0.01},
+			},
+			wantLen: 2,
+			wantW:   []float64{0.2, 0.8},
+			wantSum: 1.0,
+		},
+		{
+			name:    "two equal-variance uncorrelated assets",
+			indices: []int{0, 1},
+			cov: [][]float64{
+				{0.04, 0.0},
+				{0.0, 0.04},
+			},
+			wantLen: 2,
+			wantW:   []float64{0.5, 0.5},
+			wantSum: 1.0,
+		},
+		{
+			name:    "single asset",
+			indices: []int{0},
+			cov: [][]float64{
+				{0.04, 0.01},
+				{0.01, 0.09},
+			},
+			wantLen: 1,
+			wantW:   []float64{1.0},
+			wantSum: 1.0,
+		},
+		{
+			name:    "subset of 4x4 matrix — indices [1,3]",
+			indices: []int{1, 3},
+			cov: [][]float64{
+				{0.04, 0.01, 0.005, 0.002},
+				{0.01, 0.09, 0.02, 0.01},
+				{0.005, 0.02, 0.01, 0.003},
+				{0.002, 0.01, 0.003, 0.02},
+			},
+			wantLen: 2,
+			wantW:   []float64{1.0 / 9.0, 8.0 / 9.0},
+			wantSum: 1.0,
+		},
 	}
 
-	// Sub-matrix for indices [1, 3]:
-	// [[0.09, 0.01], [0.01, 0.02]]
-	// Inverse: det = 0.09*0.02 - 0.01*0.01 = 0.0018 - 0.0001 = 0.0017
-	// inv = 1/0.0017 * [[0.02, -0.01], [-0.01, 0.09]]
-	// sigmaInv1 = [0.02/0.0017 - 0.01/0.0017, -0.01/0.0017 + 0.09/0.0017]
-	//           = [(0.02-0.01)/0.0017, (0.09-0.01)/0.0017]
-	//           = [0.01/0.0017, 0.08/0.0017]
-	// denom = 0.09/0.0017
-	// w_0 = 0.01/0.09 = 1/9 ≈ 0.1111
-	// w_1 = 0.08/0.09 = 8/9 ≈ 0.8889
-	almostEqual(t, weights[0], 1.0/9.0, 1e-6, "weight[0]")
-	almostEqual(t, weights[1], 8.0/9.0, 1e-6, "weight[1]")
-
-	sum := weights[0] + weights[1]
-	almostEqual(t, sum, 1.0, 1e-6, "weight sum")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			weights := minVarianceWeights(tt.indices, tt.cov)
+			if len(weights) != tt.wantLen {
+				t.Fatalf("len = %d, want %d", len(weights), tt.wantLen)
+			}
+			if tt.wantW != nil {
+				for i, w := range tt.wantW {
+					almostEqual(t, weights[i], w, 1e-6, "weight["+string(rune('0'+i))+"]")
+				}
+			}
+			if tt.wantSum != 0 {
+				sum := 0.0
+				for _, w := range weights {
+					sum += w
+				}
+				almostEqual(t, sum, tt.wantSum, 1e-6, "weight sum")
+			}
+		})
+	}
 }
 
 // --- Test recursiveBisect ---
 
-func TestRecursiveBisectTwoAssets(t *testing.T) {
-	// Two uncorrelated assets with different variances.
-	cov := [][]float64{
-		{0.04, 0.0},
-		{0.0, 0.01},
-	}
-	indices := []int{0, 1}
-
-	weights := recursiveBisect(indices, cov)
-
-	if len(weights) != 2 {
-		t.Fatalf("len = %d, want 2", len(weights))
-	}
-
-	// With two uncorrelated assets, inverse-variance allocation:
-	// left = {0}, right = {1}
-	// leftVar = 0.04, rightVar = 0.01
-	// leftBudget = (1/0.04) / (1/0.04 + 1/0.01) = 25 / (25 + 100) = 25/125 = 0.2
-	// rightBudget = 100/125 = 0.8
-	almostEqual(t, weights[0], 0.2, 1e-6, "weight[0]")
-	almostEqual(t, weights[1], 0.8, 1e-6, "weight[1]")
-
-	// Weights should sum to 1.
-	sum := weights[0] + weights[1]
-	almostEqual(t, sum, 1.0, 1e-6, "weight sum")
-
-	// All weights should be non-negative.
-	for idx, w := range weights {
-		if w < 0 {
-			t.Errorf("weight[%d] = %.6f, want >= 0", idx, w)
-		}
-	}
-}
-
-func TestRecursiveBisectTwoEqualAssets(t *testing.T) {
-	// Two identical uncorrelated assets → equal weights.
-	cov := [][]float64{
-		{0.04, 0.0},
-		{0.0, 0.04},
-	}
-	indices := []int{0, 1}
-
-	weights := recursiveBisect(indices, cov)
-	almostEqual(t, weights[0], 0.5, 1e-6, "weight[0]")
-	almostEqual(t, weights[1], 0.5, 1e-6, "weight[1]")
-}
-
-func TestRecursiveBisectThreeAssets(t *testing.T) {
-	// Three assets: A(0), B(1) correlated; C(2) independent.
-	// Covariance matrix (annualized daily):
-	cov := [][]float64{
-		{0.04, 0.03, 0.001},
-		{0.03, 0.09, 0.001},
-		{0.001, 0.001, 0.01},
-	}
-	indices := []int{0, 1, 2}
-
-	weights := recursiveBisect(indices, cov)
-
-	if len(weights) != 3 {
-		t.Fatalf("len = %d, want 3", len(weights))
-	}
-
-	// Weights should sum to 1.
-	sum := 0.0
-	for _, w := range weights {
-		sum += w
-	}
-	almostEqual(t, sum, 1.0, 1e-4, "weight sum")
-
-	// All weights should be non-negative.
-	for idx, w := range weights {
-		if w < -1e-10 {
-			t.Errorf("weight[%d] = %.10f, want >= 0", idx, w)
-		}
+func TestRecursiveBisect(t *testing.T) {
+	tests := []struct {
+		name      string
+		indices   []int
+		cov       [][]float64
+		wantLen   int
+		wantW     map[int]float64 // nil = don't check exact values
+		wantSum   float64         // 0 = don't check sum
+		minWeight map[int]float64 // minimum expected weight for specific indices
+	}{
+		{
+			name:    "two uncorrelated assets — different variances",
+			indices: []int{0, 1},
+			cov: [][]float64{
+				{0.04, 0.0},
+				{0.0, 0.01},
+			},
+			wantLen: 2,
+			wantW:   map[int]float64{0: 0.2, 1: 0.8},
+			wantSum: 1.0,
+		},
+		{
+			name:    "two equal-variance uncorrelated assets",
+			indices: []int{0, 1},
+			cov: [][]float64{
+				{0.04, 0.0},
+				{0.0, 0.04},
+			},
+			wantLen: 2,
+			wantW:   map[int]float64{0: 0.5, 1: 0.5},
+			wantSum: 1.0,
+		},
+		{
+			name:    "three assets — C low-variance uncorrelated",
+			indices: []int{0, 1, 2},
+			cov: [][]float64{
+				{0.04, 0.03, 0.001},
+				{0.03, 0.09, 0.001},
+				{0.001, 0.001, 0.01},
+			},
+			wantLen:   3,
+			wantSum:   1.0,
+			minWeight: map[int]float64{2: 0.1},
+		},
+		{
+			name:    "four assets — two clear clusters",
+			indices: []int{0, 1, 2, 3},
+			cov: [][]float64{
+				{0.04, 0.03, 0.001, 0.001},
+				{0.03, 0.09, 0.001, 0.001},
+				{0.001, 0.001, 0.01, 0.008},
+				{0.001, 0.001, 0.008, 0.02},
+			},
+			wantLen: 4,
+			wantSum: 1.0,
+		},
+		{
+			name:    "single asset",
+			indices: []int{0},
+			cov:     [][]float64{{0.04}},
+			wantLen: 1,
+			wantW:   map[int]float64{0: 1.0},
+			wantSum: 1.0,
+		},
 	}
 
-	// C(2) has low variance and is uncorrelated, so it should get a meaningful weight.
-	if weights[2] < 0.1 {
-		t.Errorf("weight[2] = %.6f, expected significant allocation for low-variance asset", weights[2])
-	}
-}
-
-func TestRecursiveBisectFourAssetsTwoClusters(t *testing.T) {
-	// Four assets in two clear clusters.
-	cov := [][]float64{
-		{0.04, 0.03, 0.001, 0.001},
-		{0.03, 0.09, 0.001, 0.001},
-		{0.001, 0.001, 0.01, 0.008},
-		{0.001, 0.001, 0.008, 0.02},
-	}
-	indices := []int{0, 1, 2, 3}
-
-	weights := recursiveBisect(indices, cov)
-
-	if len(weights) != 4 {
-		t.Fatalf("len = %d, want 4", len(weights))
-	}
-
-	sum := 0.0
-	for _, w := range weights {
-		sum += w
-	}
-	almostEqual(t, sum, 1.0, 1e-4, "weight sum")
-
-	for idx, w := range weights {
-		if w < -1e-10 {
-			t.Errorf("weight[%d] = %.10f, want >= 0", idx, w)
-		}
-	}
-}
-
-func TestRecursiveBisectSingleAsset(t *testing.T) {
-	cov := [][]float64{{0.04}}
-	indices := []int{0}
-
-	weights := recursiveBisect(indices, cov)
-	if len(weights) != 1 {
-		t.Fatalf("len = %d, want 1", len(weights))
-	}
-	if math.Abs(weights[0]-1.0) > 1e-9 {
-		t.Errorf("weight[0] = %.10f, want 1.0", weights[0])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			weights := recursiveBisect(tt.indices, tt.cov)
+			if len(weights) != tt.wantLen {
+				t.Fatalf("len = %d, want %d", len(weights), tt.wantLen)
+			}
+			if tt.wantW != nil {
+				for idx, w := range tt.wantW {
+					almostEqual(t, weights[idx], w, 1e-6, "weight["+string(rune('0'+idx))+"]")
+				}
+			}
+			if tt.wantSum != 0 {
+				sum := 0.0
+				for _, w := range weights {
+					sum += w
+				}
+				almostEqual(t, sum, tt.wantSum, 1e-4, "weight sum")
+			}
+			for idx, w := range weights {
+				if w < -1e-10 {
+					t.Errorf("weight[%d] = %.10f, want >= 0", idx, w)
+				}
+			}
+			for idx, minW := range tt.minWeight {
+				if weights[idx] < minW {
+					t.Errorf("weight[%d] = %.6f, expected >= %.4f", idx, weights[idx], minW)
+				}
+			}
+		})
 	}
 }
 
 // --- Test portfolioVariance ---
 
-func TestPortfolioVarianceTwoAssets(t *testing.T) {
-	cov := [][]float64{
-		{0.04, 0.01},
-		{0.01, 0.09},
+func TestPortfolioVariance(t *testing.T) {
+	tests := []struct {
+		name    string
+		indices []int
+		weights []float64
+		cov     [][]float64
+		want    float64
+	}{
+		{
+			name:    "two assets 50/50",
+			indices: []int{0, 1},
+			weights: []float64{0.5, 0.5},
+			cov: [][]float64{
+				{0.04, 0.01},
+				{0.01, 0.09},
+			},
+			want: 0.0375,
+		},
+		{
+			name:    "single asset",
+			indices: []int{0},
+			weights: []float64{1.0},
+			cov: [][]float64{
+				{0.04, 0.01},
+				{0.01, 0.09},
+			},
+			want: 0.04,
+		},
 	}
-	indices := []int{0, 1}
-	weights := []float64{0.5, 0.5}
 
-	variance := portfolioVariance(indices, weights, cov)
-	// w' * Sigma * w = 0.5*0.5*0.04 + 0.5*0.5*0.01 + 0.5*0.5*0.01 + 0.5*0.5*0.09
-	//                = 0.01 + 0.0025 + 0.0025 + 0.0225 = 0.0375
-	almostEqual(t, variance, 0.0375, 1e-9, "portfolio variance")
-}
-
-func TestPortfolioVarianceSingleAsset(t *testing.T) {
-	cov := [][]float64{
-		{0.04, 0.01},
-		{0.01, 0.09},
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := portfolioVariance(tt.indices, tt.weights, tt.cov)
+			almostEqual(t, got, tt.want, 1e-9, "portfolio variance")
+		})
 	}
-	indices := []int{0}
-	weights := []float64{1.0}
-
-	variance := portfolioVariance(indices, weights, cov)
-	almostEqual(t, variance, 0.04, 1e-9, "portfolio variance")
 }
 
 // --- Test inverseMatrix ---
 
-func TestInverseMatrixIdentity(t *testing.T) {
-	matrix := [][]float64{
-		{1.0, 0.0},
-		{0.0, 1.0},
-	}
-	inv, err := inverseMatrix(matrix, 2)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Verify A * A⁻¹ ≈ I.
-	for i := 0; i < 2; i++ {
-		for j := 0; j < 2; j++ {
-			sum := 0.0
-			for k := 0; k < 2; k++ {
-				sum += matrix[i][k] * inv[k][j]
-			}
-			expected := 0.0
-			if i == j {
-				expected = 1.0
-			}
-			almostEqual(t, sum, expected, 1e-6, "identity check")
-		}
-	}
-}
-
-func TestInverseMatrixSingular(t *testing.T) {
-	matrix := [][]float64{
-		{1.0, 2.0},
-		{2.0, 4.0},
-	}
-	_, err := inverseMatrix(matrix, 2)
-	if err == nil {
-		t.Error("expected error for singular matrix, got nil")
-	}
-}
-
-func TestInverseMatrix3x3(t *testing.T) {
-	matrix := [][]float64{
-		{2.0, 1.0, 0.0},
-		{1.0, 3.0, 1.0},
-		{0.0, 1.0, 2.0},
-	}
-	inv, err := inverseMatrix(matrix, 3)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestInverseMatrix(t *testing.T) {
+	tests := []struct {
+		name    string
+		matrix  [][]float64
+		n       int
+		wantErr bool
+	}{
+		{
+			name: "2x2 identity",
+			matrix: [][]float64{
+				{1.0, 0.0},
+				{0.0, 1.0},
+			},
+			n:       2,
+			wantErr: false,
+		},
+		{
+			name: "singular matrix",
+			matrix: [][]float64{
+				{1.0, 2.0},
+				{2.0, 4.0},
+			},
+			n:       2,
+			wantErr: true,
+		},
+		{
+			name: "3x3 symmetric",
+			matrix: [][]float64{
+				{2.0, 1.0, 0.0},
+				{1.0, 3.0, 1.0},
+				{0.0, 1.0, 2.0},
+			},
+			n:       3,
+			wantErr: false,
+		},
 	}
 
-	// Verify A * A⁻¹ ≈ I.
-	for i := 0; i < 3; i++ {
-		for j := 0; j < 3; j++ {
-			sum := 0.0
-			for k := 0; k < 3; k++ {
-				sum += matrix[i][k] * inv[k][j]
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := inverseMatrix(tt.matrix, tt.n)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr = %v", err, tt.wantErr)
 			}
-			expected := 0.0
-			if i == j {
-				expected = 1.0
+			if tt.wantErr {
+				return
 			}
-			almostEqual(t, sum, expected, 1e-6, "3x3 identity check")
-		}
+			// Verify A * A⁻¹ ≈ I.
+			for i := 0; i < tt.n; i++ {
+				for j := 0; j < tt.n; j++ {
+					sum := 0.0
+					for k := 0; k < tt.n; k++ {
+						sum += tt.matrix[i][k] * inv[k][j]
+					}
+					expected := 0.0
+					if i == j {
+						expected = 1.0
+					}
+					almostEqual(t, sum, expected, 1e-6, "identity check")
+				}
+			}
+		})
 	}
 }
 

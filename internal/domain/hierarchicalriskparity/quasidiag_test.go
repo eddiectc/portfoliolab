@@ -4,142 +4,93 @@ import (
 	"testing"
 )
 
-// --- Test QuasiDiagonalize ---
-
-func TestQuasiDiagonalizeTwoSymbols(t *testing.T) {
-	// Two symbols: merge (0,1) at distance 1.5.
-	merges := []MergeRecord{
-		{Cluster1: 0, Cluster2: 1, Distance: 1.5},
+func TestQuasiDiagonalize(t *testing.T) {
+	tests := []struct {
+		name     string
+		merges   []MergeRecord
+		nSymbols int
+		want     []int
+	}{
+		{
+			name: "two symbols",
+			merges: []MergeRecord{
+				{Cluster1: 0, Cluster2: 1, Distance: 1.5},
+			},
+			nSymbols: 2,
+			want:     []int{0, 1},
+		},
+		{
+			name: "three symbols — {0,1} then with 2",
+			merges: []MergeRecord{
+				{Cluster1: 0, Cluster2: 1, Distance: 1.0},
+				{Cluster1: 3, Cluster2: 2, Distance: 2.5},
+			},
+			nSymbols: 3,
+			want:     []int{0, 1, 2},
+		},
+		{
+			name: "three symbols — reversed merge order",
+			// merge (0,1) → cluster 3, then (2, 3) → ordering [2, 0, 1]
+			merges: []MergeRecord{
+				{Cluster1: 0, Cluster2: 1, Distance: 1.0},
+				{Cluster1: 2, Cluster2: 3, Distance: 3.0},
+			},
+			nSymbols: 3,
+			want:     []int{2, 0, 1},
+		},
+		{
+			name: "four symbols — two independent pairs",
+			merges: []MergeRecord{
+				{Cluster1: 0, Cluster2: 1, Distance: 1.0},
+				{Cluster1: 2, Cluster2: 3, Distance: 1.5},
+				{Cluster1: 4, Cluster2: 5, Distance: 5.0},
+			},
+			nSymbols: 4,
+			want:     []int{0, 1, 2, 3},
+		},
+		{
+			name: "four symbols — nested clustering",
+			// (0,1)→4, (4,2)→5, (5,3)→6 → [0, 1, 2, 3]
+			merges: []MergeRecord{
+				{Cluster1: 0, Cluster2: 1, Distance: 1.0},
+				{Cluster1: 4, Cluster2: 2, Distance: 2.0},
+				{Cluster1: 5, Cluster2: 3, Distance: 4.0},
+			},
+			nSymbols: 4,
+			want:     []int{0, 1, 2, 3},
+		},
+		{
+			name: "four symbols — nested reversed",
+			// (0,1)→4, (2,4)→5, (3,5)→6 → [3, 2, 0, 1]
+			merges: []MergeRecord{
+				{Cluster1: 0, Cluster2: 1, Distance: 1.0},
+				{Cluster1: 2, Cluster2: 4, Distance: 2.0},
+				{Cluster1: 3, Cluster2: 5, Distance: 4.0},
+			},
+			nSymbols: 4,
+			want:     []int{3, 2, 0, 1},
+		},
+		{
+			name:     "single symbol",
+			merges:   nil,
+			nSymbols: 1,
+			want:     []int{0},
+		},
+		{
+			name:     "zero symbols",
+			merges:   nil,
+			nSymbols: 0,
+			want:     nil,
+		},
 	}
 
-	got := QuasiDiagonalize(merges, 2)
-	if len(got) != 2 {
-		t.Fatalf("len = %d, want 2", len(got))
-	}
-	if got[0] != 0 || got[1] != 1 {
-		t.Errorf("got %v, want [0, 1]", got)
-	}
-}
-
-func TestQuasiDiagonalizeThreeSymbols(t *testing.T) {
-	// Three symbols: merge (0,1) at d=1.0, then merge ({0,1}=3, 2) at d=2.5.
-	// Cluster 3 = {0,1}, so the ordering is [0, 1, 2].
-	merges := []MergeRecord{
-		{Cluster1: 0, Cluster2: 1, Distance: 1.0},
-		{Cluster1: 3, Cluster2: 2, Distance: 2.5},
-	}
-
-	got := QuasiDiagonalize(merges, 3)
-	if len(got) != 3 {
-		t.Fatalf("len = %d, want 3", len(got))
-	}
-	if got[0] != 0 || got[1] != 1 || got[2] != 2 {
-		t.Errorf("got %v, want [0, 1, 2]", got)
-	}
-}
-
-func TestQuasiDiagonalizeThreeSymbolsReversedMerge(t *testing.T) {
-	// Three symbols: merge (0,1) at d=1.0, then merge (2, {0,1}=3) at d=3.0.
-	// Cluster 3 = {0,1}, merge order is (2, 3) → ordering is [2, 0, 1].
-	merges := []MergeRecord{
-		{Cluster1: 0, Cluster2: 1, Distance: 1.0},
-		{Cluster1: 2, Cluster2: 3, Distance: 3.0},
-	}
-
-	got := QuasiDiagonalize(merges, 3)
-	if len(got) != 3 {
-		t.Fatalf("len = %d, want 3", len(got))
-	}
-	if got[0] != 2 || got[1] != 0 || got[2] != 1 {
-		t.Errorf("got %v, want [2, 0, 1]", got)
-	}
-}
-
-func TestQuasiDiagonalizeFourSymbols(t *testing.T) {
-	// Four symbols: A(0) close to B(1), C(2) close to D(3).
-	// Merge 1: (0,1) → cluster 4, Merge 2: (2,3) → cluster 5
-	// Merge 3: (4,5) → cluster 6 (root)
-	// Ordering: [0, 1, 2, 3]
-	merges := []MergeRecord{
-		{Cluster1: 0, Cluster2: 1, Distance: 1.0},
-		{Cluster1: 2, Cluster2: 3, Distance: 1.5},
-		{Cluster1: 4, Cluster2: 5, Distance: 5.0},
-	}
-
-	got := QuasiDiagonalize(merges, 4)
-	if len(got) != 4 {
-		t.Fatalf("len = %d, want 4", len(got))
-	}
-	want := []int{0, 1, 2, 3}
-	for i := range got {
-		if got[i] != want[i] {
-			t.Errorf("got %v, want %v", got, want)
-			break
-		}
-	}
-}
-
-func TestQuasiDiagonalizeFourSymbolsNested(t *testing.T) {
-	// Four symbols: nested clustering.
-	// Merge 1: (0,1) → cluster 4
-	// Merge 2: (4,2) → cluster 5 (cluster 5 = {0,1,2})
-	// Merge 3: (5,3) → cluster 6 (root = {0,1,2,3})
-	// Ordering: [0, 1, 2, 3]
-	merges := []MergeRecord{
-		{Cluster1: 0, Cluster2: 1, Distance: 1.0},
-		{Cluster1: 4, Cluster2: 2, Distance: 2.0},
-		{Cluster1: 5, Cluster2: 3, Distance: 4.0},
-	}
-
-	got := QuasiDiagonalize(merges, 4)
-	want := []int{0, 1, 2, 3}
-	if len(got) != len(want) {
-		t.Fatalf("len = %d, want %d", len(got), len(want))
-	}
-	for i := range got {
-		if got[i] != want[i] {
-			t.Errorf("got %v, want %v", got, want)
-			break
-		}
-	}
-}
-
-func TestQuasiDiagonalizeFourSymbolsReversed(t *testing.T) {
-	// Four symbols: nested clustering with reversed merge order.
-	// Merge 1: (0,1) → cluster 4
-	// Merge 2: (2,4) → cluster 5 (cluster 5 = {2, 0, 1})
-	// Merge 3: (3,5) → cluster 6 (root = {3, 2, 0, 1})
-	// Ordering: [3, 2, 0, 1]
-	merges := []MergeRecord{
-		{Cluster1: 0, Cluster2: 1, Distance: 1.0},
-		{Cluster1: 2, Cluster2: 4, Distance: 2.0},
-		{Cluster1: 3, Cluster2: 5, Distance: 4.0},
-	}
-
-	got := QuasiDiagonalize(merges, 4)
-	want := []int{3, 2, 0, 1}
-	if len(got) != len(want) {
-		t.Fatalf("len = %d, want %d", len(got), len(want))
-	}
-	for i := range got {
-		if got[i] != want[i] {
-			t.Errorf("got %v, want %v", got, want)
-			break
-		}
-	}
-}
-
-func TestQuasiDiagonalizeSingleSymbol(t *testing.T) {
-	got := QuasiDiagonalize(nil, 1)
-	if len(got) != 1 || got[0] != 0 {
-		t.Errorf("got %v, want [0]", got)
-	}
-}
-
-func TestQuasiDiagonalizeZeroSymbols(t *testing.T) {
-	got := QuasiDiagonalize(nil, 0)
-	if got != nil {
-		t.Errorf("got %v, want nil", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := QuasiDiagonalize(tt.merges, tt.nSymbols)
+			if !intsEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -209,4 +160,16 @@ func parseLeafIndex(name string) int {
 		}
 	}
 	return result
+}
+
+func intsEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
