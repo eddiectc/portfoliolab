@@ -516,7 +516,7 @@ func TestHrpHandleSaveAsModelPortfolio_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	handler.HandleSaveAsModelPortfolio(w, req)
+	handler.HandleSaveHrpAsModelPortfolio(w, req)
 
 	if w.Code != http.StatusCreated {
 		t.Errorf("expected 201, got %d body: %s", w.Code, w.Body.String())
@@ -547,7 +547,7 @@ func TestHrpHandleSaveAsModelPortfolio_NoCreator(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/hrp/save", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 
-	handler.HandleSaveAsModelPortfolio(w, req)
+	handler.HandleSaveHrpAsModelPortfolio(w, req)
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)
@@ -602,7 +602,7 @@ func TestHrpHandleSaveAsModelPortfolio_Validation(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/hrp/save", bytes.NewBufferString(tc.body))
 			w := httptest.NewRecorder()
 
-			handler.HandleSaveAsModelPortfolio(w, req)
+			handler.HandleSaveHrpAsModelPortfolio(w, req)
 
 			if w.Code != tc.wantStatus {
 				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)
@@ -642,7 +642,7 @@ func TestHrpHandleSaveAsModelPortfolio_ServiceError(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/hrp/save", bytes.NewBufferString(body))
 			w := httptest.NewRecorder()
 
-			handler.HandleSaveAsModelPortfolio(w, req)
+			handler.HandleSaveHrpAsModelPortfolio(w, req)
 
 			if w.Code != tc.wantStatus {
 				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)

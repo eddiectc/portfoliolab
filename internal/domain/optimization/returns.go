@@ -1,10 +1,14 @@
-package hierarchicalriskparity
+package optimization
 
 import (
+	"errors"
 	"sort"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
+
+// ErrInsufficientData is returned when price data is too short for computation.
+var ErrInsufficientData = errors.New("insufficient price data for computation")
 
 // ComputeDailyReturns computes simple daily returns from a series of historical
 // close prices. Returns are (close[t] / close[t-1]) - 1.
@@ -39,6 +43,38 @@ func ComputeDailyReturns(prices []market.HistoricalPrice) ([]float64, error) {
 	return rets, nil
 }
 
+// ComputeDailyReturnsWithDates computes daily returns preserving the date
+// of each return for alignment across symbols.
+// A series of N prices produces N-1 returns.
+type DatedReturn struct {
+	Date  int64     // Unix timestamp of the trading day
+	Return float64  // (close[t]/close[t-1]) - 1
+}
+
+func ComputeDailyReturnsWithDates(series []market.HistoricalPrice) []DatedReturn {
+	if len(series) < 2 {
+		return nil
+	}
+	// Sort by date.
+	sort.Slice(series, func(i, j int) bool {
+		return series[i].Date.Before(series[j].Date)
+	})
+
+	rets := make([]DatedReturn, 0, len(series)-1)
+	for i := 1; i < len(series); i++ {
+		prev, ok1 := series[i-1].Close.Float64()
+		curr, ok2 := series[i].Close.Float64()
+		if !ok1 || !ok2 || prev == 0 {
+			continue
+		}
+		rets = append(rets, DatedReturn{
+			Date:   series[i].Date.Unix(),
+			Return: (curr / prev) - 1.0,
+		})
+	}
+	return rets
+}
+
 // AlignReturns aligns daily returns across multiple symbols by trading date,
 // returning only dates where ALL symbols have data.
 //
@@ -60,7 +96,6 @@ func AlignReturns(pricesBySymbol map[string][]market.HistoricalPrice, symbols []
 	}
 
 	// Compute returns per symbol and index by date (unix epoch seconds).
-	// dateReturns maps date unix → [symbolIndex → return value].
 	type priceWithDate struct {
 		date int64
 		ret  float64
@@ -83,7 +118,6 @@ func AlignReturns(pricesBySymbol map[string][]market.HistoricalPrice, symbols []
 			return sorted[i].Date.Before(sorted[j].Date)
 		})
 		// Pair each return with the date of the "current" price (index i).
-		// We need to re-derive which dates produced valid returns.
 		var valid []priceWithDate
 		retIdx := 0
 		for i := 1; i < len(sorted); i++ {
@@ -117,10 +151,6 @@ func AlignReturns(pricesBySymbol map[string][]market.HistoricalPrice, symbols []
 			if !ok {
 				entry = &rowEntry{
 					values: make([]float64, nSymbols),
-				}
-				// Initialize with sentinel (we track count instead of NaN).
-				for i := range entry.values {
-					entry.values[i] = 0
 				}
 				dateRows[pr.date] = entry
 			}

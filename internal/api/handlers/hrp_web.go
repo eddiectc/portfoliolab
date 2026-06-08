@@ -5,15 +5,13 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/hierarchicalriskparity"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
@@ -66,6 +64,13 @@ func (h *HrpWebHandler) RegisterRoutes(r *chi.Mux) {
 // hrpPageData is the data struct for the HRP page template.
 type hrpPageData struct {
 	web.PageData
+	// Shared optimization partial fields.
+	FormID        string // "hrp"
+	FormAction    string // "/hrp"
+	FormButtonText string // "Compute HRP"
+	SymbolHint    string // "Comma-separated symbols. Min 2, max 20."
+	ApiBase       string // "/api/hrp"
+	RiskFreeRate  bool   // false for HRP
 	// Pre-serialized JSON for ECharts dendrograms.
 	HrpChartData string
 	// HRP result data.
@@ -87,7 +92,7 @@ type hrpPageData struct {
 	// Period button URLs.
 	PeriodURLs map[string]string
 	// SymbolDataSpan is the actual data coverage per symbol.
-	SymbolDataSpan map[string]hierarchicalriskparity.DataSpan
+	SymbolDataSpan map[string]optimization.DataSpan
 	// LeastDataSymbol is the symbol with the fewest trading days in the result.
 	LeastDataSymbol string
 	// LeastDataDays is the trading day count of the symbol with least data.
@@ -99,7 +104,7 @@ func (h *HrpWebHandler) HandleHrp(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	// Parse symbols.
-	symbols := parseHrpSymbols(query.Get("symbols"))
+	symbols := parseOptimizationSymbols(query.Get("symbols"))
 
 	// Parse period.
 	period := query.Get("period")
@@ -114,14 +119,14 @@ func (h *HrpWebHandler) HandleHrp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch selectors.
-	portfolios := h.fetchPortfolios(r.Context())
-	modelPortfolios := h.fetchModelPortfolios(r.Context())
-	candidateSymbols := h.fetchCandidateSymbols(r.Context())
+	portfolios := fetchOptimizationPortfolios(h.portfolioSvc, r.Context(), "hrp")
+	modelPortfolios := fetchOptimizationModelPortfolios(h.modelPortfolioSvc, r.Context(), "hrp")
+	candidateSymbols := fetchCandidateSymbolsFromService(h.apiHandler.svc, r.Context(), "hrp")
 
 	// Compute HRP.
 	var result *hierarchicalriskparity.HrpResult
 	var warnings, excludedSymbols []string
-	var symbolDataSpan map[string]hierarchicalriskparity.DataSpan
+	var symbolDataSpan map[string]optimization.DataSpan
 
 	if len(symbols) >= 2 {
 		serviceReq := hierarchicalriskparity.ComputeHrpRequest{
@@ -160,16 +165,22 @@ func (h *HrpWebHandler) buildPageData(
 	candidateSymbols []string,
 	result *hierarchicalriskparity.HrpResult,
 	warnings, excludedSymbols []string,
-	symbolDataSpan map[string]hierarchicalriskparity.DataSpan,
+	symbolDataSpan map[string]optimization.DataSpan,
 ) hrpPageData {
 	// Find symbol with least data.
-	leastDataSymbol, leastDataDays := findHrpLeastDataSymbol(symbolDataSpan)
+	leastDataSymbol, leastDataDays := findLeastDataSymbol(symbolDataSpan)
 
 	data := hrpPageData{
 		PageData: web.PageData{
 			Title: "Hierarchical Risk Parity",
 			Flash: getFlash(w, r),
 		},
+		FormID:           "hrp",
+		FormAction:       "/hrp",
+		FormButtonText:   "Compute HRP",
+		SymbolHint:       "Comma-separated symbols. Min 2, max 20.",
+		ApiBase:          "/api/hrp",
+		RiskFreeRate:     false,
 		HrpChartData:         serializeHrpChartData(result),
 		Result:               result,
 		Warnings:             warnings,
@@ -189,40 +200,6 @@ func (h *HrpWebHandler) buildPageData(
 	}
 
 	return data
-}
-
-// findHrpLeastDataSymbol returns the symbol with the fewest trading days
-// and its trading day count from the data span map.
-func findHrpLeastDataSymbol(dataSpan map[string]hierarchicalriskparity.DataSpan) (string, int) {
-	if len(dataSpan) == 0 {
-		return "", 0
-	}
-	var leastSymbol string
-	leastDays := 1<<31 - 1 // max int32
-	for sym, span := range dataSpan {
-		if span.TradingDays < leastDays {
-			leastDays = span.TradingDays
-			leastSymbol = sym
-		}
-	}
-	return leastSymbol, leastDays
-}
-
-// parseHrpSymbols parses comma-separated symbols from query params.
-func parseHrpSymbols(s string) []string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	var symbols []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			symbols = append(symbols, p)
-		}
-	}
-	return symbols
 }
 
 // buildHrpPeriodURLs pre-builds the URL for each period button.
@@ -253,54 +230,6 @@ func buildHrpPeriodURLs(symbols []string, currentPeriod string, baseCurrency str
 		urls[p] = url
 	}
 	return urls
-}
-
-// fetchPortfolios returns all portfolios for the selector dropdown.
-func (h *HrpWebHandler) fetchPortfolios(ctx context.Context) []portfolio.Portfolio {
-	if h.portfolioSvc == nil {
-		return []portfolio.Portfolio{}
-	}
-	portfolios, err := h.portfolioSvc.List(ctx, 0, 0)
-	if err != nil {
-		slog.Error("hrp: fetch portfolios", "error", err)
-		return []portfolio.Portfolio{}
-	}
-	if portfolios == nil {
-		return []portfolio.Portfolio{}
-	}
-	return portfolios
-}
-
-// fetchModelPortfolios returns model portfolio summaries for the dropdown.
-func (h *HrpWebHandler) fetchModelPortfolios(ctx context.Context) []modelportfolio.ModelPortfolioSummary {
-	if h.modelPortfolioSvc == nil {
-		return []modelportfolio.ModelPortfolioSummary{}
-	}
-	summaries, err := h.modelPortfolioSvc.GetAllForSelector(ctx)
-	if err != nil {
-		slog.Error("hrp: fetch model portfolios", "error", err)
-		return []modelportfolio.ModelPortfolioSummary{}
-	}
-	if summaries == nil {
-		return []modelportfolio.ModelPortfolioSummary{}
-	}
-	return summaries
-}
-
-// fetchCandidateSymbols returns all known internal symbols for autocomplete.
-func (h *HrpWebHandler) fetchCandidateSymbols(ctx context.Context) []string {
-	if h.apiHandler == nil {
-		return []string{}
-	}
-	symbols, err := h.apiHandler.svc.GetCandidateSymbols(ctx)
-	if err != nil {
-		slog.Error("hrp: fetch candidate symbols", "error", err)
-		return []string{}
-	}
-	if symbols == nil {
-		return []string{}
-	}
-	return symbols
 }
 
 // hrpChartData holds JSON data for the ECharts dendrogram rendering.
@@ -359,66 +288,7 @@ func serializeHrpChartData(result *hierarchicalriskparity.HrpResult) string {
 // HandleSaveAsModelPortfolio handles POST /hrp/save.
 // Saves the selected HRP allocation as a model portfolio.
 func (h *HrpWebHandler) HandleSaveAsModelPortfolio(w http.ResponseWriter, r *http.Request) {
-	// Parse form data.
-	name := strings.TrimSpace(r.FormValue("name"))
-	if name == "" {
-		name = "HRP Portfolio"
-	}
-
-	// Parse weights from form: weight_0, weight_1, etc.
-	weights := r.Form["weight"]
-	symbols := r.Form["symbol"]
-
-	if len(weights) == 0 || len(symbols) == 0 {
-		setFlash(w, "No allocation data provided")
-		http.Redirect(w, r, "/hrp", http.StatusSeeOther)
-		return
-	}
-
-	// Build entries — convert fraction weights to percentages.
-	entries := make([]modelportfolio.ModelPortfolioEntry, 0, len(weights))
-	for i, sym := range symbols {
-		sym = strings.TrimSpace(sym)
-		if i >= len(weights) {
-			break
-		}
-		weightStr := strings.TrimSpace(weights[i])
-		weight, err := strconv.ParseFloat(weightStr, 64)
-		if err != nil || weight <= 0 {
-			continue
-		}
-		// Weight is a fraction (0.0-1.0) from the HRP, convert to percentage.
-		entries = append(entries, modelportfolio.ModelPortfolioEntry{
-			Symbol:    sym,
-			WeightPct: decimal.MustParse(strconv.FormatFloat(weight*100, 'f', 2, 64)),
-		})
-	}
-
-	if len(entries) == 0 {
-		setFlash(w, "No valid allocation entries")
-		http.Redirect(w, r, "/hrp", http.StatusSeeOther)
-		return
-	}
-
-	// Sort entries by symbol for consistent ordering.
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Symbol < entries[j].Symbol
-	})
-
-	req := modelportfolio.CreateRequest{
-		Name:    name,
-		Entries: entries,
-	}
-
-	mp, err := h.saveModelPortfolio(r.Context(), req)
-	if err != nil {
-		setFlash(w, "Failed to save model portfolio: "+err.Error())
-		http.Redirect(w, r, "/hrp", http.StatusSeeOther)
-		return
-	}
-
-	setFlash(w, "Model portfolio \""+mp.Name+"\" created successfully")
-	http.Redirect(w, r, "/model-portfolios", http.StatusSeeOther)
+	handleOptimizationWebSave(w, r, "/hrp", "/model-portfolios", "HRP Portfolio", h.saveModelPortfolio)
 }
 
 // hrpErrorMessage maps a computation error to a user-facing message.
@@ -443,3 +313,45 @@ func (h *HrpWebHandler) WithModelPortfolioCreator(creator modelPortfolioCreator)
 		return creator.Create(ctx, req)
 	}
 }
+
+// --- Shared fetch helpers (used by both EF and HRP web handlers) ---
+
+// fetchOptimizationPortfolios returns all portfolios for the selector dropdown.
+func fetchOptimizationPortfolios(portfolioSvc *portfolio.Service, ctx context.Context, label string) []portfolio.Portfolio {
+	if portfolioSvc == nil {
+		return []portfolio.Portfolio{}
+	}
+	portfolios, err := portfolioSvc.List(ctx, 0, 0)
+	if err != nil {
+		slog.Error(label+": fetch portfolios", "error", err)
+		return []portfolio.Portfolio{}
+	}
+	if portfolios == nil {
+		return []portfolio.Portfolio{}
+	}
+	return portfolios
+}
+
+// optimizationModelPortfolioSelector defines the methods needed to fetch model
+// portfolios for the dropdown selector.
+type optimizationModelPortfolioSelector interface {
+	GetAllForSelector(ctx context.Context) ([]modelportfolio.ModelPortfolioSummary, error)
+}
+
+// fetchOptimizationModelPortfolios returns model portfolio summaries for the dropdown.
+func fetchOptimizationModelPortfolios(svc optimizationModelPortfolioSelector, ctx context.Context, label string) []modelportfolio.ModelPortfolioSummary {
+	if svc == nil {
+		return []modelportfolio.ModelPortfolioSummary{}
+	}
+	summaries, err := svc.GetAllForSelector(ctx)
+	if err != nil {
+		slog.Error(label+": fetch model portfolios", "error", err)
+		return []modelportfolio.ModelPortfolioSummary{}
+	}
+	if summaries == nil {
+		return []modelportfolio.ModelPortfolioSummary{}
+	}
+	return summaries
+}
+
+

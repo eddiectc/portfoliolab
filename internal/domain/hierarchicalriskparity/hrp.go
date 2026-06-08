@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
 )
 
 // ComputeHrp runs the full Hierarchical Risk Parity pipeline: validate inputs,
@@ -22,8 +24,8 @@ func ComputeHrp(request HrpRequest) (*HrpResult, error) {
 		return nil, ErrTooManySymbols
 	}
 
-	// Compute aligned returns matrix.
-	aligned, tradingDays, err := AlignReturns(request.Prices, symbols)
+	// Compute aligned returns matrix (shared optimization package).
+	aligned, tradingDays, err := optimization.AlignReturns(request.Prices, symbols)
 	if err != nil {
 		return nil, err
 	}

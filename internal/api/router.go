@@ -282,14 +282,20 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		comparisonWebHandler := handlers.NewComparisonWebHandler(comparisonHandler, portfolioSvc, modelPortfolioSvc, renderer)
 		comparisonWebHandler.RegisterRoutes(r)
 
+		// Shared optimization adapters (used by both Efficient Frontier and HRP)
+		optSymbolLister := data.NewOptimizationSymbolLister(symbolMappingRepo)
+		optPortfolioSymbols := data.NewOptimizationPortfolioSymbolSource(accountSvc, positionSvc)
+		optModelPortfolio := data.NewOptimizationModelPortfolioSource(modelPortfolioSvc)
+		optFxRates := data.NewOptimizationFxRateSource(marketSvc)
+
 		// Efficient Frontier service + API
 		efficientFrontierSvc := efficientfrontier.NewService(
 			marketSvc,
 			marketDataSymbolResolver,
-			data.NewSymbolLister(symbolMappingRepo),
-			data.NewPortfolioSymbolSource(accountSvc, positionSvc),
-			data.NewModelPortfolioSource(modelPortfolioSvc),
-			data.NewFxRateSource(marketSvc),
+			optSymbolLister,
+			optPortfolioSymbols,
+			optModelPortfolio,
+			optFxRates,
 		)
 		efficientFrontierHandler := handlers.NewEfficientFrontierHandler(efficientFrontierSvc)
 		efficientFrontierHandler.WithModelPortfolioCreator(modelPortfolioSvc)
@@ -309,10 +315,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		hrpSvc := hierarchicalriskparity.NewService(
 			marketSvc,
 			marketDataSymbolResolver,
-			data.NewHrpSymbolLister(data.NewSymbolLister(symbolMappingRepo)),
-			data.NewHrpPortfolioSymbolSource(data.NewPortfolioSymbolSource(accountSvc, positionSvc)),
-			data.NewHrpModelPortfolioSource(data.NewModelPortfolioSource(modelPortfolioSvc)),
-			data.NewHrpFxRateSource(data.NewFxRateSource(marketSvc)),
+			optSymbolLister,
+			optPortfolioSymbols,
+			optModelPortfolio,
+			optFxRates,
 		)
 		hrpHandler := handlers.NewHrpHandler(hrpSvc)
 		hrpHandler.WithModelPortfolioCreator(modelPortfolioSvc)

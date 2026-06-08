@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
@@ -90,27 +91,27 @@ func (m *mockPortfolioSymbolSource) GetSymbolsByPortfolio(_ context.Context, por
 }
 
 type mockModelPortfolioSource struct {
-	portfolios map[int64]ModelPortfolioRef
+	portfolios map[int64]optimization.ModelPortfolioRef
 	err        error
 }
 
-func (m *mockModelPortfolioSource) Get(_ context.Context, id int64) (ModelPortfolioRef, error) {
+func (m *mockModelPortfolioSource) Get(_ context.Context, id int64) (optimization.ModelPortfolioRef, error) {
 	if m.err != nil {
-		return ModelPortfolioRef{}, m.err
+		return optimization.ModelPortfolioRef{}, m.err
 	}
 	ref, ok := m.portfolios[id]
 	if !ok {
-		return ModelPortfolioRef{}, fmt.Errorf("model portfolio %d not found", id)
+		return optimization.ModelPortfolioRef{}, fmt.Errorf("model portfolio %d not found", id)
 	}
 	return ref, nil
 }
 
 type mockFxRateSource struct {
-	rates map[string]map[string]*FxRate // base -> quote -> rate
+	rates map[string]map[string]*optimization.FxRate // base -> quote -> rate
 	err   error
 }
 
-func (m *mockFxRateSource) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*FxRate, error) {
+func (m *mockFxRateSource) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*optimization.FxRate, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -448,7 +449,7 @@ func TestComputeHrp_FxCurrencyConversion(t *testing.T) {
 		mappings: map[string]string{"VOO": "VOO", "VEA": "VEA"},
 	}
 	fxSource := &mockFxRateSource{
-		rates: map[string]map[string]*FxRate{
+		rates: map[string]map[string]*optimization.FxRate{
 			"GBP": {"USD": {BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: 1.27}},
 		},
 	}
@@ -493,7 +494,7 @@ func TestComputeHrp_FXRateMissing(t *testing.T) {
 		mappings: map[string]string{"VOO": "VOO", "VEA": "VEA"},
 	}
 	fxSource := &mockFxRateSource{
-		rates: map[string]map[string]*FxRate{}, // no EUR/USD rate
+		rates: map[string]map[string]*optimization.FxRate{}, // no EUR/USD rate
 	}
 
 	svc := NewService(historySource, symResolver, nil, nil, nil, fxSource)
@@ -873,7 +874,7 @@ func TestGetSymbolsFromPortfolio_Error(t *testing.T) {
 
 func TestGetSymbolsFromModelPortfolio_HappyPath(t *testing.T) {
 	source := &mockModelPortfolioSource{
-		portfolios: map[int64]ModelPortfolioRef{
+		portfolios: map[int64]optimization.ModelPortfolioRef{
 			1: {Symbols: []string{"VOO", "VEA", "BND"}},
 			2: {Symbols: []string{"MSFT", "GOOGL", "AAPL"}},
 		},
@@ -891,7 +892,7 @@ func TestGetSymbolsFromModelPortfolio_HappyPath(t *testing.T) {
 
 func TestGetSymbolsFromModelPortfolio_NotFound(t *testing.T) {
 	source := &mockModelPortfolioSource{
-		portfolios: map[int64]ModelPortfolioRef{},
+		portfolios: map[int64]optimization.ModelPortfolioRef{},
 	}
 	svc := NewService(nil, nil, nil, nil, source, nil)
 
@@ -970,28 +971,6 @@ func TestServiceResult_NilSafety(t *testing.T) {
 	// These should not panic.
 	_ = result.Warnings
 	_ = result.ExcludedSymbols
-}
-
-func TestApproximatePeriodLabel(t *testing.T) {
-	now := time.Now()
-	tests := []struct {
-		startDaysAgo int
-		wantContains string
-	}{
-		{10, "D"},
-		{45, "M"},
-		{180, "M"},
-		{365, "Y"},
-		{730, "Y"},
-	}
-
-	for _, tt := range tests {
-		start := now.AddDate(0, 0, -tt.startDaysAgo)
-		label := approximatePeriodLabel(start, now)
-		if !strings.Contains(label, tt.wantContains) {
-			t.Errorf("start %d days ago: label %q should contain %q", tt.startDaysAgo, label, tt.wantContains)
-		}
-	}
 }
 
 func TestComputeHrp_InsufficientDataWarning(t *testing.T) {
@@ -1088,29 +1067,6 @@ func TestComputeHrp_PreservesSymbolOrder(t *testing.T) {
 	}
 	if result.Result.Symbols[2] != "VOO" {
 		t.Errorf("expected third symbol VOO, got %s", result.Result.Symbols[2])
-	}
-}
-
-func TestExpectedTradingDays(t *testing.T) {
-	tests := []struct {
-		period string
-		want   int
-	}{
-		{"1Y", 252},
-		{"3Y", 756},
-		{"5Y", 1260},
-		{"7Y", 0},  // unrecognized
-		{"10Y", 0}, // unrecognized
-		{"", 0},    // empty
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.period, func(t *testing.T) {
-			got := expectedTradingDays(tt.period)
-			if got != tt.want {
-				t.Errorf("expectedTradingDays(%q) = %d, want %d", tt.period, got, tt.want)
-			}
-		})
 	}
 }
 

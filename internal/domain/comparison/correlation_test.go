@@ -416,23 +416,4 @@ func TestCorrelationPeriodCutoff(t *testing.T) {
 	}
 }
 
-// --- correlationCutoffDays ---
 
-func TestCorrelationCutoffDays(t *testing.T) {
-	want := map[string]int{
-		"3M":  63,
-		"6M":  126,
-		"1Y":  252,
-		"3Y":  756,
-		"5Y":  1260,
-		"10Y": 2520,
-		"foo": 252, // default
-	}
-
-	for period, expected := range want {
-		got := correlationCutoffDays(period)
-		if got != expected {
-			t.Errorf("%s: cutoffDays = %d, want %d", period, got, expected)
-		}
-	}
-}

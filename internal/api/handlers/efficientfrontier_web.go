@@ -3,19 +3,17 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"math"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
@@ -68,6 +66,13 @@ func (h *EfficientFrontierWebHandler) RegisterRoutes(r *chi.Mux) {
 // frontierPageData is the data struct for the efficient frontier page template.
 type frontierPageData struct {
 	web.PageData
+	// Shared optimization partial fields.
+	FormID        string // "frontier"
+	FormAction    string // "/efficient-frontier"
+	FormButtonText string // "Compute Frontier"
+	SymbolHint    string // "Comma-separated symbols. Min 2, max 10."
+	ApiBase       string // "/api/efficient-frontier"
+	RiskFreeRate  bool   // true for frontier (shows risk-free rate field)
 	// Pre-serialized JSON for ECharts.
 	FrontierChartData string
 	// Frontier result data.
@@ -122,7 +127,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 	query := r.URL.Query()
 
 	// Parse symbols.
-	symbols := parseFrontierSymbols(query.Get("symbols"))
+	symbols := parseOptimizationSymbols(query.Get("symbols"))
 
 	// Parse period.
 	period := query.Get("period")
@@ -140,15 +145,15 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 	}
 
 	// Fetch selectors.
-	portfolios := h.fetchPortfolios(r.Context())
-	modelPortfolios := h.fetchModelPortfolios(r.Context())
-	candidateSymbols := h.fetchCandidateSymbols(r.Context())
+	portfolios := fetchOptimizationPortfolios(h.portfolioSvc, r.Context(), "efficient frontier")
+	modelPortfolios := fetchOptimizationModelPortfolios(h.modelPortfolioSvc, r.Context(), "efficient frontier")
+	candidateSymbols := fetchCandidateSymbolsFromService(h.apiHandler.svc, r.Context(), "efficient frontier")
 
 	// Compute frontier.
 	var result *efficientfrontier.FrontierResult
 	var warnings, excludedSymbols []string
 	var selectedPortfolio *efficientfrontier.OptimizedPortfolio
-	var symbolDataSpan map[string]efficientfrontier.DataSpan
+	var symbolDataSpan map[string]optimization.DataSpan
 
 	if len(symbols) >= 2 {
 		serviceReq := efficientfrontier.ComputeFrontierRequest{
@@ -159,7 +164,7 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 		}
 		serviceResult, err := h.apiHandler.svc.ComputeFrontier(r.Context(), serviceReq)
 		if err != nil {
-				data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, nil, nil, nil, nil, nil)
+			data := h.buildPageData(w, r, symbols, period, riskFreeRate, baseCurrency, portfolios, modelPortfolios, candidateSymbols, nil, nil, nil, nil, nil)
 			data.Error = frontierErrorMessage(err)
 			if err := h.renderer.Render(w, "efficient_frontier/index", data); err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -196,7 +201,7 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 	result *efficientfrontier.FrontierResult,
 	warnings, excludedSymbols []string,
 	selectedPortfolio *efficientfrontier.OptimizedPortfolio,
-	symbolDataSpan map[string]efficientfrontier.DataSpan,
+	symbolDataSpan map[string]optimization.DataSpan,
 ) frontierPageData {
 	// Find symbol with least data.
 	leastDataSymbol, leastDataDays := findLeastDataSymbol(symbolDataSpan)
@@ -225,6 +230,12 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 			Title: "Efficient Frontier",
 			Flash: getFlash(w, r),
 		},
+		FormID:           "frontier",
+		FormAction:       "/efficient-frontier",
+		FormButtonText:   "Compute Frontier",
+		SymbolHint:       "Comma-separated symbols. Min 2, max 10.",
+		ApiBase:          "/api/efficient-frontier",
+		RiskFreeRate:     true,
 		FrontierChartData:    frontierChart,
 		Result:               result,
 		Warnings:             warnings,
@@ -308,27 +319,10 @@ func populateDisplayPortfolios(data *frontierPageData, result *efficientfrontier
 	}
 }
 
-// findLeastDataSymbol returns the symbol with the fewest trading days
-// and its trading day count from the data span map.
-func findLeastDataSymbol(dataSpan map[string]efficientfrontier.DataSpan) (string, int) {
-	if len(dataSpan) == 0 {
-		return "", 0
-	}
-	var leastSymbol string
-	leastDays := 1<<31 - 1 // max int32
-	for sym, span := range dataSpan {
-		if span.TradingDays < leastDays {
-			leastDays = span.TradingDays
-			leastSymbol = sym
-		}
-	}
-	return leastSymbol, leastDays
-}
-
 // computeExpectedTradingDays counts the weekdays (Mon-Fri) between
 // the earliest start and latest end date across all symbol data spans.
 // This gives the upper bound of trading days before accounting for holidays.
-func computeExpectedTradingDays(dataSpan map[string]efficientfrontier.DataSpan) int {
+func computeExpectedTradingDays(dataSpan map[string]optimization.DataSpan) int {
 	if len(dataSpan) == 0 {
 		return 0
 	}
@@ -371,23 +365,6 @@ func countWeekdays(start, end time.Time) int {
 	return count
 }
 
-// parseFrontierSymbols parses comma-separated symbols from query params.
-func parseFrontierSymbols(s string) []string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	var symbols []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			symbols = append(symbols, p)
-		}
-	}
-	return symbols
-}
-
 // parseRiskFreeRate parses a risk-free rate percentage from query params.
 func parseRiskFreeRate(s string) float64 {
 	s = strings.TrimSpace(s)
@@ -402,11 +379,6 @@ func parseRiskFreeRate(s string) float64 {
 }
 
 // buildFrontierPeriodURLs pre-builds the URL for each period button.
-var validBaseCurrencies = map[string]bool{
-	"USD": true, "EUR": true, "GBP": true, "JPY": true,
-	"CHF": true, "CAD": true, "AUD": true, "CNY": true,
-}
-
 func buildFrontierPeriodURLs(symbols []string, _ string, riskFreeRate float64, baseCurrency string) map[string]string {
 	urls := make(map[string]string)
 	for _, p := range frontierPeriods {
@@ -443,54 +415,6 @@ func buildFrontierPeriodURLs(symbols []string, _ string, riskFreeRate float64, b
 		urls[p] = url
 	}
 	return urls
-}
-
-// fetchPortfolios returns all portfolios for the selector dropdown.
-func (h *EfficientFrontierWebHandler) fetchPortfolios(ctx context.Context) []portfolio.Portfolio {
-	if h.portfolioSvc == nil {
-		return []portfolio.Portfolio{}
-	}
-	portfolios, err := h.portfolioSvc.List(ctx, 0, 0)
-	if err != nil {
-		slog.Error("efficient frontier: fetch portfolios", "error", err)
-		return []portfolio.Portfolio{}
-	}
-	if portfolios == nil {
-		return []portfolio.Portfolio{}
-	}
-	return portfolios
-}
-
-// fetchModelPortfolios returns model portfolio summaries for the dropdown.
-func (h *EfficientFrontierWebHandler) fetchModelPortfolios(ctx context.Context) []modelportfolio.ModelPortfolioSummary {
-	if h.modelPortfolioSvc == nil {
-		return []modelportfolio.ModelPortfolioSummary{}
-	}
-	summaries, err := h.modelPortfolioSvc.GetAllForSelector(ctx)
-	if err != nil {
-		slog.Error("efficient frontier: fetch model portfolios", "error", err)
-		return []modelportfolio.ModelPortfolioSummary{}
-	}
-	if summaries == nil {
-		return []modelportfolio.ModelPortfolioSummary{}
-	}
-	return summaries
-}
-
-// fetchCandidateSymbols returns all known internal symbols for autocomplete.
-func (h *EfficientFrontierWebHandler) fetchCandidateSymbols(ctx context.Context) []string {
-	if h.apiHandler == nil {
-		return []string{}
-	}
-	symbols, err := h.apiHandler.svc.GetCandidateSymbols(ctx)
-	if err != nil {
-		slog.Error("efficient frontier: fetch candidate symbols", "error", err)
-		return []string{}
-	}
-	if symbols == nil {
-		return []string{}
-	}
-	return symbols
 }
 
 // frontierPointData is a single frontier point with weights for click interaction.
@@ -640,66 +564,7 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult, annual
 // HandleSaveAsModelPortfolio handles POST /efficient-frontier/save.
 // Saves the selected frontier portfolio as a model portfolio.
 func (h *EfficientFrontierWebHandler) HandleSaveAsModelPortfolio(w http.ResponseWriter, r *http.Request) {
-	// Parse form data.
-	name := strings.TrimSpace(r.FormValue("name"))
-	if name == "" {
-		name = "Optimized Portfolio"
-	}
-
-	// Parse weights from form: weight_0, weight_1, etc.
-	weights := r.Form["weight"]
-	symbols := r.Form["symbol"]
-
-	if len(weights) == 0 || len(symbols) == 0 {
-		setFlash(w, "No allocation data provided")
-		http.Redirect(w, r, "/efficient-frontier", http.StatusSeeOther)
-		return
-	}
-
-	// Build entries — convert fraction weights to percentages.
-	entries := make([]modelportfolio.ModelPortfolioEntry, 0, len(weights))
-	for i, sym := range symbols {
-		sym = strings.TrimSpace(sym)
-		if i >= len(weights) {
-			break
-		}
-		weightStr := strings.TrimSpace(weights[i])
-		weight, err := strconv.ParseFloat(weightStr, 64)
-		if err != nil || weight <= 0 {
-			continue
-		}
-		// Weight is a fraction (0.0-1.0) from the frontier, convert to percentage.
-		entries = append(entries, modelportfolio.ModelPortfolioEntry{
-			Symbol:    sym,
-			WeightPct: decimal.MustParse(strconv.FormatFloat(weight*100, 'f', 2, 64)),
-		})
-	}
-
-	if len(entries) == 0 {
-		setFlash(w, "No valid allocation entries")
-		http.Redirect(w, r, "/efficient-frontier", http.StatusSeeOther)
-		return
-	}
-
-	// Sort entries by symbol for consistent ordering.
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Symbol < entries[j].Symbol
-	})
-
-	req := modelportfolio.CreateRequest{
-		Name:    name,
-		Entries: entries,
-	}
-
-	mp, err := h.saveModelPortfolio(r.Context(), req)
-	if err != nil {
-		setFlash(w, "Failed to save model portfolio: "+err.Error())
-		http.Redirect(w, r, "/efficient-frontier", http.StatusSeeOther)
-		return
-	}
-
-	setFlash(w, "Model portfolio \""+mp.Name+"\" created successfully")
-	http.Redirect(w, r, "/model-portfolios", http.StatusSeeOther)
+	handleOptimizationWebSave(w, r, "/efficient-frontier", "/model-portfolios", "Optimized Portfolio", h.saveModelPortfolio)
 }
 
 // frontierErrorMessage maps a computation error to a user-facing message.
@@ -720,23 +585,9 @@ func frontierErrorMessage(err error) string {
 	}
 }
 
-// modelPortfolioCreator defines the method needed to create a model portfolio.
-type modelPortfolioCreator interface {
-	Create(ctx context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error)
-}
-
 // WithModelPortfolioCreator sets the model portfolio creator for saving.
 func (h *EfficientFrontierWebHandler) WithModelPortfolioCreator(creator modelPortfolioCreator) {
 	h.saveModelPortfolio = func(ctx context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
 		return creator.Create(ctx, req)
 	}
-}
-
-// serializeSliceForJS serializes a slice to JSON for embedding in JavaScript.
-func serializeSliceForJS(data interface{}) string {
-	b, err := json.Marshal(data)
-	if err != nil {
-		return "[]"
-	}
-	return string(b)
 }

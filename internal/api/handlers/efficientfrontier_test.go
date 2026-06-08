@@ -539,7 +539,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	handler.HandleSaveAsModelPortfolio(w, req)
+	handler.HandleSaveFrontierAsModelPortfolio(w, req)
 
 	if w.Code != http.StatusCreated {
 		t.Errorf("expected 201, got %d body: %s", w.Code, w.Body.String())
@@ -570,7 +570,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_NoCreator(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/save", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 
-	handler.HandleSaveAsModelPortfolio(w, req)
+	handler.HandleSaveFrontierAsModelPortfolio(w, req)
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)
@@ -625,7 +625,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_Validation(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/save", bytes.NewBufferString(tc.body))
 			w := httptest.NewRecorder()
 
-			handler.HandleSaveAsModelPortfolio(w, req)
+			handler.HandleSaveFrontierAsModelPortfolio(w, req)
 
 			if w.Code != tc.wantStatus {
 				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)
@@ -665,7 +665,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_ServiceError(t *testing.T) 
 			req := httptest.NewRequest(http.MethodPost, "/api/efficient-frontier/save", bytes.NewBufferString(body))
 			w := httptest.NewRecorder()
 
-			handler.HandleSaveAsModelPortfolio(w, req)
+			handler.HandleSaveFrontierAsModelPortfolio(w, req)
 
 			if w.Code != tc.wantStatus {
 				t.Errorf("expected %d, got %d", tc.wantStatus, w.Code)

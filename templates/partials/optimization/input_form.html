@@ -1,0 +1,71 @@
+{{/* optimization_input — shared input form for portfolio optimization pages.
+   Parameters via $.: Page data struct (must have SelectedSymbols, CandidateSymbols,
+   SelectedPeriod, PeriodURLs, SelectedBaseCurrency).
+   Extra fields for frontier: SelectedRiskFreeRate, RiskFreeRateLabel.
+   Action URL and button text are passed as $.FormAction and $.FormButtonText.
+   Symbol hint passed as $.SymbolHint. */}}
+{{define "optimization_input"}}
+<form id="{{.FormID}}-form" class="filter-bar" method="GET" action="{{.FormAction}}">
+    <div class="filter-row">
+        <div class="filter-group">
+            <label for="symbols">Candidate Symbols</label>
+            <input type="text" id="symbols" name="symbols" list="symbol-list"
+                value="{{if .SelectedSymbols}}{{range $i, $s := .SelectedSymbols}}{{if $i}}, {{end}}{{$s}}{{end}}{{end}}"
+                placeholder="e.g. SPY, EFA, BND, VNQ"
+                style="width: 400px;">
+            <datalist id="symbol-list">
+                {{range .CandidateSymbols}}
+                <option value="{{.}}"></option>
+                {{end}}
+            </datalist>
+            <small class="form-hint">{{.SymbolHint}}</small>
+        </div>
+
+        <div class="filter-group">
+            <label>Copy from</label>
+            <div class="copy-from-row">
+                <select id="copy-source-type" onchange="toggleCopySource()">
+                    <option value="">—</option>
+                    <option value="portfolio">Real Portfolio</option>
+                    <option value="model-portfolio">Model Portfolio</option>
+                </select>
+                <select id="copy-source-id" style="display:none;">
+                    <option value="">—</option>
+                </select>
+                <button type="button" class="btn btn-sm" onclick="copySymbols()" style="display:none;" id="copy-btn">Copy</button>
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>Period</label>
+            <div class="period-buttons">
+                {{range $p := slice "1Y" "3Y" "5Y"}}
+                <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>Currency</label>
+            <select id="base_currency" name="base_currency">
+                <option value="">—</option>
+                {{range $c := slice "USD" "EUR" "GBP" "JPY" "CHF" "CAD" "AUD" "CNY"}}
+                <option value="{{$c}}" {{if eq $.SelectedBaseCurrency $c}}selected{{end}}> {{$c}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        {{if .RiskFreeRate}}
+        <div class="filter-group">
+            <label for="risk_free_rate">Risk-Free Rate (%)</label>
+            <input type="number" id="risk_free_rate" name="risk_free_rate"
+                value="{{.SelectedRiskFreeRate}}" step="0.1" min="0" max="50" style="width: 80px;">
+        </div>
+        {{end}}
+
+        <div class="filter-group filter-actions">
+            <button type="submit" class="btn">{{.FormButtonText}}</button>
+        </div>
+    </div>
+</form>
+{{end}}
