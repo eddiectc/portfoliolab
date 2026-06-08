@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
 )
 
@@ -517,7 +518,7 @@ func TestPeriodCutoff(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.period, func(t *testing.T) {
-			cutoff, _ := periodCutoff(tt.period)
+			cutoff, _ := util.PeriodCutoff(tt.period)
 			expected := now.AddDate(-tt.wantYears, 0, 0)
 			diff := cutoff.Sub(expected).Hours()
 			if math.Abs(diff) > 1 {

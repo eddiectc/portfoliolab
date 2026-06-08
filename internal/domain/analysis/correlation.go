@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
+	"codeberg.org/eddiectc/portfoliolab/internal/util"
 )
 
 const (
@@ -39,7 +40,7 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 	var warnings []string
 
 	// Determine cutoff date from period.
-	cutoff, periodWarning := periodCutoff(period)
+	cutoff, periodWarning := util.PeriodCutoff(period)
 	if periodWarning != "" {
 		warnings = append(warnings, periodWarning)
 	}
@@ -160,29 +161,6 @@ func ComputeCorrelation(prices map[string][]market.HistoricalPrice, period strin
 		Symbols:  validSymbols,
 		Period:   period,
 		Warnings: warnings,
-	}
-}
-
-// periodCutoff returns the start date for the given lookback period string
-// and a warning if the period was unrecognized (defaults to 1Y).
-func periodCutoff(period string) (time.Time, string) {
-	now := time.Now()
-	switch period {
-	case "3M":
-		return now.AddDate(0, -3, 0), ""
-	case "6M":
-		return now.AddDate(0, -6, 0), ""
-	case "1Y":
-		return now.AddDate(-1, 0, 0), ""
-	case "3Y":
-		return now.AddDate(-3, 0, 0), ""
-	case "5Y":
-		return now.AddDate(-5, 0, 0), ""
-	case "10Y":
-		return now.AddDate(-10, 0, 0), ""
-	default:
-		return now.AddDate(-1, 0, 0),
-			"unrecognized period "+period+" — defaulting to 1Y"
 	}
 }
 
