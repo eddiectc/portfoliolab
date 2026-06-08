@@ -163,6 +163,41 @@ func TestHrpAllocationJSONRoundTrip(t *testing.T) {
 	}
 }
 
+// --- Test HrpAllocation zero-value omitempty ---
+
+func TestHrpAllocationZeroValueOmitEmpty(t *testing.T) {
+	original := HrpAllocation{
+		Method:   "ward",
+		Weights:  map[string]float64{},
+		Dendrogram: nil,
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	var decoded HrpAllocation
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+
+	if decoded.Method != "ward" {
+		t.Errorf("Method = %q, want %q", decoded.Method, "ward")
+	}
+	if decoded.Weights != nil && len(decoded.Weights) != 0 {
+		t.Errorf("Weights = %v, want nil or empty", decoded.Weights)
+	}
+	if decoded.Dendrogram != nil {
+		t.Errorf("Dendrogram = %v, want nil", decoded.Dendrogram)
+	}
+
+	// Verify omitempty: the raw JSON should not contain "dendrogram" key
+	if strings.Contains(string(data), "dendrogram") {
+		t.Error("JSON contains \"dendrogram\" key, want it omitted for nil value")
+	}
+}
+
 // --- Test HrpResult JSON round-trip ---
 
 func TestHrpResultJSONRoundTrip(t *testing.T) {

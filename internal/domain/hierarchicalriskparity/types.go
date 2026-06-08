@@ -69,7 +69,7 @@ type HrpAllocation struct {
 	// Weights maps each symbol to its allocation weight as a fraction (0.0-1.0).
 	Weights map[string]float64 `json:"weights"`
 	// Dendrogram is the tree structure for the clustering dendrogram.
-	Dendrogram *DendrogramNode `json:"dendrogram"`
+	Dendrogram *DendrogramNode `json:"dendrogram,omitempty"`
 }
 
 // DendrogramNode represents a node in the hierarchical clustering tree,
