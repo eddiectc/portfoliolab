@@ -51,6 +51,9 @@ func TestParseFundProfile(t *testing.T) {
 	if profile.AnnualExpenseRatio != 0.0020 {
 		t.Errorf("expected TER 0.0020, got %f", profile.AnnualExpenseRatio)
 	}
+	if profile.BaseCurrency != "GBP" {
+		t.Errorf("expected BaseCurrency GBP, got %s", profile.BaseCurrency)
+	}
 }
 
 func TestParseHoldings(t *testing.T) {

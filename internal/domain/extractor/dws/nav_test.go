@@ -7,9 +7,83 @@ import (
 	"github.com/govalues/decimal"
 )
 
+func TestParseNavCurrency(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     string
+		expected string
+	}{
+		{
+			name: "NAV (USD)",
+			data: `{
+				"seriesConfiguration": [
+					{"chartType": "Nav", "identifier": "NAV (USD)"},
+					{"chartType": "Index", "identifier": "Some Index (USD)"}
+				],
+				"values": []
+			}`,
+			expected: "USD",
+		},
+		{
+			name: "NAV (EUR)",
+			data: `{
+				"seriesConfiguration": [
+					{"chartType": "Nav", "identifier": "NAV (EUR)"}
+				],
+				"values": []
+			}`,
+			expected: "EUR",
+		},
+		{
+			name: "NAV (GBP)",
+			data: `{
+				"seriesConfiguration": [
+					{"chartType": "Nav", "identifier": "NAV (GBP)"}
+				],
+				"values": []
+			}`,
+			expected: "GBP",
+		},
+		{
+			name: "no series configuration",
+			data: `{
+				"seriesConfiguration": [],
+				"values": []
+			}`,
+			expected: "",
+		},
+		{
+			name: "no parentheses",
+			data: `{
+				"seriesConfiguration": [
+					{"chartType": "Nav", "identifier": "NAV"}
+				],
+				"values": []
+			}`,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			currency, err := ParseNavCurrency(tt.data)
+			if err != nil {
+				t.Fatalf("ParseNavCurrency failed: %v", err)
+			}
+			if currency != tt.expected {
+				t.Errorf("expected %s, got %s", tt.expected, currency)
+			}
+		})
+	}
+}
+
 func TestParseNavHistory(t *testing.T) {
 	jsonData := `{
 		"asOfDate": "27/05/2026",
+		"seriesConfiguration": [
+			{"chartType": "Nav", "identifier": "NAV (USD)"},
+			{"chartType": "Index", "identifier": "Nasdaq Global Artificial Intelligence and Big Data Total Net Return Index (USD)"}
+		],
 		"values": [
 			[
 				1611187200000,
@@ -28,13 +102,22 @@ func TestParseNavHistory(t *testing.T) {
 		]
 	}`
 
-	navs, err := ParseNavHistory(jsonData)
+	currency, err := ParseNavCurrency(jsonData)
+	if err != nil {
+		t.Fatalf("ParseNavCurrency failed: %v", err)
+	}
+
+	navs, err := ParseNavHistory(jsonData, currency)
 	if err != nil {
 		t.Fatalf("ParseNavHistory failed: %v", err)
 	}
 
 	if len(navs) != 2 {
 		t.Fatalf("expected 2 nav points, got %d", len(navs))
+	}
+
+	if navs[0].Currency != "USD" {
+		t.Errorf("expected currency USD, got %s", navs[0].Currency)
 	}
 
 	expectedDate := time.UnixMilli(1611187200000)

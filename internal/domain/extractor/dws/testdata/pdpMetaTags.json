@@ -13,5 +13,10 @@
         ]
       }
     }
+  },
+  "tealium": {
+    "attributes": {
+      "product_currency": "GBP"
+    }
   }
 }
