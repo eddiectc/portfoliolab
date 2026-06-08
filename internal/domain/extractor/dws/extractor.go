@@ -91,12 +91,17 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("parse as-of date: %w", err)
 	}
 
-	navHistory, err := ParseNavHistory(chartData)
+	navCurrency, err := ParseNavCurrency(chartData)
+	if err != nil {
+		return nil, fmt.Errorf("parse nav currency: %w", err)
+	}
+
+	navHistory, err := ParseNavHistory(chartData, navCurrency)
 	if err != nil {
 		return nil, fmt.Errorf("parse nav history: %w", err)
 	}
 
-	// Now parse fund profile with AUM and TER from meta tags
+	// Parse fund profile (includes BaseCurrency from tealium meta tags)
 	fundProfile, err := ParseFundProfile(settingsData, metaData)
 	if err != nil {
 		return nil, fmt.Errorf("parse fund profile: %w", err)

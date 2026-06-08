@@ -37,6 +37,11 @@ type pdpMetaTagsResp struct {
 			} `json:"productHeader"`
 		} `json:"pageFrame"`
 	} `json:"pdpResult"`
+	Tealium struct {
+		Attributes struct {
+			ProductCurrency string `json:"product_currency"`
+		} `json:"attributes"`
+	} `json:"tealium"`
 }
 
 type holdingsResp struct {
@@ -76,7 +81,11 @@ type holdingsResp struct {
 
 type performanceChartResp struct {
 	AsOfDate string `json:"asOfDate"`
-	Values   [][]interface{} `json:"values"`
+	SeriesConfiguration []struct {
+		ChartType   string `json:"chartType"`
+		Identifier  string `json:"identifier"`
+	} `json:"seriesConfiguration"`
+	Values [][]interface{} `json:"values"`
 }
 
 // ParseFundInfo extracts basic identity data.
@@ -145,6 +154,7 @@ func ParseFundProfile(settingsData, metaData string) (*extractor.FundProfile, er
 		LegalType:          sResp.LegalType,
 		TotalNetAssets:     aum,
 		AnnualExpenseRatio: ter,
+		BaseCurrency:       mResp.Tealium.Attributes.ProductCurrency,
 	}, nil
 }
 
@@ -192,8 +202,24 @@ func ParseHoldings(data string) ([]extractor.Holding, []extractor.CountryAllocat
 	return holdings, countries, sectors, nil
 }
 
+// ParseNavCurrency extracts the currency from the performance chart's
+// seriesConfiguration (e.g. "NAV (USD)" -> "USD").
+func ParseNavCurrency(data string) (string, error) {
+	var resp performanceChartResp
+	if err := json.Unmarshal([]byte(data), &resp); err != nil {
+		return "", fmt.Errorf("unmarshal performanceChart: %w", err)
+	}
+
+	for _, sc := range resp.SeriesConfiguration {
+		if sc.ChartType == "Nav" {
+			return extractCurrencyFromIdentifier(sc.Identifier), nil
+		}
+	}
+	return "", nil
+}
+
 // ParseNavHistory extracts time series data.
-func ParseNavHistory(data string) ([]extractor.NavPoint, error) {
+func ParseNavHistory(data, currency string) ([]extractor.NavPoint, error) {
 	var resp performanceChartResp
 	if err := json.Unmarshal([]byte(data), &resp); err != nil {
 		return nil, fmt.Errorf("unmarshal performanceChart: %w", err)
@@ -230,8 +256,9 @@ func ParseNavHistory(data string) ([]extractor.NavPoint, error) {
 		}
 
 		navs = append(navs, extractor.NavPoint{
-			Date: timestamp,
-			NAV:  decimal.MustNew(int64(navVal*1000000), 6),
+			Date:     timestamp,
+			NAV:      decimal.MustNew(int64(navVal*1000000), 6),
+			Currency: currency,
 		})
 	}
 
@@ -308,5 +335,21 @@ func parsePercent(s string) (float64, error) {
 		return 0, err
 	}
 	return val / 100, nil
+}
+
+// extractCurrencyFromIdentifier extracts currency code from identifiers like
+// "NAV (USD)", "Nasdaq Global Artificial Intelligence and Big Data Total Net Return Index (USD)".
+func extractCurrencyFromIdentifier(s string) string {
+	// Look for currency code in parentheses at the end, e.g. "(USD)"
+	idx := strings.LastIndex(s, "(")
+	if idx < 0 {
+		return ""
+	}
+	result := strings.Trim(s[idx:], "()")
+	// Validate it looks like a 3-letter currency code
+	if len(result) == 3 && result == strings.ToUpper(result) {
+		return result
+	}
+	return ""
 }
 
