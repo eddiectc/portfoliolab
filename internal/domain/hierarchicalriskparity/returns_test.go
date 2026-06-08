@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
@@ -95,9 +96,9 @@ func TestComputeDailyReturns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ComputeDailyReturns(tt.prices)
+			got, err := optimization.ComputeDailyReturns(tt.prices)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ComputeDailyReturns() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("optimization.ComputeDailyReturns() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if len(got) != tt.wantLen {
@@ -171,9 +172,9 @@ func TestAlignReturns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			aligned, count, err := AlignReturns(tt.pricesBySymbol, tt.symbols)
+			aligned, count, err := optimization.AlignReturns(tt.pricesBySymbol, tt.symbols)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AlignReturns() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("optimization.AlignReturns() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if count != tt.wantRows {
@@ -209,12 +210,12 @@ func TestAlignReturnsPartialOverlap(t *testing.T) {
 		{Date: now.AddDate(0, 0, 2), Close: dec(53)},
 	}
 
-	aligned, count, err := AlignReturns(
+	aligned, count, err := optimization.AlignReturns(
 		map[string][]market.HistoricalPrice{"A": pricesA, "B": pricesB},
 		[]string{"A", "B"},
 	)
 	if err != nil {
-		t.Fatalf("AlignReturns() error = %v", err)
+		t.Fatalf("optimization.AlignReturns() error = %v", err)
 	}
 	if count != 2 {
 		t.Errorf("count = %d, want 2", count)
@@ -246,12 +247,12 @@ func TestAlignReturnsSortedByDate(t *testing.T) {
 	pricesA := makePrices(100, []float64{0.01, -0.02, 0.03})
 	pricesB := makePrices(50, []float64{-0.01, 0.02, -0.015})
 
-	aligned, _, err := AlignReturns(
+	aligned, _, err := optimization.AlignReturns(
 		map[string][]market.HistoricalPrice{"A": pricesA, "B": pricesB},
 		[]string{"A", "B"},
 	)
 	if err != nil {
-		t.Fatalf("AlignReturns() error = %v", err)
+		t.Fatalf("optimization.AlignReturns() error = %v", err)
 	}
 
 	// Verify column A matches the expected returns in order.

@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/hierarchicalriskparity"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
@@ -265,14 +266,14 @@ func TestParseHrpSymbols(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseHrpSymbols(tt.input)
+			got := parseOptimizationSymbols(tt.input)
 			if len(got) != len(tt.want) {
-				t.Errorf("parseHrpSymbols(%q) = %v, want %v", tt.input, got, tt.want)
+				t.Errorf("parseOptimizationSymbols(%q) = %v, want %v", tt.input, got, tt.want)
 				return
 			}
 			for i := range got {
 				if got[i] != tt.want[i] {
-					t.Errorf("parseHrpSymbols(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+					t.Errorf("parseOptimizationSymbols(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
 				}
 			}
 		})
@@ -314,29 +315,29 @@ func TestBuildHrpPeriodURLs(t *testing.T) {
 
 func TestFindHrpLeastDataSymbol(t *testing.T) {
 	// Empty map.
-	sym, days := findHrpLeastDataSymbol(nil)
+	sym, days := findLeastDataSymbol(nil)
 	if sym != "" || days != 0 {
-		t.Errorf("findHrpLeastDataSymbol(nil) = %q, %d, want \"\", 0", sym, days)
+		t.Errorf("findLeastDataSymbol(nil) = %q, %d, want \"\", 0", sym, days)
 	}
 
 	// Single symbol.
-	span := map[string]hierarchicalriskparity.DataSpan{
+	span := map[string]optimization.DataSpan{
 		"SPY": {TradingDays: 250},
 	}
-	sym, days = findHrpLeastDataSymbol(span)
+	sym, days = findLeastDataSymbol(span)
 	if sym != "SPY" || days != 250 {
-		t.Errorf("findHrpLeastDataSymbol(single) = %q, %d, want SPY, 250", sym, days)
+		t.Errorf("findLeastDataSymbol(single) = %q, %d, want SPY, 250", sym, days)
 	}
 
 	// Multiple symbols — find the one with fewest days.
-	span2 := map[string]hierarchicalriskparity.DataSpan{
+	span2 := map[string]optimization.DataSpan{
 		"SPY": {TradingDays: 756},
 		"EFA": {TradingDays: 500},
 		"BND": {TradingDays: 700},
 	}
-	sym, days = findHrpLeastDataSymbol(span2)
+	sym, days = findLeastDataSymbol(span2)
 	if sym != "EFA" || days != 500 {
-		t.Errorf("findHrpLeastDataSymbol(multi) = %q, %d, want EFA, 500", sym, days)
+		t.Errorf("findLeastDataSymbol(multi) = %q, %d, want EFA, 500", sym, days)
 	}
 }
 

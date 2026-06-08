@@ -262,14 +262,14 @@ func TestParseFrontierSymbols(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseFrontierSymbols(tt.input)
+			got := parseOptimizationSymbols(tt.input)
 			if len(got) != len(tt.want) {
-				t.Errorf("parseFrontierSymbols(%q) = %v, want %v", tt.input, got, tt.want)
+				t.Errorf("parseOptimizationSymbols(%q) = %v, want %v", tt.input, got, tt.want)
 				return
 			}
 			for i := range got {
 				if got[i] != tt.want[i] {
-					t.Errorf("parseFrontierSymbols(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+					t.Errorf("parseOptimizationSymbols(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
 				}
 			}
 		})

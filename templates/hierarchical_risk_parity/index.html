@@ -8,85 +8,11 @@
 <div class="alert alert-error">{{.Error}}</div>
 {{end}}
 
-{{/* Input form: symbol selection + compute */}}
-<form id="hrp-form" class="filter-bar" method="GET" action="/hrp">
-    <div class="filter-row">
-        <div class="filter-group">
-            <label for="symbols">Candidate Symbols</label>
-            <input type="text" id="symbols" name="symbols" list="symbol-list"
-                value="{{if .SelectedSymbols}}{{range $i, $s := .SelectedSymbols}}{{if $i}}, {{end}}{{$s}}{{end}}{{end}}"
-                placeholder="e.g. SPY, EFA, BND, VNQ, EEM"
-                style="width: 400px;">
-            <datalist id="symbol-list">
-                {{range .CandidateSymbols}}
-                <option value="{{.}}"></option>
-                {{end}}
-            </datalist>
-            <small class="form-hint">Comma-separated symbols. Min 2, max 20.</small>
-        </div>
+{{/* Shared input form */}}
+{{template "optimization_input" .}}
 
-        <div class="filter-group">
-            <label>Copy from</label>
-            <div class="copy-from-row">
-                <select id="copy-source-type" onchange="toggleCopySource()">
-                    <option value="">—</option>
-                    <option value="portfolio">Real Portfolio</option>
-                    <option value="model-portfolio">Model Portfolio</option>
-                </select>
-                <select id="copy-source-id" style="display:none;">
-                    <option value="">—</option>
-                </select>
-                <button type="button" class="btn btn-sm" onclick="copySymbols()" style="display:none;" id="copy-btn">Copy</button>
-            </div>
-        </div>
-
-        <div class="filter-group">
-            <label>Period</label>
-            <div class="period-buttons">
-                {{range $p := slice "1Y" "3Y" "5Y"}}
-                <a href="{{index $.PeriodURLs $p}}" class="tab {{if eq $.SelectedPeriod $p}}active{{end}}">{{$p}}</a>
-                {{end}}
-            </div>
-        </div>
-
-        <div class="filter-group">
-            <label>Currency</label>
-            <select id="base_currency" name="base_currency">
-                <option value="">—</option>
-                {{range $c := slice "USD" "EUR" "GBP" "JPY" "CHF" "CAD" "AUD" "CNY"}}
-                <option value="{{$c}}" {{if eq $.SelectedBaseCurrency $c}}selected{{end}}> {{$c}}</option>
-                {{end}}
-            </select>
-        </div>
-
-        <div class="filter-group filter-actions">
-            <button type="submit" class="btn">Compute HRP</button>
-        </div>
-    </div>
-</form>
-
-{{/* Store portfolio/model-portfolio data for JS */}}
-<script>
-var portfolios = {{.PortfoliosJSON | safeJS}};
-var modelPortfolios = {{.ModelPortfoliosJSON | safeJS}};
-</script>
-
-{{/* Warnings */}}
-{{if .Warnings}}
-<div class="alert alert-error" style="background:#fff3cd;color:#856404;border-color:#ffc107;">
-    {{range .Warnings}}
-    <span>⚠ {{.}}</span><br>
-    {{end}}
-</div>
-{{end}}
-
-{{/* Excluded symbols */}}
-{{if .ExcludedSymbols}}
-<div class="alert alert-error" style="background:#f8d7da;color:#721c24;border-color:#f5c6cb;">
-    <strong>Excluded symbols (no data):</strong>
-    {{range .ExcludedSymbols}}{{.}} {{end}}
-</div>
-{{end}}
+{{/* Shared warnings/excluded symbols */}}
+{{template "optimization_warnings" .}}
 
 {{/* Results section */}}
 {{if .Result}}
@@ -342,59 +268,8 @@ function updateSaveFields() {
 
 </script>
 
-{{/* Copy-from functions */}}
-<script>
-function toggleCopySource() {
-    var type = document.getElementById('copy-source-type').value;
-    var idSelect = document.getElementById('copy-source-id');
-    var copyBtn = document.getElementById('copy-btn');
-
-    idSelect.innerHTML = '<option value="">—</option>';
-
-    if (type === 'portfolio') {
-        for (var i = 0; i < portfolios.length; i++) {
-            var opt = document.createElement('option');
-            opt.value = portfolios[i].id;
-            opt.textContent = portfolios[i].name + ' (' + portfolios[i].currency + ')';
-            idSelect.appendChild(opt);
-        }
-    } else if (type === 'model-portfolio') {
-        for (var i = 0; i < modelPortfolios.length; i++) {
-            var opt = document.createElement('option');
-            opt.value = modelPortfolios[i].id;
-            opt.textContent = modelPortfolios[i].name + ' (' + modelPortfolios[i].entry_count + ' entries)';
-            idSelect.appendChild(opt);
-        }
-    }
-
-    idSelect.style.display = type ? 'inline-block' : 'none';
-    copyBtn.style.display = type ? 'inline-block' : 'none';
-}
-
-async function copySymbols() {
-    var type = document.getElementById('copy-source-type').value;
-    var id = document.getElementById('copy-source-id').value;
-
-    if (!type || !id) return;
-
-    var url = '';
-    if (type === 'portfolio') {
-        url = '/api/hrp/portfolio/' + id + '/symbols';
-    } else if (type === 'model-portfolio') {
-        url = '/api/hrp/model-portfolio/' + id + '/symbols';
-    }
-
-    try {
-        var resp = await fetch(url);
-        var data = await resp.json();
-        if (data.symbols && data.symbols.length > 0) {
-            document.getElementById('symbols').value = data.symbols.join(', ');
-        }
-    } catch (e) {
-        alert('Failed to fetch symbols: ' + e.message);
-    }
-}
-</script>
+{{/* Shared copy-from functions */}}
+{{template "optimization_copy_from_js" .}}
 
 {{end}}
 

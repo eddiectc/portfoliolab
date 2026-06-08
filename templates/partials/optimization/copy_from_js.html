@@ -1,0 +1,58 @@
+{{/* optimization_copy_from_js — shared copy-from functions for optimization pages.
+   $.ApiBase is the API path prefix (e.g. "/api/efficient-frontier" or "/api/hrp"). */}}
+{{define "optimization_copy_from_js"}}
+<script>
+var _copyApiBase = "{{.ApiBase}}";
+
+function toggleCopySource() {
+    var type = document.getElementById('copy-source-type').value;
+    var idSelect = document.getElementById('copy-source-id');
+    var copyBtn = document.getElementById('copy-btn');
+
+    idSelect.innerHTML = '<option value="">—</option>';
+
+    if (type === 'portfolio') {
+        for (var i = 0; i < portfolios.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = portfolios[i].id;
+            opt.textContent = portfolios[i].name + ' (' + portfolios[i].currency + ')';
+            idSelect.appendChild(opt);
+        }
+    } else if (type === 'model-portfolio') {
+        for (var i = 0; i < modelPortfolios.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = modelPortfolios[i].id;
+            opt.textContent = modelPortfolios[i].name + ' (' + modelPortfolios[i].entry_count + ' entries)';
+            idSelect.appendChild(opt);
+        }
+    }
+
+    idSelect.style.display = type ? 'inline-block' : 'none';
+    copyBtn.style.display = type ? 'inline-block' : 'none';
+}
+
+async function copySymbols() {
+    var type = document.getElementById('copy-source-type').value;
+    var id = document.getElementById('copy-source-id').value;
+
+    if (!type || !id) return;
+
+    var url = '';
+    if (type === 'portfolio') {
+        url = _copyApiBase + '/portfolio/' + id + '/symbols';
+    } else if (type === 'model-portfolio') {
+        url = _copyApiBase + '/model-portfolio/' + id + '/symbols';
+    }
+
+    try {
+        var resp = await fetch(url);
+        var data = await resp.json();
+        if (data.symbols && data.symbols.length > 0) {
+            document.getElementById('symbols').value = data.symbols.join(', ');
+        }
+    } catch (e) {
+        alert('Failed to fetch symbols: ' + e.message);
+    }
+}
+</script>
+{{end}}

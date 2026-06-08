@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
@@ -90,27 +91,27 @@ func (m *mockPortfolioSymbolSource) GetSymbolsByPortfolio(_ context.Context, por
 }
 
 type mockModelPortfolioSource struct {
-	portfolios map[int64]ModelPortfolioRef
+	portfolios map[int64]optimization.ModelPortfolioRef
 	err        error
 }
 
-func (m *mockModelPortfolioSource) Get(_ context.Context, id int64) (ModelPortfolioRef, error) {
+func (m *mockModelPortfolioSource) Get(_ context.Context, id int64) (optimization.ModelPortfolioRef, error) {
 	if m.err != nil {
-		return ModelPortfolioRef{}, m.err
+		return optimization.ModelPortfolioRef{}, m.err
 	}
 	ref, ok := m.portfolios[id]
 	if !ok {
-		return ModelPortfolioRef{}, fmt.Errorf("model portfolio %d not found", id)
+		return optimization.ModelPortfolioRef{}, fmt.Errorf("model portfolio %d not found", id)
 	}
 	return ref, nil
 }
 
 type mockFxRateSource struct {
-	rates map[string]map[string]*FxRate // base -> quote -> rate
+	rates map[string]map[string]*optimization.FxRate // base -> quote -> rate
 	err   error
 }
 
-func (m *mockFxRateSource) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*FxRate, error) {
+func (m *mockFxRateSource) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*optimization.FxRate, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -478,7 +479,7 @@ func TestComputeFrontier_FxCurrencyConversion(t *testing.T) {
 		mappings: map[string]string{"VOO": "VOO", "VEA": "VEA"},
 	}
 	fxSource := &mockFxRateSource{
-		rates: map[string]map[string]*FxRate{
+		rates: map[string]map[string]*optimization.FxRate{
 			"GBP": {"USD": {BaseCurrency: "GBP", QuoteCurrency: "USD", Rate: 1.27}},
 		},
 	}
@@ -523,7 +524,7 @@ func TestComputeFrontier_FXRateMissing(t *testing.T) {
 		mappings: map[string]string{"VOO": "VOO", "VEA": "VEA"},
 	}
 	fxSource := &mockFxRateSource{
-		rates: map[string]map[string]*FxRate{}, // no EUR/USD rate
+		rates: map[string]map[string]*optimization.FxRate{}, // no EUR/USD rate
 	}
 
 	svc := NewService(historySource, symResolver, nil, nil, nil, fxSource)
@@ -842,7 +843,7 @@ func TestGetSymbolsFromPortfolio_Error(t *testing.T) {
 
 func TestGetSymbolsFromModelPortfolio_HappyPath(t *testing.T) {
 	source := &mockModelPortfolioSource{
-		portfolios: map[int64]ModelPortfolioRef{
+		portfolios: map[int64]optimization.ModelPortfolioRef{
 			1: {Symbols: []string{"VOO", "VEA", "BND"}},
 			2: {Symbols: []string{"MSFT", "GOOGL", "AAPL"}},
 		},
@@ -860,7 +861,7 @@ func TestGetSymbolsFromModelPortfolio_HappyPath(t *testing.T) {
 
 func TestGetSymbolsFromModelPortfolio_NotFound(t *testing.T) {
 	source := &mockModelPortfolioSource{
-		portfolios: map[int64]ModelPortfolioRef{},
+		portfolios: map[int64]optimization.ModelPortfolioRef{},
 	}
 	svc := NewService(nil, nil, nil, nil, source, nil)
 
@@ -873,9 +874,12 @@ func TestGetSymbolsFromModelPortfolio_NotFound(t *testing.T) {
 func TestGetSymbolsFromModelPortfolio_NoSource(t *testing.T) {
 	svc := NewService(nil, nil, nil, nil, nil, nil)
 
-	_, err := svc.GetSymbolsFromModelPortfolio(ctx, 1)
-	if err == nil {
-		t.Fatal("expected error when source not configured")
+	symbols, err := svc.GetSymbolsFromModelPortfolio(ctx, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(symbols) != 0 {
+		t.Fatalf("expected empty list, got %v", symbols)
 	}
 }
 
