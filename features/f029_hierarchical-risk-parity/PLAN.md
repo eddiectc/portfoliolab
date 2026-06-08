@@ -60,14 +60,14 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: Compute HRP allocations (data preparation step)
 **Description:** Implement the mathematical building blocks needed by the HRP engine.
 
-- [ ] Create `internal/domain/hierarchicalriskparity/returns.go`
-- [ ] Implement `ComputeDailyReturns(prices) → []float64` (simple returns, sorted by date)
-- [ ] Implement `AlignReturns(pricesBySymbol, symbols) → ([][]float64, int)` — align by date, return only dates where ALL symbols have data
-- [ ] Create `internal/domain/hierarchicalriskparity/correlation.go`
-- [ ] Implement `ComputeCorrelationMatrix(alignedReturns) → [][]float64` using `stats.PearsonCorrelation`
-- [ ] Create `internal/domain/hierarchicalriskparity/distance.go`
-- [ ] Implement `CorrelationToDistance(corrMatrix) → [][]float64` using `d(i,j) = sqrt(2*(1-corr(i,j)))`
-- [ ] Write tests for each function with known inputs (e.g., perfectly correlated → distance 0, uncorrelated → distance ~1.41)
+- [x] Create `internal/domain/hierarchicalriskparity/returns.go`
+- [x] Implement `ComputeDailyReturns(prices) → []float64` (simple returns, sorted by date)
+- [x] Implement `AlignReturns(pricesBySymbol, symbols) → ([][]float64, int)` — align by date, return only dates where ALL symbols have data
+- [x] Create `internal/domain/hierarchicalriskparity/correlation.go`
+- [x] Implement `ComputeCorrelationMatrix(alignedReturns) → [][]float64` using `stats.PearsonCorrelation`
+- [x] Create `internal/domain/hierarchicalriskparity/distance.go`
+- [x] Implement `CorrelationToDistance(corrMatrix) → [][]float64` using `d(i,j) = sqrt(2*(1-corr(i,j)))`
+- [x] Write tests for each function with known inputs (e.g., perfectly correlated → distance 0, uncorrelated → distance ~1.41)
 
 **Verification:** `go test ./internal/domain/hierarchicalriskparity/...` passes; correlation of identical series = 1.0, distance = 0.0.
 
