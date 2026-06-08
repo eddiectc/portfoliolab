@@ -1,6 +1,6 @@
 -- name: CreateSymbolMapping :one
-INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, is_benchmark, data_source_url, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetSymbolMapping :one

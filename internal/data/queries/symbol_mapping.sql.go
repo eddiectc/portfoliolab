@@ -42,17 +42,18 @@ func (q *Queries) AddBrokerSymbol(ctx context.Context, db DBTX, arg AddBrokerSym
 }
 
 const createSymbolMapping = `-- name: CreateSymbolMapping :one
-INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, is_benchmark, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO symbol_mappings (internal_symbol, market_data_symbol, is_benchmark, data_source_url, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)
 RETURNING id, internal_symbol, market_data_symbol, is_benchmark, data_source_url, created_at, updated_at
 `
 
 type CreateSymbolMappingParams struct {
-	InternalSymbol   string `db:"internal_symbol"`
-	MarketDataSymbol string `db:"market_data_symbol"`
-	IsBenchmark      bool   `db:"is_benchmark"`
-	CreatedAt        string `db:"created_at"`
-	UpdatedAt        string `db:"updated_at"`
+	InternalSymbol   string         `db:"internal_symbol"`
+	MarketDataSymbol string         `db:"market_data_symbol"`
+	IsBenchmark      bool           `db:"is_benchmark"`
+	DataSourceUrl    sql.NullString `db:"data_source_url"`
+	CreatedAt        string         `db:"created_at"`
+	UpdatedAt        string         `db:"updated_at"`
 }
 
 func (q *Queries) CreateSymbolMapping(ctx context.Context, db DBTX, arg CreateSymbolMappingParams) (SymbolMapping, error) {
@@ -60,6 +61,7 @@ func (q *Queries) CreateSymbolMapping(ctx context.Context, db DBTX, arg CreateSy
 		arg.InternalSymbol,
 		arg.MarketDataSymbol,
 		arg.IsBenchmark,
+		arg.DataSourceUrl,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)

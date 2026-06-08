@@ -84,6 +84,33 @@ func TestSymbolMappingRepository_CreateAndGet(t *testing.T) {
 	}
 }
 
+func TestSymbolMappingRepository_Create_DataSourceURL(t *testing.T) {
+	db := setupSymbolMappingDB(t)
+	repo := NewSymbolMappingRepository(db)
+
+	now := time.Now()
+	sm := &symbolmapping.SymbolMapping{
+		InternalSymbol:   "WMGT",
+		MarketDataSymbol: "WMGT LN",
+		DataSourceURL:    "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt",
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+
+	err := repo.Create(context.Background(), sm)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repo.GetByID(context.Background(), sm.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got.DataSourceURL != "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt" {
+		t.Errorf("expected DataSourceURL 'https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt', got %q", got.DataSourceURL)
+	}
+}
+
 func TestSymbolMappingRepository_GetByID_NotFound(t *testing.T) {
 	db := setupSymbolMappingDB(t)
 	repo := NewSymbolMappingRepository(db)
