@@ -74,7 +74,18 @@ func TestComputeDailyReturns(t *testing.T) {
 			wantFirst: 0,
 		},
 		{
-			name:      "unsorted input is handled correctly",
+			name: "unsorted input is sorted before computing returns",
+			prices: []market.HistoricalPrice{
+				{Date: time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC), Close: dec(106.18)},
+				{Date: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), Close: dec(100.00)},
+				{Date: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC), Close: dec(102.00)},
+			},
+			wantLen:   2,
+			wantErr:   false,
+			wantFirst: 0.02, // (102/100)-1 = 0.02 after sorting by date
+		},
+		{
+			name:      "sorted input with known returns",
 			prices:    makePrices(100, []float64{0.02, 0.03}),
 			wantLen:   2,
 			wantErr:   false,
@@ -175,6 +186,59 @@ func TestAlignReturns(t *testing.T) {
 				t.Errorf("len(aligned[0]) = %d, want %d", len(aligned[0]), tt.wantCols)
 			}
 		})
+	}
+}
+
+func TestAlignReturnsPartialOverlap(t *testing.T) {
+	// Symbol A: prices on days -4, -3, -2, -1, 0 → returns on days -3, -2, -1, 0
+	// Symbol B: prices on days -2, -1,  0,  1, 2 → returns on days -1,  0,  1, 2
+	// Overlapping return dates: -1, 0 → 2 aligned rows
+	now := time.Date(2026, 6, 8, 0, 0, 0, 0, time.UTC)
+	pricesA := []market.HistoricalPrice{
+		{Date: now.AddDate(0, 0, -4), Close: dec(100)},
+		{Date: now.AddDate(0, 0, -3), Close: dec(102)},
+		{Date: now.AddDate(0, 0, -2), Close: dec(101)},
+		{Date: now.AddDate(0, 0, -1), Close: dec(103)},
+		{Date: now.AddDate(0, 0, 0), Close: dec(105)},
+	}
+	pricesB := []market.HistoricalPrice{
+		{Date: now.AddDate(0, 0, -2), Close: dec(50)},
+		{Date: now.AddDate(0, 0, -1), Close: dec(51)},
+		{Date: now.AddDate(0, 0, 0), Close: dec(52)},
+		{Date: now.AddDate(0, 0, 1), Close: dec(51)},
+		{Date: now.AddDate(0, 0, 2), Close: dec(53)},
+	}
+
+	aligned, count, err := AlignReturns(
+		map[string][]market.HistoricalPrice{"A": pricesA, "B": pricesB},
+		[]string{"A", "B"},
+	)
+	if err != nil {
+		t.Fatalf("AlignReturns() error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("count = %d, want 2", count)
+	}
+	if len(aligned) != 2 {
+		t.Fatalf("len(aligned) = %d, want 2", len(aligned))
+	}
+
+	// A's returns on overlapping dates:
+	// day -1: (103/101)-1 ≈ 0.019802
+	// day  0: (105/103)-1 ≈ 0.019417
+	wantA := []float64{(103.0 / 101.0) - 1, (105.0 / 103.0) - 1}
+	// B's returns on overlapping dates:
+	// day -1: (51/50)-1 = 0.02
+	// day  0: (52/51)-1 ≈ 0.019608
+	wantB := []float64{(51.0 / 50.0) - 1, (52.0 / 51.0) - 1}
+
+	for i := 0; i < 2; i++ {
+		if math.Abs(aligned[i][0]-wantA[i]) > 0.0001 {
+			t.Errorf("aligned[%d][0] = %.6f, want %.6f", i, aligned[i][0], wantA[i])
+		}
+		if math.Abs(aligned[i][1]-wantB[i]) > 0.0001 {
+			t.Errorf("aligned[%d][1] = %.6f, want %.6f", i, aligned[i][1], wantB[i])
+		}
 	}
 }
 

@@ -89,6 +89,35 @@ func TestComputeCorrelationMatrix(t *testing.T) {
 	}
 }
 
+func TestComputeCorrelationMatrixZeroVariance(t *testing.T) {
+	// Column 1 is constant (zero variance) — PearsonCorrelation returns 0
+	// for zero-variance series, so corr[0][1] and corr[1][0] should be 0.
+	aligned := [][]float64{
+		{0.01, 5.0},
+		{-0.02, 5.0},
+		{0.03, 5.0},
+		{0.01, 5.0},
+		{-0.01, 5.0},
+	}
+
+	corr := ComputeCorrelationMatrix(aligned)
+
+	// Diagonal should still be 1.0
+	if math.Abs(corr[0][0]-1.0) > 0.0001 {
+		t.Errorf("corr[0][0] = %.6f, want 1.0", corr[0][0])
+	}
+	if math.Abs(corr[1][1]-1.0) > 0.0001 {
+		t.Errorf("corr[1][1] = %.6f, want 1.0", corr[1][1])
+	}
+	// Cross-correlation with zero-variance column should be 0
+	if math.Abs(corr[0][1]) > 0.0001 {
+		t.Errorf("corr[0][1] = %.6f, want 0 (zero variance)", corr[0][1])
+	}
+	if math.Abs(corr[1][0]) > 0.0001 {
+		t.Errorf("corr[1][0] = %.6f, want 0 (zero variance)", corr[1][0])
+	}
+}
+
 func TestComputeCorrelationMatrixSymmetry(t *testing.T) {
 	aligned := [][]float64{
 		{0.01, -0.02, 0.03},
