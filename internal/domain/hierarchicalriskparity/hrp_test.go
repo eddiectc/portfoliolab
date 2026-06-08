@@ -33,8 +33,8 @@ func hrpAlmostEqual(t *testing.T, got, want, tol float64, msg string) {
 
 func TestComputeCovarianceMatrix(t *testing.T) {
 	tests := []struct {
-		name    string
-		aligned [][]float64
+		name     string
+		aligned  [][]float64
 		wantDiag []float64 // expected diagonal values (variances)
 	}{
 		{
