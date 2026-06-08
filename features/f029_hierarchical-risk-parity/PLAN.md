@@ -77,15 +77,14 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: Compute HRP allocations, Scenario: View clustering dendrograms
 **Description:** Implement agglomerative hierarchical clustering producing a merge sequence and dendrogram tree for each linkage method.
 
-- [ ] Create `internal/domain/hierarchicalriskparity/clustering.go`
-- [ ] Define `Cluster` struct (member indices, size, representative distance for single-linkage)
-- [ ] Define `MergeRecord` (cluster1 index, cluster2 index, distance)
-- [ ] Implement `clusterSingleLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
-- [ ] Implement `clusterCompleteLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
-- [ ] Implement `clusterAverageLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
-- [ ] Implement `clusterWardLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
-- [ ] Implement shared `buildDendrogramTree(mergeRecords, nSymbols) → *DendrogramNode`
-- [ ] Write `clustering_test.go` with table-driven tests for 3-5 symbol cases, verify merge order and tree structure
+- [x] Create `internal/domain/hierarchicalriskparity/clustering.go`
+- [x] Define `MergeRecord` (cluster1 index, cluster2 index, distance)
+- [x] Implement `clusterSingleLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
+- [x] Implement `clusterCompleteLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
+- [x] Implement `clusterAverageLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
+- [x] Implement `clusterWardLinkage(distanceMatrix) → ([]MergeRecord, *DendrogramNode)`
+- [x] Implement shared `buildDendrogramTree(mergeRecords, nSymbols) → *DendrogramNode`
+- [x] Write `clustering_test.go` with table-driven tests for 2-5 symbol cases, verify merge order and tree structure
 
 **Verification:** `go test ./internal/domain/hierarchicalriskparity/...` passes; 2-symbol case produces single merge at correct distance; tree has correct leaf count.
 
