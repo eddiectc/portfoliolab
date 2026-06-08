@@ -124,11 +124,11 @@ func TestComputeHrp(t *testing.T) {
 			name:    "five symbols",
 			symbols: []string{"S1", "S2", "S3", "S4", "S5"},
 			prices: map[string][]market.HistoricalPrice{
-				"S1": makePricesForHrp(base, generateRandomWalk(100, 100, 0.02)),
-				"S2": makePricesForHrp(base, generateRandomWalk(50, 100, 0.03)),
-				"S3": makePricesForHrp(base, generateRandomWalk(200, 100, 0.01)),
-				"S4": makePricesForHrp(base, generateRandomWalk(75, 100, 0.04)),
-				"S5": makePricesForHrp(base, generateRandomWalk(150, 100, 0.015)),
+				"S1": makePricesForHrp(base, generateDeterministicWalk(100, 100, 0.02)),
+				"S2": makePricesForHrp(base, generateDeterministicWalk(50, 100, 0.03)),
+				"S3": makePricesForHrp(base, generateDeterministicWalk(200, 100, 0.01)),
+				"S4": makePricesForHrp(base, generateDeterministicWalk(75, 100, 0.04)),
+				"S5": makePricesForHrp(base, generateDeterministicWalk(150, 100, 0.015)),
 			},
 			period:     "3Y",
 			wantAllocs: 4,
@@ -376,11 +376,12 @@ func TestClusterByMethod(t *testing.T) {
 	}
 }
 
-// --- generateRandomWalk for deterministic test data ---
+// --- generateDeterministicWalk for deterministic test data ---
 
-// generateRandomWalk creates a deterministic pseudo-random walk starting at
-// startPrice with the given volatility. Uses a fixed seed for reproducibility.
-func generateRandomWalk(start float64, steps int, volatility float64) []float64 {
+// generateDeterministicWalk creates a deterministic price series starting at
+// startPrice with the given volatility. Uses a sine-wave-based sequence
+// (not random) for reproducible test data.
+func generateDeterministicWalk(start float64, steps int, volatility float64) []float64 {
 	prices := make([]float64, steps)
 	prices[0] = start
 	// Simple deterministic sequence based on index.

@@ -30,6 +30,9 @@ type hrpService interface {
 	GetSymbolsFromModelPortfolio(ctx context.Context, modelPortfolioID int64) ([]string, error)
 }
 
+// ensure the HRP domain service satisfies the handler's consumer interface.
+var _ hrpService = (*hierarchicalriskparity.Service)(nil)
+
 // HrpHandler handles HTTP requests for hierarchical risk parity computation.
 type HrpHandler struct {
 	svc                   hrpService

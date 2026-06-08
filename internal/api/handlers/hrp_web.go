@@ -36,6 +36,9 @@ type hrpModelPortfolioSelector interface {
 	GetAllForSelector(ctx context.Context) ([]modelportfolio.ModelPortfolioSummary, error)
 }
 
+// ensure the model portfolio service satisfies the web handler's consumer interface.
+var _ hrpModelPortfolioSelector = (*modelportfolio.Service)(nil)
+
 // NewHrpWebHandler creates a new HRP web handler.
 func NewHrpWebHandler(
 	apiHandler *HrpHandler,
@@ -167,22 +170,22 @@ func (h *HrpWebHandler) buildPageData(
 			Title: "Hierarchical Risk Parity",
 			Flash: getFlash(w, r),
 		},
-		HrpChartData:      serializeHrpChartData(result),
-		Result:            result,
-		Warnings:          warnings,
-		ExcludedSymbols:   excludedSymbols,
-		CandidateSymbols:  candidateSymbols,
-		Portfolios:        portfolios,
-		ModelPortfolios:   modelPortfolios,
-		PortfoliosJSON:    serializeSliceForJS(portfolios),
-		ModelPortfoliosJSON: serializeSliceForJS(modelPortfolios),
-		SelectedSymbols:   symbols,
-		SelectedPeriod:    period,
+		HrpChartData:         serializeHrpChartData(result),
+		Result:               result,
+		Warnings:             warnings,
+		ExcludedSymbols:      excludedSymbols,
+		CandidateSymbols:     candidateSymbols,
+		Portfolios:           portfolios,
+		ModelPortfolios:      modelPortfolios,
+		PortfoliosJSON:       serializeSliceForJS(portfolios),
+		ModelPortfoliosJSON:  serializeSliceForJS(modelPortfolios),
+		SelectedSymbols:      symbols,
+		SelectedPeriod:       period,
 		SelectedBaseCurrency: baseCurrency,
-		PeriodURLs:        buildHrpPeriodURLs(symbols, period, baseCurrency),
-		SymbolDataSpan:    symbolDataSpan,
-		LeastDataSymbol:   leastDataSymbol,
-		LeastDataDays:     leastDataDays,
+		PeriodURLs:           buildHrpPeriodURLs(symbols, period, baseCurrency),
+		SymbolDataSpan:       symbolDataSpan,
+		LeastDataSymbol:      leastDataSymbol,
+		LeastDataDays:        leastDataDays,
 	}
 
 	return data

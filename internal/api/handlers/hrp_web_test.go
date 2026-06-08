@@ -104,10 +104,10 @@ func TestHrpTemplate_WithResults(t *testing.T) {
 	}
 
 	data := hrpPageData{
-		PageData:          web.PageData{Title: "Hierarchical Risk Parity"},
-		Result:            result,
-		HrpChartData:      serializeHrpChartData(result),
-		CandidateSymbols:  []string{"SPY", "EFA", "BND", "VNQ"},
+		PageData:         web.PageData{Title: "Hierarchical Risk Parity"},
+		Result:           result,
+		HrpChartData:     serializeHrpChartData(result),
+		CandidateSymbols: []string{"SPY", "EFA", "BND", "VNQ"},
 		Portfolios: []portfolio.Portfolio{
 			{ID: 1, Name: "Test Portfolio", Currency: "USD"},
 		},
@@ -563,8 +563,8 @@ func TestHandleSaveAsModelPortfolio_Success(t *testing.T) {
 	webHandler.WithModelPortfolioCreator(&mockModelPortfolioCreator{
 		createFn: func(_ context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
 			return modelportfolio.ModelPortfolio{
-				ID:    1,
-				Name:  req.Name,
+				ID:      1,
+				Name:    req.Name,
 				Entries: req.Entries,
 			}, nil
 		},
