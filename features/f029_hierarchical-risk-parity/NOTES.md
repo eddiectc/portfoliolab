@@ -5,7 +5,8 @@
 
 ## Deviations from Plan
 - 2026-06-08: Spec updated — "View allocation weights table" scenario changed from "symbol's name/description alongside the ticker" to "ticker only". Weights table displays ticker symbols only, consistent with efficient frontier pattern and existing project convention.
-- 2026-06-08: No integration test (DB → service → handler → response) was written for HRP. DoD item dropped per user decision.
+- 2026-06-08: No integration test was initially written for HRP. DoD item dropped per user decision.
+- 2026-06-08: Integration test added back per retro action item — 13 tests in `tests/integration/hierarchical_risk_parity_test.go`.
 
 ## Post-Review Fixes (Task 6)
 - 2026-06-08: `computeDataSpan` now emits per-symbol warnings when data span is shorter than ~80% of expected trading days for the requested period (spec scenario: "Warning — some symbols with insufficient historical data").

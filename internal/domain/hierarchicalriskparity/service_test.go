@@ -1099,9 +1099,9 @@ func TestExpectedTradingDays(t *testing.T) {
 		{"1Y", 252},
 		{"3Y", 756},
 		{"5Y", 1260},
-		{"7Y", 0},   // unrecognized
-		{"10Y", 0},  // unrecognized
-		{"", 0},     // empty
+		{"7Y", 0},  // unrecognized
+		{"10Y", 0}, // unrecognized
+		{"", 0},    // empty
 	}
 
 	for _, tt := range tests {

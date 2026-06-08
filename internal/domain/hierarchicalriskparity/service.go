@@ -319,7 +319,9 @@ func (s *Service) fetchPricesForSymbols(ctx context.Context, symbols []string, p
 }
 
 // convertToBaseCurrency converts price series to the base currency using cached FX rates.
-// Modifies prices in-place. Returns warnings for symbols where FX data was missing.
+// It modifies the price slices in-place (mutating Close and Currency fields).
+// The caller must not reuse the prices map after this call. Returns warnings for
+// symbols where FX data was missing.
 func (s *Service) convertToBaseCurrency(ctx context.Context, prices map[string][]market.HistoricalPrice, baseCurrency string) []string {
 	if s.fxRates == nil || baseCurrency == "" {
 		return nil
