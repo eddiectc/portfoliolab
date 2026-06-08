@@ -114,8 +114,8 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: Compute HRP allocations with default period, Scenario: Compute HRP allocations with custom period
 **Description:** Tie together all components into the main `ComputeHrp` function that produces four allocations.
 
-- [ ] Create `internal/domain/hierarchicalriskparity/hrp.go`
-- [ ] Implement `ComputeHrp(request HrpRequest) (*HrpResult, error)`
+- [x] Create `internal/domain/hierarchicalriskparity/hrp.go`
+- [x] Implement `ComputeHrp(request HrpRequest) (*HrpResult, error)`
   - Validate symbol count (2-20)
   - Compute daily returns per symbol
   - Align returns across all symbols
@@ -123,9 +123,9 @@ Task 11 (router wiring + nav link)
   - Compute distance matrix
   - For each linkage method: cluster → quasi-diagonalize → recursive bisection → weights
   - Build result with four allocations and four dendrograms
-- [ ] Handle edge cases: single symbol (error), no data (empty state message), insufficient data (warning)
-- [ ] Write `hrp_test.go` with table-driven tests covering 2-symbol, 3-symbol, 5-symbol cases
-- [ ] Write test for edge cases: single symbol, empty symbols, too many symbols (21), zero-return symbol
+- [x] Handle edge cases: single symbol (error), no data (empty state message), insufficient data (warning)
+- [x] Write `hrp_test.go` with table-driven tests covering 2-symbol, 3-symbol, 5-symbol cases
+- [x] Write test for edge cases: single symbol, empty symbols, too many symbols (21), zero-return symbol
 
 **Verification:** `go test ./internal/domain/hierarchicalriskparity/...` passes; four allocations returned, each with weights summing to ~1.0; dendrograms have correct leaf count.
 
