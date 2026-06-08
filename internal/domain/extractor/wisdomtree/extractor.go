@@ -133,6 +133,14 @@ func extractFromHTMLWithModals(html, modalHTML, navModalHTML string) (*extractor
 			return nil, fmt.Errorf("parse nav history from modal: %w", err)
 		}
 	}
+	// Set NAV currency from the fund's base currency.
+	// The NAV values on WisdomTree pages are in the fund's base currency
+	// (e.g. USD for WMGT), which can differ from the listing currency (e.g. GBP on LSE).
+	if fundProfile != nil && fundProfile.BaseCurrency != "" {
+		for i := range navHistory {
+			navHistory[i].Currency = fundProfile.BaseCurrency
+		}
+	}
 
 	themes, err := ParseThemes(html)
 	if err != nil {

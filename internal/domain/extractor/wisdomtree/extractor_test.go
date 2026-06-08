@@ -196,6 +196,76 @@ var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"Pry
 </section>
 `
 
+func TestExtractFromHTML_NavCurrencyFromBaseCurrency(t *testing.T) {
+	// HTML with Base Currency row — NAV points should inherit the base currency
+	html := `
+<script>
+var fundInfo = {'symbol':'WMGT', 'name':'Test ETF'};
+var fundHoldingsData = 'date,Weight,Security Description
+5/11/2026,0.0137223,"Prysmian SpA"';
+var fundMarketDataB123 = 'date,fund_ticker,close_price_adj,volume_adj,nav
+5/11/2026,WMGT LN,,,45.846
+5/8/2026,WMGT LN,,,45.1556';
+var fundThemeData = 'date,Weight,Security Description
+5/8/2026,0.0884090,"Grid Infrastructure"';
+var fundSectorsData = 'date,securityName,weight,Sector,wgtSector
+5/11/2026,"Prysmian",0.0137,"Industrials",0.5';
+</script>
+<table>
+<tr><td>Total AUM of fund</td><td><span class="value currency positive">$1,500,000</span></td></tr>
+<tr><td class="key">TER</td><td>0.40%</td></tr>
+<tr><td>Base Currency</td><td>USD</td></tr>
+</table>
+<table>
+<tr><th>Net Asset Value</th><th>22 May 2026</th></tr>
+</table>
+<section id="country-allocation-section">
+<table class="table table-striped-customized">
+<thead><tr><th class="key">Country</th><th class="value">Weight</th></tr></thead>
+<tbody>
+<tr><td class="key">1. United States</td><td class="value"><span class="value percent positive">40.54%</span></td></tr>
+</tbody>
+</table>
+</section>
+<section id="fund-facts-section">
+<table class="table table-striped-customized">
+<thead><tr><th class="key">Market Capitalization</th><th class="value">As of 22 May 2026</th></tr></thead>
+<tbody>
+<tr><td class="key">Total Market Capitalization ($ Trillion)</td><td class="value">58.68</td></tr>
+<tr><td class="key shifted">Large Cap (&gt; $10 Billion)</td><td class="value">64.42%</td></tr>
+</tbody>
+</table>
+<table class="table table-striped-customized">
+<thead><tr><th class="key">Fund Characteristics</th><th class="value">As of 22 May 2026</th></tr></thead>
+<tbody>
+<tr><td class="key">Price/Earnings</td><td class="value">69.64</td></tr>
+<tr><td class="key">Price/Book</td><td class="value">4.06</td></tr>
+</tbody>
+</table>
+</section>
+`
+
+	result, err := extractFromHTML(html)
+	if err != nil {
+		t.Fatalf("extractFromHTML failed: %v", err)
+	}
+
+	// Verify base currency was parsed
+	if result.FundProfile.BaseCurrency != "USD" {
+		t.Errorf("expected base currency USD, got %q", result.FundProfile.BaseCurrency)
+	}
+
+	// Verify NAV points have the base currency set
+	if len(result.NavHistory) != 2 {
+		t.Fatalf("expected 2 nav points, got %d", len(result.NavHistory))
+	}
+	for i, np := range result.NavHistory {
+		if np.Currency != "USD" {
+			t.Errorf("nav point %d: expected currency USD, got %q", i, np.Currency)
+		}
+	}
+}
+
 func TestExtractFromHTML(t *testing.T) {
 	result, err := extractFromHTML(sampleHTML)
 	if err != nil {

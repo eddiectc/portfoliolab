@@ -72,6 +72,7 @@ type displayFundProfile struct {
 	AssetClassification  string
 	DistributionStrategy string
 	MarketRegionFocus    string
+	BaseCurrency         string // e.g. "USD", "EUR", "GBP"
 	// BlackRock/iShares-specific fields
 	SFDRClassification string // e.g. "Article 8"
 	Domicile           string // e.g. "Ireland"
@@ -464,6 +465,7 @@ func toDisplayDetails(details *symbol.SymbolDetails) *symbolDetailsDisplay {
 			AssetClassification:  details.FundProfile.AssetClassification,
 			DistributionStrategy: details.FundProfile.DistributionStrategy,
 			MarketRegionFocus:    details.FundProfile.MarketRegionFocus,
+			BaseCurrency:         details.FundProfile.BaseCurrency,
 			SFDRClassification:   details.FundProfile.SFDRClassification,
 			Domicile:             details.FundProfile.Domicile,
 			RebalanceFrequency:   details.FundProfile.RebalanceFrequency,
