@@ -135,17 +135,17 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: Compute HRP allocations, Scenario: Warning — insufficient data, Scenario: Error — symbol with no data
 **Description:** Service that resolves symbols, fetches historical prices, handles FX conversion, and delegates to the computation engine.
 
-- [ ] Create `internal/domain/hierarchicalriskparity/service.go`
-- [ ] Define interfaces: `MarketDataHistorySource`, `MarketDataSymbolResolver`, `SymbolLister`, `PortfolioSymbolSource`, `ModelPortfolioSource`, `FxRateSource` (same signatures as efficient frontier)
-- [ ] Define `ServiceResult` (Result, Warnings, ExcludedSymbols, SymbolDataSpan)
-- [ ] Define `ComputeHrpRequest` (Symbols, Period, BaseCurrency)
-- [ ] Implement `Service` struct and `NewService` constructor
-- [ ] Implement `ComputeHrp(ctx, req) → (*ServiceResult, error)` — mirrors efficient frontier service pattern
-- [ ] Implement `GetCandidateSymbols`, `GetSymbolsFromPortfolio`, `GetSymbolsFromModelPortfolio`
-- [ ] Implement `fetchPricesForSymbols` (resolve market symbols, fetch prices, collect warnings/excluded)
-- [ ] Implement `convertToBaseCurrency` (FX conversion using cached rates)
-- [ ] Implement `computeDataSpan` and period helpers
-- [ ] Write `service_test.go` with hand-written mocks (same pattern as efficient frontier)
+- [x] Create `internal/domain/hierarchicalriskparity/service.go`
+- [x] Define interfaces: `MarketDataHistorySource`, `MarketDataSymbolResolver`, `SymbolLister`, `PortfolioSymbolSource`, `ModelPortfolioSource`, `FxRateSource` (same signatures as efficient frontier)
+- [x] Define `ServiceResult` (Result, Warnings, ExcludedSymbols, SymbolDataSpan)
+- [x] Define `ComputeHrpRequest` (Symbols, Period, BaseCurrency)
+- [x] Implement `Service` struct and `NewService` constructor
+- [x] Implement `ComputeHrp(ctx, req) → (*ServiceResult, error)` — mirrors efficient frontier service pattern
+- [x] Implement `GetCandidateSymbols`, `GetSymbolsFromPortfolio`, `GetSymbolsFromModelPortfolio`
+- [x] Implement `fetchPricesForSymbols` (resolve market symbols, fetch prices, collect warnings/excluded)
+- [x] Implement `convertToBaseCurrency` (FX conversion using cached rates)
+- [x] Implement `computeDataSpan` and period helpers
+- [x] Write `service_test.go` with hand-written mocks (same pattern as efficient frontier)
 
 **Verification:** `go test ./internal/domain/hierarchicalriskparity/...` passes; service correctly resolves symbols, fetches prices, converts FX, and delegates to engine.
 
