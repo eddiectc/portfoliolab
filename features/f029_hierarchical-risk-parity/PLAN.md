@@ -188,17 +188,17 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: View allocation weights table, Scenario: View clustering dendrograms
 **Description:** Server-rendered web page handler that delegates to the API service and prepares template data.
 
-- [ ] Create `internal/api/handlers/hrp_web.go`
-- [ ] Define `HrpWebHandler` struct with dependencies
-- [ ] Define `hrpPageData` struct (Result, Warnings, ExcludedSymbols, CandidateSymbols, Portfolios, ModelPortfolios, SelectedSymbols, SelectedPeriod, SelectedBaseCurrency, PeriodURLs, serialized JSON for ECharts)
-- [ ] Implement `GET /hrp` handler — parse query params, call service, build page data
-- [ ] Implement `POST /hrp/save` handler — save selected allocation as model portfolio
-- [ ] Implement `serializeHrpChartData` — convert HrpResult to JSON for ECharts (four dendrogram trees + weights table data)
-- [ ] Implement `RegisterRoutes`
-- [ ] Implement helper functions: `parseHrpSymbols`, `buildHrpPeriodURLs`, `fetchPortfolios`, `fetchModelPortfolios`, `fetchCandidateSymbols`
-- [ ] Write `hrp_web_test.go` with handler tests
+- [x] Create `internal/api/handlers/hrp_web.go`
+- [x] Define `HrpWebHandler` struct with dependencies
+- [x] Define `hrpPageData` struct (Result, Warnings, ExcludedSymbols, CandidateSymbols, Portfolios, ModelPortfolios, SelectedSymbols, SelectedPeriod, SelectedBaseCurrency, PeriodURLs, serialized JSON for ECharts)
+- [x] Implement `GET /hrp` handler — parse query params, call service, build page data
+- [x] Implement `POST /hrp/save` handler — save selected allocation as model portfolio
+- [x] Implement `serializeHrpChartData` — convert HrpResult to JSON for ECharts (four dendrogram trees + weights table data)
+- [x] Implement `RegisterRoutes`
+- [x] Implement helper functions: `parseHrpSymbols`, `buildHrpPeriodURLs`, `fetchPortfolios`, `fetchModelPortfolios`, `fetchCandidateSymbols`
+- [x] Write `hrp_web_test.go` with handler tests
 
-**Verification:** `go test ./internal/api/handlers/... -run Hrp.*Web` passes; page data serializes correctly.
+**Verification:** `go build ./...` succeeds; serialization, parsing, URL building, error message, and data span tests pass. Handler/template tests pass once Task 10 (template) is complete.
 
 ---
 
