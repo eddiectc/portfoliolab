@@ -904,9 +904,12 @@ func TestGetSymbolsFromModelPortfolio_NotFound(t *testing.T) {
 func TestGetSymbolsFromModelPortfolio_NoSource(t *testing.T) {
 	svc := NewService(nil, nil, nil, nil, nil, nil)
 
-	_, err := svc.GetSymbolsFromModelPortfolio(ctx, 1)
-	if err == nil {
-		t.Fatal("expected error when source not configured")
+	symbols, err := svc.GetSymbolsFromModelPortfolio(ctx, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(symbols) != 0 {
+		t.Errorf("expected empty slice, got %d symbols", len(symbols))
 	}
 }
 
@@ -988,6 +991,126 @@ func TestApproximatePeriodLabel(t *testing.T) {
 		if !strings.Contains(label, tt.wantContains) {
 			t.Errorf("start %d days ago: label %q should contain %q", tt.startDaysAgo, label, tt.wantContains)
 		}
+	}
+}
+
+func TestComputeHrp_InsufficientDataWarning(t *testing.T) {
+	// VOO has full 1Y data (260 days), VEA has only 100 days — below 80% threshold.
+	// Should compute HRP from both but warn about VEA's short data.
+	prices := map[string][]market.HistoricalPrice{
+		"VOO": makeSimplePriceSeries(100, 260, "USD"),
+		"VEA": makeSimplePriceSeries(25, 100, "USD"),
+	}
+
+	historySource := &mockMarketDataHistorySource{prices: prices}
+	symResolver := &mockMarketDataSymbolResolver{
+		mappings: map[string]string{"VOO": "VOO", "VEA": "VEA"},
+	}
+
+	svc := NewService(historySource, symResolver, nil, nil, nil, nil)
+
+	req := ComputeHrpRequest{
+		Symbols: []string{"VOO", "VEA"},
+		Period:  "1Y",
+	}
+
+	result, err := svc.ComputeHrp(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should still compute (both symbols have data, just VEA is short).
+	if result.Result == nil {
+		t.Fatal("result should not be nil")
+	}
+	if len(result.Result.Allocations) != 4 {
+		t.Errorf("expected 4 allocations, got %d", len(result.Result.Allocations))
+	}
+
+	// Should have warning about VEA's insufficient data.
+	veaWarning := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "VEA:") && strings.Contains(w, "expected") && strings.Contains(w, "trading days") {
+			veaWarning = true
+			break
+		}
+	}
+	if !veaWarning {
+		t.Errorf("expected insufficient data warning for VEA, got: %v", result.Warnings)
+	}
+
+	// Should NOT warn about VOO (has sufficient data).
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "VOO:") && strings.Contains(w, "expected") && strings.Contains(w, "trading days") {
+			t.Errorf("unexpected insufficient data warning for VOO: %s", w)
+		}
+	}
+}
+
+func TestComputeHrp_PreservesSymbolOrder(t *testing.T) {
+	// Verify that the result symbols preserve the order from the request.
+	prices := map[string][]market.HistoricalPrice{
+		"AAPL": makeSimplePriceSeries(150, 260, "USD"),
+		"VOO":  makeSimplePriceSeries(100, 260, "USD"),
+		"VEA":  makeSimplePriceSeries(25, 260, "USD"),
+	}
+
+	historySource := &mockMarketDataHistorySource{prices: prices}
+	symResolver := &mockMarketDataSymbolResolver{
+		mappings: map[string]string{"AAPL": "AAPL", "VOO": "VOO", "VEA": "VEA"},
+	}
+
+	svc := NewService(historySource, symResolver, nil, nil, nil, nil)
+
+	// Request in a specific order.
+	req := ComputeHrpRequest{
+		Symbols: []string{"VEA", "AAPL", "VOO"},
+		Period:  "1Y",
+	}
+
+	result, err := svc.ComputeHrp(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.Result == nil {
+		t.Fatal("result should not be nil")
+	}
+	// Result symbols should preserve request order.
+	if len(result.Result.Symbols) != 3 {
+		t.Fatalf("expected 3 symbols, got %d", len(result.Result.Symbols))
+	}
+	if result.Result.Symbols[0] != "VEA" {
+		t.Errorf("expected first symbol VEA, got %s", result.Result.Symbols[0])
+	}
+	if result.Result.Symbols[1] != "AAPL" {
+		t.Errorf("expected second symbol AAPL, got %s", result.Result.Symbols[1])
+	}
+	if result.Result.Symbols[2] != "VOO" {
+		t.Errorf("expected third symbol VOO, got %s", result.Result.Symbols[2])
+	}
+}
+
+func TestExpectedTradingDays(t *testing.T) {
+	tests := []struct {
+		period string
+		want   int
+	}{
+		{"1Y", 252},
+		{"3Y", 756},
+		{"5Y", 1260},
+		{"7Y", 0},   // unrecognized
+		{"10Y", 0},  // unrecognized
+		{"", 0},     // empty
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.period, func(t *testing.T) {
+			got := expectedTradingDays(tt.period)
+			if got != tt.want {
+				t.Errorf("expectedTradingDays(%q) = %d, want %d", tt.period, got, tt.want)
+			}
+		})
 	}
 }
 
