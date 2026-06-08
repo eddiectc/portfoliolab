@@ -94,17 +94,17 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: Compute HRP allocations (core algorithm)
 **Description:** Implement the two key HRP steps: ordering assets by cluster proximity, then recursively allocating risk budget.
 
-- [ ] Create `internal/domain/hierarchicalriskparity/quasidiag.go`
-- [ ] Implement `QuasiDiagonalize(mergeRecords, nSymbols) → []int` — return sorted indices from the dendrogram leaves left-to-right
-- [ ] Create `internal/domain/hierarchicalriskparity/bisection.go`
-- [ ] Implement `recursiveBisect(sortedIndices, covarianceMatrix) → map[int]float64` — recursive risk-parity allocation
+- [x] Create `internal/domain/hierarchicalriskparity/quasidiag.go`
+- [x] Implement `QuasiDiagonalize(mergeRecords, nSymbols) → []int` — return sorted indices from the dendrogram leaves left-to-right
+- [x] Create `internal/domain/hierarchicalriskparity/bisection.go`
+- [x] Implement `recursiveBisect(sortedIndices, covarianceMatrix) → map[int]float64` — recursive risk-parity allocation
   - Split list into two halves at the optimal bisection point (minimizing cross-covariance)
   - Allocate risk budget equally between the two groups
   - Within each group, compute minimum variance weights for risk contribution
   - Recurse until single assets remain
-- [ ] Implement `findBisectionPoint(indices, covarianceMatrix) → int` — find the split point that minimizes cross-group covariance
-- [ ] Implement `minVarianceWeights(indices, covarianceMatrix) → []float64` — analytical minimum variance for a subset (using matrix inversion, same as f028)
-- [ ] Write `bisection_test.go` with known 2-asset and 3-asset cases; verify weights sum to 1.0 and are non-negative
+- [x] Implement `findBisectionPoint(indices, covarianceMatrix) → int` — find the split point that minimizes cross-group covariance
+- [x] Implement `minVarianceWeights(indices, covarianceMatrix) → []float64` — analytical minimum variance for a subset (using matrix inversion, same as f028)
+- [x] Write `bisection_test.go` with known 2-asset and 3-asset cases; verify weights sum to 1.0 and are non-negative
 
 **Verification:** `go test ./internal/domain/hierarchicalriskparity/...` passes; 2-asset case produces equal-risk weights; weights always sum to 1.0.
 
