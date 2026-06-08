@@ -73,6 +73,7 @@ func (r *SymbolMappingRepository) Create(ctx context.Context, sm *symbolmapping.
 		InternalSymbol:   sm.InternalSymbol,
 		MarketDataSymbol: sm.MarketDataSymbol,
 		IsBenchmark:      sm.IsBenchmark,
+		DataSourceUrl:    toSQLNullString(sm.DataSourceURL),
 		CreatedAt:        sm.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        sm.UpdatedAt.Format(time.RFC3339),
 	})
