@@ -155,12 +155,12 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** All scenarios (infrastructure)
 **Description:** Bridge between HRP domain interfaces and existing repository/service implementations.
 
-- [ ] Create `internal/data/hrp_adapters.go`
-- [ ] Implement `HrpSymbolListerImpl` (wraps SymbolMappingRepository)
-- [ ] Implement `HrpPortfolioSymbolSourceImpl` (wraps AccountService + PositionService)
-- [ ] Implement `HrpModelPortfolioSourceImpl` (wraps ModelPortfolioService)
-- [ ] Implement `HrpFxRateSourceImpl` (wraps MarketService)
-- [ ] Reuse existing patterns from `efficient_frontier_adapters.go`
+- [x] Create `internal/data/hrp_adapters.go`
+- [x] Implement `HrpSymbolListerImpl` (delegates to SymbolListerImpl)
+- [x] Implement `HrpPortfolioSymbolSourceImpl` (delegates to PortfolioSymbolSourceImpl)
+- [x] Implement `HrpModelPortfolioSourceImpl` (wraps ModelPortfolioSourceImpl, converts ModelPortfolioRef type)
+- [x] Implement `HrpFxRateSourceImpl` (wraps FxRateSourceImpl, converts FxRate type)
+- [x] Reuse existing patterns from `efficient_frontier_adapters.go`
 
 **Verification:** Adapters compile and satisfy HRP domain interfaces (structural typing).
 

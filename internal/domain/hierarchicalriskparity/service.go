@@ -175,14 +175,16 @@ func (s *Service) ComputeHrp(ctx context.Context, req ComputeHrpRequest) (*Servi
 	fxWarnings := s.convertToBaseCurrency(ctx, pricesBySymbol, baseCurrency)
 	warnings = append(warnings, fxWarnings...)
 
-	// Build engine request.
+	// Build engine request — preserve original symbol order (filtered to symbols with data).
 	engineReq := HrpRequest{
 		Symbols: make([]string, 0, len(pricesBySymbol)),
 		Prices:  pricesBySymbol,
 		Period:  period,
 	}
-	for sym := range pricesBySymbol {
-		engineReq.Symbols = append(engineReq.Symbols, sym)
+	for _, sym := range req.Symbols {
+		if _, ok := pricesBySymbol[sym]; ok {
+			engineReq.Symbols = append(engineReq.Symbols, sym)
+		}
 	}
 
 	// Delegate to computation engine.
@@ -199,7 +201,7 @@ func (s *Service) ComputeHrp(ctx context.Context, req ComputeHrpRequest) (*Servi
 			},
 			Warnings:        warnings,
 			ExcludedSymbols: excluded,
-			SymbolDataSpan:  s.computeDataSpan(pricesBySymbol, period),
+			SymbolDataSpan:  s.computeDataSpan(pricesBySymbol, period, &warnings),
 		}, nil
 	}
 
@@ -208,8 +210,8 @@ func (s *Service) ComputeHrp(ctx context.Context, req ComputeHrpRequest) (*Servi
 		warnings = append(warnings, result.Warnings...)
 	}
 
-	// Compute actual data span per symbol.
-	dataSpan := s.computeDataSpan(pricesBySymbol, period)
+	// Compute actual data span per symbol (also emits insufficient-data warnings).
+	dataSpan := s.computeDataSpan(pricesBySymbol, period, &warnings)
 
 	return &ServiceResult{
 		Result:          result,
@@ -250,9 +252,11 @@ func (s *Service) GetSymbolsFromPortfolio(ctx context.Context, portfolioID int64
 }
 
 // GetSymbolsFromModelPortfolio returns the symbols in a model portfolio.
+// Returns an empty slice if the model portfolio source is not configured
+// (consistent with GetCandidateSymbols and GetSymbolsFromPortfolio).
 func (s *Service) GetSymbolsFromModelPortfolio(ctx context.Context, modelPortfolioID int64) ([]string, error) {
 	if s.modelPortfolio == nil {
-		return nil, fmt.Errorf("model portfolio source not configured")
+		return []string{}, nil
 	}
 	ref, err := s.modelPortfolio.Get(ctx, modelPortfolioID)
 	if err != nil {
@@ -394,8 +398,11 @@ func (s *Service) convertToBaseCurrency(ctx context.Context, prices map[string][
 }
 
 // computeDataSpan returns the actual data coverage per symbol.
-func (s *Service) computeDataSpan(pricesBySymbol map[string][]market.HistoricalPrice, requestedPeriod string) map[string]DataSpan {
+// If warnings is non-nil, it appends a warning for each symbol whose data
+// span is shorter than ~80% of the expected trading days for the requested period.
+func (s *Service) computeDataSpan(pricesBySymbol map[string][]market.HistoricalPrice, requestedPeriod string, warnings *[]string) map[string]DataSpan {
 	span := make(map[string]DataSpan, len(pricesBySymbol))
+	expectedDays := expectedTradingDays(requestedPeriod)
 	for sym, hp := range pricesBySymbol {
 		if len(hp) == 0 {
 			continue
@@ -407,8 +414,28 @@ func (s *Service) computeDataSpan(pricesBySymbol map[string][]market.HistoricalP
 			RequestedPeriod: requestedPeriod,
 			ActualPeriod:    approximatePeriodLabel(hp[0].Date, hp[len(hp)-1].Date),
 		}
+		// Warn if data is significantly shorter than requested (~80% threshold).
+		if expectedDays > 0 && len(hp) < expectedDays*8/10 {
+			*warnings = append(*warnings, fmt.Sprintf("%s: expected ~%d trading days for %s, got %d", sym, expectedDays, requestedPeriod, len(hp)))
+		}
 	}
 	return span
+}
+
+// expectedTradingDays returns the approximate number of trading days for a period label.
+func expectedTradingDays(period string) int {
+	switch period {
+	case "1Y":
+		return 252
+	case "3Y":
+		return 756
+	case "5Y":
+		return 1260
+	default:
+		// For unrecognized periods, estimate ~252 trading days per year.
+		// util.PeriodCutoff already warned; use its fallback (1Y = 365 calendar days ≈ 252 trading).
+		return 0
+	}
 }
 
 // approximatePeriodLabel returns a human-readable label for the date range
