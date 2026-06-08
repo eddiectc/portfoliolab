@@ -170,15 +170,15 @@ Task 11 (router wiring + nav link)
 **Corresponds to:** Scenario: Select candidate symbols, Scenario: Copy symbols from portfolio/model portfolio, Scenario: Compute HRP allocations, Scenario: Save as model portfolio
 **Description:** REST API endpoints for HRP computation and symbol management.
 
-- [ ] Create `internal/api/handlers/hrp.go`
-- [ ] Define `hrpService` interface and `HrpHandler` struct
-- [ ] Implement `POST /api/hrp/compute` — validate symbols (2-20), period (1Y/3Y/5Y), call service
-- [ ] Implement `GET /api/hrp/symbols` — candidate symbols for autocomplete
-- [ ] Implement `GET /api/hrp/portfolio/{id}/symbols` — copy from real portfolio
-- [ ] Implement `GET /api/hrp/model-portfolio/{id}/symbols` — copy from model portfolio
-- [ ] Implement `POST /api/hrp/save` — save allocation as model portfolio (reuse model portfolio creator)
-- [ ] Implement `RegisterRoutes`
-- [ ] Write `hrp_test.go` with handler-level tests using `httptest`
+- [x] Create `internal/api/handlers/hrp.go`
+- [x] Define `hrpService` interface and `HrpHandler` struct
+- [x] Implement `POST /api/hrp/compute` — validate symbols (2-20), period (1Y/3Y/5Y), call service
+- [x] Implement `GET /api/hrp/symbols` — candidate symbols for autocomplete
+- [x] Implement `GET /api/hrp/portfolio/{id}/symbols` — copy from real portfolio
+- [x] Implement `GET /api/hrp/model-portfolio/{id}/symbols` — copy from model portfolio
+- [x] Implement `POST /api/hrp/save` — save allocation as model portfolio (reuse model portfolio creator)
+- [x] Implement `RegisterRoutes`
+- [x] Write `hrp_test.go` with handler-level tests using `httptest`
 
 **Verification:** `go test ./internal/api/handlers/... -run Hrp` passes; endpoints return correct status codes and JSON.
 
