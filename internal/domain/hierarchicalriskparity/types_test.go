@@ -167,8 +167,8 @@ func TestHrpAllocationJSONRoundTrip(t *testing.T) {
 
 func TestHrpAllocationZeroValueOmitEmpty(t *testing.T) {
 	original := HrpAllocation{
-		Method:   "ward",
-		Weights:  map[string]float64{},
+		Method:     "ward",
+		Weights:    map[string]float64{},
 		Dendrogram: nil,
 	}
 
