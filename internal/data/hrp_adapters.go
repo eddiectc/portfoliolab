@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/hierarchicalriskparity"
 )
 
@@ -102,13 +101,8 @@ func (s *HrpFxRateSourceImpl) GetCurrentFxRate(ctx context.Context, baseCurrency
 // ensureAdapterTypes are compile-time checks that the HRP adapters
 // satisfy the corresponding domain interfaces.
 var (
-	_ hierarchicalriskparity.SymbolLister         = (*HrpSymbolListerImpl)(nil)
+	_ hierarchicalriskparity.SymbolLister          = (*HrpSymbolListerImpl)(nil)
 	_ hierarchicalriskparity.PortfolioSymbolSource = (*HrpPortfolioSymbolSourceImpl)(nil)
 	_ hierarchicalriskparity.ModelPortfolioSource  = (*HrpModelPortfolioSourceImpl)(nil)
 	_ hierarchicalriskparity.FxRateSource          = (*HrpFxRateSourceImpl)(nil)
 )
-
-// unused import guard — efficientfrontier is referenced in the delegation
-// type assertions above (indirectly through the source fields).
-// This variable suppresses the "imported and not used" linter warning.
-var _ efficientfrontier.ModelPortfolioRef
