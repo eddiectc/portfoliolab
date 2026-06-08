@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
 )
 
@@ -265,7 +266,7 @@ func (s *Service) fetchPricesForSymbols(ctx context.Context, symbols []string, p
 	prices := make(map[string][]market.HistoricalPrice, len(symbols))
 	var warnings, excluded []string
 
-	start, periodWarning := periodCutoff(period)
+	start, periodWarning := util.PeriodCutoff(period)
 	end := time.Now().UTC()
 	if periodWarning != "" {
 		warnings = append(warnings, periodWarning)
@@ -385,28 +386,6 @@ func (s *Service) convertToBaseCurrency(ctx context.Context, prices map[string][
 	}
 
 	return warnings
-}
-
-// periodCutoff returns the start date for the given lookback period string.
-func periodCutoff(period string) (time.Time, string) {
-	now := time.Now()
-	switch period {
-	case "3M":
-		return now.AddDate(0, -3, 0), ""
-	case "6M":
-		return now.AddDate(0, -6, 0), ""
-	case "1Y":
-		return now.AddDate(-1, 0, 0), ""
-	case "3Y":
-		return now.AddDate(-3, 0, 0), ""
-	case "5Y":
-		return now.AddDate(-5, 0, 0), ""
-	case "10Y":
-		return now.AddDate(-10, 0, 0), ""
-	default:
-		return now.AddDate(-1, 0, 0),
-			"unrecognized period " + period + " — defaulting to 1Y"
-	}
 }
 
 // defaultRiskFreeRate is the default annualized risk-free rate (4.5%).

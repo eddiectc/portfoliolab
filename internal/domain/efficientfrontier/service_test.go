@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
 )
 
@@ -906,7 +907,7 @@ func TestPeriodCutoff(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.period, func(t *testing.T) {
-			cutoff, warn := periodCutoff(tt.period)
+			cutoff, warn := util.PeriodCutoff(tt.period)
 			days := int(now.Sub(cutoff).Hours() / 24)
 
 			// Allow ±3 day tolerance.

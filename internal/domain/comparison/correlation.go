@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/util"
 )
 
 // IntraPortfolioCorrelationInput holds the data needed to compute the
@@ -56,7 +57,7 @@ func ComputeIntraPortfolioCorrelation(input IntraPortfolioCorrelationInput) *Int
 	var warnings []string
 
 	// Determine cutoff date from period.
-	cutoff, periodWarning := correlationPeriodCutoff(input.Period)
+	cutoff, periodWarning := util.PeriodCutoff(input.Period)
 	if periodWarning != "" {
 		warnings = append(warnings, periodWarning)
 	}
@@ -179,27 +180,6 @@ func ComputeIntraPortfolioCorrelation(input IntraPortfolioCorrelationInput) *Int
 type correlationDailyReturn struct {
 	date    int64   // Unix timestamp
 	return_ float64 // (close[t]/close[t-1]) - 1
-}
-
-func correlationPeriodCutoff(period string) (time.Time, string) {
-	now := time.Now()
-	switch period {
-	case "3M":
-		return now.AddDate(0, -3, 0), ""
-	case "6M":
-		return now.AddDate(0, -6, 0), ""
-	case "1Y":
-		return now.AddDate(-1, 0, 0), ""
-	case "3Y":
-		return now.AddDate(-3, 0, 0), ""
-	case "5Y":
-		return now.AddDate(-5, 0, 0), ""
-	case "10Y":
-		return now.AddDate(-10, 0, 0), ""
-	default:
-		return now.AddDate(-1, 0, 0),
-			"unrecognized period " + period + " — defaulting to 1Y"
-	}
 }
 
 func correlationCutoffDays(period string) int {

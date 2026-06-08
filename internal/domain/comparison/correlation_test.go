@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"codeberg.org/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
 )
 
@@ -404,7 +405,7 @@ func TestCorrelationPeriodCutoff(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.period, func(t *testing.T) {
-			_, warn := correlationPeriodCutoff(tt.period)
+			_, warn := util.PeriodCutoff(tt.period)
 			if tt.wantWarn && warn == "" {
 				t.Errorf("expected warning for period %q", tt.period)
 			}

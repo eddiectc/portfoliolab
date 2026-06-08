@@ -34,7 +34,7 @@ This helps investors answer: "Given these assets, what is the best risk/return a
 ### Scenario: Compute efficient frontier with defaults
 **Given** I have selected at least two candidate symbols
 **When** I request the optimization with default settings
-**Then** the system computes the efficient frontier using a default historical period (3 years), a default risk-free rate, and long-only fully-invested constraints (weights sum to 100%, no negative weights)
+**Then** the system computes the efficient frontier using a default historical period (1 year), a default risk-free rate, and long-only fully-invested constraints (weights sum to 100%, no negative weights)
 **And** the frontier is displayed as a risk/return chart
 **And** key portfolios (maximum Sharpe ratio, minimum variance, highest return, maximum Sortino ratio, minimum drawdown) are highlighted
 **And** a correlation matrix heatmap is displayed for the candidate symbols

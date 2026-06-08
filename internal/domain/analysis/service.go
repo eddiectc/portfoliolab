@@ -9,6 +9,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"codeberg.org/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
 )
 
@@ -394,7 +395,7 @@ func (s *Service) fetchHistoricalPrices(ctx context.Context, enriched []position
 	}
 
 	// Determine date range from period.
-	cutoff, _ := periodCutoff(period)
+	cutoff, _ := util.PeriodCutoff(period)
 	now := time.Now().UTC()
 
 	// Factor exposure (momentum/volatility) needs at least 12M of price data

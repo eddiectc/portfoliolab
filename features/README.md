@@ -39,4 +39,5 @@ Feature IDs are sequential: f001, f002, etc.
 | f025 | Vanguard Scraper | done | f021 |
 | f026 | BlackRock/iShares Scraper | done | f021 |
 | f027 | Overlap Enhancement | done | f020, f015, f017 |
-| f028 | Efficient Frontier | in-progress | f003, f011, f019, f001 |
+| f028 | Efficient Frontier | done | f003, f011, f019, f001 |
+| f029 | Hierarchical Risk Parity | spec | f003, f011, f019, f001 |

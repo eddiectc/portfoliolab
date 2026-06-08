@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+	"strconv"
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
@@ -85,7 +86,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		return &FrontierResult{
 			Symbols:    symbols,
 			ComputedAt: time.Now().UTC(),
-			Warnings:   []string{"Some symbols have fewer than " + itoa(minTradingDays) + " trading days. Results may be unreliable."},
+			Warnings:   []string{"Some symbols have fewer than " + strconv.Itoa(minTradingDays) + " trading days. Results may be unreliable."},
 		}, nil
 	}
 
@@ -225,7 +226,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	expectedReturnsPct := make([]float64, len(expectedReturns))
 	for i, r := range expectedReturns {
-		expectedReturnsPct[i] = roundTo2(r*retScale*100)
+		expectedReturnsPct[i] = stats.RoundTo2(r*retScale*100)
 	}
 
 	// Round correlation matrix to 4 decimal places.
@@ -233,7 +234,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	for i := 0; i < n; i++ {
 		corrMatrixRounded[i] = make([]float64, n)
 		for j := 0; j < n; j++ {
-			corrMatrixRounded[i][j] = roundTo4(corrMatrix[i][j])
+			corrMatrixRounded[i][j] = stats.RoundTo4(corrMatrix[i][j])
 		}
 	}
 
@@ -248,11 +249,11 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	for i, p := range frontierPoints {
 		result.FrontierPoints[i] = FrontierPoint{
-			ReturnPct:      roundTo2(p.return_*retScale*100),
-			VolatilityPct:  roundTo2(p.volatility*volScale*100),
-			SharpeRatio:    roundTo4(p.sharpe),
-			SortinoRatio:   roundTo4(p.sortino),
-			MaxDrawdownPct: roundTo2(p.maxDrawdownPct * 100),
+			ReturnPct:      stats.RoundTo2(p.return_*retScale*100),
+			VolatilityPct:  stats.RoundTo2(p.volatility*volScale*100),
+			SharpeRatio:    stats.RoundTo4(p.sharpe),
+			SortinoRatio:   stats.RoundTo4(p.sortino),
+			MaxDrawdownPct: stats.RoundTo2(p.maxDrawdownPct * 100),
 			Weights:        roundWeights(p.weights),
 		}
 	}
@@ -269,43 +270,43 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	if minVarWeights != nil && minVarVol > 0 {
 		result.MinVariance = &OptimizedPortfolio{
 			Name:           "Min Variance",
-			ReturnPct:      roundTo2(minVarReturn*retScale*100),
-			VolatilityPct:  roundTo2(minVarVol*volScale*100),
-			SharpeRatio:    roundTo4(stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)),
-			SortinoRatio:   roundTo4(minVarSortino),
-			MaxDrawdownPct: roundTo2(minVarDD*100),
+			ReturnPct:      stats.RoundTo2(minVarReturn*retScale*100),
+			VolatilityPct:  stats.RoundTo2(minVarVol*volScale*100),
+			SharpeRatio:    stats.RoundTo4(stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)),
+			SortinoRatio:   stats.RoundTo4(minVarSortino),
+			MaxDrawdownPct: stats.RoundTo2(minVarDD*100),
 			Weights:        roundWeights(minVarWeights),
 		}
 	}
 
 	result.MaxSharpe = &OptimizedPortfolio{
 		Name:           "Max Sharpe",
-		ReturnPct:      roundTo2(best.return_*retScale*100),
-		VolatilityPct:  roundTo2(best.volatility*volScale*100),
-		SharpeRatio:    roundTo4(best.sharpe),
-		SortinoRatio:   roundTo4(best.sortino),
-		MaxDrawdownPct: roundTo2(best.maxDrawdownPct*100),
+		ReturnPct:      stats.RoundTo2(best.return_*retScale*100),
+		VolatilityPct:  stats.RoundTo2(best.volatility*volScale*100),
+		SharpeRatio:    stats.RoundTo4(best.sharpe),
+		SortinoRatio:   stats.RoundTo4(best.sortino),
+		MaxDrawdownPct: stats.RoundTo2(best.maxDrawdownPct*100),
 		Weights:        roundWeights(best.weights),
 	}
 
 	result.HighestReturn = &OptimizedPortfolio{
 		Name:           "Highest Return",
-		ReturnPct:      roundTo2(highest.return_*retScale*100),
-		VolatilityPct:  roundTo2(highest.volatility*volScale*100),
-		SharpeRatio:    roundTo4(highest.sharpe),
-		SortinoRatio:   roundTo4(highest.sortino),
-		MaxDrawdownPct: roundTo2(highestDD*100),
+		ReturnPct:      stats.RoundTo2(highest.return_*retScale*100),
+		VolatilityPct:  stats.RoundTo2(highest.volatility*volScale*100),
+		SharpeRatio:    stats.RoundTo4(highest.sharpe),
+		SortinoRatio:   stats.RoundTo4(highest.sortino),
+		MaxDrawdownPct: stats.RoundTo2(highestDD*100),
 		Weights:        roundWeights(highest.weights),
 	}
 
 	// Max Sortino portfolio.
 	result.MaxSortino = &OptimizedPortfolio{
 		Name:           "Max Sortino",
-		ReturnPct:      roundTo2(bestSortino.return_*retScale*100),
-		VolatilityPct:  roundTo2(bestSortino.volatility*volScale*100),
-		SharpeRatio:    roundTo4(bestSortino.sharpe),
-		SortinoRatio:   roundTo4(bestSortino.sortino),
-		MaxDrawdownPct: roundTo2(bestSortino.maxDrawdownPct*100),
+		ReturnPct:      stats.RoundTo2(bestSortino.return_*retScale*100),
+		VolatilityPct:  stats.RoundTo2(bestSortino.volatility*volScale*100),
+		SharpeRatio:    stats.RoundTo4(bestSortino.sharpe),
+		SortinoRatio:   stats.RoundTo4(bestSortino.sortino),
+		MaxDrawdownPct: stats.RoundTo2(bestSortino.maxDrawdownPct*100),
 		Weights:        roundWeights(bestSortino.weights),
 	}
 
@@ -320,11 +321,11 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	minDD := frontierPoints[minDDIdx]
 	result.MinDrawdown = &OptimizedPortfolio{
 		Name:           "Min Drawdown",
-		ReturnPct:      roundTo2(minDD.return_*retScale*100),
-		VolatilityPct:  roundTo2(minDD.volatility*volScale*100),
-		SharpeRatio:    roundTo4(minDD.sharpe),
-		SortinoRatio:   roundTo4(minDD.sortino),
-		MaxDrawdownPct: roundTo2(minDD.maxDrawdownPct * 100),
+		ReturnPct:      stats.RoundTo2(minDD.return_*retScale*100),
+		VolatilityPct:  stats.RoundTo2(minDD.volatility*volScale*100),
+		SharpeRatio:    stats.RoundTo4(minDD.sharpe),
+		SortinoRatio:   stats.RoundTo4(minDD.sortino),
+		MaxDrawdownPct: stats.RoundTo2(minDD.maxDrawdownPct * 100),
 		Weights:        roundWeights(minDD.weights),
 	}
 
@@ -412,16 +413,6 @@ func sampleFrontierPoints(efficient []portfolioEval, target int) []portfolioEval
 	return sampled
 }
 
-// roundTo2 rounds to 2 decimal places.
-func roundTo2(v float64) float64 {
-	return math.Round(v*100) / 100
-}
-
-// roundTo4 rounds to 4 decimal places.
-func roundTo4(v float64) float64 {
-	return math.Round(v*10000) / 10000
-}
-
 // roundWeights rounds each weight to 4 decimal places and ensures they sum to 1.0.
 func roundWeights(weights []float64) []float64 {
 	rounded := make([]float64, len(weights))
@@ -442,26 +433,4 @@ func roundWeights(weights []float64) []float64 {
 	return rounded
 }
 
-// itoa converts int to string (simple, no strconv dependency for small ints).
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := false
-	if n < 0 {
-		neg = true
-		n = -n
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		i--
-		buf[i] = '-'
-	}
-	return string(buf[i:])
-}
+
