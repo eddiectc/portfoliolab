@@ -292,6 +292,12 @@
             <td>{{.Details.FundProfile.ShareClassName}}</td>
         </tr>
         {{end}}
+        {{if .Details.FundProfile.BaseCurrency}}
+        <tr>
+            <th>Base Currency</th>
+            <td>{{.Details.FundProfile.BaseCurrency}}</td>
+        </tr>
+        {{end}}
         {{if .Details.FundProfile.OngoingCharges}}
         <tr>
             <th>Ongoing Charges</th>
