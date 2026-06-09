@@ -43,7 +43,7 @@ func TestExtractor_Extract(t *testing.T) {
 		if requestCount == 1 {
 			return sampleProductPageHTML, nil
 		}
-		return sampleHoldingsJSON, nil
+		return sampleHoldingsCSV, nil
 	})
 
 	result, err := e.Extract(context.Background(), server.URL+"/product")
@@ -113,7 +113,9 @@ func TestExtractor_Extract_EmptyHoldings(t *testing.T) {
 	e := NewExtractor()
 	e.client = &Client{minDelay: 0}
 
-	emptyHoldingsJSON := `{"asOfDate": "20260529", "aaData": []}`
+	emptyHoldingsCSV := `Fund Holdings as of,"29/May/2026"
+
+Ticker,Name,Type,Sector,Asset Class,Market Value,Weight (%),Notional Value,Shares,Price,Location,Exchange,Market Currency`
 
 	requestCount := 0
 	e.client.SetFetchFunc(func(url string) (string, error) {
@@ -121,7 +123,7 @@ func TestExtractor_Extract_EmptyHoldings(t *testing.T) {
 		if requestCount == 1 {
 			return sampleProductPageHTML, nil
 		}
-		return emptyHoldingsJSON, nil
+		return emptyHoldingsCSV, nil
 	})
 
 	result, err := e.Extract(context.Background(), "https://www.ishares.com/uk/individual/en/products/270051/test")
@@ -232,53 +234,9 @@ const sampleProductPageHTML = `
 </html>
 `
 
-const sampleHoldingsJSON = `{
-  "asOfDate": "20260529",
-  "aaData": [
-    [
-      "MU",
-      "MICRON TECHNOLOGY INC",
-      "Information Technology",
-      "Equity",
-      {"display": "USD 340,433,571.00", "raw": 340433571},
-      {"display": "6.57", "raw": 6.57076},
-      {"display": "340,433,571.00", "raw": 340433571},
-      {"display": "350,601.00", "raw": 350601},
-      "US5951121038",
-      {"display": "971.00", "raw": 971},
-      "United States",
-      "NASDAQ",
-      "USD"
-    ],
-    [
-      "AAPL",
-      "APPLE INC",
-      "Information Technology",
-      "Equity",
-      {"display": "USD 200,000,000.00", "raw": 200000000},
-      {"display": "3.86", "raw": 3.86},
-      {"display": "200,000,000.00", "raw": 200000000},
-      {"display": "1,000,000.00", "raw": 1000000},
-      "US0378331005",
-      {"display": "200.00", "raw": 200},
-      "United States",
-      "NASDAQ",
-      "USD"
-    ],
-    [
-      "JNJ",
-      "JOHNSON & JOHNSON",
-      "Healthcare",
-      "Equity",
-      {"display": "USD 100,000,000.00", "raw": 100000000},
-      {"display": "1.93", "raw": 1.93},
-      {"display": "100,000,000.00", "raw": 100000000},
-      {"display": "500,000.00", "raw": 500000},
-      "US4781601046",
-      {"display": "200.00", "raw": 200},
-      "United States",
-      "NYSE",
-      "USD"
-    ]
-  ]
-}`
+const sampleHoldingsCSV = `Fund Holdings as of,"29/May/2026"
+
+Ticker,Name,Type,Sector,Asset Class,Market Value,Weight (%),Notional Value,Shares,Price,Location,Exchange,Market Currency
+"MU","MICRON TECHNOLOGY INC","EQUITY","Information Technology","Equity","340,433,571.00","6.57","340,433,571.00","350,601.00","971.00","United States","NASDAQ","USD"
+"AAPL","APPLE INC","EQUITY","Information Technology","Equity","200,000,000.00","3.86","200,000,000.00","1,000,000.00","200.00","United States","NASDAQ","USD"
+"JNJ","JOHNSON & JOHNSON","EQUITY","Healthcare","Equity","100,000,000.00","1.93","100,000,000.00","500,000.00","200.00","United States","NYSE","USD"`

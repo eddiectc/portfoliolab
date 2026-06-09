@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
@@ -39,7 +38,7 @@ func (e *Extractor) Match(rawURL string) bool {
 // Extract fetches and parses data from an iShares product page.
 // Uses a two-phase approach:
 //   - Phase 1: Fetch product page HTML for fund identity, profile, characteristics, component ID
-//   - Phase 2: Fetch holdings JSON API using component ID, derive sector/geography from holdings
+//   - Phase 2: Fetch holdings CSV using component ID, derive sector/geography from holdings
 //
 // All sections are parsed atomically — if any phase fails, the entire extraction is rejected.
 func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.ExtractResult, error) {
@@ -88,25 +87,25 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("phase 1 — parse as-of date: %w", err)
 	}
 
-	// --- Phase 2: Holdings JSON API ---
-	holdingsURL, err := buildHoldingsURL(sourceURL, componentID, asOfDate)
+	// --- Phase 2: Holdings CSV ---
+	holdingsURL, err := buildHoldingsURL(sourceURL, componentID)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 — build holdings URL: %w", err)
 	}
 
-	holdingsJSON, err := e.client.Fetch(holdingsURL)
+	holdingsCSV, err := e.client.Fetch(holdingsURL)
 	if err != nil {
-		return nil, fmt.Errorf("phase 2 — fetch holdings JSON: %w", err)
+		return nil, fmt.Errorf("phase 2 — fetch holdings CSV: %w", err)
 	}
 
-	holdings, jsonAsOfDate, err := ParseHoldings(holdingsJSON)
+	holdings, csvAsOfDate, err := ParseHoldings(holdingsCSV)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 — parse holdings: %w", err)
 	}
 
-	// Use JSON as-of date if available (more precise than page-level)
-	if jsonAsOfDate != "" {
-		if parsed, err := parseIShareDate(jsonAsOfDate); err == nil {
+	// Use CSV as-of date if available (more precise than page-level)
+	if csvAsOfDate != "" {
+		if parsed, err := parseIShareDate(csvAsOfDate); err == nil {
 			asOfDate = parsed
 		}
 	}
@@ -160,9 +159,9 @@ func ensureSwitchLocale(rawURL string) string {
 	return u.String()
 }
 
-// buildHoldingsURL constructs the holdings JSON API URL from the product page URL.
-// Pattern: /uk/individual/en/products/{portfolioId}/{seo-slug}/{componentId}.ajax?tab=all&fileType=json&asOfDate={yyyymmdd}
-func buildHoldingsURL(productURL string, componentID string, asOfDate time.Time) (string, error) {
+// buildHoldingsURL constructs the holdings CSV download URL from the product page URL.
+// Pattern: /uk/individual/en/products/{portfolioId}/{seo-slug}/{componentId}.ajax?fileType=csv&fileName={ticker}_holdings&dataType=fund
+func buildHoldingsURL(productURL string, componentID string) (string, error) {
 	u, err := url.Parse(productURL)
 	if err != nil {
 		return "", fmt.Errorf("parse product URL: %w", err)
@@ -175,12 +174,7 @@ func buildHoldingsURL(productURL string, componentID string, asOfDate time.Time)
 		Scheme:   u.Scheme,
 		Host:     u.Host,
 		Path:     holdingsPath,
-		RawQuery: "tab=all&fileType=json",
-	}
-
-	// Add asOfDate parameter if available
-	if !asOfDate.IsZero() {
-		holdingsURL.RawQuery += "&asOfDate=" + asOfDate.Format("20060102")
+		RawQuery: "fileType=csv&dataType=fund",
 	}
 
 	return holdingsURL.String(), nil
