@@ -242,7 +242,7 @@ func (e *Extractor) SetClient(c *Client) {
 }
 
 // extractSlug extracts the fund slug from a Vanguard URL.
-// URL pattern: https://www.vanguardinvestor.co.uk/investments/{fundSlug}
+// URL pattern: https://www.vanguardinvestor.co.uk/investments/{fundSlug}[/overview|price-performance|...]
 func extractSlug(rawURL string) (string, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -251,17 +251,20 @@ func extractSlug(rawURL string) (string, error) {
 
 	path := strings.Trim(parsed.Path, "/")
 	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("no fund slug in URL path %q", parsed.Path)
+
+	// Find the "investments" segment; the slug is the next segment.
+	// This handles URLs like /investments/{slug} and /investments/{slug}/overview.
+	for i, part := range parts {
+		if part == "investments" && i+1 < len(parts) {
+			slug := parts[i+1]
+			if slug == "" {
+				return "", fmt.Errorf("empty fund slug in URL %q", rawURL)
+			}
+			return slug, nil
+		}
 	}
 
-	// The slug is the last segment of the path
-	slug := parts[len(parts)-1]
-	if slug == "" {
-		return "", fmt.Errorf("empty fund slug in URL %q", rawURL)
-	}
-
-	return slug, nil
+	return "", fmt.Errorf("no fund slug in URL path %q", parsed.Path)
 }
 
 // parseAsOfDate parses a date string into time.Time.
