@@ -861,6 +861,8 @@ func TestExtractSlug(t *testing.T) {
 		{"no www", "https://vanguardinvestor.co.uk/investments/some-fund", "some-fund", false},
 		{"deep path", "https://www.vanguardinvestor.co.uk/en-gb/investments/some-fund", "some-fund", false},
 		{"trailing slash", "https://www.vanguardinvestor.co.uk/investments/some-fund/", "some-fund", false},
+		{"with overview suffix", "https://www.vanguardinvestor.co.uk/investments/vanguard-ftse-all-world-ucits-etf-usd-accumulating/overview", "vanguard-ftse-all-world-ucits-etf-usd-accumulating", false},
+		{"with price-performance suffix", "https://www.vanguardinvestor.co.uk/investments/some-fund/price-performance", "some-fund", false},
 		{"no path", "https://www.vanguardinvestor.co.uk", "", true},
 		{"malformed", "://not-valid", "", true},
 	}
