@@ -442,58 +442,14 @@ func TestParseAsOfDate(t *testing.T) {
 // --- Phase 2: JSON Parser Tests ---
 
 func TestParseHoldings(t *testing.T) {
-	jsonData := `{
-  "asOfDate": "20260529",
-  "aaData": [
-    [
-      "MU",
-      "MICRON TECHNOLOGY INC",
-      "Information Technology",
-      "Equity",
-      {"display": "USD 340,433,571.00", "raw": 340433571},
-      {"display": "6.57", "raw": 6.57076},
-      {"display": "340,433,571.00", "raw": 340433571},
-      {"display": "350,601.00", "raw": 350601},
-      "US5951121038",
-      {"display": "971.00", "raw": 971},
-      "United States",
-      "NASDAQ",
-      "USD"
-    ],
-    [
-      "AAPL",
-      "APPLE INC",
-      "Information Technology",
-      "Equity",
-      {"display": "USD 200,000,000.00", "raw": 200000000},
-      {"display": "3.86", "raw": 3.86},
-      {"display": "200,000,000.00", "raw": 200000000},
-      {"display": "1,000,000.00", "raw": 1000000},
-      "US0378331005",
-      {"display": "200.00", "raw": 200},
-      "United States",
-      "NASDAQ",
-      "USD"
-    ],
-    [
-      "",
-      "USD CASH",
-      "",
-      "Cash",
-      {"display": "USD -1,000,000.00", "raw": -1000000},
-      {"display": "-0.02", "raw": -0.02},
-      {"display": "-1,000,000.00", "raw": -1000000},
-      {"display": "1,000,000.00", "raw": 1000000},
-      "-",
-      {"display": "1.00", "raw": 1},
-      "",
-      "",
-      "USD"
-    ]
-  ]
-}`
+	csvData := `Fund Holdings as of,"29/May/2026"
 
-	holdings, asOfDate, err := ParseHoldings(jsonData)
+Ticker,Name,Type,Sector,Asset Class,Market Value,Weight (%),Notional Value,Shares,Price,Location,Exchange,Market Currency
+"MU","MICRON TECHNOLOGY INC","EQUITY","Information Technology","Equity","340,433,571.00","6.57076","340,433,571.00","350,601.00","971.00","United States","NASDAQ","USD"
+"AAPL","APPLE INC","EQUITY","Information Technology","Equity","200,000,000.00","3.86","200,000,000.00","1,000,000.00","200.00","United States","NASDAQ","USD"
+"","USD CASH","CASH","Cash","Cash","-1,000,000.00","-0.02","-1,000,000.00","1,000,000.00","1.00","","","USD"`
+
+	holdings, asOfDate, err := ParseHoldings(csvData)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -527,8 +483,8 @@ func TestParseHoldings(t *testing.T) {
 	if holdings[0].Shares != 350601 {
 		t.Errorf("holding[0].Shares = %f, want 350601", holdings[0].Shares)
 	}
-	if holdings[0].ISIN != "US5951121038" {
-		t.Errorf("holding[0].ISIN = %q", holdings[0].ISIN)
+	if holdings[0].ISIN != "-" {
+		t.Errorf("holding[0].ISIN = %q, want -", holdings[0].ISIN)
 	}
 	if holdings[0].Price != 971 {
 		t.Errorf("holding[0].Price = %f, want 971", holdings[0].Price)
@@ -555,15 +511,15 @@ func TestParseHoldings(t *testing.T) {
 	}
 
 	// As-of date
-	if asOfDate != "20260529" {
-		t.Errorf("asOfDate = %q, want 20260529", asOfDate)
+	if asOfDate != "29/May/2026" {
+		t.Errorf("asOfDate = %q, want 29/May/2026", asOfDate)
 	}
 }
 
 func TestParseHoldings_BOM(t *testing.T) {
 	// UTF-8 BOM prefix
-	jsonData := "\xef\xbb\xbf{\"aaData\":[[\"MU\",\"Test\",\"Tech\",\"Equity\",{},{} ,{},{},\"-\",{},\"US\",\"NASDAQ\",\"USD\"]]}"
-	holdings, _, err := ParseHoldings(jsonData)
+	csvData := "\xef\xbb\xbfFund Holdings as of,\"29/May/2026\"\n\nTicker,Name,Type,Sector,Asset Class,Market Value,Weight (%),Notional Value,Shares,Price,Location,Exchange,Market Currency\n\"MU\",\"Test\",\"EQUITY\",\"Tech\",\"Equity\",\"100\",\"1.0\",\"100\",\"10\",\"10\",\"US\",\"NASDAQ\",\"USD\""
+	holdings, _, err := ParseHoldings(csvData)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -573,8 +529,10 @@ func TestParseHoldings_BOM(t *testing.T) {
 }
 
 func TestParseHoldings_Empty(t *testing.T) {
-	jsonData := `{"asOfDate": "20260529", "aaData": []}`
-	holdings, _, err := ParseHoldings(jsonData)
+	csvData := `Fund Holdings as of,"29/May/2026"
+
+Ticker,Name,Type,Sector,Asset Class,Market Value,Weight (%),Notional Value,Shares,Price,Location,Exchange,Market Currency`
+	holdings, _, err := ParseHoldings(csvData)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -583,10 +541,15 @@ func TestParseHoldings_Empty(t *testing.T) {
 	}
 }
 
-func TestParseHoldings_InvalidJSON(t *testing.T) {
-	_, _, err := ParseHoldings(`not valid json`)
-	if err == nil {
-		t.Error("expected error for invalid JSON")
+func TestParseHoldings_NoHeaderRow(t *testing.T) {
+	// CSV with data but no title or header row — should return 0 holdings
+	csvData := `MU,Micron,EQUITY,Tech,Equity,100,1.0,100,10,10,US,NASDAQ,USD`
+	holdings, _, err := ParseHoldings(csvData)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(holdings) != 0 {
+		t.Errorf("expected 0 holdings without header row, got %d", len(holdings))
 	}
 }
 

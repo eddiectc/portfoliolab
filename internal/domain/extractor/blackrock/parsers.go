@@ -1,8 +1,9 @@
 package blackrock
 
 import (
-	"encoding/json"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"sort"
@@ -260,105 +261,117 @@ func ParseAsOfDate(html string) (time.Time, error) {
 	return time.Time{}, nil
 }
 
-// --- Phase 2: JSON API Parsers ---
+// --- Phase 2: CSV Parsers ---
 
-// holdingsJSONResponse is the top-level JSON response from the holdings API.
-type holdingsJSONResponse struct {
-	AsOfDate string       `json:"asOfDate"`
-	AaData   [][]jsonNode `json:"aaData"`
+// csvRowLookup provides column-name-based access to a CSV row.
+type csvRowLookup struct {
+	cols map[string]int
+	row  []string
 }
 
-// jsonNode represents a cell in the holdings data that can be either a string
-// or an object with "display" and "raw" values.
-type jsonNode struct {
-	Display string  `json:"display"`
-	Raw     float64 `json:"raw"`
-	Value   string  `json:"value"`
-	str     string  // set when the cell is a plain string
+func (r csvRowLookup) str(name string) string {
+	if idx, ok := r.cols[name]; ok && idx < len(r.row) {
+		return strings.TrimSpace(r.row[idx])
+	}
+	return ""
 }
 
-// UnmarshalJSON handles both string and object cells in the holdings data.
-func (n *jsonNode) UnmarshalJSON(data []byte) error {
-	// Try as object first
-	var obj struct {
-		Display string  `json:"display"`
-		Raw     float64 `json:"raw"`
-		Value   string  `json:"value"`
+func (r csvRowLookup) float(name string) float64 {
+	s := r.str(name)
+	if s == "" || s == "-" {
+		return 0
 	}
-	if err := json.Unmarshal(data, &obj); err == nil {
-		n.Display = obj.Display
-		n.Raw = obj.Raw
-		n.Value = obj.Value
-		return nil
+	// Strip currency prefix (e.g. "USD 126,187,569.90")
+	if idx := strings.Index(s, " "); idx > 0 {
+		s = s[idx+1:]
 	}
-	// Fall back to string
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return fmt.Errorf("jsonNode: cannot unmarshal as object or string: %w", err)
+	s = strings.ReplaceAll(s, ",", "")
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
 	}
-	n.str = s
-	return nil
+	return val
 }
 
-// ParseHoldings parses the holdings JSON API response.
-// Each row in aaData is a 13-field array:
-// [0] Ticker, [1] Name, [2] Sector, [3] Asset Class,
-// [4] Market Value (object), [5] Weight (object), [6] Notional Value (object),
-// [7] Shares (object), [8] Identifier (CUSIP/ISIN), [9] Price (object),
-// [10] Location, [11] Exchange, [12] Market Currency
-// Returns holdings list and the asOfDate from the response.
-func ParseHoldings(jsonData string) ([]extractor.Holding, string, error) {
+// ParseHoldings parses the holdings CSV download.
+// CSV format: title row ("Fund Holdings as of,\"DD/Mon/YYYY\""), blank row,
+// header row, then data rows. Columns are read by name from the header,
+// so the parser is resilient to column reordering or insertion.
+// Returns holdings list and the as-of date string from the title row.
+func ParseHoldings(csvData string) ([]extractor.Holding, string, error) {
 	// Strip UTF-8 BOM
-	jsonData = strings.TrimPrefix(jsonData, "\xef\xbb\xbf")
+	csvData = strings.TrimPrefix(csvData, "\xef\xbb\xbf")
 
-	var resp holdingsJSONResponse
-	if err := json.Unmarshal([]byte(jsonData), &resp); err != nil {
-		return nil, "", fmt.Errorf("unmarshal holdings JSON: %w", err)
-	}
+	reader := csv.NewReader(strings.NewReader(csvData))
+	reader.LazyQuotes = true
+	reader.TrimLeadingSpace = true
+	reader.FieldsPerRecord = -1 // variable field counts: title (2), header (13), data (13)
 
-	if len(resp.AaData) == 0 {
-		return nil, resp.AsOfDate, nil // empty holdings is valid
-	}
+	var (
+		cols      map[string]int
+		asOfDate  string
+		hdrFound  bool
+	)
 
 	var holdings []extractor.Holding
-	for _, row := range resp.AaData {
-		if len(row) < 13 {
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, "", fmt.Errorf("read CSV row: %w", err)
+		}
+
+		// Skip blank rows
+		if len(row) == 0 || (len(row) == 1 && strings.TrimSpace(row[0]) == "") {
 			continue
 		}
 
-		ticker := getStringValue(row[0])
-		name := getStringValue(row[1])
-		sector := getStringValue(row[2])
-		assetClass := getStringValue(row[3])
+		// First non-blank row is the title with as-of date
+		// Identified by "Fund Holdings" prefix (CSV reader strips quotes)
+		if !hdrFound && strings.HasPrefix(row[0], "Fund Holdings") {
+			combined := strings.Join(row, " ")
+			// Extract date from 'Fund Holdings as of, 29/May/2026'
+			dateRe := regexp.MustCompile(`([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
+			if match := dateRe.FindStringSubmatch(combined); match != nil && len(match) > 1 {
+				asOfDate = match[1]
+			}
+			continue
+		}
 
-		marketValue := row[4].Raw
-		weight := row[5].Raw
-		notionalValue := row[6].Raw
-		shares := row[7].Raw
-		identifier := getStringValue(row[8])
-		price := row[9].Raw
-		location := getStringValue(row[10])
-		exchange := getStringValue(row[11])
-		marketCurrency := getStringValue(row[12])
+		// Next non-blank row is the header
+		if !hdrFound {
+			cols = make(map[string]int)
+			for i, name := range row {
+				cols[strings.TrimSpace(name)] = i
+			}
+			hdrFound = true
+			continue
+		}
+
+		// Data row — read columns by name
+		lookup := csvRowLookup{cols: cols, row: row}
 
 		holdings = append(holdings, extractor.Holding{
-			Symbol:         ticker,
-			Name:           name,
-			Percent:        weight,
-			Sector:         sector,
-			AssetClass:     assetClass,
-			MarketValue:    marketValue,
-			NotionalValue:  notionalValue,
-			Shares:         shares,
-			Price:          price,
-			ISIN:           identifier,
-			Location:       location,
-			Exchange:       exchange,
-			MarketCurrency: marketCurrency,
+			Symbol:         lookup.str("Ticker"),
+			Name:           lookup.str("Name"),
+			Percent:        lookup.float("Weight (%)"),
+			Sector:         lookup.str("Sector"),
+			AssetClass:     lookup.str("Asset Class"),
+			MarketValue:    lookup.float("Market Value"),
+			NotionalValue:  lookup.float("Notional Value"),
+			Shares:         lookup.float("Shares"),
+			Price:          lookup.float("Price"),
+			ISIN:           "-", // CSV does not include CUSIP/ISIN column
+			Location:       lookup.str("Location"),
+			Exchange:       lookup.str("Exchange"),
+			MarketCurrency: lookup.str("Market Currency"),
 		})
 	}
 
-	return holdings, resp.AsOfDate, nil
+	return holdings, asOfDate, nil
 }
 
 // DeriveSectorAllocation aggregates holdings by sector and returns sorted sector weights.
@@ -575,20 +588,6 @@ func parseIShareDate(dateStr string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("unrecognized iShares date format: %q", dateStr)
-}
-
-// getStringValue extracts a string value from a jsonNode.
-func getStringValue(node jsonNode) string {
-	if node.str != "" {
-		return node.str
-	}
-	if node.Value != "" {
-		return node.Value
-	}
-	if node.Display != "" {
-		return node.Display
-	}
-	return ""
 }
 
 // mathRound rounds a float64 to the given number of decimal places.
