@@ -53,6 +53,32 @@ func TestParseFundCharacteristics_Real(t *testing.T) {
 		ch.PriceToEarnings, ch.EstimatedPriceToEarnings, ch.PriceToBook, ch.PriceToSales, ch.PriceToCashflow, ch.DividendYield)
 }
 
+func TestParseSectors_Real(t *testing.T) {
+	sectors, err := ParseSectors(realHTML)
+	if err != nil {
+		t.Fatalf("ParseSectors failed: %v", err)
+	}
+	if len(sectors) < 10 {
+		t.Errorf("expected at least 10 sectors, got %d", len(sectors))
+	}
+	// Check that a known sector exists
+	found := false
+	for _, s := range sectors {
+		if s.Sector == "Information Technology" || s.Sector == "Industrials" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected Information Technology or Industrials sector")
+	}
+	t.Logf("Got %d sectors: %s (%.2f%%), %s (%.2f%%), %s (%.2f%%)",
+		len(sectors),
+		sectors[0].Sector, sectors[0].Percent,
+		sectors[1].Sector, sectors[1].Percent,
+		sectors[2].Sector, sectors[2].Percent)
+}
+
 func TestExtractModalURL_Real(t *testing.T) {
 	modalURL := ExtractModalURL(realHTML)
 	if modalURL == "" {
@@ -67,7 +93,7 @@ func TestExtractModalURL_Real(t *testing.T) {
 func TestExtractFromHTML_Real(t *testing.T) {
 	// Test individual parsers against real HTML.
 	// Full extractFromHTML is not tested here because the real page
-	// may not have all sections (e.g. fundSectorsData is missing on WMGT).
+	// may not have all sections on all funds.
 	// The atomic full extraction is covered by TestExtractFromHTML with sampleHTML.
 
 	fundInfo, err := ParseFundInfo(realHTML)
@@ -105,6 +131,14 @@ func TestExtractFromHTML_Real(t *testing.T) {
 		t.Errorf("expected at least 5 themes, got %d", len(themes))
 	}
 
+	sectors, err := ParseSectors(realHTML)
+	if err != nil {
+		t.Fatalf("ParseSectors failed: %v", err)
+	}
+	if len(sectors) < 5 {
+		t.Errorf("expected at least 5 sectors, got %d", len(sectors))
+	}
+
 	asOf, err := ParseAsOfDate(realHTML)
 	if err != nil {
 		t.Fatalf("ParseAsOfDate failed: %v", err)
@@ -113,7 +147,7 @@ func TestExtractFromHTML_Real(t *testing.T) {
 		t.Error("expected non-zero as-of date")
 	}
 
-	t.Logf("Real HTML: symbol=%s, holdings=%d, themes=%d, AUM=%.0f, TER=%.2f%%, asOf=%s",
-		fundInfo.Symbol, len(holdings), len(themes),
+	t.Logf("Real HTML: symbol=%s, holdings=%d, themes=%d, sectors=%d, AUM=%.0f, TER=%.2f%%, asOf=%s",
+		fundInfo.Symbol, len(holdings), len(themes), len(sectors),
 		profile.TotalNetAssets, profile.AnnualExpenseRatio, asOf.Format("2006-01-02"))
 }

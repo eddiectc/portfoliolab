@@ -1,6 +1,16 @@
 # WisdomTree ETF Scraper — Progress & Findings
 
-**Last updated**: 2026-06-03
+**Last updated**: 2026-06-09
+
+## Update 2026-06-09: Test data refreshed
+
+The test HTML file (`testdata/wmgt_page_cycletls.html`) was stale and missing `fundSectorsData`. The WisdomTree website had restructured — the old scrape was from a page version that didn't embed the sectors CSV variable. Fresh scrape confirms:
+
+- `fundSectorsData` IS present on the live page (12 sectors for WMGT as of 2026-06-08)
+- All other data variables (`fundInfo`, `fundMarketData`, `fundHoldingsData`, `fundThemeData`, `fundBenchmarks`) still present
+- All parsers work correctly against the fresh HTML
+- Test HTML file updated with fresh 477KB page content
+- Added `TestParseSectors_Real` to validate sectors against real HTML
 
 > **WORKFLOW RULE**: Update this file AFTER EVERY finding or failure, not at the end. This prevents repeating work when context window resets.
 **Target URL**: `https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt---wisdomtree-megatrends-ucits-etf---usd-acc`
