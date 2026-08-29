@@ -22,6 +22,21 @@
 - Task 3: `extractShareClass` return type changed from `string` to `(string, error)` (not in original spec). Added after silent fallback audit.
 - Task 4: Optional section parser errors are silently discarded (not returned). The chart parsers (asset class, equity derivatives, currency derivatives) return partial data + error on label/percentage mismatch. The extractor accepts the partial data and discards the error, since these are optional sections. This matches the plan's atomicity rule: only Fund Facts + Reference Date are required.
 
+## 2026-08-29 — AnnualExpenseRatio stored as raw percent instead of fraction
+
+Discovered during f026 (BlackRock) TER display work: `extractPercent` returned the raw percentage
+number ("0.55%" -> 0.55) which was stored directly in `AnnualExpenseRatio`. The web display
+multiplies by 100 (`%.2f%%` of `value * 100`), so funds showed 55.00% TER. Fixed in
+`ParseFundFacts` (`parsers.go`): `profile.AnnualExpenseRatio = mgmtFees / 100`, matching the
+fraction convention used by vanguard, wisdomtree and (after the f026 fix) blackrock. The
+integration test `TestIMGPSymbolDetails_FullStackRoundTrip` already used a fraction
+(0.015), confirming the parser was the outlier.
+
+**Not changed:** `OngoingCharges` still stores the raw percentage — its display path
+(`symbol_details_web.go`) formats it *without* `*100`, so its convention is the raw number.
+`extractPercent` itself is unchanged (shared by both fields). Parser unit test updated to
+expect 0.0055 (epsilon compare — 0.55/100 is not exactly representable in float64).
+
 ## Future Improvements
 - None yet.
 

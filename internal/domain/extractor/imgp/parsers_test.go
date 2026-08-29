@@ -1,6 +1,7 @@
 package imgp
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,9 +51,9 @@ func TestParseFundFacts(t *testing.T) {
 		t.Errorf("ShareClassName = %q, want %q", profile.ShareClassName, "R USD UCITS ETF")
 	}
 
-	// Management Fees
-	if profile.AnnualExpenseRatio != 0.55 {
-		t.Errorf("AnnualExpenseRatio = %.2f, want 0.55", profile.AnnualExpenseRatio)
+	// Management Fees (stored as fraction: 0.55% -> 0.0055)
+	if math.Abs(profile.AnnualExpenseRatio-0.0055) > 1e-12 {
+		t.Errorf("AnnualExpenseRatio = %v, want 0.0055 (fraction for 0.55%%)", profile.AnnualExpenseRatio)
 	}
 
 	// Ongoing Charges
@@ -203,9 +204,9 @@ func TestParseAssetClassAllocation(t *testing.T) {
 	// The order in the PDF is: Bonds, Gold, Oil, Equities
 	expected := map[string]float64{
 		"Bonds":    -25.7,
-		"Gold":      4.3,
-		"Oil":       15.4,
-		"Equities":  20.3,
+		"Gold":     4.3,
+		"Oil":      15.4,
+		"Equities": 20.3,
 	}
 
 	for _, entry := range entries {
@@ -280,12 +281,12 @@ func TestParseEquityDerivativesByRegion(t *testing.T) {
 	// Cash & Others: 0%, Asia ex Japan: 0.2%, Japan: 0.3%, Europe ex-EMU: 0.5%,
 	// EMU: 0.6%, North America: 2.9%, Emerging Countries: 15.8%
 	expected := map[string]float64{
-		"Cash & Others":        0.0,
-		"Asia ex Japan":        0.2,
-		"Japan":                0.3,
-		"Europe ex-EMU":        0.5,
-		"EMU":                  0.6,
-		"North America":        2.9,
+		"Cash & Others":      0.0,
+		"Asia ex Japan":      0.2,
+		"Japan":              0.3,
+		"Europe ex-EMU":      0.5,
+		"EMU":                0.6,
+		"North America":      2.9,
 		"Emerging Countries": 15.8,
 	}
 
@@ -699,7 +700,6 @@ func TestExtractShareClass(t *testing.T) {
 		{"standard with Classification delimiter", "Share Class R USD UCITS ETF Classification SFDR 6", "R USD UCITS ETF"},
 		{"with Cut-off delimiter", "Share Class A EUR Cut-off Time TD 12:00", "A EUR"},
 		{"with SRRI delimiter", "Share Class I USD UCITS ETF SRRI 5/7", "I USD UCITS ETF"},
-
 	}
 
 	for _, tt := range tests {
@@ -761,12 +761,12 @@ func TestFullExtractionFromFixture(t *testing.T) {
 
 	// Build ExtractResult
 	result := &extractor.ExtractResult{
-		Source:                      "imgp",
-		AsOfDate:                    refDate,
-		FundProfile:                 profile,
-		RiskMeasures:                risk,
-		AssetClassAllocation:        assetClass,
-		EquityDerivativesByRegion:   equityRegions,
+		Source:                        "imgp",
+		AsOfDate:                      refDate,
+		FundProfile:                   profile,
+		RiskMeasures:                  risk,
+		AssetClassAllocation:          assetClass,
+		EquityDerivativesByRegion:     equityRegions,
 		CurrencyDerivativesAllocation: currencyAlloc,
 	}
 

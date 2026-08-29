@@ -17,7 +17,7 @@
 
 ## Known Issues
 - 2026-08-29 (resolved): iShares website redesign broke all `blackrock` extractor refreshes. Investigation + fix options in `FINDINGS-2026-08-29-website-redesign.md`. Fixed the same day via **Option 2 — full JSON API migration** (see 2026-08-29 implementation notes below).
-- 2026-08-29 (open, separate extractor): `imgp` parser's `extractPercent` returns the raw percent number (e.g. `0.55` for "0.55%") and stores it directly in `AnnualExpenseRatio`, while the convention is a fraction (`0.0055`). Web display multiplies by 100, so imgp symbols likely show TER 100x too high (e.g. 55.00% instead of 0.55%). Not fixed — flag for follow-up; verify by refreshing an imgp symbol.
+- 2026-08-29 (resolved, separate extractor): `imgp` parser's `extractPercent` returned the raw percent number (e.g. `0.55` for "0.55%") and stored it directly in `AnnualExpenseRatio`, while the convention is a fraction (`0.0055`). Web display multiplies by 100, so imgp symbols showed TER 100x too high (e.g. 55.00% instead of 0.55%). Fixed in `imgp/parsers.go` (`ParseFundFacts` now divides by 100); `OngoingCharges` left as raw percent since its display path does not multiply by 100. Details in `features/f024_imgp-scraper/NOTES.md`. Existing DB rows keep the old value until the symbol is re-refreshed.
 
 ## 2026-08-29 Implementation Notes (website-redesign fix)
 

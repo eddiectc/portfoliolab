@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ledongthuc/pdf"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/ledongthuc/pdf"
 )
 
 // ExtractPDFText extracts plain text from a PDF byte slice.
@@ -76,11 +76,13 @@ func ParseFundFacts(pdfText string) (*extractor.FundProfile, error) {
 	profile.ShareClassName = shareClass
 
 	// Management Fees: "Management Fees 0.55%"
+	// Convention: AnnualExpenseRatio is a fraction (0.0055 for 0.55%),
+	// matching vanguard/wisdomtree and the web display (value * 100).
 	mgmtFees, err := extractPercent(factsSection, "Management Fees")
 	if err != nil {
 		return nil, fmt.Errorf("parse management fees: %w", err)
 	}
-	profile.AnnualExpenseRatio = mgmtFees
+	profile.AnnualExpenseRatio = mgmtFees / 100
 
 	// Ongoing Charges: "Ongoing Charges 0.75%"
 	ongoingCharges, err := extractPercent(factsSection, "Ongoing Charges")
@@ -522,9 +524,9 @@ func extractLabelsAndPercentages(section string) ([]string, []float64) {
 type parsePhase int
 
 const (
-	phaseLabels  parsePhase = iota // collecting labels
-	phaseAxis                      // axis numbers (skip)
-	phasePercents                  // percentage values
+	phaseLabels   parsePhase = iota // collecting labels
+	phaseAxis                       // axis numbers (skip)
+	phasePercents                   // percentage values
 )
 
 // isNumber checks if a string looks like a number.
@@ -538,13 +540,19 @@ func isNumber(s string) bool {
 // counts mismatch), and sorting by absolute percentage descending (biggest first).
 // When the PDF extraction drops a percentage (e.g. "0%" misread as axis value),
 // sequential pairing preserves correct label→value mapping for the matched entries.
-func pairAlignAndSort(labels []string, percentages []float64) []struct{ label string; pct float64 } {
+func pairAlignAndSort(labels []string, percentages []float64) []struct {
+	label string
+	pct   float64
+} {
 	minLen := len(labels)
 	if len(percentages) < minLen {
 		minLen = len(percentages)
 	}
 
-	type pair struct{ label string; pct float64 }
+	type pair struct {
+		label string
+		pct   float64
+	}
 	pairs := make([]pair, minLen)
 
 	for i := 0; i < minLen; i++ {
@@ -555,9 +563,15 @@ func pairAlignAndSort(labels []string, percentages []float64) []struct{ label st
 		return pairs[i].pct > pairs[j].pct
 	})
 
-	result := make([]struct{ label string; pct float64 }, len(pairs))
+	result := make([]struct {
+		label string
+		pct   float64
+	}, len(pairs))
 	for i, p := range pairs {
-		result[i] = struct{ label string; pct float64 }{label: p.label, pct: p.pct}
+		result[i] = struct {
+			label string
+			pct   float64
+		}{label: p.label, pct: p.pct}
 	}
 	return result
 }
@@ -659,16 +673,16 @@ func parseDate(dateStr string) (time.Time, error) {
 	dateStr = strings.TrimSpace(dateStr)
 
 	formats := []string{
-		"02/01/2006",   // "07/03/2025"
-		"2/1/2006",     // "7/3/2025"
-		"02/01/06",     // "07/03/25"
-		"2/1/06",       // "7/3/25"
+		"02/01/2006",      // "07/03/2025"
+		"2/1/2006",        // "7/3/2025"
+		"02/01/06",        // "07/03/25"
+		"2/1/06",          // "7/3/25"
 		"January 2, 2006", // "April 30, 2026"
-		"Jan 2, 2006",      // "Apr 30, 2026"
-		"2 January 2006",   // "30 April 2026"
-		"02 January 2006",  // "30 April 2026"
-		"2006-01-02",       // "2026-04-30"
-		"02-01-2006",       // "30-04-2026"
+		"Jan 2, 2006",     // "Apr 30, 2026"
+		"2 January 2006",  // "30 April 2026"
+		"02 January 2006", // "30 April 2026"
+		"2006-01-02",      // "2026-04-30"
+		"02-01-2006",      // "30-04-2026"
 	}
 
 	for _, format := range formats {
