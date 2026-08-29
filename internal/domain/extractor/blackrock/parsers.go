@@ -78,7 +78,9 @@ func ParseFundProfile(html string) (*extractor.FundProfile, error) {
 
 	// Total Expense Ratio
 	if val, err := parseKeyValue(html, "Total Expense Ratio"); err == nil {
-		profile.AnnualExpenseRatio = parsePercentValue(val)
+		// Convention: AnnualExpenseRatio is a fraction (0.0025 for 0.25%),
+		// matching vanguard/wisdomtree and the web display (value * 100).
+		profile.AnnualExpenseRatio = parsePercentValue(val) / 100
 	}
 
 	// Use of Income (Distribution Strategy)
@@ -228,6 +230,10 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 
 // ParseComponentID extracts the component ID from the holdings download link.
 // Pattern: <a href=".../1506575576011.ajax?fileType=csv...">
+//
+// Deprecated: the .ajax CSV endpoint was removed in the 2026-08 site
+// redesign; holdings now come from the product data JSON API (see
+// ParseHoldingsFromJSON).
 func ParseComponentID(html string) (string, error) {
 	re := regexp.MustCompile(`/(\d+)\.ajax\?fileType=csv`)
 	match := re.FindStringSubmatch(html)
@@ -250,8 +256,9 @@ func ParseAsOfDate(html string) (time.Time, error) {
 	}
 
 	// Try new div-based as-of-date elements: <div class="as-of-date">as of DD/Mon/YYYY</div>
-	// or <p class="as-of-date">as of DD/Mon/YYYY</p>
-	newRe := regexp.MustCompile(`<[^>]*class="as-of-date"[^>]*>\s*as of\s*([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
+	// or <p class="as-of-date">as of DD/Mon/YYYY</p> — the class attribute may
+	// carry additional classes, e.g. "as-of-date oneds-body-s-compact".
+	newRe := regexp.MustCompile(`<[^>]*class="as-of-date(?: [^"]*)?"[^>]*>\s*as of\s*([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
 	match = newRe.FindStringSubmatch(html)
 	if match != nil && len(match) > 1 {
 		return parseIShareDate(match[1])
@@ -298,6 +305,9 @@ func (r csvRowLookup) float(name string) float64 {
 // header row, then data rows. Columns are read by name from the header,
 // so the parser is resilient to column reordering or insertion.
 // Returns holdings list and the as-of date string from the title row.
+//
+// Deprecated: the .ajax CSV endpoint was removed in the 2026-08 site
+// redesign; use ParseHoldingsFromJSON for current pages.
 func ParseHoldings(csvData string) ([]extractor.Holding, string, error) {
 	// Strip UTF-8 BOM
 	csvData = strings.TrimPrefix(csvData, "\xef\xbb\xbf")
@@ -308,9 +318,9 @@ func ParseHoldings(csvData string) ([]extractor.Holding, string, error) {
 	reader.FieldsPerRecord = -1 // variable field counts: title (2), header (13), data (13)
 
 	var (
-		cols      map[string]int
-		asOfDate  string
-		hdrFound  bool
+		cols     map[string]int
+		asOfDate string
+		hdrFound bool
 	)
 
 	var holdings []extractor.Holding
@@ -436,48 +446,121 @@ func DeriveCountryAllocation(holdings []extractor.Holding) ([]extractor.CountryA
 // colClassForKey maps old key-value label names to their new CSS class names
 // used in the div-based product-data-item layout.
 var colClassForKey = map[string]string{
-	"Net Assets":            "totalNetAssets",
-	"Inception Date":        "inceptionDate",
-	"Asset Class":           "assetClass",
-	"SFDR Classification":   "sfdr",
-	"Use of Income":         "useOfProfitsCode",
-	"Domicile":              "domicile",
-	"Rebalance Frequency":   "rebalanceFrequency",
-	"Fund Manager":          "fundmanager",
-	"Custodian":             "fundCustodian",
-	"Bloomberg Ticker":      "bbeqtick",
-	"Benchmark Index":       "indexSeriesName",
-	"ISIN":                  "isin",
-	"Product Structure":     "productStructure",
-	"Methodology":           "fundMethodologyTypeCode",
-	"Issuing Company":       "issuingCompany",
-	"Number of Holdings":    "numHoldings",
-	"P/E Ratio":             "priceEarnings",
-	"P/B Ratio":             "priceBook",
-	"3y Beta":               "threeYrBetaFund",
+	"Net Assets":              "totalNetAssets",
+	"Inception Date":          "inceptionDate",
+	"Asset Class":             "assetClass",
+	"SFDR Classification":     "sfdr",
+	"Total Expense Ratio":     "emeaMgt",
+	"Use of Income":           "useOfProfitsCode",
+	"Domicile":                "domicile",
+	"Rebalance Frequency":     "rebalanceFrequency",
+	"Fund Manager":            "fundmanager",
+	"Custodian":               "fundCustodian",
+	"Bloomberg Ticker":        "bbeqtick",
+	"Benchmark Index":         "indexSeriesName",
+	"ISIN":                    "isin",
+	"Product Structure":       "productStructure",
+	"Methodology":             "fundMethodologyTypeCode",
+	"Issuing Company":         "issuingCompany",
+	"Number of Holdings":      "numHoldings",
+	"P/E Ratio":               "priceEarnings",
+	"P/B Ratio":               "priceBook",
+	"3y Beta":                 "threeYrBetaFund",
 	"Standard Deviation (3y)": "volatilitySourced3YrAnnualized",
 }
 
-// parseKeyValue extracts a value from a key-value table row in the HTML.
-// Tries the old <td> table format first, then falls back to the new
-// div-based product-data-item format.
+// parseKeyValue extracts a value from a key-value element in the HTML.
+// Tries the old <td> table format first, then the data-item table row
+// format (2026-08 redesign), then the intermediate div-based
+// product-data-item format.
 func parseKeyValue(html, key string) (string, error) {
 	// Try old <td> table format first
-	val, err := parseKeyValueFromTable(html, key)
-	if err == nil {
+	if val, err := parseKeyValueFromTable(html, key); err == nil {
 		return val, nil
 	}
 
-	// Fall back to new div-based format
 	colClass, ok := colClassForKey[key]
 	if !ok {
 		return "", fmt.Errorf("key %q not found", key)
 	}
-	val, err = parseKeyValueFromDiv(html, colClass)
+
+	// Try data-item table row format (2026-08 redesign)
+	if val, err := parseKeyValueFromDataRow(html, colClass); err == nil {
+		return val, nil
+	}
+
+	// Fall back to div-based product-data-item format (intermediate layout)
+	val, err := parseKeyValueFromDiv(html, colClass)
 	if err != nil {
 		return "", fmt.Errorf("key %q not found", key)
 	}
 	return val, nil
+}
+
+// findClassToken returns the start index of a standalone class token
+// (e.g. "col-emeaMgt") in the HTML, or -1 when not present. A token must be
+// bounded by whitespace or quotes on both sides so class names that share a
+// prefix or suffix (e.g. col-totalNetAssetsFundLevel) do not match.
+func findClassToken(s, token string) int {
+	re := regexp.MustCompile(regexp.QuoteMeta(token))
+	for _, loc := range re.FindAllStringIndex(s, -1) {
+		start, end := loc[0], loc[1]
+		if start > 0 && !isClassBoundary(s[start-1]) {
+			continue
+		}
+		if end < len(s) && !isClassBoundary(s[end]) {
+			continue
+		}
+		return start
+	}
+	return -1
+}
+
+// isClassBoundary reports whether c can separate a class token from its
+// neighbours inside a class attribute value.
+func isClassBoundary(c byte) bool {
+	return c == ' ' || c == '"' || c == '\'' || c == '\t' || c == '\n'
+}
+
+var htmlCommentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
+
+// parseKeyValueFromDataRow extracts a value from the data-item table row
+// format introduced with the 2026-08 page redesign:
+//
+//	<tr class="data-item … col-xxx …" …>
+//	  <th class="caption"><span class="label">Label</span> …</th>
+//	  <td class="data …">VALUE</td>
+//	</tr>
+//
+// The enclosing <tr>…</tr> is isolated first so only this row's data cell is
+// read, and standalone-token matching avoids class names that share a prefix
+// (e.g. col-totalNetAssets vs col-totalNetAssetsFundLevel). React SSR comment
+// artifacts (<!-- -->) inside the cell are stripped before extraction.
+func parseKeyValueFromDataRow(html, colClass string) (string, error) {
+	idx := findClassToken(html, "col-"+colClass)
+	if idx == -1 {
+		return "", fmt.Errorf("data-item row col-%s not found", colClass)
+	}
+
+	rowStart := strings.LastIndex(html[:idx], "<tr")
+	if rowStart == -1 {
+		return "", fmt.Errorf("data-item row col-%s not found", colClass)
+	}
+	rowEnd := strings.Index(html[idx:], "</tr>")
+	if rowEnd == -1 {
+		return "", fmt.Errorf("data cell not found in col-%s row", colClass)
+	}
+	row := html[rowStart : idx+rowEnd+len("</tr>")]
+	row = htmlCommentRe.ReplaceAllString(row, "")
+
+	// Data cell: <td class="data …">VALUE</td> — the value is plain text
+	// or wrapped in a single <span>.
+	dataRe := regexp.MustCompile(`<td[^>]*class="[^"]*\bdata\b[^"]*"[^>]*>\s*(?:<span[^>]*>)?([^<]+)`)
+	match := dataRe.FindStringSubmatch(row)
+	if match == nil || len(match) < 2 {
+		return "", fmt.Errorf("data cell not found in col-%s row", colClass)
+	}
+	return strings.TrimSpace(match[1]), nil
 }
 
 // parseKeyValueFromTable extracts a value from <td>Key</td><td>Value</td> format.
@@ -494,19 +577,19 @@ func parseKeyValueFromTable(html, key string) (string, error) {
 	return strings.TrimSpace(val), nil
 }
 
-// parseKeyValueFromDiv extracts a value from the new div-based product-data-item format.
-// Pattern: <div class="product-data-item col-xxx"><div class="caption">...</div><div class="data">VALUE</div></div>
-// Strategy: find the column marker, then extract the <div class="data"> value from the next occurrence.
-// This avoids regex issues with deeply nested divs in the caption section.
+// parseKeyValueFromDiv extracts a value from the div-based product-data-item format.
+// Pattern: <div class="product-data-item col-xxx "><div class="caption">...</div><div class="data">VALUE</div></div>
+// Strategy: find the column marker as a standalone class token, then extract
+// the <div class="data"> value from the next occurrence. Standalone-token
+// matching avoids class names that share a prefix (e.g. col-totalNetAssets
+// must not match col-totalNetAssetsFundLevel).
 func parseKeyValueFromDiv(html, colClass string) (string, error) {
-	// Find the position of this column class marker
-	marker := `col-` + colClass
-	idx := strings.Index(html, marker)
+	idx := findClassToken(html, "col-"+colClass)
 	if idx == -1 {
 		return "", fmt.Errorf("product-data-item col-%s not found", colClass)
 	}
 
-	// From this position, find the next <div class="data"> and extract its value
+	// From the marker position, find the nearest <div class="data"> and extract its value
 	remaining := html[idx:]
 	dataRe := regexp.MustCompile(`<div class="data">([^<]+)`)
 	match := dataRe.FindStringSubmatch(remaining)

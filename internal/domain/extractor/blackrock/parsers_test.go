@@ -1,6 +1,7 @@
 package blackrock
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -98,8 +99,8 @@ func TestParseFundProfile(t *testing.T) {
 	if profile.SFDRClassification != "Other" {
 		t.Errorf("SFDRClassification = %q, want Other", profile.SFDRClassification)
 	}
-	if profile.AnnualExpenseRatio != 0.25 {
-		t.Errorf("AnnualExpenseRatio = %f, want 0.25", profile.AnnualExpenseRatio)
+	if profile.AnnualExpenseRatio != 0.0025 {
+		t.Errorf("AnnualExpenseRatio = %f, want 0.0025 (fraction for 0.25%%)", profile.AnnualExpenseRatio)
 	}
 	if profile.DistributionStrategy != "Accumulating" {
 		t.Errorf("DistributionStrategy = %q, want Accumulating", profile.DistributionStrategy)
@@ -778,4 +779,403 @@ func TestMathRound(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- Product Data JSON API (2026-08 redesign) ---
+
+func TestParseProductDataConfig(t *testing.T) {
+	cfg, err := ParseProductDataConfig(sampleProductPageHTML)
+	if err != nil {
+		t.Fatalf("ParseProductDataConfig failed: %v", err)
+	}
+	if cfg.APIHost != "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data" {
+		t.Errorf("APIHost = %q (trailing ? must be stripped)", cfg.APIHost)
+	}
+	if cfg.AppSubType != "ISHARES" || cfg.AppType != "PRODUCT_PAGE" {
+		t.Errorf("AppSubType/AppType = %q/%q", cfg.AppSubType, cfg.AppType)
+	}
+	if cfg.Locale != "en_GB" || cfg.TargetSite != "ishares-uk" || cfg.UserType != "individual" {
+		t.Errorf("Locale/TargetSite/UserType = %q/%q/%q", cfg.Locale, cfg.TargetSite, cfg.UserType)
+	}
+}
+
+func TestParseProductDataConfig_Missing(t *testing.T) {
+	for name, page := range map[string]string{
+		"no config":    "<html><body><h1>Fund</h1></body></html>",
+		"only apiHost": `<script>{"services":{"apiHost":"https://x/api?"}}</script>`,
+		"only params":  `<script>{"productDataParams":{"appSubType":"ISHARES","locale":"en_GB","targetSite":"ishares-uk","userType":"individual"}}</script>`,
+		"incomplete":   `<script>{"apiHost":"https://x/api","productDataParams":{"appSubType":"ISHARES"}}</script>`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ParseProductDataConfig(page); err == nil {
+				t.Error("expected error")
+			}
+		})
+	}
+}
+
+func TestParsePortfolioID(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+		fail bool
+	}{
+		{
+			name: "product url",
+			url:  "https://www.ishares.com/uk/individual/en/products/270051/ishares-msci-world-momentum-factor-ucits-etf",
+			want: "270051",
+		},
+		{
+			name: "with query string",
+			url:  "https://www.ishares.com/uk/individual/en/products/270051/fund?switchLocale=y",
+			want: "270051",
+		},
+		{
+			name: "not found page",
+			url:  "https://www.ishares.com/uk/individual/en/404",
+			fail: true,
+		},
+		{
+			name: "no products segment",
+			url:  "https://www.ishares.com/uk/individual/en/funds",
+			fail: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParsePortfolioID(tt.url)
+			if tt.fail {
+				if err == nil {
+					t.Errorf("expected error, got %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParsePortfolioID failed: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildProductDataURL(t *testing.T) {
+	cfg, err := ParseProductDataConfig(sampleProductPageHTML)
+	if err != nil {
+		t.Fatalf("ParseProductDataConfig failed: %v", err)
+	}
+
+	u, err := BuildProductDataURL(cfg, "270051", "holdings")
+	if err != nil {
+		t.Fatalf("BuildProductDataURL failed: %v", err)
+	}
+
+	want := "https://www.blackrock.com/varnish-api/uk-retail01-product-data/product-data/api/v2/get-product-data?" +
+		"appSubType=ISHARES&appType=PRODUCT_PAGE&component=holdings&locale=en_GB&" +
+		"portfolioId=270051&targetSite=ishares-uk&userType=individual"
+	if u != want {
+		t.Errorf("URL = %q, want %q", u, want)
+	}
+
+	if _, err := BuildProductDataURL(nil, "270051", "holdings"); err == nil {
+		t.Error("expected error for nil config")
+	}
+}
+
+func TestParseFundProfileFromJSON(t *testing.T) {
+	profile, err := ParseFundProfileFromJSON(sampleKeyFundFactsJSON)
+	if err != nil {
+		t.Fatalf("ParseFundProfileFromJSON failed: %v", err)
+	}
+
+	if profile.Isin != "IE00BP3QZ825" {
+		t.Errorf("Isin = %q", profile.Isin)
+	}
+	if profile.TotalNetAssets != 6022456334 {
+		t.Errorf("TotalNetAssets = %v", profile.TotalNetAssets)
+	}
+	if !profile.InceptionDate.Equal(time.Date(2014, 10, 3, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("InceptionDate = %v", profile.InceptionDate)
+	}
+	if profile.AssetClassification != "Equity" {
+		t.Errorf("AssetClassification = %q", profile.AssetClassification)
+	}
+	if profile.SFDRClassification != "Other" {
+		t.Errorf("SFDRClassification = %q", profile.SFDRClassification)
+	}
+	if profile.DistributionStrategy != "Accumulating" {
+		t.Errorf("DistributionStrategy = %q", profile.DistributionStrategy)
+	}
+	if profile.Domicile != "Ireland" {
+		t.Errorf("Domicile = %q", profile.Domicile)
+	}
+	if profile.RebalanceFrequency != "Quarterly" {
+		t.Errorf("RebalanceFrequency = %q", profile.RebalanceFrequency)
+	}
+	if profile.FundManager != "BlackRock Asset Management Ireland Limited" {
+		t.Errorf("FundManager = %q", profile.FundManager)
+	}
+	if profile.Custodian != "State Street Custodial Services (Ireland) Limited" {
+		t.Errorf("Custodian = %q", profile.Custodian)
+	}
+	if profile.BenchmarkTicker != "IWMO LN" {
+		t.Errorf("BenchmarkTicker = %q", profile.BenchmarkTicker)
+	}
+	if profile.Benchmark != "MSCI World Momentum index (Net)" {
+		t.Errorf("Benchmark = %q", profile.Benchmark)
+	}
+	if profile.ProductStructure != "Physical" {
+		t.Errorf("ProductStructure = %q", profile.ProductStructure)
+	}
+	if profile.Methodology != "Optimised" {
+		t.Errorf("Methodology = %q", profile.Methodology)
+	}
+	if profile.IssuingCompany != "iShares IV plc" {
+		t.Errorf("IssuingCompany = %q", profile.IssuingCompany)
+	}
+	if profile.BaseCurrency != "USD" {
+		t.Errorf("BaseCurrency = %q", profile.BaseCurrency)
+	}
+	// TER is not part of keyFundFacts
+	if profile.AnnualExpenseRatio != 0 {
+		t.Errorf("AnnualExpenseRatio = %v, want 0 (not in JSON)", profile.AnnualExpenseRatio)
+	}
+}
+
+func TestParseFundProfileFromJSON_Errors(t *testing.T) {
+	tests := []struct {
+		name  string
+		body  string
+		match string
+	}{
+		{
+			name:  "invalid json",
+			body:  "{not json",
+			match: "parse product data response",
+		},
+		{
+			name:  "component missing",
+			body:  `{"componentsByNameMap":{"other":{"containersByNameMap":{"default":{"dataPointsByNameMap":{}}}}}}`,
+			match: "keyFundFacts component not found",
+		},
+		{
+			name:  "no identifying data",
+			body:  `{"componentsByNameMap":{"keyFundFacts":{"containersByNameMap":{"default":{"dataPointsByNameMap":{"domicile":{"name":"domicile","formattedValue":"Ireland"}}}}}}}`,
+			match: "fund profile data missing",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseFundProfileFromJSON(tt.body)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !containsStr(err.Error(), tt.match) {
+				t.Errorf("error %q does not contain %q", err.Error(), tt.match)
+			}
+		})
+	}
+}
+
+func TestParseHoldingsFromJSON(t *testing.T) {
+	holdings, asOf, err := ParseHoldingsFromJSON(sampleHoldingsJSON)
+	if err != nil {
+		t.Fatalf("ParseHoldingsFromJSON failed: %v", err)
+	}
+
+	if len(holdings) != 4 {
+		t.Fatalf("len(holdings) = %d, want 4", len(holdings))
+	}
+
+	mu := holdings[0]
+	if mu.Symbol != "MU" || mu.Name != "MICRON TECHNOLOGY" {
+		t.Errorf("holdings[0] = %+v", mu)
+	}
+	if mu.Percent != 6.57 || mu.Shares != 350601 || mu.Price != 971 {
+		t.Errorf("holdings[0] percent/shares/price = %v/%v/%v", mu.Percent, mu.Shares, mu.Price)
+	}
+	if mu.MarketValue != 340433571 || mu.NotionalValue != 340433571 {
+		t.Errorf("holdings[0] market/notional = %v/%v", mu.MarketValue, mu.NotionalValue)
+	}
+	if mu.Sector != "Information Technology" || mu.AssetClass != "Equity" {
+		t.Errorf("holdings[0] sector/assetClass = %q/%q", mu.Sector, mu.AssetClass)
+	}
+	if mu.ISIN != "US5951121038" {
+		t.Errorf("holdings[0] ISIN = %q", mu.ISIN)
+	}
+	if mu.Location != "United States" || mu.Exchange != "NASDAQ" || mu.MarketCurrency != "USD" {
+		t.Errorf("holdings[0] location/exchange/ccy = %q/%q/%q", mu.Location, mu.Exchange, mu.MarketCurrency)
+	}
+
+	cash := holdings[3]
+	if cash.Symbol != "USD" || cash.Name != "Cash" || cash.ISIN != "-" {
+		t.Errorf("cash row = %+v", cash)
+	}
+
+	if !asOf.Equal(time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("asOf = %v, want 2026-08-27", asOf)
+	}
+}
+
+func TestParseHoldingsFromJSON_Empty(t *testing.T) {
+	holdings, asOf, err := ParseHoldingsFromJSON(emptyHoldingsJSON)
+	if err != nil {
+		t.Fatalf("ParseHoldingsFromJSON failed: %v", err)
+	}
+	if len(holdings) != 0 {
+		t.Errorf("len(holdings) = %d, want 0", len(holdings))
+	}
+	if asOf.IsZero() {
+		t.Error("asOf is zero, want 2026-08-27")
+	}
+}
+
+func TestParseHoldingsFromJSON_MissingAsOfDate(t *testing.T) {
+	holdings, asOf, err := ParseHoldingsFromJSON(sampleHoldingsJSONWithoutAsOfDate)
+	if err != nil {
+		t.Fatalf("ParseHoldingsFromJSON failed: %v", err)
+	}
+	if len(holdings) != 4 {
+		t.Errorf("len(holdings) = %d, want 4", len(holdings))
+	}
+	if !asOf.IsZero() {
+		t.Errorf("asOf = %v, want zero", asOf)
+	}
+}
+
+func TestParseHoldingsFromJSON_Errors(t *testing.T) {
+	tests := []struct {
+		name  string
+		body  string
+		match string
+	}{
+		{
+			name:  "invalid json",
+			body:  "nope",
+			match: "parse product data response",
+		},
+		{
+			name:  "component missing",
+			body:  `{"componentsByNameMap":{}}`,
+			match: "holdings component not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseHoldingsFromJSON(tt.body)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !containsStr(err.Error(), tt.match) {
+				t.Errorf("error %q does not contain %q", err.Error(), tt.match)
+			}
+		})
+	}
+}
+
+// --- Data-item table rows (2026-08 redesign) ---
+
+const sampleDataItemRowsHTML = `
+<table>
+<tr class="data-item oneds-body-m-compact col-totalNetAssetsFundLevel" data-itemid="keyFundFacts-row-totalNetAssetsFundLevel" data-itemname="totalNetAssetsFundLevel" data-itemtype="key-value">
+<th class="caption" tabindex="-1"><div class="caption-wrapper"><span class="label">Fund Level Net Assets</span></div></th>
+<td class="data oneds-body-l-bold" tabindex="-1">USD 9,999,999,999</td>
+</tr>
+<tr class="data-item oneds-body-m-compact col-totalNetAssets" data-itemid="keyFundFacts-row-totalNetAssets" data-itemname="totalNetAssets" data-itemtype="key-value">
+<th class="caption" tabindex="-1"><div class="caption-wrapper"><span class="label">Net Assets</span></div></th>
+<td class="data oneds-body-l-bold" tabindex="-1">USD <!-- -->6,022,456,334</td>
+</tr>
+<tr class="data-item oneds-body-m-compact col-emeaMgt" data-itemid="keyFundFacts-row-emeaMgt" data-itemname="emeaMgt" data-itemtype="key-value">
+<th class="caption" tabindex="-1"><div class="caption-wrapper"><span class="label">Annual Management Fee (TER)</span></div></th>
+<td class="data oneds-body-l-bold" tabindex="-1"><span class="value">0.25%</span></td>
+</tr>
+<tr class="data-item oneds-body-m-compact col-numHoldings" data-itemid="characteristics-row-numHoldings" data-itemname="numHoldings" data-itemtype="key-value">
+<th class="caption" tabindex="-1"><div class="caption-wrapper"><span class="label">Number of Holdings</span></div></th>
+<td class="data oneds-body-l-bold" tabindex="-1">352</td>
+</tr>
+</table>
+`
+
+func TestParseKeyValue_DataItemRows(t *testing.T) {
+	// Span-wrapped value
+	ter, err := parseKeyValue(sampleDataItemRowsHTML, "Total Expense Ratio")
+	if err != nil {
+		t.Fatalf("Total Expense Ratio: %v", err)
+	}
+	if ter != "0.25%" {
+		t.Errorf("TER = %q, want %q", ter, "0.25%")
+	}
+
+	// Plain value with an SSR comment artifact
+	aum, err := parseKeyValue(sampleDataItemRowsHTML, "Net Assets")
+	if err != nil {
+		t.Fatalf("Net Assets: %v", err)
+	}
+	if aum != "USD 6,022,456,334" {
+		t.Errorf("Net Assets = %q (SSR comment must be stripped, FundLevel row must not be read)", aum)
+	}
+
+	// Plain value, no span
+	nh, err := parseKeyValue(sampleDataItemRowsHTML, "Number of Holdings")
+	if err != nil {
+		t.Fatalf("Number of Holdings: %v", err)
+	}
+	if nh != "352" {
+		t.Errorf("Number of Holdings = %q", nh)
+	}
+
+	// Missing key
+	if _, err := parseKeyValue(sampleDataItemRowsHTML, "ISIN"); err == nil {
+		t.Error("expected error for missing key")
+	}
+}
+
+func TestParseFundProfile_DataItemRows(t *testing.T) {
+	// A full profile expressed as data-item rows (TER, ISIN, AUM, inception)
+	html := `
+<table>
+<tr class="data-item col-emeaMgt"><th class="caption"><span class="label">Total Expense Ratio</span></th><td class="data">0.25%</td></tr>
+<tr class="data-item col-isin"><th class="caption"><span class="label">ISIN</span></th><td class="data">IE00BP3QZ825</td></tr>
+<tr class="data-item col-totalNetAssets"><th class="caption"><span class="label">Net Assets</span></th><td class="data">USD 6,022,456,334</td></tr>
+<tr class="data-item col-inceptionDate"><th class="caption"><span class="label">Inception Date</span></th><td class="data">03/Oct/2014</td></tr>
+<tr class="data-item col-sfdr"><th class="caption"><span class="label">SFDR Classification</span></th><td class="data">Other</td></tr>
+<tr class="data-item col-assetClass"><th class="caption"><span class="label">Asset Class</span></th><td class="data">Equity</td></tr>
+</table>`
+
+	profile, err := ParseFundProfile(html)
+	if err != nil {
+		t.Fatalf("ParseFundProfile failed: %v", err)
+	}
+	if profile.Isin != "IE00BP3QZ825" {
+		t.Errorf("Isin = %q", profile.Isin)
+	}
+	if profile.TotalNetAssets != 6022456334 {
+		t.Errorf("TotalNetAssets = %v", profile.TotalNetAssets)
+	}
+	if profile.AnnualExpenseRatio != 0.0025 {
+		t.Errorf("AnnualExpenseRatio = %v, want 0.0025 (fraction for 0.25%%)", profile.AnnualExpenseRatio)
+	}
+	if profile.BenchmarkTicker != "" {
+		t.Errorf("BenchmarkTicker = %q, want empty (not in rows)", profile.BenchmarkTicker)
+	}
+}
+
+func TestParseAsOfDate_ExtraClasses(t *testing.T) {
+	html := `<div class="as-of-date oneds-body-s-compact">as of 29/May/2026</div>`
+	got, err := ParseAsOfDate(html)
+	if err != nil {
+		t.Fatalf("ParseAsOfDate failed: %v", err)
+	}
+	if !got.Equal(time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("got %v, want 2026-05-29", got)
+	}
+}
+
+func containsStr(s, sub string) bool {
+	return strings.Contains(s, sub)
 }
