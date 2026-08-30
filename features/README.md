@@ -43,7 +43,7 @@ Example: `f021_wisdomtree-scraper` (WisdomTree site relaunch 2026-08-30, v1 impl
 | f018 | Allocation | done | f009, f010, f011, f001 |
 | f019 | Model Portfolio | done | f003, f009, f011, f018 |
 | f020 | Portfolio Comparison | done | f019, f009, f010, f011, f012, f015 |
-| f021 | WisdomTree Scraper | done | f015, f011 |
+| f021 | WisdomTree Scraper | in-progress | f015, f011 |
 | f022 | DWS Scraper | done | f021 |
 | f023 | Dimensional Scraper | done | f015, f011 |
 | f024 | iMGP Scraper | done | f021 |

@@ -24,6 +24,7 @@ func TestMatch(t *testing.T) {
 		{"fr region", "https://wisdomtree.com/fr/products/fixed-income/xyz", true},
 		{"gb digital-assets asset class", "https://wisdomtree.com/gb/products/digital-assets/xyz", true},
 		{"case-insensitive host", "https://WWW.WisdomTree.com/us/products/equity/ezm", true},
+		{"uppercase path", "https://www.wisdomtree.com/US/products/equity/EZM", true},
 		// Rejected — old site URLs (no backward compatibility, user decision)
 		{"old wisdomtree.eu path", "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt---wisdomtree-exchange-mid-cap-growth", false},
 		{"wisdomtree.eu root", "https://wisdomtree.eu/", false},

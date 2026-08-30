@@ -34,6 +34,22 @@
   `product-charts` deferred). Implementation started.
 - **Task 1 (URL matcher) complete**: `matcher.go` rewritten to the new-format-only regex
   (`wisdomtree.com/{region}/products/{asset-class}/{slug}/`, optional `www` + trailing slash, any 2-letter
-  region). Scheme/host matched case-insensitively (keeps the old matcher's host case behavior; paths per
-  sitemaps are lowercase). `matcher_test.go` rewritten as `TestMatch` (26 cases) per the plan's verification
-  command; all pass. No other code affected — the matcher contract (`Match(string) bool`) is unchanged.
+  region). Whole URL lowercased before matching, so scheme, host, and path are all case-insensitive
+  (superset of the old matcher's host case behavior). `matcher_test.go` rewritten as `TestMatch` per the
+  plan's verification command; all pass. No other code affected — the matcher contract (`Match(string) bool`)
+  is unchanged.
+
+## Task 1 Review (2026-08-30)
+
+- Review found four stale v1 tests asserting the removed matcher behavior; all updated:
+  - `TestExtractor_Match` (wisdomtree package) — `.eu` URL now expected to **not** match.
+  - `TestVanguard_Dispatcher_UnregisteredProvider` (tests/integration) — the "registered provider still
+    routes" check now uses a new-format URL instead of legacy `.com/uk/en/ics/etfs/WMGG/`.
+  - `TestWisdomTree_ServiceLayerRoundTrip` + `TestWisdomTree_FullAPIRoundTrip` (v1 e2e) — `data_source_url`
+    updated to new format (dispatch only; fetch stays mocked with the embedded v1 page). These tests are
+    superseded wholesale in Tasks 5–6 with new-site samples.
+- Case handling documented precisely (whole URL lowercased, path included); added an uppercase-path test
+  case pinning that behavior (26 → 27 cases).
+- `features/README.md` — f021 status set to `in-progress` for the Phase 2 rebuild.
+- Pre-existing, unrelated failure observed: `TestBenchmarkChartAllPeriods/1M` (date-dependent; fails on the
+  parent commit too) — left as-is.
