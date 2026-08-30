@@ -1,7 +1,7 @@
 # Implementation Plan: f021 WisdomTree Scraper — Phase 2 (New-Site Rebuild)
 
 **Date**: 2026-08-30
-**Status**: Draft — awaiting user review
+**Status**: Approved 2026-08-30 (user confirmed); implementation in progress
 **Spec**: `SPEC.md` is **unchanged** (user decision 2026-08-30). The spec is implementation-agnostic and every
 data section it requires is still available on the new site. All rebuild decisions live here and in `RESEARCH.md`.
 **Context**: The 2026-08-30 relaunch (Sitecore → Next.js) broke every v1 parser. v1 code is replaced, not patched.
@@ -42,14 +42,14 @@ Tasks 1–3 are independent and can be done in any order.
 **Corresponds to:** Story 1 (provider routing by URL), RESEARCH.md §1a
 **Description:** Replace the domain-suffix matcher with the new-format-only matcher.
 
-- [ ] Rewrite `wisdomtree/matcher.go`: match `^https?://(?:www\.)?wisdomtree\.com/[a-z]{2}/products/[a-z-]+/[a-z0-9-]+/?$`
+- [x] Rewrite `wisdomtree/matcher.go`: match `^https?://(?:www\.)?wisdomtree\.com/[a-z]{2}/products/[a-z-]+/[a-z0-9-]+/?$`
       (any 2-letter region; both slug types — US ticker / EU name-slug; `www` optional; trailing slash optional)
-- [ ] Drop all `.eu` / legacy-domain matching (no backward compatibility — user decision)
-- [ ] Rewrite `matcher_test.go`:
+- [x] Drop all `.eu` / legacy-domain matching (no backward compatibility — user decision)
+- [x] Rewrite `matcher_test.go`:
       - matches: `us/products/equity/ezm`, `gb/products/equities/wisdomtree-us-quality-growth-ucits-etf---usd-acc`,
         with/without `www`, with/without trailing slash, other regions (`de`, `fr`, …)
       - rejected: old `.eu` URLs, `.com/etfs/...` legacy paths, non-WisdomTree domains, malformed paths
-- [ ] Write tests
+- [x] Write tests
 
 **Verification:** `go test ./internal/domain/extractor/wisdomtree/ -run TestMatch`
 

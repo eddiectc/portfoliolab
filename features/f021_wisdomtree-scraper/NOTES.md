@@ -24,6 +24,16 @@
 - **Spec unchanged** (user decision): `SPEC.md` is implementation-agnostic and all sections it requires still
   exist on the new site — the rebuild is a **plan-level** change, not a spec change.
 - Rebuild plan written in `PLAN.md` (7 tasks: matcher, client+wtClassID, flight decoder, parsers, orchestrator,
-  cleanup/verify, + user task: portal URL migration). Awaiting user review before implementation.
+  cleanup/verify, + user task: portal URL migration).
 - Phase-2 defaults flagged for review: as-of = page header (holdings keep own `dt`), no flight-holdings fallback
   (future work), `product-charts` deferred.
+
+## 2026-08-30 — Phase 2 approved, Task 1 done
+
+- **Decision** (user): Phase 2 plan approved as written (API-first sources, no flight-holdings fallback,
+  `product-charts` deferred). Implementation started.
+- **Task 1 (URL matcher) complete**: `matcher.go` rewritten to the new-format-only regex
+  (`wisdomtree.com/{region}/products/{asset-class}/{slug}/`, optional `www` + trailing slash, any 2-letter
+  region). Scheme/host matched case-insensitively (keeps the old matcher's host case behavior; paths per
+  sitemaps are lowercase). `matcher_test.go` rewritten as `TestMatch` (26 cases) per the plan's verification
+  command; all pass. No other code affected — the matcher contract (`Match(string) bool`) is unchanged.
