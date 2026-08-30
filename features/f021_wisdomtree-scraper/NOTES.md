@@ -53,3 +53,34 @@
 - `features/README.md` — f021 status set to `in-progress` for the Phase 2 rebuild.
 - Pre-existing, unrelated failure observed: `TestBenchmarkChartAllPeriods/1M` (date-dependent; fails on the
   parent commit too) — left as-is.
+
+## 2026-08-30 — Task 2 done (client API methods + wtClassID)
+
+- **`client.go`**: added `FundHoldings(ctx, wtClassID)` and `FundHistory(ctx, wtClassID)` (default view) on the
+  existing client. Shared unexported `fetchURL` (the CycleTLS `fetchFunc` + 1 s rate limit now apply to pages
+  and APIs through one code path); typed unexported record structs (`holdingRecord`, `fundHistoryRecord`) with
+  `float64` JSON fields — `wgt`/`pctWeight` are **fractions** (0.0367 = 3.67%), `aum` is in **millions**.
+- **`wtclassid.go`**: `ExtractWtClassID(pageBody)` — regex `\\?"wtClassID\\?":(\d{6,10})` (opening quote
+  anchored, see deviation below), first match. Verified against all 3 captured pages (QGRW=49567173,
+  WMGT=46987205, EZM=1000518; every occurrence per page identical, first-match-safe). Exported + unexported
+  field both match, so a single pattern covers both sites.
+- **Fixtures**: 6 full API JSONs in `testdata/` (short names: `holdings_{qgrw,wmgt,ezm}.json`,
+  `fund_history_{qgrw,wmgt,ezm}.json`) + 2 trimmed page snippets for extraction tests. Full captures stay in
+  `features/.../samples/`.
+- **Tests**: unmarshal all 6 fixtures with per-fund record counts and spot-checks; URL construction for both
+  endpoints (with/without `www`); wtClassID extraction (valid page, embedded-quote form, absent, first-match
+  wins); not-found + non-200 + invalid-JSON error paths; shared rate limit (two sequential API calls ≥1 s apart).
+  All pass; full suite green except the pre-existing `TestBenchmarkChartAllPeriods/1M`.
+- **Deviations from plan wording** (minor): fixture names shortened vs the plan's `*_full.json` suffix; the
+  wtClassID test is named `TestExtractWtClassID` (plan's verification command updated accordingly); the
+  wtClassID regex is stricter than the plan's `wtClassID\\?":(\d{6,10})` — it anchors the field's opening
+  quote (`\\?"wtClassID\\?":…`). Go's RE2 has no lookbehind, so a quote anchor is the available guard
+  against substring matches in longer field names (e.g. `parentwtClassID`); all occurrences in the 3
+  captured pages are quote-prefixed (verified: 324/324, 2027/2027, 112/112). The plan's regex is
+  preserved in this note for traceability.
+- **RESEARCH.md §5.1 example values are stale vs the actual captures** (fixture is authoritative — affects Task 4):
+  - `assetGroup` is a code, not a label: `EQ`/`BD`/`CF` (not "Equity").
+  - QGRW NVDA row: `wgt 0.0367`, `pctWeight 0.0347`, `sectorName "Semiconductors"` (not "Technology"),
+    `figi "BBG00LLQ3ZK"` (not "BBG000XN470").
+  - `sectorName` granularity varies by fund: QGRW/WMGT use GICS sectors ("Semiconductors", "Software"),
+    EZM uses coarse buckets ("Information Technology"). Task 4 must not assume one granularity.
