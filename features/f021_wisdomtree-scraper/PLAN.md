@@ -58,16 +58,17 @@ Tasks 1–3 are independent and can be done in any order.
 **Corresponds to:** Story 2 (extraction — data sources), RESEARCH.md §3, §5.1, §5.2
 **Description:** Add the two JSON API endpoints to the existing CycleTLS client and extract `wtClassID` from the page.
 
-- [ ] `client.go`: add `FundHoldings(ctx, wtClassID)` and `FundHistory(ctx, wtClassID)` (default view) using the
+- [x] `client.go`: add `FundHoldings(ctx, wtClassID)` and `FundHistory(ctx, wtClassID)` (default view) using the
       existing `fetchFunc` (same CycleTLS transport, same 1 s rate limit — the single `SetFetchFunc` injection
       point already covers API bodies for tests); typed response structs per RESEARCH.md §5.1/§5.2
-- [ ] `wtClassID` helper: regex `wtClassID\\?":(\d{6,10})` on the raw page body (first match)
-- [ ] Move full API response fixtures into `testdata/`: `holdings_api_{qgrw,wmgt,ezm}_full.json`,
-      `fund_history_default_{qgrw,wmgt,ezm}_full.json` (copied from `features/.../samples/`)
-- [ ] Write tests: unmarshal all 6 fixtures (QGRW 101 / WMGT 920 / EZM holdings; 601 / 691 / N history records),
-      wtClassID extraction from page fixtures, rate limit preserved
+- [x] `wtClassID` helper (`wtclassid.go`): regex `wtClassID\\?":(\d{6,10})` on the raw page body (first match)
+- [x] Move full API response fixtures into `testdata/`: `holdings_{qgrw,wmgt,ezm}.json`,
+      `fund_history_{qgrw,wmgt,ezm}.json` (copied from `features/.../samples/`); plus 2 trimmed page
+      snippets for wtClassID extraction tests
+- [x] Write tests: unmarshal all 6 fixtures (QGRW 101 / WMGT 920 / EZM 508 holdings; 601 / 691 / 4914 history
+      records), wtClassID extraction from page snippets, shared rate limit preserved
 
-**Verification:** `go test ./internal/domain/extractor/wisdomtree/ -run "TestClient|TestWtClassID"`
+**Verification:** `go test ./internal/domain/extractor/wisdomtree/ -run "TestClient|TestExtractWtClassID"`
 
 ### Task 3: React Flight payload decoder [PRIORITY: HIGH]
 
