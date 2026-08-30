@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/govalues/decimal"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/govalues/decimal"
 )
 
 // ParseFundInfo extracts symbol and name from `var fundInfo<HASH> = {...}`.
@@ -146,13 +146,13 @@ func ParseHoldings(html string) ([]extractor.Holding, error) {
 
 // modalHolding is the JSON structure from the all-holdings modal.
 type modalHolding struct {
-	CountryCode    string  `json:"CountryCode"`
-	Weight         float64 `json:"Weight"`
-	COBDate        string  `json:"COBDate"`
-	IdentifierName string  `json:"IdentifierName"`
-	IdentifierTicker string `json:"IdentifierTicker"`
-	SharesPar      string  `json:"SharesPar"`
-	MarketValue    float64 `json:"MarketValue"`
+	CountryCode      string  `json:"CountryCode"`
+	Weight           float64 `json:"Weight"`
+	COBDate          string  `json:"COBDate"`
+	IdentifierName   string  `json:"IdentifierName"`
+	IdentifierTicker string  `json:"IdentifierTicker"`
+	SharesPar        string  `json:"SharesPar"`
+	MarketValue      float64 `json:"MarketValue"`
 }
 
 // ExtractModalURL extracts the all-holdings modal URL from the main page HTML.
