@@ -84,3 +84,39 @@
     `figi "BBG00LLQ3ZK"` (not "BBG000XN470").
   - `sectorName` granularity varies by fund: QGRW/WMGT use GICS sectors ("Semiconductors", "Software"),
     EZM uses coarse buckets ("Information Technology"). Task 4 must not assume one granularity.
+
+## 2026-08-30 — Task 3 done (React Flight payload decoder)
+
+- **`flight.go`**: `DecodeFlight(pageBody) *FlightPayload` — one-pass assembly of all
+  `self.__next_f.push([1,"..."])` chunks (regex over the raw body), JS-unescape, then per assembled row:
+  split on the first `:` into row-ID + data; ignore rows without a prefix (continuation fragments of
+  string rows — the payload splits long strings mid-content, e.g. `59:"<!DOCTYPE html>…` / `459:…</html>"`);
+  decode the data as JSON and walk the tree for embedded tables and section objects. Unknown shapes
+  (module preload rows `xx:I[…]`, plain strings, malformed chunks) are skipped silently.
+- **Tables** (`Flight.Table(names…)`): a table is any object with `columns` + `rows` arrays; lookup
+  matches `ariaLabel` **or** first-column name, first match in document order (QGRW has two tables
+  sharing a first-column name — verified on the fixture); `Value(label)` returns the first matching
+  label→value pair. `AsOf` is parsed from the second column header (UCITS `28/08/2026`, US
+  `8/27/2026`; non-dates → no AsOf, no error).
+- **Sections** (`Flight.SectionByClassification(c)`): each object with a `ranking` array becomes a
+  `Section`; the sector fragment alone nests five ranking arrays (`Sector`, `Aggregate Country`,
+  `Incorporated Country`, `Index Constituent`, `Fund` — all verified in the captures), so lookup goes
+  by the entries' `rankClassification` (constants `RankClassificationSector` / `…Theme` / `…Fund`).
+  Entries expose `name`, `rank`, `weight` (fraction), `date` (`dt`). `sectionId` is stored for
+  reference ("sector-breakdown" / "theme-breakdown-chart") but is not the lookup axis.
+- **Unescape strategy**: chunks are JS strings, not JSON — but the real captures only ever contain the
+  JSON-safe escapes (`\"`, `\\`, `\uXXXX`, `\/`, `\b\f\n\r\t`), so unescaping is: replace `\uXXXX` with
+  the codepoint (two-byte for surrogate pairs), then `json.Unmarshal` of the whole quoted string. A
+  chunk containing any other escape (e.g. `\x`) fails to unmarshal and is dropped — pinned by
+  `TestDecodeFlight_Tolerant` together with orphan continuation, module-preload, and plain-string rows.
+- **Fixtures** (trimmed from the full `samples/` captures, real chunk bytes verbatim):
+  `flight_qgrw_tables.html` (all QGRW tables incl. country + structure), `flight_ezm_tables.html` (all
+  EZM tables), `flight_qgrw_sector.html`, `flight_wmgt_sector.html`, `flight_wmgt_theme.html`.
+- **Tests** (19 subtests, all pass): both regions by ariaLabel and by first column, shared-first-column
+  disambiguation, both as-of date formats + ambiguous `05/04` case + non-date header, NAV/fees value
+  spot-checks, US-specific tables present / UCITS-specific absent on the US page, embedded-holdings
+  `pctWeight` fractions, sector (both regions) + theme sections, missing table/section → nil, garbage-chunk
+  tolerance, empty input.
+- **Deviations**: none of substance. `DecodeFlight` returns a struct (not separate functions) so one
+  decode serves every accessor; `AsOf` is a `*time.Time` field rather than a second return value, so
+  "missing section" stays `nil`-clean as the plan requires.

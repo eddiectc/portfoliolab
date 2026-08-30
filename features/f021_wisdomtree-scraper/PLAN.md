@@ -76,7 +76,7 @@ Tasks 1–3 are independent and can be done in any order.
 sections", RESEARCH.md §4
 **Description:** Decode the embedded flight payload and provide name-based access to tables and breakdown sections.
 
-- [ ] New `flight.go`:
+- [x] New `flight.go`:
       - extract all `self.__next_f.push([1,"..."])` chunks; JS-unescape (`\uXXXX`, `\"`, `\\`, `\/`); decode
       - **tables**: locate by `ariaLabel` / first-column name (never by position — US pages carry a different
         superset of tables); return label→value map
@@ -85,12 +85,12 @@ sections", RESEARCH.md §4
         (`"Sector"` / `"EU Thematic Bucket"`); return `pctWeight` rankings (fractions)
       - **date parsing**: both `28/08/2026` (UCITS) and `8/27/2026` (US) formats
       - tolerant: scan all chunks, ignore unknown shapes, missing section → `nil, nil`
-- [ ] Create trimmed flight fixtures in `testdata/` (relevant chunks only, UCITS + US variants) plus sector/theme
+- [x] Create trimmed flight fixtures in `testdata/` (relevant chunks only, UCITS + US variants) plus sector/theme
       section fixtures (trimmed from `samples/sector_section_*.json`, `theme_section_wmgt.json`)
-- [ ] Write tests: table lookup by name (both regions), both date formats, absent section → `nil, nil`,
+- [x] Write tests: table lookup by name (both regions), both date formats, absent section → `nil, nil`,
       unknown chunks ignored
 
-**Verification:** `go test ./internal/domain/extractor/wisdomtree/ -run "TestFlight|TestTable|TestSection"`
+**Verification:** `go test ./internal/domain/extractor/wisdomtree/ -run "TestDecodeFlight|TestParseFlightAsOfDate"`
 
 ### Task 4: Rewrite parsers against new sources [PRIORITY: HIGH]
 
