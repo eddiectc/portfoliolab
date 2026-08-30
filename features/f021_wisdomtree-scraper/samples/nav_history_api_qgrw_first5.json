@@ -1,0 +1,23 @@
+[
+  {
+    "dt": "2026-08-28",
+    "nav": 42.9737,
+    "closePrice": null,
+    "premiumDiscountToNav": null,
+    "pdIndicator": null
+  },
+  {
+    "dt": "2026-08-27",
+    "nav": 42.9737,
+    "closePrice": null,
+    "premiumDiscountToNav": null,
+    "pdIndicator": null
+  },
+  {
+    "dt": "2026-08-26",
+    "nav": 42.2474,
+    "closePrice": null,
+    "premiumDiscountToNav": null,
+    "pdIndicator": null
+  }
+]

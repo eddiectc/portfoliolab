@@ -1,0 +1,212 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "name": "Country",
+      "isRowHeader": true
+    },
+    {
+      "id": "1",
+      "name": "Exchange",
+      "isRowHeader": true
+    },
+    {
+      "id": "2",
+      "name": "Trading Currency",
+      "isRowHeader": true
+    },
+    {
+      "id": "3",
+      "name": "Exchange Ticker",
+      "isRowHeader": true
+    },
+    {
+      "id": "4",
+      "name": "Bloomberg Ticker",
+      "isRowHeader": true
+    },
+    {
+      "id": "5",
+      "name": "RIC",
+      "isRowHeader": true
+    },
+    {
+      "id": "6",
+      "name": "SEDOL",
+      "isRowHeader": true
+    },
+    {
+      "id": "7",
+      "name": "ISIN",
+      "isRowHeader": true
+    },
+    {
+      "id": "8",
+      "name": "WKN",
+      "isRowHeader": true
+    },
+    {
+      "id": "9",
+      "name": "Listing Date",
+      "isRowHeader": true
+    }
+  ],
+  "rows": [
+    {
+      "0": [
+        "$",
+        "svg",
+        "GB",
+        {
+          "xmlns": "http://www.w3.org/2000/svg",
+          "viewBox": "0 0 513 342",
+          "className": "border-grey-100 w-9 border",
+          "children": [
+            "$undefined",
+            [
+              "$",
+              "g",
+              null,
+              {
+                "fill": "#FFF",
+                "children": [
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M0 0h513v341.3H0V0z"
+                    }
+                  ],
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M311.7 230 513 341.3v-31.5L369.3 230h-57.6zM200.3 111.3 0 0v31.5l143.7 79.8h56.6z"
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              "$",
+              "path",
+              null,
+              {
+                "d": "M393.8 230 513 295.7V230H393.8zm-82.1 0L513 341.3v-31.5L369.3 230h-57.6zm146.9 111.3-147-81.7v81.7h147zM90.3 230 0 280.2V230h90.3zm110 14.2v97.2H25.5l174.8-97.2zm-82.1-132.9L0 45.6v65.7h118.2zm82.1 0L0 0v31.5l143.7 79.8h56.6zM53.4 0l147 81.7V0h-147zm368.3 111.3L513 61.1v50.2h-91.3zm-110-14.2V0h174.9L311.7 97.1z",
+                "fill": "#0052B4"
+              }
+            ],
+            "$L9d"
+          ]
+        }
+      ],
+      "1": "LSE",
+      "2": "USD",
+      "3": "WMGT",
+      "4": "WMGT LN",
+      "5": "WMGT.L",
+      "6": "BQ2KCX6",
+      "7": "IE0000902GT6",
+      "8": "A3EYCN",
+      "9": "12/12/2023",
+      "id": 1,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$L9e",
+      "1": "LSE",
+      "2": "GBx",
+      "3": "WMGG",
+      "4": "WMGG LN",
+      "5": "WMGG.L",
+      "6": "BQ2KCP8",
+      "7": "IE0000902GT6",
+      "8": "A3EYCN",
+      "9": "12/12/2023",
+      "id": 2,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$L9f",
+      "1": "Borsa Italiana",
+      "2": "EUR",
+      "3": "WMGT",
+      "4": "WMGT IM",
+      "5": "WMGT.MI",
+      "6": "BQ2KD00",
+      "7": "IE0000902GT6",
+      "8": "A3EYCN",
+      "9": "16/01/2024",
+      "id": 3,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$La0",
+      "1": "Xetra",
+      "2": "EUR",
+      "3": "WMGT",
+      "4": "WMGT GY",
+      "5": "WMGT.DE",
+      "6": "BQ2KD11",
+      "7": "IE0000902GT6",
+      "8": "A3EYCN",
+      "9": "11/12/2023",
+      "id": 4,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$La1",
+      "1": "Euronext (FR)",
+      "2": "EUR",
+      "3": "WMGT",
+      "4": "WMGT FP",
+      "5": "WMGT.PA",
+      "6": "BQXMK60",
+      "7": "IE0000902GT6",
+      "8": "A3EYCN",
+      "9": "04/03/2026",
+      "id": 5,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$La2",
+      "1": "SIX",
+      "2": "USD",
+      "3": "WMGT",
+      "4": "WMGT SW",
+      "5": "WMGT.S",
+      "6": "BR4W3V2",
+      "7": "IE0000902GT6",
+      "8": "A3EYCN",
+      "9": "08/02/2024",
+      "id": 6,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$La3",
+      "1": "BMV",
+      "2": "MXN",
+      "3": "WMGT",
+      "4": "WMGTN MM",
+      "5": "WMGTN.MX",
+      "6": "BM9HP88",
+      "7": "IE0000902GT6",
+      "8": "A3EYCN",
+      "9": "03/06/2024",
+      "id": 7,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    }
+  ],
+  "ariaLabel": "Listings and Codes Table",
+  "className": "w-full min-w-6xl",
+  "variant": "product"
+}

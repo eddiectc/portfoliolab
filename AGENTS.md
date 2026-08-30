@@ -71,6 +71,10 @@ Feature index: `features/README.md`.
 - **User-facing features include web UI by default** — any feature that involves user interaction gets server-rendered web pages (`*_web.go` + templates + nav link) alongside the API. The plan must include tasks for both layers. If a feature is API-only or backend-only, explicitly state why in the spec's Non-Goals.
 - **Spec user stories are medium-agnostic** — write "I want to create X" not "I want to POST to /api/X". The plan decomposes into API + web tasks.
 
+### Feature Revisions
+
+External changes (e.g., a provider's website relaunch) are **revisions of the existing feature**, not new features — the feature folder must always remain re-implementable against current behavior. No new feature ID is taken. Archive superseded docs in `vN/` with `SUPERSEDED` headers, keep current docs at the feature root, and run the normal spec revision → review → plan → implement workflow in place. Full convention: [features/README.md](features/README.md#feature-revisions).
+
 ## Boundaries
 
 - **Do NOT start the server** (`go run cmd/server/main.go`) — the user manages the server lifecycle

@@ -8,6 +8,17 @@ Each feature has its own directory: `features/<id>_<name>/`
 
 Feature IDs are sequential: f001, f002, etc.
 
+## Feature Revisions
+
+A feature folder always describes the **current** state of its capability — the docs must let someone re-implement the feature as it exists today. When an external dependency changes in a way that requires reworking the feature (e.g., a provider's website relaunch), the feature is **revised in place** — it is not tracked as a new feature, and no new feature ID is taken.
+
+- Keep the same feature ID. User stories describe the capability, not the implementation, so they typically stay unchanged.
+- Archive superseded docs in a versioned subfolder (`v1/`, `v2/`, ...) — old `RESEARCH.md`, `PLAN.md`, `NOTES.md`, `RETRO.md`, `samples/` — each with a `SUPERSEDED` header pointing to the current version.
+- Root docs become the current version (a `RESEARCH-NEWSITE.md` is renamed to `RESEARCH.md`); `PLAN.md` gains a new phase section; the revision event and decisions are logged in `NOTES.md`.
+- Follow the normal workflow for the revision: spec revision → user review → plan → implement.
+
+Example: `f021_wisdomtree-scraper` (WisdomTree site relaunch 2026-08-30, v1 implementation archived in `f021_wisdomtree-scraper/v1/`).
+
 ## Feature Index
 
 | ID | Name | Status | Depends On |

@@ -1,0 +1,60 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "name": "Product Overview",
+      "isRowHeader": true
+    },
+    {
+      "id": "1",
+      "name": "As of 28/08/2026",
+      "isRowHeader": true
+    }
+  ],
+  "rows": [
+    {
+      "0": "ISIN",
+      "1": "IE000YGEAK03",
+      "id": 1,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Asset Class",
+      "1": "Equities",
+      "id": 2,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Base Currency",
+      "1": "USD",
+      "id": 3,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Inception Date",
+      "1": "16 April 2024",
+      "id": 4,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Dividend Frequency",
+      "1": "N/A",
+      "id": 5,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Use of Income",
+      "1": "Accumulating",
+      "id": 6,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    }
+  ],
+  "ariaLabel": "Overview Table",
+  "variant": "product"
+}

@@ -1,0 +1,25 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "name": "Fees",
+      "isRowHeader": true
+    },
+    {
+      "id": "1",
+      "name": "As of 28/08/2026",
+      "isRowHeader": true
+    }
+  ],
+  "rows": [
+    {
+      "0": "Total expense ratio (TER)",
+      "1": "0.50%",
+      "id": 1,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    }
+  ],
+  "ariaLabel": "Fees Table",
+  "variant": "product"
+}

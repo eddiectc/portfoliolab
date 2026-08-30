@@ -1,0 +1,3 @@
+GET https://www.wisdomtree.com/api/fund-history/49567173?view=navHistoryModal
+Response: JSON array, newest first, 59154 bytes for QGRW (full history since 2024-04 inception)
+closePrice/premiumDiscountToNav null for QGRW (thin LSE trading); populated when fund has liquid listed price

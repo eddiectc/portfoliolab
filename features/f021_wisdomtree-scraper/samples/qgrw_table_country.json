@@ -1,0 +1,349 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "name": "Country",
+      "isRowHeader": true
+    },
+    {
+      "id": "1",
+      "name": "Exchange",
+      "isRowHeader": true
+    },
+    {
+      "id": "2",
+      "name": "Trading Currency",
+      "isRowHeader": true
+    },
+    {
+      "id": "3",
+      "name": "Exchange Ticker",
+      "isRowHeader": true
+    },
+    {
+      "id": "4",
+      "name": "Bloomberg Ticker",
+      "isRowHeader": true
+    },
+    {
+      "id": "5",
+      "name": "RIC",
+      "isRowHeader": true
+    },
+    {
+      "id": "6",
+      "name": "SEDOL",
+      "isRowHeader": true
+    },
+    {
+      "id": "7",
+      "name": "ISIN",
+      "isRowHeader": true
+    },
+    {
+      "id": "8",
+      "name": "WKN",
+      "isRowHeader": true
+    },
+    {
+      "id": "9",
+      "name": "Listing Date",
+      "isRowHeader": true
+    }
+  ],
+  "rows": [
+    {
+      "0": [
+        "$",
+        "svg",
+        "GB",
+        {
+          "xmlns": "http://www.w3.org/2000/svg",
+          "viewBox": "0 0 513 342",
+          "className": "border-grey-100 w-9 border",
+          "children": [
+            "$undefined",
+            [
+              "$",
+              "g",
+              null,
+              {
+                "fill": "#FFF",
+                "children": [
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M0 0h513v341.3H0V0z"
+                    }
+                  ],
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M311.7 230 513 341.3v-31.5L369.3 230h-57.6zM200.3 111.3 0 0v31.5l143.7 79.8h56.6z"
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              "$",
+              "path",
+              null,
+              {
+                "d": "M393.8 230 513 295.7V230H393.8zm-82.1 0L513 341.3v-31.5L369.3 230h-57.6zm146.9 111.3-147-81.7v81.7h147zM90.3 230 0 280.2V230h90.3zm110 14.2v97.2H25.5l174.8-97.2zm-82.1-132.9L0 45.6v65.7h118.2zm82.1 0L0 0v31.5l143.7 79.8h56.6zM53.4 0l147 81.7V0h-147zm368.3 111.3L513 61.1v50.2h-91.3zm-110-14.2V0h174.9L311.7 97.1z",
+                "fill": "#0052B4"
+              }
+            ],
+            [
+              "$",
+              "g",
+              null,
+              {
+                "fill": "#D80027",
+                "children": [
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M288 0h-64v138.7H0v64h224v138.7h64V202.7h224v-64H288V0z"
+                    }
+                  ],
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M311.7 230 513 341.3v-31.5L369.3 230h-57.6zm-168 0L0 309.9v31.5L200.3 230h-56.6zm56.6-118.7L0 0v31.5l143.7 79.8h56.6zm168 0L513 31.5V0L311.7 111.3h56.6z"
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      ],
+      "1": "LSE",
+      "2": "USD",
+      "3": "QGRW",
+      "4": "QGRW LN",
+      "5": "QGRW.L",
+      "6": "BPSQMW0",
+      "7": "IE000YGEAK03",
+      "8": "A402ZZ",
+      "9": "24/04/2024",
+      "id": 1,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": [
+        "$",
+        "svg",
+        "GB",
+        {
+          "xmlns": "http://www.w3.org/2000/svg",
+          "viewBox": "0 0 513 342",
+          "className": "border-grey-100 w-9 border",
+          "children": [
+            "$undefined",
+            [
+              "$",
+              "g",
+              null,
+              {
+                "fill": "#FFF",
+                "children": [
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M0 0h513v341.3H0V0z"
+                    }
+                  ],
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M311.7 230 513 341.3v-31.5L369.3 230h-57.6zM200.3 111.3 0 0v31.5l143.7 79.8h56.6z"
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              "$",
+              "path",
+              null,
+              {
+                "d": "M393.8 230 513 295.7V230H393.8zm-82.1 0L513 341.3v-31.5L369.3 230h-57.6zm146.9 111.3-147-81.7v81.7h147zM90.3 230 0 280.2V230h90.3zm110 14.2v97.2H25.5l174.8-97.2zm-82.1-132.9L0 45.6v65.7h118.2zm82.1 0L0 0v31.5l143.7 79.8h56.6zM53.4 0l147 81.7V0h-147zm368.3 111.3L513 61.1v50.2h-91.3zm-110-14.2V0h174.9L311.7 97.1z",
+                "fill": "#0052B4"
+              }
+            ],
+            [
+              "$",
+              "g",
+              null,
+              {
+                "fill": "#D80027",
+                "children": [
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M288 0h-64v138.7H0v64h224v138.7h64V202.7h224v-64H288V0z"
+                    }
+                  ],
+                  [
+                    "$",
+                    "path",
+                    null,
+                    {
+                      "d": "M311.7 230 513 341.3v-31.5L369.3 230h-57.6zm-168 0L0 309.9v31.5L200.3 230h-56.6zm56.6-118.7L0 0v31.5l143.7 79.8h56.6zm168 0L513 31.5V0L311.7 111.3h56.6z"
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      ],
+      "1": "LSE",
+      "2": "GBx",
+      "3": "QGRP",
+      "4": "QGRP LN",
+      "5": "QGRP.L",
+      "6": "BPSQMX1",
+      "7": "IE000YGEAK03",
+      "8": "A402ZZ",
+      "9": "24/04/2024",
+      "id": 2,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": [
+        "$",
+        "svg",
+        "IT",
+        {
+          "xmlns": "http://www.w3.org/2000/svg",
+          "viewBox": "0 0 513 342",
+          "className": "border-grey-100 w-9 border",
+          "children": [
+            "$undefined",
+            [
+              "$",
+              "path",
+              null,
+              {
+                "fill": "#F4F5F0",
+                "d": "M342 0H0v341.3h512V0z"
+              }
+            ],
+            [
+              "$",
+              "path",
+              null,
+              {
+                "fill": "#008C45",
+                "d": "M0 0h171v342H0z"
+              }
+            ],
+            [
+              "$",
+              "path",
+              null,
+              {
+                "fill": "#CD212A",
+                "d": "M342 0h171v342H342z"
+              }
+            ]
+          ]
+        }
+      ],
+      "1": "Borsa Italiana",
+      "2": "EUR",
+      "3": "QGRW",
+      "4": "QGRW IM",
+      "5": "QGRW.MI",
+      "6": "BPSQMY2",
+      "7": "IE000YGEAK03",
+      "8": "A402ZZ",
+      "9": "23/04/2024",
+      "id": 3,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": [
+        "$",
+        "svg",
+        "DE",
+        {
+          "xmlns": "http://www.w3.org/2000/svg",
+          "viewBox": "0 0 513 342",
+          "className": "border-grey-100 w-9 border",
+          "children": [
+            "$undefined",
+            "$L9d",
+            "$L9e",
+            "$L9f"
+          ]
+        }
+      ],
+      "1": "Xetra",
+      "2": "EUR",
+      "3": "QGRW",
+      "4": "QGRW GY",
+      "5": "QGRWG.DE",
+      "6": "BPSQN05",
+      "7": "IE000YGEAK03",
+      "8": "A402ZZ",
+      "9": "23/04/2024",
+      "id": 4,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$La0",
+      "1": "SIX",
+      "2": "USD",
+      "3": "QGRW",
+      "4": "QGRW SW",
+      "5": "QGRW.S",
+      "6": "BMC91T4",
+      "7": "IE000YGEAK03",
+      "8": "A402ZZ",
+      "9": "26/08/2024",
+      "id": 5,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "$La1",
+      "1": "BMV",
+      "2": "MXN",
+      "3": "QGRW1",
+      "4": "QGRW1N MM",
+      "5": "QGRW1N.BIV",
+      "6": "BQVWYX7",
+      "7": "IE000YGEAK03",
+      "8": "A402ZZ",
+      "9": "29/07/2024",
+      "id": 6,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    }
+  ],
+  "ariaLabel": "Listings and Codes Table",
+  "className": "w-full min-w-6xl",
+  "variant": "product"
+}

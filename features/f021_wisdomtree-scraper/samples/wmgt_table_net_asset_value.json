@@ -1,0 +1,53 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "name": "Net Asset Value",
+      "isRowHeader": true
+    },
+    {
+      "id": "1",
+      "name": "As of 28/08/2026",
+      "isRowHeader": true
+    }
+  ],
+  "rows": [
+    {
+      "0": "NAV",
+      "1": "US$42.156",
+      "id": 1,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Daily Change",
+      "1": "US$0.000",
+      "id": 2,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Daily return",
+      "1": "0.000%",
+      "id": 3,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Total AUM of fund",
+      "1": "US$66,226,762",
+      "id": 4,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Issuer AUM",
+      "1": "US$19,080,460,374",
+      "id": 5,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    }
+  ],
+  "ariaLabel": "Net Asset Value Table",
+  "variant": "product"
+}

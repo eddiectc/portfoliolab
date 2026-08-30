@@ -1,0 +1,74 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "name": "Fund characteristic",
+      "isRowHeader": true
+    },
+    {
+      "id": "1",
+      "name": "As of 27/08/2026",
+      "isRowHeader": true
+    }
+  ],
+  "rows": [
+    {
+      "0": "*Dividend Yield",
+      "1": "0.94%",
+      "id": 1,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Price/Earnings",
+      "1": "64.34",
+      "id": 2,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Estimated Price/Earnings",
+      "1": "31.09",
+      "id": 3,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Price/Book",
+      "1": "3.66",
+      "id": 4,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Price/Sales",
+      "1": "2.20",
+      "id": 5,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Price/Cash Flow",
+      "1": "25.06",
+      "id": 6,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Gross Buyback Yield",
+      "1": "0.71%",
+      "id": 7,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Net Buyback Yield",
+      "1": "-1.91%",
+      "id": 8,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    }
+  ],
+  "ariaLabel": "Portfolio Characteristics Table",
+  "variant": "product"
+}

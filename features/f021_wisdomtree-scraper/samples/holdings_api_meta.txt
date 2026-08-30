@@ -1,0 +1,3 @@
+QGRW (wtClassID 49567173): 101 records, sum(wgt)=1.0000, single dt=2026-08-27, includes 'CASH W-O' row (wgt 0.00044)
+WMGT (wtClassID 46987205): 350003-byte response, same schema (verified live 2026-08-29)
+fields: dt, wtClassID, fundTicker, sectorName, assetGroup, securityTicker, securityName, shares, marketValueBase, wgt (fraction), figi, checkSumWgtAssetGroup, checkSumWgtEntity, extraDataJSON (null), descriptorA

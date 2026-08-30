@@ -1,0 +1,77 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "name": "Market Capitalisation",
+      "isRowHeader": true
+    },
+    {
+      "id": "1",
+      "name": "As of 27/08/2026",
+      "isRowHeader": true
+    }
+  ],
+  "rows": [
+    {
+      "0": "Total Market Capitalisation ($ Trillion)",
+      "1": "34.81",
+      "id": 1,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": "Fund MarketCap Breakdown",
+      "1": "",
+      "id": 2,
+      "rowClassName": "$undefined",
+      "cellClassName": "font-bold"
+    },
+    {
+      "0": [
+        "$",
+        "span",
+        null,
+        {
+          "className": "block pl-5",
+          "children": "Large Cap (> $10 Billion)"
+        }
+      ],
+      "1": "100.00%",
+      "id": 3,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": [
+        "$",
+        "span",
+        null,
+        {
+          "className": "block pl-5",
+          "children": "Mid Cap (\u2265 $2 Billion and \u2264 $10 Billion)"
+        }
+      ],
+      "1": "0.00%",
+      "id": 4,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    },
+    {
+      "0": [
+        "$",
+        "span",
+        null,
+        {
+          "className": "block pl-5",
+          "children": "Small Cap (< $2 Billion)"
+        }
+      ],
+      "1": "0.00%",
+      "id": 5,
+      "rowClassName": "$undefined",
+      "cellClassName": "$undefined"
+    }
+  ],
+  "ariaLabel": "Market Capitalisation Table",
+  "variant": "product"
+}
