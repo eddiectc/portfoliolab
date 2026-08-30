@@ -26,7 +26,8 @@ func NewURLMatcher() *URLMatcher {
 }
 
 // Match returns true if the URL is a new-format WisdomTree product page.
-// Scheme and host are compared case-insensitively.
+// The URL is lowercased before matching, so scheme, host, and path are
+// all compared case-insensitively.
 func (m *URLMatcher) Match(rawURL string) bool {
 	if _, err := url.Parse(rawURL); err != nil {
 		return false

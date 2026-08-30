@@ -691,7 +691,7 @@ func TestVanguard_Dispatcher_UnregisteredProvider(t *testing.T) {
 	}
 
 	// Verify a registered provider (WisdomTree) still works (test routing only)
-	found, err := reg.FindByURL("https://www.wisdomtree.com/uk/en/ics/etfs/WMGG/")
+	found, err := reg.FindByURL("https://www.wisdomtree.com/gb/products/equities/wisdomtree-us-quality-growth-ucits-etf---usd-acc")
 	if err != nil {
 		t.Errorf("WisdomTree extractor should be registered, got routing error: %s", err)
 	}

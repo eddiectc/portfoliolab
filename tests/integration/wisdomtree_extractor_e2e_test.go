@@ -39,7 +39,8 @@ var wmgtModalPage string
 func TestWisdomTree_ServiceLayerRoundTrip(t *testing.T) {
 	db := setupTestDB(t)
 
-	sourceURL := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt---wisdomtree-megatrends-ucits-etf---usd-acc"
+	// New-format URL (dispatch only — fetch is mocked with the embedded v1 page).
+	sourceURL := "https://www.wisdomtree.com/gb/products/equities/wmgt---wisdomtree-megatrends-ucits-etf---usd-acc"
 	internalSymbol := "WMGT.L"
 
 	// Insert symbol mapping
@@ -102,7 +103,8 @@ func TestWisdomTree_FullAPIRoundTrip(t *testing.T) {
 		api.WithTemplatesDir("../../templates"),
 		api.WithExtractorConfig(config.ExtractorConfig{}))
 
-	sourceURL := "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt---wisdomtree-megatrends-ucits-etf---usd-acc"
+	// New-format URL (dispatch only — fetch is mocked with the embedded v1 page).
+	sourceURL := "https://www.wisdomtree.com/gb/products/equities/wmgt---wisdomtree-megatrends-ucits-etf---usd-acc"
 	internalSymbol := "WMGT.L"
 
 	// Create symbol via API

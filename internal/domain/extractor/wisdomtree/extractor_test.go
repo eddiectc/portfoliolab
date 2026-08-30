@@ -19,8 +19,10 @@ func TestExtractor_Name(t *testing.T) {
 func TestExtractor_Match(t *testing.T) {
 	e := NewExtractor()
 
-	if !e.Match("https://www.wisdomtree.eu/en-gb/etfs/wmgt") {
-		t.Error("expected wisdomtree.eu URL to match")
+	// New format only: old .eu URLs are intentionally no longer matched
+	// (2026-08-30 site relaunch, RESEARCH.md §1a).
+	if e.Match("https://www.wisdomtree.eu/en-gb/etfs/wmgt") {
+		t.Error("expected wisdomtree.eu URL to not match (new format only)")
 	}
 	if e.Match("https://www.vanguard.com/etfs/vo") {
 		t.Error("expected vanguard.com URL to not match")
