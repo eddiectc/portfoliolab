@@ -13,7 +13,7 @@ A self-hosted investment portfolio management platform for personal investors to
 - [Coding Conventions](docs/CONVENTIONS.md) — style, naming, testing, domain, DB, API, web, security
 - [FX Conventions](docs/FX_CONVENTIONS.md) — foreign exchange rate conventions
 - [API Reference](API.md) — REST API endpoints, request/response schemas
-- [Features](features/) — feature specs, plans, notes, retrospectives
+- [Features](features/) — feature specs, plans, notes, retrospectives (features are revised in place when external dependencies change; superseded versions archived in `vN/` subfolders)
 
 ## Problem Statement
 

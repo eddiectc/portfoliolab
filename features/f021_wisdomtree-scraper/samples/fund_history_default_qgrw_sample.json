@@ -1,0 +1,62 @@
+[
+  {
+    "aum": 500.774,
+    "dt": "2024-04-16T00:00:00.000Z",
+    "name": "WisdomTree US Quality Growth UCITS ETF - USD Acc",
+    "nav": 25.039,
+    "navDelta": null,
+    "navDeltaPCT": null,
+    "navPrevious": null,
+    "relatedTicker": null,
+    "sharesOutstanding": 20000,
+    "ticker": "QGRW LN"
+  },
+  {
+    "aum": 495.102,
+    "dt": "2024-04-17T00:00:00.000Z",
+    "name": "WisdomTree US Quality Growth UCITS ETF - USD Acc",
+    "nav": 24.755,
+    "navDelta": -0.284,
+    "navDeltaPCT": -0.011342306002635888,
+    "navPrevious": 25.039,
+    "relatedTicker": null,
+    "sharesOutstanding": 20000,
+    "ticker": "QGRW LN"
+  },
+  {
+    "aum": 492.672,
+    "dt": "2024-04-18T00:00:00.000Z",
+    "name": "WisdomTree US Quality Growth UCITS ETF - USD Acc",
+    "nav": 24.634,
+    "navDelta": -0.121,
+    "navDeltaPCT": -0.004887901434053726,
+    "navPrevious": 24.755,
+    "relatedTicker": null,
+    "sharesOutstanding": 20000,
+    "ticker": "QGRW LN"
+  },
+  {
+    "aum": 47442.9648,
+    "dt": "2026-08-27T00:00:00.000Z",
+    "name": "WisdomTree US Quality Growth UCITS ETF - USD Acc",
+    "nav": 42.9737,
+    "navDelta": 0.7263,
+    "navDeltaPCT": 0.017191590488408754,
+    "navPrevious": 42.2474,
+    "relatedTicker": null,
+    "sharesOutstanding": 1104000,
+    "ticker": "QGRW LN"
+  },
+  {
+    "aum": 47442.9648,
+    "dt": "2026-08-28T00:00:00.000Z",
+    "name": "WisdomTree US Quality Growth UCITS ETF - USD Acc",
+    "nav": 42.9737,
+    "navDelta": 0,
+    "navDeltaPCT": 0,
+    "navPrevious": 42.9737,
+    "relatedTicker": null,
+    "sharesOutstanding": 1104000,
+    "ticker": "QGRW LN"
+  }
+]

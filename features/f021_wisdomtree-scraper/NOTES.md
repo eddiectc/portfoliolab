@@ -1,70 +1,19 @@
-# Notes: WisdomTree Scraper
+# Implementation Notes — f021 WisdomTree Scraper (Phase 2)
 
-## Decisions
-- 2026-05-27: **Sector aggregation bug fixed** — `ParseSectors` was summing `wgtSector` values across all rows per sector, but `wgtSector` is already the sector total repeated for each security. E.g. Industrials with 250 securities × 0.37 = 91.76% (wrong) instead of 37%. Fixed to take the first `wgtSector` value per sector (all rows in the same sector have the same value). Also fixed: `wgtSector` is a fraction (0.3685 = 36.85%), not a percentage — added `× 100` conversion. The old comment "Weight is already a percentage in sectors data" was incorrect.
-- 2026-05-27: **Optional sections return nil, nil instead of error** — QGRW.L failed with "parse nav history: fund market data not found" because its WisdomTree page lacks `fundMarketData` and `fundThemeData` variables (WMGT lacks `fundSectorsData`). Different WisdomTree pages include different data sections. Changed parsers for optional sections (`ParseNavHistory`, `ParseThemes`, `ParseSectors`, `ParseCountryAllocation`, `ParseFundProfile`, `ParseMarketCap`, `ParseFundCharacteristics`) to return `nil, nil` (empty result, no error) when the section is not found. Only parsing errors (malformed CSV, etc.) remain as hard failures. Required sections (`ParseFundInfo`, `ParseHoldings`, `ParseAsOfDate`) still fail on missing data. Updated corresponding tests to use `wantNil` instead of `wantErr` for missing-section cases.
-- 2026-05-27: **CycleTLS client replaces net/http** — The `client.go` used plain `http.Get()` which sends `User-Agent: Go-http-client/1.1` and a default TLS fingerprint. WisdomTree is behind Cloudflare bot protection (JA3 fingerprint inspection), so even adding a browser User-Agent header was insufficient — Cloudflare returned 403. Replaced with **CycleTLS** (`github.com/Danny-Dasilva/CycleTLS/cycletls`, already a transitive dependency via `go-yfinance`) using Chrome 129 JA3 fingerprint + matching User-Agent, as documented in RESEARCH.md. Added `SetFetchFunc` method for test injection (replaces the old `httpClient` field pattern). Updated `extractor_test.go` to use the new injection approach.
-- 2026-05-27: **Task 8: Single "As of" date** — Removed per-section "As of" footers from Sector Weightings, Theme Breakdown, Market Capitalization, Fund Characteristics, and Geographic Allocation cards. The "As of" date now appears only once in the Overview card (next to "FetchedText"), since `extractor_as_of_date` is a single DB field shared across all sections.
-- 2026-05-27: **Task 8: "Country Allocation" header** — When extractor data is present (`ExtractorAsOfDate` set), the geographic section header reads "Country Allocation" (matching spec terminology). When data is from Yahoo (no `ExtractorAsOfDate`), it reads "Geographic Allocation" (existing Yahoo terminology).
-- 2026-05-27: **Task 7: `CreateRequest` missing `DataSourceURL`** — The API layer (Task 6) added `DataSourceURL` to `UpdateRequest` but not to `CreateRequest`. The service `Create` method also didn't set it. Fixed: added `DataSourceURL string` to `CreateRequest`, set it in `Service.Create` (trimmed), and wired through the web form handlers. This was a plan gap — the plan assumed create and edit were separate files (`create.go`/`edit.go`), but both use a single shared template `symbol/form.html` and shared handlers in `symbol_web.go`.
-- 2026-05-27: **Task 6: `UpdateSymbolMapping` SQL updated** — Added `data_source_url` to the `UpdateSymbolMapping` query so the general Update path persists the URL alongside other fields. Previously, `data_source_url` was only writable via the dedicated `UpdateSymbolMappingDataSourceURL` query. Regenerated sqlc.
-- 2026-05-27: **Migration 022** — Added `market_cap_breakdown TEXT` and `themes TEXT` JSON columns to `symbol_details`. These were in the plan's Technical Decisions but missed in migration 021. Full pipeline implemented: migration → schema.sql → sqlc → `symbol.SymbolDetails` types → service layer conversion → repo read/write → API response. Updated test DB schemas in `internal/data/symbol_details_repo_test.go` and `tests/integration/portfolio_test.go`.
-- 2026-05-27: **RefreshAll now includes symbol details refresh** — `doRefreshAll` calls `refreshStaleSymbolDetails` after market data + FX refresh. This satisfies Story 4 Scenario 3: manual "Refresh All" refreshes all data types for provider-configured symbols (market data via Yahoo, symbol details + NAV via extractor). Two new tests added: `TestRefreshAll_IncludesStaleSymbolDetails` and `TestRefreshAll_SkipsSymbolDetails_WhenNoSource`.
-- 2026-05-27: **Integration test location confirmed** — `TestSymbolDetails_ExtractorDataSourceURL_RoundTrip` exists at `tests/integration/symbol_details_test.go:186`. Verifies cross-layer data_source_url round-trip through the stale query and extractor_as_of_date persistence.
-- 2026-05-26: Migration 021 adds `data_source_url` to `symbol_mappings` and `extractor_as_of_date` to `symbol_details`. Both nullable (NULL = default Yahoo behavior).
-- 2026-05-26: `ParseFundInfo` regex uses `fundInfo\w*` (hash suffix optional) to match both `var fundInfo = {...}` and `var fundInfo<HASH> = {...}` patterns.
-- 2026-05-26: Holdings CSV weights are fractions (0.0137 = 1.37%), converted to percentage (1.37) to match existing `TopHolding.Percent` convention. Sectors CSV weights are already percentages — no conversion needed.
-- 2026-05-26: `parseTableValue` regex uses `labelCell` including the closing `</td>` tag, then matches `\s*<td[^>]*>([^<]+)` for the value cell. This avoids false matches on nested content.
-- 2026-05-26: Cash positions filtered by keyword list (CASH, EUR/USD/JPY etc.). Covers WisdomTree's "CASH W-O" and currency position names seen in samples.
-- 2026-05-26: `extractFromHTML` helper function allows testing parsers without HTTP. Used by integration tests.
-- 2026-05-26: `InceptionDate` added to `symbol.FundProfile` struct (new `time.Time` field, zero value = not set).
-- 2026-05-26: Country allocation, market cap, and fund characteristics **ARE in raw HTML** when fetched with CycleTLS (confirmed 2026-05-26). The sample HTML we saved (`wmgt_page.html`) had empty `<tbody>` because it was NOT fetched with CycleTLS. This was a false alarm — no headless browser needed.
-- 2026-05-26: `Renderer` interface, `js_parsers.go`, and `renderer.go` removed (unnecessary — all data extractable from raw HTML via CycleTLS).
-- 2026-05-26: `ParseCountryAllocation`, `ParseMarketCap`, `ParseFundCharacteristics` added as HTML table parsers (same approach as `ParseFundProfile`). Use `regexp` on table rows with `key`/`value` class attributes.
-- 2026-05-26: Go's RE2 engine doesn't match `\n` with `.` — use `[\s\S]` instead of `.+?` / `.*?` for multi-line regex.
-- 2026-05-26: `FundCharacteristics` struct has only 5 fields (P/E, P/B, P/S, P/CF, Dividend Yield) — no Estimated P/E, Gross/Net Buyback Yield. Parsers only extract available fields.
-- 2026-05-26: `Extractor` and `URLMatcher` are separate interfaces. Registry uses a `registryEntry` struct pairing both, since not all extractors may need URL matching and Go doesn't allow casting between unrelated interface types.
-- 2026-05-26: Dispatcher validates URL with `url.Parse` before lookup — rejects malformed URLs early with explicit error.
-- 2026-05-26: WisdomTree extractor was a stub returning `ErrNotImplemented` for Task 2 framework testing. Replaced with full implementation in Task 3.
-- 2026-05-26: `GetNavHistoryBySymbol` query filters on `data_type = 'nav'` and `date != ''` (excludes current entries). Reuses existing `market_data` table with existing UNIQUE(symbol, source, date) constraint — NAV uses source='wisdomtree'.
-- 2026-05-26: `ListStaleSymbolDetails` now returns `data_source_url` alongside internal_symbol and market_data_symbol, enabling the service layer to route fetches to the correct provider.
-- 2026-05-26: **`float64` for extractor types** — The CONVENTIONS.md rule ("Use `decimal.Decimal` for all monetary values") targets transaction/P&L data (prices, costs, P&L). The extractor types (`FundProfile`, `NavPoint`, `Holding`, etc.) are display metadata that map directly to the existing `symbol` types, which use `float64` for the same fields (e.g., `symbol.FundProfile.TotalNetAssets float64`, `symbol.TopHolding.Percent float64`). Keeping `float64` maintains type consistency through the extraction → storage pipeline. The service layer (Task 4) will convert `ExtractResult` → `SymbolDetails` with no type mismatch.
-- 2026-05-26: **"As of" date missing** — Spec edge case says "stores the fetch date as a fallback". Decision: **do NOT fallback**. If the "as of" date cannot be parsed, the extraction fails (atomic). This avoids silently storing data with an incorrect reference date. The fetch date is already captured in `fetched_at`.
-- 2026-05-26: **`extractor_as_of_date` pipeline gap fixed** — Implementation review found that while the SQL migration and sqlc layer included `extractor_as_of_date`, the application pipeline was incomplete: `symbol.SymbolDetails` struct lacked the field, `extractResultToSymbolDetails` didn't set it, and the repo's `Upsert`/`toSymbolDetail` omitted it. Fixed: added `ExtractorAsOfDate time.Time` to `symbol.SymbolDetails`, set it from `result.AsOfDate` in service layer, added `toSQLNullTime` helper, updated `Upsert` to write and `toSymbolDetail` to read. Added round-trip tests in both service and repo layers.
-- 2026-05-26: **Table-driven tests** — `GetDataSourceURL` and `SetDataSourceURL` in the `symbols` service (Task 4) use table-driven format. The `symbolmapping` service `Update_DataSourceURL` tests were converted from 4 individual functions to a single table-driven test (`TestService_Update_DataSourceURL` with subtests). `SetDataSourceURL` in `symbolmapping` service added as table-driven test (`TestService_SetDataSourceURL`). Routing tests kept as individual functions since they exercise fundamentally different code paths with distinct setups and assertions.
-- 2026-05-26: **Integration test added** — `TestSymbolDetails_ExtractorDataSourceURL_RoundTrip` verifies the full DB round-trip: symbol mapping with `data_source_url`, symbol details with `extractor_as_of_date`, stale query includes both fields, and cross-layer consistency.
-- 2026-05-27: **Task 8: `navHistorySource` interface** — The web handler needs both `GetNavHistoryBySymbol` and `GetHistoricalPricesBySymbol` from the `MarketDataRepository`. Created a minimal `navHistorySource` interface on the handler instead of depending on the full repository type. Added `GetNavHistoryBySymbol` wrapper to `MarketDataRepository` (the sqlc query existed but had no Go wrapper).
-- 2026-05-27: **Task 8: `EquityValuation.DividendYield`** — The `EquityValuation` struct was missing `DividendYield` which is extracted by the WisdomTree characteristics parser. Added `DividendYield float64` field and wired it through the service layer conversion.
-- 2026-05-27: **Task 8: `FundProfile.InceptionDate`** — The `displayFundProfile` struct was missing `InceptionDate` which is extracted by WisdomTree. Added `InceptionDate string` to display struct and conditional rendering in `toDisplayDetails`.
-- 2026-05-27: **Task 8: Holdings display logic** — Always shows "Top 10 Holdings" header. When more than 10 holdings exist, extra rows are hidden and a "Show all N" button toggles them visible. No extractor vs Yahoo detection needed — consistent UX regardless of data source. All holdings are passed to the template; limiting is a presentation concern only.
-- 2026-05-27: **Task 8: NAV vs Price chart** — Uses ECharts with two line series (NAV and Price). Data serialized as JSON with separate date/value arrays per series. Chart shows non-overlapping date ranges naturally. No interpolation (`smooth: false`).
-- 2026-05-27: **Task 8: `formatFloat` helper** — Formats float64 values with 2 decimal places, showing "—" for zero values. Used for equity valuation display.
-- 2026-05-27: **Task 8: `decimal.Float64()` returns `(float64, bool)`** — Not `(float64, error)`. Used bool check instead of error check in chart serialization.
-- 2026-05-27: **Task 8: Router update** — `NewSymbolDetailsWebHandler` now takes `navHistorySource` (4th param). Updated router.go to pass `marketDataRepo`.
-- 2026-05-27: **Implementation review fixes** — `symbol.go` had gofmt issue (fixed). API.md updated with `data_source_url`, `extractor_as_of_date`, `market_cap_breakdown`, `theme_breakdown` documentation. Added `SetDataSourceURL` table-driven tests to `symbolmapping/service_test.go`. Converted `Update_DataSourceURL` tests from 4 individual functions to table-driven format.
+> Phase 1 notes are archived at `v1/NOTES.md`.
 
-## Deviations from Plan
-- Task 1: `InsertSymbolDetails` SQL query was missing `extractor_as_of_date` in INSERT columns and ON CONFLICT UPDATE. Fixed during implementation review (add column to write path alongside the read path that was already updated).
-- Task 2: `extractorReg` is created in `router.go` but the `Dispatcher` is not wired yet — deferred to Task 4 where the service layer consumes it. Registry is registered with `_ = extractorReg` to suppress unused variable until then.
-- Task 3: Phase 2 parsers (Country Allocation, Market Cap, Fund Characteristics) completed — they parse HTML tables directly, not JS-rendered data. The initial assumption that they were JS-rendered was based on a stale sample HTML file.
-- Task 3: Real HTML testing (`wmgt_page_cycletls.html`) revealed two issues:
-  1. **`unescapeJSString`** didn't handle `\"` (escaped double quotes in JS strings like `\"F5, Inc\"`). Added `\"` → `"` replacement.
-  2. **`parseTableRawValue`** expected `<td class="key">TER</td>` on one line, but real HTML has whitespace/newlines between tag and text. Fixed by extracting label text dynamically and building a flexible regex.
-- Task 3: Real HTML sample moved to `testdata/wmgt_page_cycletls.html` (embedded via `//go:embed`) instead of referencing the features folder. Tests are self-contained.
-- Task 3: `fundSectorsData` is **not present** on the WMGT page in real CycleTLS HTML. Some WisdomTree pages may lack certain data sections. Full atomic extraction (`extractFromHTML`) is still enforced for pages that have all sections; real HTML tests verify individual parsers separately.
-- Task 3: `FundProfile` extended with `Family` and `LegalType` fields to match existing `symbol.FundProfile`. `AnnualHoldingsTurnover` added to struct but not extracted (not available on WisdomTree pages).
+## 2026-08-30 — Site relaunch detected
 
-## Future Improvements
-- None yet.
-
-## Task 9 Completion (2026-05-27)
-- Cross-layer data audit completed. All 5 price-related SQL queries correctly exclude `data_type = 'nav'`:
-  - `GetHistoricalPricesBySymbolAndRange`: filters `IN ('stock', 'fx')` ✅
-  - `GetLatestQuote`: filters `= 'stock'` ✅
-  - `GetLatestPriceDatePerSymbol`: filters `= 'stock'` ✅
-  - `UpsertHistoricalPrices`: accepts arbitrary `dataType` parameter, works with 'nav' ✅
-  - `GetDistinctCachedSymbols`: no data_type filter (returns all types, including NAV) ✅
-- Integration test `TestNAV_DataTypeIsolation` added at `tests/integration/nav_data_type_test.go` with 7 subtests covering all audit items end-to-end.
-
-## Known Issues
-- None.
+- WisdomTree relaunched its website (Sitecore → React/Next.js on Vercel). Old URLs 404; new URL format is
+  `{region}/products/{asset-class}/{ticker}/` (e.g. `gb/products/equities/qgrw`).
+- Full research done in `RESEARCH.md`: all previously extracted data is obtainable. API-first where possible:
+  holdings (`/api/etfs/holdings/`) and NAV history (`/api/fund-history/`) are JSON APIs; section tables
+  (overview, fees, country, market cap, characteristics, sectors, themes) come from the React Flight payload.
+- **Decisions** (user):
+  - API-first: prefer even undocumented JSON APIs over HTML/payload parsing — applied; only 3 endpoints exist and
+    the section tables have no API.
+  - URL matching: new format only, no backward compatibility — user updates stored URLs from the portal
+    **before** deploying the new matcher (ordering matters: update URLs first, ship second).
+  - `product-charts` data (growth-of-$10k, premium/discount — US funds only): out of scope, ignored.
+- Old docs (v1 `RESEARCH.md`, `PLAN.md`, `NOTES.md`, `RETRO.md`, `samples/`) moved to `v1/` archive;
+  `RESEARCH-NEWSITE.md` renamed to `RESEARCH.md` (current).

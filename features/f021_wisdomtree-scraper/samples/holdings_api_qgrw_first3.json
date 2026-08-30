@@ -1,0 +1,53 @@
+[
+  {
+    "dt": "2026-08-27T00:00:00.000Z",
+    "wtClassID": 49567173,
+    "fundTicker": "QGRW LN",
+    "sectorName": "Information Technology",
+    "assetGroup": "EQ",
+    "securityTicker": "NVDA UQ",
+    "securityName": "Nvidia Corp",
+    "shares": 30719,
+    "marketValueBase": 7003317.62,
+    "wgt": 0.1476209845990145,
+    "figi": "BBG000BBJQV0",
+    "checkSumWgtAssetGroup": 1,
+    "checkSumWgtEntity": 1,
+    "extraDataJSON": null,
+    "descriptorA": "Information Technology"
+  },
+  {
+    "dt": "2026-08-27T00:00:00.000Z",
+    "wtClassID": 49567173,
+    "fundTicker": "QGRW LN",
+    "sectorName": "Information Technology",
+    "assetGroup": "EQ",
+    "securityTicker": "AAPL UQ",
+    "securityName": "Apple Inc",
+    "shares": 18737,
+    "marketValueBase": 5894285.46,
+    "wgt": 0.12424400410285188,
+    "figi": "BBG000B9XRY4",
+    "checkSumWgtAssetGroup": 1,
+    "checkSumWgtEntity": 1,
+    "extraDataJSON": null,
+    "descriptorA": "Technology Hardware & Equipment"
+  },
+  {
+    "dt": "2026-08-27T00:00:00.000Z",
+    "wtClassID": 49567173,
+    "fundTicker": "QGRW LN",
+    "sectorName": "Communication Services",
+    "assetGroup": "EQ",
+    "securityTicker": "GOOGL UQ",
+    "securityName": "Google Inc",
+    "shares": 15427,
+    "marketValueBase": 5255207.55,
+    "wgt": 0.11077305855552137,
+    "figi": "BBG009S39JX6",
+    "checkSumWgtAssetGroup": 1,
+    "checkSumWgtEntity": 1,
+    "extraDataJSON": null,
+    "descriptorA": null
+  }
+]

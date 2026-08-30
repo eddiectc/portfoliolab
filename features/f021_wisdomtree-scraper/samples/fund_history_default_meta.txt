@@ -1,0 +1,3 @@
+GET /api/fund-history/{wtClassID} (no params)
+601 records, oldest 2026-08-28T00:00:00.000Z newest 2024-04-16T00:00:00.000Z
+fields: [aum dt navDelta relatedTicker sharesOutstanding ticker name nav navDeltaPCT navPrevious]
