@@ -74,13 +74,13 @@ func TestParseHoldings(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "basic holdings with cash filter",
-			html: `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.0137,"Apple Inc"\n5/11/2026,0.0025,"CASH W-O"\n5/11/2026,0.0100,"Microsoft Corp"'`,
+			name:    "basic holdings with cash filter",
+			html:    `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.0137,"Apple Inc"\n5/11/2026,0.0025,"CASH W-O"\n5/11/2026,0.0100,"Microsoft Corp"'`,
 			wantLen: 2, // cash filtered out
 		},
 		{
-			name: "empty holdings (header only)",
-			html: `var fundHoldingsData = 'date,Weight,Security Description'`,
+			name:    "empty holdings (header only)",
+			html:    `var fundHoldingsData = 'date,Weight,Security Description'`,
 			wantLen: 0,
 		},
 		{
@@ -89,13 +89,13 @@ func TestParseHoldings(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "holdings with escaped quotes",
-			html: `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.0100,\"Johnson \u0026 Johnson"'`,
+			name:    "holdings with escaped quotes",
+			html:    `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.0100,\"Johnson \u0026 Johnson"'`,
 			wantLen: 1,
 		},
 		{
-			name: "currency positions filtered",
-			html: `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.001,"APPLE"\n5/11/2026,0.0005,"JAPANESE YEN"\n5/11/2026,0.0003,"SWISS FRANC"'`,
+			name:    "currency positions filtered",
+			html:    `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.001,"APPLE"\n5/11/2026,0.0005,"JAPANESE YEN"\n5/11/2026,0.0003,"SWISS FRANC"'`,
 			wantLen: 1, // only Apple remains
 		},
 	}
@@ -129,13 +129,13 @@ func TestParseNavHistory(t *testing.T) {
 		checkDate func(t *testing.T, got []extractor.NavPoint)
 	}{
 		{
-			name: "basic nav history",
-			html: `var fundMarketDataX1 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846\n5/8/2026,WMGT LN,,,45.1556'`,
+			name:    "basic nav history",
+			html:    `var fundMarketDataX1 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846\n5/8/2026,WMGT LN,,,45.1556'`,
 			wantLen: 2,
 		},
 		{
-			name: "nav with empty nav values skipped",
-			html: `var fundMarketDataA = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846\n5/8/2026,WMGT LN,,,'`,
+			name:    "nav with empty nav values skipped",
+			html:    `var fundMarketDataA = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846\n5/8/2026,WMGT LN,,,'`,
 			wantLen: 1, // empty nav skipped
 		},
 		{
@@ -144,15 +144,15 @@ func TestParseNavHistory(t *testing.T) {
 			wantNil: true, // optional section — nil, nil when not found
 		},
 		{
-			name: "nav with hash suffix",
-			html: `var fundMarketDataB123 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846'`,
+			name:    "nav with hash suffix",
+			html:    `var fundMarketDataB123 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846'`,
 			wantLen: 1,
 		},
 		{
 			// fundMarketData CSV uses US M/D/YYYY (month first) despite wisdomtree.eu.
 			// 12/13/2023 is unambiguous — day 13 can't be a month.
-			name: "us month-first format",
-			html: `var fundMarketDataX1 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n12/13/2023,WMGT LN,,,26.169\n1/2/2024,WMGT LN,,,26.834\n2/16/2026,WMGT LN,,,40.109'`,
+			name:    "us month-first format",
+			html:    `var fundMarketDataX1 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n12/13/2023,WMGT LN,,,26.169\n1/2/2024,WMGT LN,,,26.834\n2/16/2026,WMGT LN,,,40.109'`,
 			wantLen: 3,
 			checkDate: func(t *testing.T, got []extractor.NavPoint) {
 				if !got[0].Date.Equal(time.Date(2023, 12, 13, 0, 0, 0, 0, time.UTC)) {
@@ -208,8 +208,8 @@ func TestParseThemes(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "basic themes",
-			html: `var fundThemeData = 'date,Weight,Security Description\n5/8/2026,0.0884,"Grid Infrastructure"\n5/8/2026,0.0834,"Sustainable Energy"'`,
+			name:    "basic themes",
+			html:    `var fundThemeData = 'date,Weight,Security Description\n5/8/2026,0.0884,"Grid Infrastructure"\n5/8/2026,0.0834,"Sustainable Energy"'`,
 			wantLen: 2,
 		},
 		{
@@ -218,8 +218,8 @@ func TestParseThemes(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name: "single theme",
-			html: `var fundThemeData = 'date,Weight,Security Description\n5/8/2026,1.0,"AI"'`,
+			name:    "single theme",
+			html:    `var fundThemeData = 'date,Weight,Security Description\n5/8/2026,1.0,"AI"'`,
 			wantLen: 1,
 		},
 	}
@@ -262,11 +262,11 @@ func TestParseSectors(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "basic sectors — wgtSector repeated, take first",
-			html: `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"Technology",0.05\n5/11/2026,"B",0.02,"Technology",0.05\n5/11/2026,"C",0.01,"Healthcare",0.12'`,
+			name:    "basic sectors — wgtSector repeated, take first",
+			html:    `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"Technology",0.05\n5/11/2026,"B",0.02,"Technology",0.05\n5/11/2026,"C",0.01,"Healthcare",0.12'`,
 			wantLen: 2,
 			wantValues: map[string]float64{
-				"Technology": 5.0,   // 0.05 * 100
+				"Technology": 5.0,  // 0.05 * 100
 				"Healthcare": 12.0, // 0.12 * 100
 			},
 		},
@@ -276,8 +276,8 @@ func TestParseSectors(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name: "empty sector names skipped",
-			html: `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"",0.5\n5/11/2026,"B",0.02,"Tech",0.3'`,
+			name:    "empty sector names skipped",
+			html:    `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"",0.5\n5/11/2026,"B",0.02,"Tech",0.3'`,
 			wantLen: 1, // empty sector skipped
 		},
 	}
@@ -378,16 +378,16 @@ func TestParseAsOfDate(t *testing.T) {
 
 func TestParseFundProfile(t *testing.T) {
 	tests := []struct {
-		name          string
-		html          string
-		wantAUM       float64
-		wantTER       float64
-		wantFamily    string
-		wantLegalType string
-		wantIsin      string
+		name             string
+		html             string
+		wantAUM          float64
+		wantTER          float64
+		wantFamily       string
+		wantLegalType    string
+		wantIsin         string
 		wantBaseCurrency string
-		wantNil       bool
-		wantErr       bool
+		wantNil          bool
+		wantErr          bool
 	}{
 		{
 			name: "complete profile",
@@ -402,11 +402,11 @@ func TestParseFundProfile(t *testing.T) {
 <table>
 <tr><td>ISIN</td><td>IE000YGEAK03</td></tr>
 </table>`,
-			wantAUM:       60368055,
-			wantTER:       0.0040,
-			wantFamily:    "WisdomTree Issuer ICAV",
-			wantLegalType: "ICAV",
-			wantIsin:      "IE000YGEAK03",
+			wantAUM:          60368055,
+			wantTER:          0.0040,
+			wantFamily:       "WisdomTree Issuer ICAV",
+			wantLegalType:    "ICAV",
+			wantIsin:         "IE000YGEAK03",
 			wantBaseCurrency: "USD",
 		},
 		{
@@ -426,7 +426,7 @@ func TestParseFundProfile(t *testing.T) {
 								Fund Umbrella
 							</td><td>Test Fund</td></tr>
 </table>`,
-			wantTER:  0.0050,
+			wantTER:    0.0050,
 			wantFamily: "Test Fund",
 		},
 		{
@@ -594,12 +594,12 @@ func TestParseMarketCap(t *testing.T) {
 
 func TestParseFundCharacteristics(t *testing.T) {
 	tests := []struct {
-		name               string
-		html               string
-		wantPE             float64
-		wantEstimatedPE    float64
-		wantNil            bool
-		wantErr            bool
+		name            string
+		html            string
+		wantPE          float64
+		wantEstimatedPE float64
+		wantNil         bool
+		wantErr         bool
 	}{
 		{
 			name: "complete characteristics",
@@ -848,13 +848,13 @@ func TestParseNavHistoryFromModal(t *testing.T) {
 			wantLen: 2,
 		},
 		{
-			name: "empty html",
-			html: "",
+			name:    "empty html",
+			html:    "",
 			wantLen: 0,
 		},
 		{
-			name: "no matching table",
-			html: `<table><tr><td>something else</td></tr></table>`,
+			name:    "no matching table",
+			html:    `<table><tr><td>something else</td></tr></table>`,
 			wantLen: 0,
 		},
 		{
