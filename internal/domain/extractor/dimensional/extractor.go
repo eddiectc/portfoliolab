@@ -3,6 +3,7 @@ package dimensional
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -55,7 +56,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	isin = strings.ToUpper(isin)
 
 	// 2. Map ISIN to portfolioNumber and fetch NAV history using the Fund Center Registry API
-	portfolioNumber, navHistory, err := e.getPortfolioNumberAndNavHistory(ctx, isin)
+	portfolioNumber, navHistory, entries, err := e.getPortfolioNumberAndNavHistory(ctx, isin)
 	if err != nil {
 		return nil, fmt.Errorf("map ISIN to portfolio number: %w", err)
 	}
@@ -85,7 +86,10 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 
 	// 5. Fetch and parse holdings from CSV
 	if csvURL == "" {
-		return nil, fmt.Errorf("full holdings CSV URL not found in response")
+		if fundProfile != nil && fundProfile.LegalType != "ETF" {
+			return nil, mutualFundError(isin, fundInfo.Name, entries)
+		}
+		return nil, fmt.Errorf("full holdings CSV URL not found in response for ISIN %s", isin)
 	}
 	csvContent, err := e.client.Fetch(csvURL, nil)
 	if err != nil {
@@ -112,39 +116,45 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}, nil
 }
 
-func (e *Extractor) getPortfolioNumberAndNavHistory(ctx context.Context, isin string) (int, []extractor.NavPoint, error) {
+// fundCenterEntry mirrors one portfolio in the Fund Center registry response.
+type fundCenterEntry struct {
+	PortfolioNumber int `json:"portfolioNumber"`
+	Meta            struct {
+		MarketingName string `json:"marketingName"`
+		IsEtf         bool   `json:"isEtf"`
+		IsDfaUcitsEtf bool   `json:"isDfaUcitsEtf"`
+		Identifiers   []struct {
+			Value string `json:"value"`
+			Slug  string `json:"slug"`
+		} `json:"identifiers"`
+	} `json:"meta"`
+	Prices []struct {
+		Date struct {
+			Value string `json:"value"`
+		} `json:"date"`
+		Nav struct {
+			Value interface{} `json:"value"`
+		} `json:"nav"`
+	} `json:"prices"`
+}
+
+func (e *Extractor) getPortfolioNumberAndNavHistory(ctx context.Context, isin string) (int, []extractor.NavPoint, []fundCenterEntry, error) {
 	url := "https://etf.dimensional.com/public/v2/fundcenter?allowMorningstarFixedIncome=true"
 	headers := map[string]string{"x-selected-country": "GB"}
 
 	resp, err := e.client.Fetch(url, headers)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 
 	var data struct {
 		Data struct {
-			Portfolios []struct {
-				PortfolioNumber int `json:"portfolioNumber"`
-				Meta            struct {
-					Identifiers []struct {
-						Value string `json:"value"`
-						Slug  string `json:"slug"`
-					} `json:"identifiers"`
-				} `json:"meta"`
-				Prices []struct {
-					Date struct {
-						Value string `json:"value"`
-					} `json:"date"`
-					Nav struct {
-						Value interface{} `json:"value"`
-					} `json:"nav"`
-				} `json:"prices"`
-			} `json:"portfolios"`
+			Portfolios []fundCenterEntry `json:"portfolios"`
 		} `json:"data"`
 	}
 
 	if err := json.NewDecoder(strings.NewReader(resp)).Decode(&data); err != nil {
-		return 0, nil, fmt.Errorf("decode fund center: %w", err)
+		return 0, nil, nil, fmt.Errorf("decode fund center: %w", err)
 	}
 
 	for _, p := range data.Data.Portfolios {
@@ -178,15 +188,55 @@ func (e *Extractor) getPortfolioNumberAndNavHistory(ctx context.Context, isin st
 				}
 
 				if len(navHistory) == 0 {
-					return 0, nil, fmt.Errorf("no price entries with valid NAV found for ISIN %s", isin)
+					return 0, nil, nil, fmt.Errorf("no price entries with valid NAV found for ISIN %s", isin)
 				}
 
-				return p.PortfolioNumber, navHistory, nil
+				return p.PortfolioNumber, navHistory, data.Data.Portfolios, nil
 			}
 		}
 	}
 
-	return 0, nil, fmt.Errorf("ISIN %s not found in fund center", isin)
+	return 0, nil, nil, fmt.Errorf("ISIN %s not found in fund center", isin)
+}
+
+// mutualFundError builds an actionable error for share classes that Dimensional
+// does not publish full holdings for (mutual funds, as opposed to UCITS ETFs).
+func mutualFundError(isin, name string, entries []fundCenterEntry) error {
+	msg := fmt.Sprintf("%s (%s) is a Dimensional mutual fund, not a UCITS ETF — full holdings are only published for UCITS ETFs", isin, name)
+	if etfIsin, ok := suggestUcitsEtf(entries, name); ok {
+		msg += fmt.Sprintf(" — use the UCITS ETF share class %s instead", etfIsin)
+	}
+	return errors.New(msg)
+}
+
+// suggestUcitsEtf finds the UCITS ETF share class matching a mutual fund's
+// name: "Global Targeted Value Fund (USD, Acc.)" → "Global Targeted Value
+// UCITS ETF (Acc.)". Returns the ETF's ISIN when exactly one registry entry
+// matches; ok is false otherwise.
+func suggestUcitsEtf(entries []fundCenterEntry, name string) (string, bool) {
+	base := name
+	if i := strings.LastIndex(base, " ("); i > 0 {
+		base = base[:i]
+	}
+	base = strings.TrimSuffix(base, " Fund")
+	candidate := base + " UCITS ETF (Acc.)"
+
+	var isin string
+	count := 0
+	for _, p := range entries {
+		if !p.Meta.IsDfaUcitsEtf || p.Meta.MarketingName != candidate {
+			continue
+		}
+		for _, id := range p.Meta.Identifiers {
+			if id.Slug == "isin" {
+				isin = id.Value
+				break
+			}
+		}
+		count++
+	}
+
+	return isin, count == 1
 }
 
 // SetClient sets the HTTP client for fetching pages.

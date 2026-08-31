@@ -33,6 +33,8 @@ type FundDetailResponse struct {
 								FundFacts struct {
 									MarketingName string   `json:"marketingName"`
 									Benchmarks    []string `json:"benchmarks"`
+									IsEtf         bool     `json:"isEtf"`
+									IsDfaUcitsEtf bool     `json:"isDfaUcitsEtf"`
 									FundAum       struct {
 										Aum struct {
 											Value float64 `json:"value"`
@@ -107,10 +109,14 @@ func ParseFundDetail(jsonContent string) (*extractor.FundInfo, *extractor.FundPr
 				info = &extractor.FundInfo{
 					Name: ff.MarketingName,
 				}
+				legalType := "Mutual Fund"
+				if ff.IsEtf || ff.IsDfaUcitsEtf {
+					legalType = "ETF"
+				}
 				profile = &extractor.FundProfile{
 					TotalNetAssets: ff.FundAum.Aum.Value,
 					Family:         "Dimensional Fund Advisors",
-					LegalType:      "ETF",
+					LegalType:      legalType,
 				}
 				if t, err := time.Parse("2006-01-02", ff.InceptionDate.Value); err == nil {
 					profile.InceptionDate = t
