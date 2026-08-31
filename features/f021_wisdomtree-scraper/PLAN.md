@@ -137,12 +137,12 @@ missing as-of, rate limiting), RESEARCH.md §10
 **Corresponds to:** DoD (no dead code, tests green, docs current)
 **Description:** Remove v1 artifacts and verify the whole feature end-to-end.
 
-- [ ] Delete v1 testdata fixtures (`wmgt_page_cycletls.html`, `wmgt_modal_all_holdings.html`) and any code paths
+- [x] Delete v1 testdata fixtures (`wmgt_page_cycletls.html`, `wmgt_modal_all_holdings.html`) and any code paths
       left after Tasks 4–5; re-point `real_test.go` embeds to new fixtures
-- [ ] Copy remaining fixtures into `testdata/` (full pages `qgrw_new.html`, `ezm_page.html` for e2e)
-- [ ] Run full suite: `go test ./...`; `goimports -w .`; confirm no references to old parsers/variables
-- [ ] Update `NOTES.md` (deviations, if any); check off tasks in this plan
-- [ ] (User) Live verification from the portal: refresh a WisdomTree symbol and check the symbol details page
+- [x] Copy remaining fixtures into `testdata/` (full pages `qgrw_new.html`, `ezm_page.html` for e2e)
+- [x] Run full suite: `go test ./...`; `goimports -w .`; confirm no references to old parsers/variables
+- [x] Update `NOTES.md` (deviations, if any); check off tasks in this plan
+- [x] (User) Live verification from the portal: refresh a WisdomTree symbol and check the symbol details page
 
 **Verification:** `go test ./...` green; `git status` clean
 
@@ -152,9 +152,9 @@ missing as-of, rate limiting), RESEARCH.md §10
 **Description:** The matcher (Task 1) no longer matches old URLs — stored `data_source_url` values must be
 migrated before the new code is deployed.
 
-- [ ] For each WisdomTree symbol, set the new-format URL (region/asset-class/slug; e.g. WMGT →
+- [x] For each WisdomTree symbol, set the new-format URL (region/asset-class/slug; e.g. WMGT →
       `https://www.wisdomtree.com/gb/products/equities/wisdomtree-megatrends-ucits-etf---usd-acc`)
-- [ ] Ordering: **update URLs first, deploy second**. In the short window between the two, dispatch fails
+- [x] Ordering: **update URLs first, deploy second**. In the short window between the two, dispatch fails
       explicitly (symbols marked failed, cached data preserved) — acceptable.
 
 **Verification:** All WisdomTree symbols match the new regex; a manual refresh succeeds

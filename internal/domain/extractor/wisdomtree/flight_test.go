@@ -335,7 +335,7 @@ func TestDecodeFlight_Empty(t *testing.T) {
 
 // TestParseFlightAsOfDate covers both site date formats and the ambiguous
 // case for the flight table header parser (distinct from Phase 1's
-// ParseAsOfDate, which is removed in task 6).
+// ParseAsOfDate, removed in the Phase 2 parser rewrite).
 func TestParseFlightAsOfDate(t *testing.T) {
 	tests := []struct {
 		header string
