@@ -16,6 +16,7 @@ A feature folder always describes the **current** state of its capability — th
 - Archive superseded docs in a versioned subfolder (`v1/`, `v2/`, ...) — old `RESEARCH.md`, `PLAN.md`, `NOTES.md`, `RETRO.md`, `samples/` — each with a `SUPERSEDED` header pointing to the current version.
 - Root docs become the current version (a `RESEARCH-NEWSITE.md` is renamed to `RESEARCH.md`); `PLAN.md` gains a new phase section; the revision event and decisions are logged in `NOTES.md`.
 - Follow the normal workflow for the revision: spec revision → user review → plan → implement.
+- During RESEARCH, verify every spec data item against the new source before claiming parity — an item the new source no longer publishes must be logged in `NOTES.md` as a documented empty, not discovered mid-implementation (f021: "fund family" row absent from the new site).
 
 Example: `f021_wisdomtree-scraper` (WisdomTree site relaunch 2026-08-30, v1 implementation archived in `f021_wisdomtree-scraper/v1/`).
 

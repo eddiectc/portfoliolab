@@ -132,5 +132,6 @@ When adding new fields to shared types (e.g., `extractor.FundProfile`, `symbol.F
 4. **Repository serialization** — field serialized in `toSQLNullJSON` and deserialized in `toSymbolDetail()`
 5. **Web display** — field included in `toDisplayDetails()` and rendered in template
 6. **Tests** — repo round-trip test covers the new field; integration test exercises the full path
+7. **Persistence gates** — the service layer may gate a section's persistence on presence masks (e.g. `symbols/service.go` persists `EquityValuation` only if `HasCharacteristic(PriceToEarnings)`). Check every presence mask the parser sets against these gates, and the integration test must assert the section is present *in the DB* (e.g. `equity_valuation` non-null) — a parser passing its own unit tests is not enough (f021: `FieldsPresent` never set → all characteristics silently dropped)
 
-**Rule of thumb**: After adding a field to a shared type, grep for every other field in the same struct and verify the new field appears in the same locations (mapping functions, serialization, display). If it doesn't, it will be silently dropped.
+**Rule of thumb**: After adding a field to a shared type, grep for every other field in the same struct and verify the new field appears in the same locations (mapping functions, serialization, display). If it doesn't, it will be silently dropped. Similarly, after a provider parser populates a shared struct, trace every presence gate between the parser and the DB and pin each gate's input with an integration assertion.
