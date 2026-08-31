@@ -682,17 +682,15 @@ func TestBenchmarkChartAllPeriods(t *testing.T) {
 	createTx(t, router, portfolioID, "2024-03-15", "buy", "USDSTK", "USD", 100, 10000, 1000000)
 	portfolioStart, _ := time.Parse("2006-01-02", "2024-03-15")
 
-	// Benchmark data spans 2000-2026 (simulating go-yfinance cache)
+	now := time.Now().UTC()
+
+	// Benchmark data spans 2000 to today (simulating a go-yfinance cache).
+	// Seeded for every calendar day so each period window (1M..5Y, YTD)
+	// is guaranteed to contain data no matter what date the test runs on.
 	var benchPrices []market.HistoricalPrice
-	for y := 2000; y <= 2026; y++ {
-		for m := 1; m <= 12; m++ {
-			d := time.Date(y, time.Month(m), 15, 0, 0, 0, 0, time.UTC)
-			if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
-				continue
-			}
-			price := 1000 + (y-2000)*200
-			benchPrices = append(benchPrices, histPrice(d.Format("2006-01-02"), int64(price*100), "USD"))
-		}
+	for d := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC); !d.After(now); d = d.AddDate(0, 0, 1) {
+		price := 1000 + (d.Year()-2000)*200 + int(d.YearDay())
+		benchPrices = append(benchPrices, histPrice(d.Format("2006-01-02"), int64(price*100), "USD"))
 	}
 	insertMarketData(t, db,
 		map[string][]market.HistoricalPrice{
@@ -705,7 +703,6 @@ func TestBenchmarkChartAllPeriods(t *testing.T) {
 		map[string][]market.HistoricalPrice{},
 	)
 
-	now := time.Now().UTC()
 	periods := []struct {
 		name      string
 		expectMin time.Time
