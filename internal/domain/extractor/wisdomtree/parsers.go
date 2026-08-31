@@ -247,16 +247,22 @@ func ParseFundCharacteristicsFromFlight(f *Flight) (*extractor.FundCharacteristi
 	if t == nil {
 		return nil, nil
 	}
-	c := &extractor.FundCharacteristics{
-		DividendYield:            tableValueAny(t, "*Dividend Yield", "Dividend Yield"),
-		PriceToEarnings:          tableValueAny(t, "Price/Earnings"),
-		EstimatedPriceToEarnings: tableValueAny(t, "Estimated Price/Earnings"),
-		PriceToBook:              tableValueAny(t, "Price/Book"),
-		PriceToCashflow:          tableValueAny(t, "Price/Cash Flow"),
-		PriceToSales:             tableValueAny(t, "Price/Sales"),
+	c := &extractor.FundCharacteristics{}
+	set := func(flag extractor.CharacteristicsFieldsMask, dst *float64, labels ...string) {
+		v, err := parseNumber(tableValueAnyRaw(t, labels...))
+		if err != nil {
+			return
+		}
+		*dst = v
+		c.FieldsPresent |= flag
 	}
-	if c.PriceToEarnings == 0 && c.EstimatedPriceToEarnings == 0 && c.PriceToBook == 0 &&
-		c.PriceToCashflow == 0 && c.PriceToSales == 0 && c.DividendYield == 0 {
+	set(extractor.CharacteristicDividendYield, &c.DividendYield, "*Dividend Yield", "Dividend Yield")
+	set(extractor.CharacteristicPriceToEarnings, &c.PriceToEarnings, "Price/Earnings")
+	set(extractor.CharacteristicEstimatedPriceToEarnings, &c.EstimatedPriceToEarnings, "Estimated Price/Earnings")
+	set(extractor.CharacteristicPriceToBook, &c.PriceToBook, "Price/Book")
+	set(extractor.CharacteristicPriceToCashflow, &c.PriceToCashflow, "Price/Cash Flow")
+	set(extractor.CharacteristicPriceToSales, &c.PriceToSales, "Price/Sales")
+	if c.FieldsPresent == 0 {
 		return nil, nil
 	}
 	return c, nil
@@ -349,13 +355,6 @@ func tableValueAnyRaw(t *Table, labels ...string) string {
 		}
 	}
 	return ""
-}
-
-// tableValueAny returns the parsed number of the first matching label, or 0
-// when absent/unparseable.
-func tableValueAny(t *Table, labels ...string) float64 {
-	v, _ := parseNumber(tableValueAnyRaw(t, labels...))
-	return v
 }
 
 // parseNumber extracts a numeric value from a string, handling %, €, and

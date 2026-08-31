@@ -193,3 +193,48 @@
 - **Known follow-up (Task 6)**: `tests/integration/wisdomtree_extractor_e2e_test.go` is v1 (modal fixtures +
   a `SetClient` seam that no longer exists) and breaks `go test ./...` — it references exactly the v1
   fixtures the cleanup task deletes.
+
+## 2026-08-31 — Task 4+5 implementation review (fixes applied)
+
+Review of parsers + orchestrator against SPEC/PLAN/NOTES/DoD. Findings and dispositions:
+
+- **Bug — characteristics silently dropped (fixed).** `ParseFundCharacteristicsFromFlight` never set
+  `FieldsPresent`, but `symbols/service.go` gates `EquityValuation` persistence on
+  `HasCharacteristic(CharacteristicPriceToEarnings)` (gate introduced by f025). Net effect: every WisdomTree
+  equity valuation (P/E, P/B, P/S, P/CF, dividend yield) was silently discarded. The parser now sets a mask
+  bit per field that is present and parseable (absent label or parse error → no bit; a parseable `0.00`
+  **does** set the bit — the field exists, zero is a legitimate value). Regression assertions added to the
+  package unit tests and both integration tests (PE 31.43 / DY 0.35 asserted through repo and API).
+- **Build — `go test ./...` broken (fixed; Task 6 pulled forward).** The v1 integration test was rewritten
+  in full. QGRW fixtures copied into `tests/integration/testdata/` (`page_qgrw_wtclassid.txt`,
+  `flight_qgrw_tables.html`, `flight_qgrw_sector.html`, `holdings_qgrw.json`, `fund_history_qgrw.json`); v1
+  `wmgt_*` fixtures deleted from `tests/integration/testdata/` and the dead package copies
+  (`internal/domain/extractor/wisdomtree/testdata/wmgt_{page_cycletls.html,modal_all_holdings.html}`). The
+  tests now drive the real service + API path with `Extractor.SetClient` (seam re-added — every other
+  provider has one) plus a `fakeYahooFetcher` implementing `market.SymbolDetailsFetcher` with canned
+  LSE/USD values — **no network calls** (the Yahoo fetcher only supplies Exchange/Currency in the extractor
+  path). Assertions: 9 sectors (top IT 58.4027), 100 holdings (top NVDA), 4 countries (top US 99.54),
+  nil themes, equity_valuation present, fund_profile (AUM 47442965, TER 0.0033, inception 2024-04-16),
+  601 NAV rows in `market_data` (latest 2026-08-28). Remaining Task 6 scope: `goimports` + live portal
+  verification (full suite already run — green except the pre-existing date-dependent failure below).
+  PLAN.md's "re-point `real_test.go` embeds" is stale wording — no such file exists after the Task 5 rewrite.
+- **Undocumented data loss — fund family (documented).** The new site's Product Overview table has no
+  "Fund Umbrella" row (verified by dumping both region fixtures), so `FundProfile.Family` is no longer
+  populated. This contradicts the 2026-08-30 entry's "all previously extracted data is obtainable" —
+  corrected: everything except fund family. The field is intentionally left empty; the source no longer
+  exists on the new site.
+- **Spec drift — fund-history API failure is fatal (documented).** SPEC lists "NAV history" as an optional
+  section, but `Extract()` treats a `fund-history` API failure as fatal. Justification: the required
+  inception date (first record) and AUM (last record — spec overview item) both derive from the same API,
+  so a failure would reject a required item; only the NAV row list itself is the genuinely optional part.
+- **Spec item — annual holdings turnover (documented).** Not available anywhere on the new site (nor the
+  old — v1 left it at zero). Intentionally omitted; field stays at zero.
+- **Lint (golangci-lint installed by user during review).** One new issue in this diff: ST1005 (capitalized
+  error string in the NAV as-of failure) — fixed to lowercase. The mask rework also left `tableValueAny`
+  unused — deleted (`tableValueAnyRaw` is still used by market-cap/other parsers). `golangci-lint run` on
+  the wisdomtree package: **0 issues**. `tests/integration` reports findings only in pre-existing files
+  this feature never touched (account/blackrock/ibkr/migration_smoke/portfolio/vanguard/comparison/
+  efficient_frontier tests).
+- **Pre-existing failure (not this feature):** `TestBenchmarkChartAllPeriods/1M` is date-dependent — on
+  2026-08-31 the 1M window (2026-08-01→31) contains no monthly benchmark points (latest is 2026-07-15),
+  so the chart page has no data. Fails on the parent commit as well; left as-is.

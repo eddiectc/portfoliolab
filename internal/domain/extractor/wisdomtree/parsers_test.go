@@ -2,6 +2,8 @@ package wisdomtree
 
 import (
 	"testing"
+
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 func TestParseHoldingsFromAPI(t *testing.T) {
@@ -334,6 +336,10 @@ func TestParseFundCharacteristicsFromFlight(t *testing.T) {
 		if c.DividendYield != 0.35 || c.PriceToEarnings != 31.43 {
 			t.Errorf("DY/PE = %v/%v, want 0.35/31.43", c.DividendYield, c.PriceToEarnings)
 		}
+		if !c.HasCharacteristic(extractor.CharacteristicDividendYield) ||
+			!c.HasCharacteristic(extractor.CharacteristicPriceToEarnings) {
+			t.Errorf("FieldsPresent = %v, want DY and PE bits set", c.FieldsPresent)
+		}
 	})
 
 	t.Run("ezm", func(t *testing.T) {
@@ -346,6 +352,47 @@ func TestParseFundCharacteristicsFromFlight(t *testing.T) {
 		}
 		if c.DividendYield != 1.52 || c.PriceToEarnings != 16.64 {
 			t.Errorf("DY/PE = %v/%v, want 1.52/16.64", c.DividendYield, c.PriceToEarnings)
+		}
+		if !c.HasCharacteristic(extractor.CharacteristicDividendYield) ||
+			!c.HasCharacteristic(extractor.CharacteristicPriceToEarnings) {
+			t.Errorf("FieldsPresent = %v, want DY and PE bits set", c.FieldsPresent)
+		}
+	})
+
+	t.Run("partial table sets only present bits", func(t *testing.T) {
+		f := &Flight{tables: []*Table{{
+			FirstColumn: "Portfolio Characteristics",
+			Rows:        []KV{{Label: "Dividend Yield", Value: "0.35%"}},
+		}}}
+		c, err := ParseFundCharacteristicsFromFlight(f)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if c == nil {
+			t.Fatal("characteristics is nil")
+		}
+		if c.DividendYield != 0.35 {
+			t.Errorf("DividendYield = %v, want 0.35", c.DividendYield)
+		}
+		if !c.HasCharacteristic(extractor.CharacteristicDividendYield) {
+			t.Error("dividend yield bit not set")
+		}
+		if c.HasCharacteristic(extractor.CharacteristicPriceToEarnings) {
+			t.Error("price-to-earnings bit set, want clear")
+		}
+	})
+
+	t.Run("table with no parseable values", func(t *testing.T) {
+		f := &Flight{tables: []*Table{{
+			FirstColumn: "Portfolio Characteristics",
+			Rows:        []KV{{Label: "Price/Earnings", Value: "n/a"}},
+		}}}
+		c, err := ParseFundCharacteristicsFromFlight(f)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if c != nil {
+			t.Errorf("got %+v, want nil", c)
 		}
 	})
 

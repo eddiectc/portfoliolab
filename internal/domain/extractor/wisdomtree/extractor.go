@@ -24,6 +24,11 @@ func NewExtractor() *Extractor {
 	}
 }
 
+// SetClient sets the HTTP client for fetching data.
+func (e *Extractor) SetClient(c *Client) {
+	e.client = c
+}
+
 // Name returns the extractor identifier.
 func (e *Extractor) Name() string {
 	return Name
@@ -103,7 +108,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 	asOf, ok := navTable.AsOfDate()
 	if !ok {
-		return nil, fmt.Errorf("Net Asset Value table header %q carries no as-of date", navTable.AsOf)
+		return nil, fmt.Errorf("net asset value table header %q carries no as-of date", navTable.AsOf)
 	}
 
 	navCurrency := "USD"
