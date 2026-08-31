@@ -180,19 +180,6 @@ func buildModelPortfolio(id int64, name string, entries []modelportfolio.ModelPo
 	}
 }
 
-// buildEquityCurvePoints builds comparison equity curve points from float values.
-func buildEquityCurvePoints(base time.Time, values []float64) []EquityCurvePoint {
-	points := make([]EquityCurvePoint, len(values))
-	for i, v := range values {
-		d, _ := decimal.NewFromFloat64(v)
-		points[i] = EquityCurvePoint{
-			Date:           base.AddDate(0, 0, i),
-			PortfolioValue: d,
-		}
-	}
-	return points
-}
-
 // buildPerformanceEquityCurve builds performance equity curve points.
 // NavPerUnit is set to PortfolioValue (single-deposit / no cash-flow case).
 func buildPerformanceEquityCurve(base time.Time, values []float64) []performance.EquityCurvePoint {

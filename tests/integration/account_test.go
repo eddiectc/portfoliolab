@@ -37,7 +37,7 @@ func TestAccount_CreateAndGet(t *testing.T) {
 	}
 
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	if a.ID == 0 {
 		t.Fatal("expected non-zero ID")
 	}
@@ -58,7 +58,7 @@ func TestAccount_CreateAndGet(t *testing.T) {
 	}
 
 	var got account.Account
-	json.NewDecoder(w2.Body).Decode(&got)
+	_ = json.NewDecoder(w2.Body).Decode(&got)
 	if got.Name != "IBKR" {
 		t.Errorf("expected 'IBKR', got %q", got.Name)
 	}
@@ -77,7 +77,7 @@ func TestAccount_ListEmpty(t *testing.T) {
 	}
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 0 {
 		t.Errorf("expected 0 accounts, got %d", len(accounts))
 	}
@@ -119,7 +119,7 @@ func TestAccount_CreateListDelete(t *testing.T) {
 	}
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 2 {
 		t.Errorf("expected 2 accounts, got %d", len(accounts))
 	}
@@ -138,7 +138,7 @@ func TestAccount_CreateListDelete(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var remaining []account.Account
-	json.NewDecoder(w.Body).Decode(&remaining)
+	_ = json.NewDecoder(w.Body).Decode(&remaining)
 	if len(remaining) != 1 {
 		t.Errorf("expected 1 account after delete, got %d", len(remaining))
 	}
@@ -179,7 +179,7 @@ func TestAccount_Update(t *testing.T) {
 	}
 
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	if a.Name != "Updated" {
 		t.Errorf("expected 'Updated', got %q", a.Name)
 	}
@@ -251,7 +251,7 @@ func TestAccount_CascadeDeletePortfolio(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 2 {
 		t.Errorf("expected 2 accounts before cascade, got %d", len(accounts))
 	}
@@ -269,7 +269,7 @@ func TestAccount_CascadeDeletePortfolio(t *testing.T) {
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 0 {
 		t.Errorf("expected 0 accounts after portfolio cascade delete, got %d", len(accounts))
 	}
@@ -307,7 +307,7 @@ func TestAccount_Pagination(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 2 {
 		t.Errorf("expected 2 accounts with limit=2, got %d", len(accounts))
 	}
@@ -373,7 +373,7 @@ func TestAccount_Pagination_ZeroLimitDefaultsTo50(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 10 {
 		t.Errorf("expected 10 accounts with limit=0 (default 50), got %d", len(accounts))
 	}
@@ -411,7 +411,7 @@ func TestAccount_Pagination_NegativeOffsetDefaultsTo0(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 3 {
 		t.Errorf("expected 3 accounts with offset=-1 (default 0), got %d", len(accounts))
 	}

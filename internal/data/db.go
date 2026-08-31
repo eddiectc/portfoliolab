@@ -18,7 +18,8 @@ func cleanWALFiles(path string) {
 	for _, suffix := range []string{"-wal", "-shm"} {
 		walPath := path + suffix
 		if info, err := os.Stat(walPath); err == nil && info.Size() == 0 {
-			os.Remove(walPath)
+			// Best effort: the file may have disappeared in the meantime.
+			_ = os.Remove(walPath)
 		}
 	}
 }
@@ -49,25 +50,25 @@ func Open(path string, logger *slog.Logger) (*sql.DB, error) {
 	// (:memory: databases don't support WAL — they use "memory" journal mode.)
 	if path != ":memory:" {
 		if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-			db.Close()
+			_ = db.Close()
 			return nil, fmt.Errorf("enable WAL mode: %w", err)
 		}
 	}
 
 	// Enable foreign key support
 	if _, err := db.Exec("PRAGMA foreign_keys=ON"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
 
 	// Verify journal mode
 	var journalMode string
 	if err := db.QueryRow("PRAGMA journal_mode").Scan(&journalMode); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("check journal mode: %w", err)
 	}
 	if path != ":memory:" && journalMode != "wal" {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("expected WAL mode, got %s", journalMode)
 	}
 

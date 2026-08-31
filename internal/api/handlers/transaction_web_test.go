@@ -431,10 +431,10 @@ func TestTxHandleListPage_WithData(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -472,10 +472,10 @@ func TestTxHandleListPage_WithFilters(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -486,7 +486,7 @@ func TestTxHandleListPage_WithFilters(t *testing.T) {
 		NetCash:   decimal.MustNew(-1500000, 2),
 	})
 
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-02-01",
 		Type:      "sell",
@@ -521,12 +521,12 @@ func TestTxHandleListPage_WithPagination(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
 	// Create 25 transactions to trigger pagination (limit is 20)
 	for i := 0; i < 25; i++ {
-		txSvc.Create(nil, transaction.CreateRequest{
+		_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 			AccountID: 1,
 			Date:      "2024-01-15",
 			Type:      "buy",
@@ -559,12 +559,12 @@ func TestTxHandleListPage_FilterByAccount(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc1, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
-	acc2, _ := accountSvc.Create(nil, account.CreateRequest{Name: "Fidelity", PortfolioID: 1})
+	acc1, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc2, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Fidelity", PortfolioID: 1})
 	registerAccountName(txRepo, acc1)
 	registerAccountName(txRepo, acc2)
 
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -574,7 +574,7 @@ func TestTxHandleListPage_FilterByAccount(t *testing.T) {
 		Currency:  "USD",
 		NetCash:   decimal.MustNew(-1500000, 2),
 	})
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 2,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -604,10 +604,10 @@ func TestTxHandleListPage_FilterBySymbol(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -617,7 +617,7 @@ func TestTxHandleListPage_FilterBySymbol(t *testing.T) {
 		Currency:  "USD",
 		NetCash:   decimal.MustNew(-1500000, 2),
 	})
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -647,10 +647,10 @@ func TestTxHandleListPage_FilterByDateRange(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -660,7 +660,7 @@ func TestTxHandleListPage_FilterByDateRange(t *testing.T) {
 		Currency:  "USD",
 		NetCash:   decimal.MustNew(-1500000, 2),
 	})
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-06-01",
 		Type:      "buy",
@@ -691,10 +691,10 @@ func TestTxHandleListPage_CombinedFilters(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -704,7 +704,7 @@ func TestTxHandleListPage_CombinedFilters(t *testing.T) {
 		Currency:  "USD",
 		NetCash:   decimal.MustNew(-1500000, 2),
 	})
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-20",
 		Type:      "sell",
@@ -714,7 +714,7 @@ func TestTxHandleListPage_CombinedFilters(t *testing.T) {
 		Currency:  "USD",
 		NetCash:   decimal.MustNew(800000, 2),
 	})
-	txSvc.Create(nil, transaction.CreateRequest{
+	_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-25",
 		Type:      "buy",
@@ -746,11 +746,11 @@ func TestTxHandleListPage_PaginationPreservesFilters(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
 	for i := 0; i < 25; i++ {
-		txSvc.Create(nil, transaction.CreateRequest{
+		_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 			AccountID: 1,
 			Date:      "2024-01-15",
 			Type:      "buy",
@@ -786,12 +786,12 @@ func TestTxHandleListPage_PaginationFilterRoundTrip(t *testing.T) {
 	handler, txSvc, accountRepo, _, txRepo := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	acc, _ := accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	acc, _ := accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 	registerAccountName(txRepo, acc)
 
 	// Create 25 buy transactions and 25 sell transactions
 	for i := 0; i < 25; i++ {
-		txSvc.Create(nil, transaction.CreateRequest{
+		_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 			AccountID: 1,
 			Date:      "2024-01-15",
 			Type:      "buy",
@@ -801,7 +801,7 @@ func TestTxHandleListPage_PaginationFilterRoundTrip(t *testing.T) {
 			Currency:  "USD",
 			NetCash:   decimal.MustNew(-1500000, 2),
 		})
-		txSvc.Create(nil, transaction.CreateRequest{
+		_, _ = txSvc.Create(context.TODO(), transaction.CreateRequest{
 			AccountID: 1,
 			Date:      "2024-01-15",
 			Type:      "sell",
@@ -852,10 +852,10 @@ func TestTxHandleNewPage_RendersForm(t *testing.T) {
 	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	symbolSvc := symbolmapping.NewService(symbolRepo)
-	symbolSvc.Create(nil, symbolmapping.CreateRequest{
+	_, _ = symbolSvc.Create(context.TODO(), symbolmapping.CreateRequest{
 		InternalSymbol:   "AAPL",
 		MarketDataSymbol: "AAPL",
 	})
@@ -900,7 +900,7 @@ func TestTxHandleCreatePage_ValidCreate(t *testing.T) {
 	handler, _, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=buy&symbol=AAPL&quantity=10.00&price=150.00&currency=USD&net_cash=-1500.00")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -1116,7 +1116,7 @@ func TestTxHandleCreatePage_NonExistentSymbol(t *testing.T) {
 	txSvc2 := transaction.NewService(newMockTxRepoForWeb(), &mockTxAccountChecker{}, symbolChecker, symbolCreator, nil, nil)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	symbolSvc := symbolmapping.NewService(symbolRepo)
 	handler2 := NewTransactionWebHandler(txSvc2, accountSvc, symbolSvc, newTestRenderer(t))
@@ -1176,7 +1176,7 @@ func TestTxHandleCreatePage_NegativeQuantity(t *testing.T) {
 	handler, _, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=sell&symbol=AAPL&quantity=-10&price=150&currency=USD&net_cash=1500")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -1196,7 +1196,7 @@ func TestTxHandleCreatePage_DepositWithCashSymbol(t *testing.T) {
 	handler, _, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	body := strings.NewReader("account_id=1&date=2024-01-15&type=deposit&symbol=$CASH-USD&quantity=1000&price=1&currency=USD&net_cash=1000")
 	r := httptest.NewRequest(http.MethodPost, "/transactions", body)
@@ -1238,9 +1238,9 @@ func TestTxHandleDetailPage_RendersDetail(t *testing.T) {
 	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
-	tx, err := txSvc.Create(nil, transaction.CreateRequest{
+	tx, err := txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -1307,9 +1307,9 @@ func TestTxHandleEditPage_RendersForm(t *testing.T) {
 	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
-	tx, err := txSvc.Create(nil, transaction.CreateRequest{
+	tx, err := txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -1376,9 +1376,9 @@ func TestTxHandleEditPost_ValidUpdate(t *testing.T) {
 	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
-	tx, err := txSvc.Create(nil, transaction.CreateRequest{
+	tx, err := txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -1419,9 +1419,9 @@ func TestTxHandleEditPost_InvalidData(t *testing.T) {
 	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
-	tx, err := txSvc.Create(nil, transaction.CreateRequest{
+	tx, err := txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -1462,9 +1462,9 @@ func TestTxHandleEditPost_UserCurrencyOverride(t *testing.T) {
 	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
-	tx, err := txSvc.Create(nil, transaction.CreateRequest{
+	tx, err := txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -1503,9 +1503,9 @@ func TestTxHandleDeletePage_Success(t *testing.T) {
 	handler, txSvc, accountRepo, _, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
-	tx, err := txSvc.Create(nil, transaction.CreateRequest{
+	tx, err := txSvc.Create(context.TODO(), transaction.CreateRequest{
 		AccountID: 1,
 		Date:      "2024-01-15",
 		Type:      "buy",
@@ -1565,10 +1565,10 @@ func TestTxHandleNewPage_PreviewElements(t *testing.T) {
 	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	symbolSvc := symbolmapping.NewService(symbolRepo)
-	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
+	_, _ = symbolSvc.Create(context.TODO(), symbolmapping.CreateRequest{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
 
 	handler := NewTransactionWebHandler(txSvc, accountSvc, symbolSvc, newTestRenderer(t))
 
@@ -1617,12 +1617,12 @@ func TestTxHandleNewPage_EmbeddedSymbolList(t *testing.T) {
 	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	symbolSvc := symbolmapping.NewService(symbolRepo)
-	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
-	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "GOOG", MarketDataSymbol: "GOOG"})
-	symbolSvc.Create(nil, symbolmapping.CreateRequest{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT"})
+	_, _ = symbolSvc.Create(context.TODO(), symbolmapping.CreateRequest{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
+	_, _ = symbolSvc.Create(context.TODO(), symbolmapping.CreateRequest{InternalSymbol: "GOOG", MarketDataSymbol: "GOOG"})
+	_, _ = symbolSvc.Create(context.TODO(), symbolmapping.CreateRequest{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT"})
 
 	handler := NewTransactionWebHandler(txSvc, accountSvc, symbolSvc, newTestRenderer(t))
 
@@ -1656,7 +1656,7 @@ func TestTxHandleNewPage_EmptySymbolList(t *testing.T) {
 	_, txSvc, accountRepo, symbolRepo, _ := setupTransactionWebHandler(t)
 
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	// No symbols created
 	symbolSvc := symbolmapping.NewService(symbolRepo)

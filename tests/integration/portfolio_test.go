@@ -242,7 +242,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("run test migrations: %v", err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
@@ -267,7 +267,7 @@ func TestIntegration_CreateAndGet(t *testing.T) {
 	}
 
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	if p.ID == 0 {
 		t.Fatal("expected non-zero ID")
 	}
@@ -285,7 +285,7 @@ func TestIntegration_CreateAndGet(t *testing.T) {
 	}
 
 	var got portfolio.Portfolio
-	json.NewDecoder(w2.Body).Decode(&got)
+	_ = json.NewDecoder(w2.Body).Decode(&got)
 	if got.Name != "Integration Test" {
 		t.Errorf("expected 'Integration Test', got %q", got.Name)
 	}
@@ -307,7 +307,7 @@ func TestIntegration_ListEmpty(t *testing.T) {
 	}
 
 	var portfolios []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&portfolios)
+	_ = json.NewDecoder(w.Body).Decode(&portfolios)
 	if len(portfolios) != 0 {
 		t.Errorf("expected 0 portfolios, got %d", len(portfolios))
 	}
@@ -339,7 +339,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 	}
 
 	var portfolios []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&portfolios)
+	_ = json.NewDecoder(w.Body).Decode(&portfolios)
 	if len(portfolios) != 2 {
 		t.Errorf("expected 2 portfolios, got %d", len(portfolios))
 	}
@@ -358,7 +358,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var remaining []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&remaining)
+	_ = json.NewDecoder(w.Body).Decode(&remaining)
 	if len(remaining) != 1 {
 		t.Errorf("expected 1 portfolio after delete, got %d", len(remaining))
 	}
@@ -389,7 +389,7 @@ func TestIntegration_Update(t *testing.T) {
 	}
 
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	if p.Name != "Updated" {
 		t.Errorf("expected 'Updated', got %q", p.Name)
 	}
@@ -444,7 +444,7 @@ func TestIntegration_Pagination(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var portfolios []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&portfolios)
+	_ = json.NewDecoder(w.Body).Decode(&portfolios)
 	if len(portfolios) != 2 {
 		t.Errorf("expected 2 portfolios with limit=2, got %d", len(portfolios))
 	}

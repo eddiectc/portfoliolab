@@ -655,15 +655,6 @@ func TestVanguard_EquityFund_NoBondCharacteristics(t *testing.T) {
 	}
 }
 
-func containsAll(s string, substrs ...string) bool {
-	for _, sub := range substrs {
-		if !bytes.Contains([]byte(s), []byte(sub)) {
-			return false
-		}
-	}
-	return true
-}
-
 // TestVanguard_Dispatcher_UnregisteredProvider verifies that dispatching
 // to a URL with no matching extractor returns an explicit error.
 // Corresponds to Story 7 AC4: "Given a symbol is assigned to the Vanguard
@@ -672,7 +663,7 @@ func containsAll(s string, substrs ...string) bool {
 func TestVanguard_Dispatcher_UnregisteredProvider(t *testing.T) {
 	reg := extractor.NewRegistry()
 	// Register only WisdomTree — Vanguard is NOT registered
-	reg.Register(wisdomtree.NewExtractor())
+	_ = reg.Register(wisdomtree.NewExtractor())
 
 	// Vanguard URL — should fail with explicit error
 	_, err := reg.FindByURL(
@@ -771,7 +762,7 @@ func TestVanguard_ProviderSwitch_YahooToVanguard(t *testing.T) {
 
 	// Step 4: Verify the registry routes the URL to the Vanguard extractor
 	reg := extractor.NewRegistry()
-	reg.Register(vanguard.NewExtractor())
+	_ = reg.Register(vanguard.NewExtractor())
 
 	found, err := reg.FindByURL(staleURL)
 	if err != nil {
@@ -820,7 +811,7 @@ func TestVanguard_BackgroundRefresh_DualPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query stale symbols: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var sym struct {
@@ -849,7 +840,7 @@ func TestVanguard_BackgroundRefresh_DualPath(t *testing.T) {
 	// 2. Service layer uses data_source_url to route through dispatcher
 	// Verify the dispatcher correctly identifies the Vanguard extractor
 	reg := extractor.NewRegistry()
-	reg.Register(vanguard.NewExtractor())
+	_ = reg.Register(vanguard.NewExtractor())
 
 	extractor, err := reg.FindByURL(sourceURL)
 	if err != nil {

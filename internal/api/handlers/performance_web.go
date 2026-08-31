@@ -556,7 +556,6 @@ func buildBenchmarkURLs(benchmarkNames map[string]string, selectedBenchmark, por
 			url += "&mode=" + mode
 		} else {
 			url += "?mode=" + mode
-			hasQuery = true
 		}
 	}
 	urls["None"] = url

@@ -197,7 +197,7 @@ func (e *Extractor) SetClient(c *Client) {
 func extractISIN(url string) (string, error) {
 	re := regexp.MustCompile(`/funds/([a-z0-9]{12})/`)
 	match := re.FindStringSubmatch(strings.ToLower(url))
-	if match == nil || len(match) < 2 {
+	if match == nil {
 		return "", fmt.Errorf("ISIN not found in URL")
 	}
 	return match[1], nil

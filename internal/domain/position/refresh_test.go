@@ -284,15 +284,6 @@ func makeQuote(symbol string, price int64, currency string) *market.MarketData {
 	}
 }
 
-func makeFxRate(base, quote string, rate int64) *market.FxRate {
-	return &market.FxRate{
-		BaseCurrency:  base,
-		QuoteCurrency: quote,
-		Rate:          decimal.MustNew(rate, 4),
-		FetchedAt:     time.Now(),
-	}
-}
-
 // --- Tests ---
 
 func TestRefreshMarketData_Success(t *testing.T) {

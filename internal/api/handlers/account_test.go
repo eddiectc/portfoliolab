@@ -150,7 +150,7 @@ func TestAccountHandleCreate_Success(t *testing.T) {
 	}
 
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	if a.Name != "IBKR" {
 		t.Errorf("expected name 'IBKR', got %q", a.Name)
 	}
@@ -255,7 +255,7 @@ func TestAccountHandleList(t *testing.T) {
 	}
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 3 {
 		t.Errorf("expected 3 accounts, got %d", len(accounts))
 	}
@@ -274,7 +274,7 @@ func TestAccountHandleList_Empty(t *testing.T) {
 	}
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if accounts == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -293,7 +293,7 @@ func TestAccountHandleList_Pagination(t *testing.T) {
 	handler.HandleList(w, req)
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 2 {
 		t.Errorf("expected 2 accounts with limit=2, got %d", len(accounts))
 	}
@@ -318,7 +318,7 @@ func TestAccountHandleList_DefaultPagination(t *testing.T) {
 	}
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 10 {
 		t.Errorf("expected 10 accounts with default pagination, got %d", len(accounts))
 	}
@@ -345,7 +345,7 @@ func TestAccountHandleList_ByPortfolio(t *testing.T) {
 	}
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 2 {
 		t.Errorf("expected 2 accounts for portfolio 1, got %d", len(accounts))
 	}
@@ -383,7 +383,7 @@ func TestAccountHandleList_ByPortfolio_Empty(t *testing.T) {
 	}
 
 	var accounts []account.Account
-	json.NewDecoder(w.Body).Decode(&accounts)
+	_ = json.NewDecoder(w.Body).Decode(&accounts)
 	if len(accounts) != 0 {
 		t.Errorf("expected 0 accounts for non-existent portfolio, got %d", len(accounts))
 	}
@@ -410,7 +410,7 @@ func TestAccountHandleGet_Success(t *testing.T) {
 	}
 
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	if a.Name != "IBKR" {
 		t.Errorf("expected 'IBKR', got %q", a.Name)
 	}
@@ -475,7 +475,7 @@ func TestAccountHandleUpdate_Success(t *testing.T) {
 	}
 
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	if a.Name != "New Name" {
 		t.Errorf("expected 'New Name', got %q", a.Name)
 	}
@@ -602,7 +602,7 @@ func TestAccountErrorResponseFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "ACCOUNT_NOT_FOUND" {
 		t.Errorf("expected error code ACCOUNT_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -617,7 +617,7 @@ func TestAccountErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_NAME" {
 		t.Errorf("expected error code INVALID_NAME, got %q", errResp.Code)
 	}
@@ -631,7 +631,7 @@ func TestAccountErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "ACCOUNT_NAME_EXISTS" {
 		t.Errorf("expected error code ACCOUNT_NAME_EXISTS, got %q", errResp.Code)
 	}
@@ -643,7 +643,7 @@ func TestAccountErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "PORTFOLIO_NOT_FOUND" {
 		t.Errorf("expected error code PORTFOLIO_NOT_FOUND, got %q", errResp.Code)
 	}

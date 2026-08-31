@@ -124,7 +124,7 @@ func TestHrpHandleComputeHrp_Success(t *testing.T) {
 	}
 
 	var resp computeHrpResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -215,7 +215,7 @@ func TestHrpHandleComputeHrp_Validation(t *testing.T) {
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tc.wantCode {
 				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
 			}
@@ -238,7 +238,7 @@ func TestHrpHandleComputeHrp_ServiceError(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INSUFFICIENT_DATA" {
 		t.Errorf("expected INSUFFICIENT_DATA, got %q", errResp.Code)
 	}
@@ -259,7 +259,7 @@ func TestHrpHandleComputeHrp_NumericalFailure(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "NUMERICAL_FAILURE" {
 		t.Errorf("expected NUMERICAL_FAILURE, got %q", errResp.Code)
 	}
@@ -288,7 +288,7 @@ func TestHrpHandleComputeHrp_EmptyState(t *testing.T) {
 	}
 
 	var resp computeHrpResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Result.Message == "" {
 		t.Error("expected empty-state message")
 	}
@@ -313,7 +313,7 @@ func TestHrpHandleGetCandidateSymbols_Success(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if len(resp.Symbols) != 3 {
 		t.Errorf("expected 3 symbols, got %d", len(resp.Symbols))
 	}
@@ -333,7 +333,7 @@ func TestHrpHandleGetCandidateSymbols_Empty(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Symbols == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -372,7 +372,7 @@ func TestHrpHandleGetPortfolioSymbols_Success(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if len(resp.Symbols) != 3 {
 		t.Errorf("expected 3 symbols, got %d", len(resp.Symbols))
 	}
@@ -393,7 +393,7 @@ func TestHrpHandleGetPortfolioSymbols_EmptyPortfolio(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Symbols == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -433,7 +433,7 @@ func TestHrpHandleGetModelPortfolioSymbols_Success(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if len(resp.Symbols) != 2 {
 		t.Errorf("expected 2 symbols, got %d", len(resp.Symbols))
 	}
@@ -523,7 +523,7 @@ func TestHrpHandleSaveAsModelPortfolio_Success(t *testing.T) {
 	}
 
 	var resp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Name != "HRP Ward Portfolio" {
 		t.Errorf("expected name 'HRP Ward Portfolio', got %q", resp.Name)
 	}
@@ -554,7 +554,7 @@ func TestHrpHandleSaveAsModelPortfolio_NoCreator(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "NOT_CONFIGURED" {
 		t.Errorf("expected NOT_CONFIGURED, got %q", errResp.Code)
 	}
@@ -609,7 +609,7 @@ func TestHrpHandleSaveAsModelPortfolio_Validation(t *testing.T) {
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tc.wantCode {
 				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
 			}
@@ -649,7 +649,7 @@ func TestHrpHandleSaveAsModelPortfolio_ServiceError(t *testing.T) {
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tc.wantCode {
 				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
 			}

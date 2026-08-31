@@ -289,7 +289,7 @@ func ParseReferenceDate(pdfText string) (time.Time, error) {
 	// "Fact Sheet – April 30, 2026" at the top of page 1
 	re := regexp.MustCompile(`Fact Sheet\s*[–\-]\s*(.+?)\s*(?:MARKETING|$)`)
 	match := re.FindStringSubmatch(pdfText)
-	if match == nil || len(match) < 2 {
+	if match == nil {
 		return time.Time{}, fmt.Errorf("reference date not found in factsheet header")
 	}
 
@@ -384,7 +384,7 @@ func findNextSectionEnd(remaining, currentHeader string) int {
 func extractFundSize(section string) (float64, error) {
 	re := regexp.MustCompile(`Fund Size\s+([\d,.]+)\s*(Mn|Bn|Million|Billion)\s*\w+`)
 	match := re.FindStringSubmatch(section)
-	if match == nil || len(match) < 3 {
+	if match == nil {
 		return 0, fmt.Errorf("fund size not found")
 	}
 
@@ -408,7 +408,7 @@ func extractFundSize(section string) (float64, error) {
 func extractInceptionDate(section string) (time.Time, error) {
 	re := regexp.MustCompile(`Inception Date[^0-9]*([\d]{1,2}[/\-][\d]{1,2}[/\-][\d]{2,4})`)
 	match := re.FindStringSubmatch(section)
-	if match == nil || len(match) < 2 {
+	if match == nil {
 		return time.Time{}, fmt.Errorf("inception date not found")
 	}
 
@@ -419,7 +419,7 @@ func extractInceptionDate(section string) (time.Time, error) {
 func extractISIN(section string) (string, error) {
 	re := regexp.MustCompile(`ISIN\s+([A-Z]{2}\d{10})`)
 	match := re.FindStringSubmatch(section)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return "", fmt.Errorf("ISIN not found")
 	}
 
@@ -430,7 +430,7 @@ func extractISIN(section string) (string, error) {
 func extractShareClass(section string) (string, error) {
 	re := regexp.MustCompile(`Share Class\s+([A-Z][^\n]+?)\s+(?:Classification|Cut-off|SRRI|$)`)
 	match := re.FindStringSubmatch(section)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return "", fmt.Errorf("share class not found")
 	}
 	return strings.TrimSpace(match[1]), nil
@@ -440,7 +440,7 @@ func extractShareClass(section string) (string, error) {
 func extractPercent(section, label string) (float64, error) {
 	re := regexp.MustCompile(regexp.QuoteMeta(label) + `\s+([\d.]+)%`)
 	match := re.FindStringSubmatch(section)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return 0, fmt.Errorf("%s not found", label)
 	}
 
@@ -460,7 +460,7 @@ func extractRiskMeasure(text, label string) (float64, error) {
 	escaped := regexp.QuoteMeta(label)
 	re := regexp.MustCompile(escaped + `\s+(?:\([^)]*\)\s+)?([\d.-]+)%?`)
 	match := re.FindStringSubmatch(text)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return 0, fmt.Errorf("%s value not found", label)
 	}
 

@@ -534,7 +534,7 @@ func TestMigration_NavHistoryQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query nav history: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var count int
 	expected := []string{"2026-01-01", "2026-01-02", "2026-01-03"}
@@ -596,7 +596,7 @@ func TestMigration_NavDataIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query prices: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var count int
 	for rows.Next() {
@@ -649,7 +649,7 @@ func TestMigration_StaleSymbolDetailsIncludesDataSourceURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query stale symbols: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var found bool
 	for rows.Next() {

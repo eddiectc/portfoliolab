@@ -22,7 +22,7 @@ func ParseFundIdentity(html string) (*extractor.FundInfo, error) {
 	h1Re := regexp.MustCompile(`<h1[^>]*>([^<]+)</h1>`)
 	match := h1Re.FindStringSubmatch(html)
 	name := ""
-	if match != nil && len(match) > 1 {
+	if len(match) > 1 {
 		name = strings.TrimSpace(match[1])
 	}
 
@@ -30,7 +30,7 @@ func ParseFundIdentity(html string) (*extractor.FundInfo, error) {
 	if name == "" {
 		titleRe := regexp.MustCompile(`<title>([^<]+)</title>`)
 		match = titleRe.FindStringSubmatch(html)
-		if match != nil && len(match) > 1 {
+		if len(match) > 1 {
 			name = strings.TrimSpace(match[1])
 			// Strip " | iShares UK" suffix
 			if idx := strings.Index(name, " | iShares"); idx > 0 {
@@ -237,7 +237,7 @@ func ParseFundCharacteristics(html string) (*extractor.FundCharacteristics, erro
 func ParseComponentID(html string) (string, error) {
 	re := regexp.MustCompile(`/(\d+)\.ajax\?fileType=csv`)
 	match := re.FindStringSubmatch(html)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return "", fmt.Errorf("component ID not found in page (holdings download link missing)")
 	}
 	return match[1], nil
@@ -251,7 +251,7 @@ func ParseAsOfDate(html string) (time.Time, error) {
 	// Try old "Fund Holdings as of" pattern first
 	oldRe := regexp.MustCompile(`Fund Holdings as of["\s,]*([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
 	match := oldRe.FindStringSubmatch(html)
-	if match != nil && len(match) > 1 {
+	if len(match) > 1 {
 		return parseIShareDate(match[1])
 	}
 
@@ -260,7 +260,7 @@ func ParseAsOfDate(html string) (time.Time, error) {
 	// carry additional classes, e.g. "as-of-date oneds-body-s-compact".
 	newRe := regexp.MustCompile(`<[^>]*class="as-of-date(?: [^"]*)?"[^>]*>\s*as of\s*([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
 	match = newRe.FindStringSubmatch(html)
-	if match != nil && len(match) > 1 {
+	if len(match) > 1 {
 		return parseIShareDate(match[1])
 	}
 
@@ -345,7 +345,7 @@ func ParseHoldings(csvData string) ([]extractor.Holding, string, error) {
 			combined := strings.Join(row, " ")
 			// Extract date from 'Fund Holdings as of, 29/May/2026'
 			dateRe := regexp.MustCompile(`([0-9]{1,2}/[A-Za-z]+/[0-9]{4})`)
-			if match := dateRe.FindStringSubmatch(combined); match != nil && len(match) > 1 {
+			if match := dateRe.FindStringSubmatch(combined); len(match) > 1 {
 				asOfDate = match[1]
 			}
 			continue
@@ -557,7 +557,7 @@ func parseKeyValueFromDataRow(html, colClass string) (string, error) {
 	// or wrapped in a single <span>.
 	dataRe := regexp.MustCompile(`<td[^>]*class="[^"]*\bdata\b[^"]*"[^>]*>\s*(?:<span[^>]*>)?([^<]+)`)
 	match := dataRe.FindStringSubmatch(row)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return "", fmt.Errorf("data cell not found in col-%s row", colClass)
 	}
 	return strings.TrimSpace(match[1]), nil
@@ -567,7 +567,7 @@ func parseKeyValueFromDataRow(html, colClass string) (string, error) {
 func parseKeyValueFromTable(html, key string) (string, error) {
 	re := regexp.MustCompile(`<td[^>]*>[ \t\n\r]*` + regexp.QuoteMeta(key) + `[ \t\n\r]*</td>\s*<td[^>]*>([^<]+(?:<[^/][^>]*>[^<]*)*)`)
 	match := re.FindStringSubmatch(html)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return "", fmt.Errorf("key %q not found in table", key)
 	}
 
@@ -593,7 +593,7 @@ func parseKeyValueFromDiv(html, colClass string) (string, error) {
 	remaining := html[idx:]
 	dataRe := regexp.MustCompile(`<div class="data">([^<]+)`)
 	match := dataRe.FindStringSubmatch(remaining)
-	if match == nil || len(match) < 2 {
+	if len(match) < 2 {
 		return "", fmt.Errorf("data div not found in col-%s", colClass)
 	}
 

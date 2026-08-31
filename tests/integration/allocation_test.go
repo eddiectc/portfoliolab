@@ -31,7 +31,7 @@ func setupAlloc(t *testing.T) (*sql.DB, http.Handler, int64, int64) {
 		t.Fatalf("create portfolio: expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	portfolioID := p.ID
 
 	// Create account
@@ -44,7 +44,7 @@ func setupAlloc(t *testing.T) (*sql.DB, http.Handler, int64, int64) {
 		t.Fatalf("create account: expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	accountID := a.ID
 
 	// Create symbol mappings
@@ -196,7 +196,7 @@ func TestAllocation_TargetSaveAndGet(t *testing.T) {
 	var statusResp struct {
 		Status string `json:"status"`
 	}
-	json.NewDecoder(w.Body).Decode(&statusResp)
+	_ = json.NewDecoder(w.Body).Decode(&statusResp)
 	if statusResp.Status != "saved" {
 		t.Errorf("expected status 'saved', got %q", statusResp.Status)
 	}
@@ -257,7 +257,7 @@ func TestAllocation_TargetInvalidSum(t *testing.T) {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "target_sum_not_100" {
 		t.Errorf("expected error code target_sum_not_100, got %q", errResp.Code)
 	}
@@ -418,7 +418,7 @@ func TestAllocation_MultiCurrencyCash(t *testing.T) {
 		t.Fatalf("create GBP portfolio: expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 	var gp portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&gp)
+	_ = json.NewDecoder(w.Body).Decode(&gp)
 	gbpPortfolioID := gp.ID
 
 	// Create GBP account
@@ -431,7 +431,7 @@ func TestAllocation_MultiCurrencyCash(t *testing.T) {
 		t.Fatalf("create GBP account: expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 	var ga account.Account
-	json.NewDecoder(w.Body).Decode(&ga)
+	_ = json.NewDecoder(w.Body).Decode(&ga)
 	gbpAccountID := ga.ID
 
 	// Insert GBP→USD FX rate (1 GBP = 1.27 USD)
@@ -554,7 +554,7 @@ func TestAllocation_DeleteTarget(t *testing.T) {
 	}
 
 	var targets []allocation.TargetAllocation
-	json.NewDecoder(w.Body).Decode(&targets)
+	_ = json.NewDecoder(w.Body).Decode(&targets)
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 targets before delete, got %d", len(targets))
 	}
@@ -572,7 +572,7 @@ func TestAllocation_DeleteTarget(t *testing.T) {
 		Status string `json:"status"`
 		Scope  string `json:"scope"`
 	}
-	json.NewDecoder(w.Body).Decode(&statusResp)
+	_ = json.NewDecoder(w.Body).Decode(&statusResp)
 	if statusResp.Status != "deleted" {
 		t.Errorf("expected status 'deleted', got %q", statusResp.Status)
 	}
@@ -590,7 +590,7 @@ func TestAllocation_DeleteTarget(t *testing.T) {
 	}
 
 	var remaining []allocation.TargetAllocation
-	json.NewDecoder(w.Body).Decode(&remaining)
+	_ = json.NewDecoder(w.Body).Decode(&remaining)
 	if len(remaining) != 0 {
 		t.Errorf("expected 0 targets after delete, got %d", len(remaining))
 	}

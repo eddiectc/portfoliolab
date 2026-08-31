@@ -84,22 +84,30 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		// The status code is already sent; nothing more to do on failure.
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
 	// Extractor registry — WisdomTree extractor registered at startup.
 	// New providers are added here.
 	extractorReg := extractor.NewRegistry()
-	extractorReg.Register(wisdomtree.NewExtractor())
-	extractorReg.Register(dws.NewExtractor())
-	extractorReg.Register(dimensional.NewExtractor())
-	extractorReg.Register(imgp.NewExtractor())
-	extractorReg.Register(blackrock.NewExtractor())
+	// Registration can only fail on duplicate provider names, which is a
+	// developer error for the fixed set registered here.
+	mustRegister := func(e extractor.Extractor) {
+		if err := extractorReg.Register(e); err != nil {
+			panic(err)
+		}
+	}
+	mustRegister(wisdomtree.NewExtractor())
+	mustRegister(dws.NewExtractor())
+	mustRegister(dimensional.NewExtractor())
+	mustRegister(imgp.NewExtractor())
+	mustRegister(blackrock.NewExtractor())
 	vgExtractor := vanguard.NewExtractor()
 	if cfg.extractorCfg.Vanguard.NavHistoryDays > 0 {
 		vanguard.WithNavHistoryDays(cfg.extractorCfg.Vanguard.NavHistoryDays)(vgExtractor)
 	}
-	extractorReg.Register(vgExtractor)
+	mustRegister(vgExtractor)
 	extractorDispatcher := extractor.NewDispatcher(extractorReg)
 
 	// Static files
@@ -345,7 +353,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 
 		// Help pages
 		r.Get("/help/fx", func(w http.ResponseWriter, r *http.Request) {
-			renderer.Render(w, "help/fx_conventions", web.PageData{Title: "FX Conventions"})
+			if err := renderer.Render(w, "help/fx_conventions", web.PageData{Title: "FX Conventions"}); err != nil {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
 		})
 	}
 

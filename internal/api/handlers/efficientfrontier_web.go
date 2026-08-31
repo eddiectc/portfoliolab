@@ -569,16 +569,16 @@ func (h *EfficientFrontierWebHandler) HandleSaveAsModelPortfolio(w http.Response
 
 // frontierErrorMessage maps a computation error to a user-facing message.
 func frontierErrorMessage(err error) string {
-	switch {
-	case err == efficientfrontier.ErrInsufficientSymbols:
+	switch err {
+	case efficientfrontier.ErrInsufficientSymbols:
 		return "At least 2 symbols are required for frontier computation."
-	case err == efficientfrontier.ErrTooManySymbols:
+	case efficientfrontier.ErrTooManySymbols:
 		return "Too many symbols. Maximum 10 symbols supported."
-	case err == efficientfrontier.ErrInsufficientData:
+	case efficientfrontier.ErrInsufficientData:
 		return "Insufficient price data for the selected period. Try a shorter period or different symbols."
-	case err == efficientfrontier.ErrSingularMatrix:
+	case efficientfrontier.ErrSingularMatrix:
 		return "The covariance matrix is singular — likely caused by perfectly correlated assets. Try removing duplicate or highly correlated symbols."
-	case err == efficientfrontier.ErrNumericalFailure:
+	case efficientfrontier.ErrNumericalFailure:
 		return "The optimization failed due to a numerical error. Try different symbols or a shorter period."
 	default:
 		return "An unexpected error occurred while computing the efficient frontier."

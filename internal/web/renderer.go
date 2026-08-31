@@ -166,7 +166,9 @@ func (r *Renderer) parseTemplates() error {
 			}
 			// Parse as float for comparison.
 			var val float64
-			fmt.Sscanf(s, "%f", &val)
+			if _, err := fmt.Sscanf(s, "%f", &val); err != nil {
+				return "heat-neutral"
+			}
 			if val >= 1.0 {
 				return "heat-positive-strong"
 			} else if val > 0 {
@@ -185,7 +187,9 @@ func (r *Renderer) parseTemplates() error {
 				return "heat-empty"
 			}
 			var val float64
-			fmt.Sscanf(s, "%f", &val)
+			if _, err := fmt.Sscanf(s, "%f", &val); err != nil {
+				return "heat-neutral"
+			}
 			// Negate so the same thresholds apply but inverted.
 			val = -val
 			if val >= 1.0 {
@@ -208,7 +212,9 @@ func (r *Renderer) parseTemplates() error {
 				return "heat-empty"
 			}
 			var val float64
-			fmt.Sscanf(s, "%f", &val)
+			if _, err := fmt.Sscanf(s, "%f", &val); err != nil {
+				return "heat-even"
+			}
 			if val >= 1.0 {
 				return "heat-outperform-strong"
 			} else if val > 0 {
@@ -500,9 +506,9 @@ func addThousandsSeparator(s string) string {
 	result.Grow(len(s) + (len(s)-1)/3)
 	for i, r := range s {
 		if i > 0 && (len(s)-i)%3 == 0 {
-			result.WriteByte(',')
+			_ = result.WriteByte(',')
 		}
-		result.WriteRune(r)
+		_, _ = result.WriteRune(r)
 	}
 	return result.String()
 }

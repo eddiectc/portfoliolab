@@ -1,88 +1,11 @@
 package position
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
-
-var fxCtx = context.Background()
-
-// --- Mocks ---
-
-type mockFxRepo struct {
-	bySymbolDate map[string]map[string]*market.MarketData // symbol → date → MarketData
-	currentFx    map[string]*market.MarketData            // pair string → MarketData
-	upsertCalls  []*market.MarketData
-}
-
-func newMockFxRepo() *mockFxRepo {
-	return &mockFxRepo{
-		bySymbolDate: make(map[string]map[string]*market.MarketData),
-		currentFx:    make(map[string]*market.MarketData),
-	}
-}
-
-func (m *mockFxRepo) setHistorical(symbol, date string, md *market.MarketData) {
-	if m.bySymbolDate[symbol] == nil {
-		m.bySymbolDate[symbol] = make(map[string]*market.MarketData)
-	}
-	m.bySymbolDate[symbol][date] = md
-}
-
-func (m *mockFxRepo) setCurrentFx(pair string, md *market.MarketData) {
-	m.currentFx[pair] = md
-}
-
-func (m *mockFxRepo) GetLatest(_ context.Context, symbol string) (*market.MarketData, error) {
-	if m.bySymbolDate[symbol] != nil {
-		if md, ok := m.bySymbolDate[symbol][""]; ok {
-			return md, nil
-		}
-	}
-	return nil, nil
-}
-
-func (m *mockFxRepo) GetBySourceAndDate(_ context.Context, symbol, _source, date string) (*market.MarketData, error) {
-	if m.bySymbolDate[symbol] != nil {
-		if md, ok := m.bySymbolDate[symbol][date]; ok {
-			return md, nil
-		}
-	}
-	return nil, nil
-}
-
-func (m *mockFxRepo) Upsert(_ context.Context, md *market.MarketData) error {
-	m.upsertCalls = append(m.upsertCalls, md)
-	return nil
-}
-
-func (m *mockFxRepo) GetCurrentFxRate(_ context.Context, baseCurrency, quoteCurrency string) (*market.MarketData, error) {
-	pair := market.FormatFxPair(baseCurrency, quoteCurrency)
-	if md, ok := m.currentFx[pair]; ok {
-		return md, nil
-	}
-	return nil, nil
-}
-
-func (m *mockFxRepo) UpsertHistoricalPrices(_ context.Context, _symbol string, _prices []market.HistoricalPrice, _dataType string) error {
-	return nil
-}
-
-func (m *mockFxRepo) GetHistoricalPricesBySymbol(context.Context, string, time.Time, time.Time) ([]market.HistoricalPrice, error) {
-	return nil, nil
-}
-
-func (m *mockFxRepo) GetLatestQuotesBatch(context.Context, []string) map[string]*market.MarketData {
-	return nil
-}
-
-func (m *mockFxRepo) GetLatestPriceDatePerSymbol(context.Context, []string) map[string]*time.Time {
-	return nil
-}
 
 // --- ConvertPnlToBase tests ---
 

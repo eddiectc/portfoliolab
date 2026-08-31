@@ -14,7 +14,7 @@ func TestOpen_InMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open in-memory db: %v", err)
 	}
-	defer Close(db)
+	defer func() { _ = Close(db) }()
 
 	// Verify we can execute a query
 	var result int
@@ -38,8 +38,8 @@ func TestOpen_WALMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer Close(db)
-	defer os.Remove(tmpPath)
+	defer func() { _ = Close(db) }()
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	var journalMode string
 	err = db.QueryRow("PRAGMA journal_mode").Scan(&journalMode)
@@ -58,7 +58,7 @@ func TestOpen_ForeignKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer Close(db)
+	defer func() { _ = Close(db) }()
 
 	var fkEnabled int
 	err = db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled)
@@ -87,13 +87,13 @@ func TestCleanWALFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create db file: %v", err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	// Create empty WAL and SHM files (simulating a crash)
 	walPath := dbPath + "-wal"
 	shmPath := dbPath + "-shm"
-	os.Create(walPath)
-	os.Create(shmPath)
+	_, _ = os.Create(walPath)
+	_, _ = os.Create(shmPath)
 
 	// Verify they exist
 	if _, err := os.Stat(walPath); os.IsNotExist(err) {
@@ -120,10 +120,10 @@ func TestCleanWALFiles_NonEmptyKept(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, "test.db")
 
 	// Create main DB and non-empty WAL
-	os.Create(dbPath)
+	_, _ = os.Create(dbPath)
 	f, _ := os.Create(dbPath + "-wal")
-	f.Write([]byte("data"))
-	f.Close()
+	_, _ = f.Write([]byte("data"))
+	_ = f.Close()
 
 	// Non-empty WAL should NOT be removed
 	cleanWALFiles(dbPath)
@@ -143,7 +143,7 @@ func TestOpen_CreatesDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db with nested path: %v", err)
 	}
-	defer Close(db)
+	defer func() { _ = Close(db) }()
 
 	// Verify the directory was created
 	if _, err := os.Stat(filepath.Dir(nestedPath)); os.IsNotExist(err) {

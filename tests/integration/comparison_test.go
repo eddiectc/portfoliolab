@@ -529,10 +529,6 @@ func TestComparison_RealPortfolioNoTransactions(t *testing.T) {
 	}
 
 	// Cross metrics should be absent (one portfolio has insufficient data).
-	if result.CrossMetrics != nil {
-		// It's acceptable for cross metrics to be nil or empty when one side has no data.
-		// The key is the API doesn't crash.
-	}
 }
 
 func TestComparison_PeriodFiltering_1Y(t *testing.T) {
@@ -659,7 +655,7 @@ func TestComparison_MissingPortfolioID(t *testing.T) {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISSING_PORTFOLIO_A_ID" {
 		t.Errorf("expected error code MISSING_PORTFOLIO_A_ID, got %q", errResp.Code)
 	}

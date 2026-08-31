@@ -261,7 +261,7 @@ func componentLabel(comp []any) string {
 		switch v := n.(type) {
 		case map[string]any:
 			if c, ok := v["children"].(string); ok {
-				out.WriteString(c)
+				_, _ = out.WriteString(c)
 				return
 			}
 			for _, val := range v {

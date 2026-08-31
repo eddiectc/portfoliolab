@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -186,7 +187,7 @@ func TestComparisonWebHandler_FetchPortfolios_NilService(t *testing.T) {
 	handler := &ComparisonWebHandler{
 		portfolioSvc: nil,
 	}
-	portfolios := handler.fetchPortfolios(nil)
+	portfolios := handler.fetchPortfolios(context.TODO())
 	if portfolios == nil {
 		t.Fatal("expected non-nil slice")
 	}
@@ -199,7 +200,7 @@ func TestComparisonWebHandler_FetchModelPortfolios_NilService(t *testing.T) {
 	handler := &ComparisonWebHandler{
 		modelPortfolioSvc: nil,
 	}
-	summaries := handler.fetchModelPortfolios(nil)
+	summaries := handler.fetchModelPortfolios(context.TODO())
 	if summaries == nil {
 		t.Fatal("expected non-nil slice")
 	}

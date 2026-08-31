@@ -179,7 +179,7 @@ func readCSVFile(r *http.Request) ([]byte, error) {
 	if err != nil {
 		return nil, errors.New("csv_file is required")
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if header.Size == 0 {
 		return nil, errors.New("csv_file is empty")

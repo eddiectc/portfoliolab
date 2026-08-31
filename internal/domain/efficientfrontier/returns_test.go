@@ -97,13 +97,3 @@ func TestComputeReturns(t *testing.T) {
 		})
 	}
 }
-
-// --- helpers ---
-
-func makeConstantReturns(n int, value float64) []float64 {
-	returns := make([]float64, n)
-	for i := range returns {
-		returns[i] = value
-	}
-	return returns
-}

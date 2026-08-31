@@ -418,7 +418,8 @@ func (r *PositionRepository) Recalculate(ctx context.Context, accountID int64, r
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	// Rolling back a committed (or already rolled back) transaction is a no-op.
+	defer func() { _ = tx.Rollback() }()
 
 	// Delete old data using sqlc-generated queries (parameterized, type-safe).
 	if err := r.q.DeleteAllLotConsumptionsForAccount(ctx, tx, queries.DeleteAllLotConsumptionsForAccountParams{

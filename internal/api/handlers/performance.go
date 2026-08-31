@@ -358,11 +358,11 @@ func computeMonthlyTWR(points []performance.EquityCurvePoint) *decimal.Decimal {
 	}
 
 	// Geometrically link sub-period return ratios.
-	var product float64 = 1.0
+	product := 1.0
 
 	// Previous "from" value for sub-period computation.
 	// Initially the start of the month.
-	var fromVal float64 = startPVF
+	fromVal := startPVF
 
 	for _, cfIdx := range cfIndices {
 		// Pre-cash-flow PV: PV_on_day - incremental_net_deposit.

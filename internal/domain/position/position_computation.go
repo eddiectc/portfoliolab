@@ -56,7 +56,7 @@ func computePositionsForLots(lots []LotGroup) ([]Position, []Position) {
 	// direction changes and zero-crossings.
 	var cycles []cycleState
 	var current cycleState
-	var runningQty decimal.Decimal = decimal.Zero
+	var runningQty = decimal.Zero
 
 	for _, lot := range lots {
 		// Buy lots have positive quantity, sell lots have negative quantity.
@@ -137,10 +137,10 @@ func buildPosition(c cycleState) Position {
 
 	// Aggregate quantities, cost basis, and sell proceeds.
 	var (
-		totalBuyQty    decimal.Decimal = decimal.Zero
-		totalSellQty   decimal.Decimal = decimal.Zero
-		totalCostBasis decimal.Decimal = decimal.Zero
-		totalSellProc  decimal.Decimal = decimal.Zero
+		totalBuyQty    = decimal.Zero
+		totalSellQty   = decimal.Zero
+		totalCostBasis = decimal.Zero
+		totalSellProc  = decimal.Zero
 	)
 
 	for _, lot := range buyLotsInCycle {

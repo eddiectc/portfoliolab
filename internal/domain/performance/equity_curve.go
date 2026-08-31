@@ -175,7 +175,7 @@ func ComputeEquityCurve(
 
 	// Build NavSummary.
 	var navSummary *NavSummary
-	if navHistory != nil && len(navHistory) > 0 {
+	if len(navHistory) > 0 {
 		lastNav := navHistory[len(navHistory)-1]
 		navSummary = &NavSummary{
 			NavPerUnit:    lastNav.NavPerUnit,

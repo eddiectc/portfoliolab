@@ -47,7 +47,7 @@ func TestSymbolDetails_CreateAndEnrich(t *testing.T) {
 			ShortName string `json:"short_name"`
 		} `json:"symbol_details"`
 	}
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.InternalSymbol != "TESTSYM" {
 		t.Errorf("expected internal_symbol TESTSYM, got %q", resp.InternalSymbol)
 	}
@@ -114,7 +114,7 @@ func TestSymbolDetails_CreateAndEnrich(t *testing.T) {
 			} `json:"equity_valuation"`
 		} `json:"symbol_details"`
 	}
-	json.NewDecoder(w.Body).Decode(&resp2)
+	_ = json.NewDecoder(w.Body).Decode(&resp2)
 
 	if resp2.SymbolDetails == nil {
 		t.Fatal("expected symbol_details to be populated after cache insert")
@@ -173,7 +173,7 @@ func TestSymbolDetails_ListExcludesDetails(t *testing.T) {
 	}
 
 	var symbols []map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&symbols)
+	_ = json.NewDecoder(w.Body).Decode(&symbols)
 	if len(symbols) == 0 {
 		t.Fatal("expected at least 1 symbol in list")
 	}

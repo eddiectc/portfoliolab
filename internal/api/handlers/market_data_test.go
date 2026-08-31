@@ -58,7 +58,7 @@ func TestHandleRefresh_Returns202(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["message"] != "market data refresh started" {
 		t.Errorf("unexpected message: %q", resp["message"])
 	}
@@ -79,7 +79,7 @@ func TestHandleStatus_ReturnsCacheStatus(t *testing.T) {
 	}
 
 	var status marketcache.CacheStatus
-	json.NewDecoder(w.Body).Decode(&status)
+	_ = json.NewDecoder(w.Body).Decode(&status)
 
 	if status.TotalSymbols != 7 {
 		t.Errorf("expected total_symbols 7, got %d", status.TotalSymbols)
@@ -113,7 +113,7 @@ func TestHandleStatus_EmptyCache(t *testing.T) {
 	}
 
 	var status marketcache.CacheStatus
-	json.NewDecoder(w.Body).Decode(&status)
+	_ = json.NewDecoder(w.Body).Decode(&status)
 
 	if status.TotalSymbols != 0 {
 		t.Errorf("expected total_symbols 0, got %d", status.TotalSymbols)
@@ -144,7 +144,7 @@ func TestHandleStatus_ReflectsInProgressRefresh(t *testing.T) {
 	}
 
 	var status marketcache.CacheStatus
-	json.NewDecoder(w.Body).Decode(&status)
+	_ = json.NewDecoder(w.Body).Decode(&status)
 
 	if !status.Refreshing {
 		t.Error("expected refreshing to be true during in-progress refresh")
@@ -177,7 +177,7 @@ func TestHandleRefresh_ThenStatus_ShowsRefreshing(t *testing.T) {
 	handler.HandleStatus(statusW, statusReq)
 
 	var status marketcache.CacheStatus
-	json.NewDecoder(statusW.Body).Decode(&status)
+	_ = json.NewDecoder(statusW.Body).Decode(&status)
 
 	if !status.Refreshing {
 		t.Error("expected status to show refreshing=true after refresh call")

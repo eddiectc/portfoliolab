@@ -655,10 +655,9 @@ func TestComputeFrontier_InsufficientData(t *testing.T) {
 		}
 	}
 	if !warningFound {
-		// The engine may return a message instead of frontier points.
-		if result.Result.Message == "" && len(result.Result.FrontierPoints) == 0 {
-			// This is OK — the engine returned empty with warnings.
-		}
+		// The engine may return a message instead of frontier points;
+		// an empty result with warnings is acceptable here.
+		t.Log("note: no insufficient-data warning returned; engine returned points or message")
 	}
 }
 

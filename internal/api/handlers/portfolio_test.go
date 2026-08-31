@@ -117,7 +117,7 @@ func TestHandleCreate_Success(t *testing.T) {
 	}
 
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	if p.Name != "Test Portfolio" {
 		t.Errorf("expected name 'Test Portfolio', got %q", p.Name)
 	}
@@ -187,7 +187,7 @@ func TestHandleList(t *testing.T) {
 	}
 
 	var got []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if len(got) != 3 {
 		t.Errorf("expected 3 portfolios, got %d", len(got))
 	}
@@ -206,7 +206,7 @@ func TestHandleList_Empty(t *testing.T) {
 	}
 
 	var portfolios []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&portfolios)
+	_ = json.NewDecoder(w.Body).Decode(&portfolios)
 	if portfolios == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -232,7 +232,7 @@ func TestHandleList_DefaultPagination(t *testing.T) {
 	}
 
 	var got []portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if len(got) != 10 {
 		t.Errorf("expected 10 portfolios with default pagination, got %d", len(got))
 	}
@@ -256,7 +256,7 @@ func TestHandleGet_Success(t *testing.T) {
 	}
 
 	var got portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if got.Name != "Test" {
 		t.Errorf("expected 'Test', got %q", got.Name)
 	}
@@ -315,7 +315,7 @@ func TestHandleUpdate_Success(t *testing.T) {
 	}
 
 	var got portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if got.Name != "New Name" {
 		t.Errorf("expected 'New Name', got %q", got.Name)
 	}
@@ -365,7 +365,7 @@ func TestErrorResponseFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "PORTFOLIO_NOT_FOUND" {
 		t.Errorf("expected error code PORTFOLIO_NOT_FOUND, got %q", errResp.Code)
 	}

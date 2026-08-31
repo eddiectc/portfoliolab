@@ -45,9 +45,9 @@ func buildImportMultipartForm(xmlContent, accountID string) (body *bytes.Buffer,
 	body = &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("xml_file", "report.xml")
-	part.Write([]byte(xmlContent))
-	writer.WriteField("account_id", accountID)
-	writer.Close()
+	_, _ = part.Write([]byte(xmlContent))
+	_ = writer.WriteField("account_id", accountID)
+	_ = writer.Close()
 	return body, writer.FormDataContentType()
 }
 
@@ -58,7 +58,7 @@ func TestImportWebHandleImportPage_RendersUploadPage(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	r := httptest.NewRequest(http.MethodGet, "/transactions/import/ibkr", nil)
 	w := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestImportWebHandleImportPost_ValidXML(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	preview := &ibkrimport.PreviewResponse{
 		Importable: []ibkrimport.PreviewTransaction{
@@ -160,11 +160,11 @@ func TestImportWebHandleImportPost_UnifiedTableAndSymbols(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	// Pre-populate existing symbols in the symbol repo
-	symbolRepo.Create(nil, &symbolmapping.SymbolMapping{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
-	symbolRepo.Create(nil, &symbolmapping.SymbolMapping{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT"})
+	_ = symbolRepo.Create(context.TODO(), &symbolmapping.SymbolMapping{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
+	_ = symbolRepo.Create(context.TODO(), &symbolmapping.SymbolMapping{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT"})
 
 	// Multiple skipped with same/different broker symbols + one without broker symbol
 	preview := &ibkrimport.PreviewResponse{
@@ -241,7 +241,7 @@ func TestImportWebHandleImportPost_InvalidXML(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	importSvc.WithPreview(nil, ibkrimport.ErrInvalidXML)
 
@@ -270,7 +270,7 @@ func TestImportWebHandleImportPost_AccountNotFound(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "IBKR", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "IBKR", PortfolioID: 1})
 
 	importSvc.WithPreview(nil, ibkrimport.ErrAccountNotFound)
 
@@ -325,9 +325,9 @@ func TestImportWebHandleConfirmPost_Success(t *testing.T) {
 	// Build form with base64-encoded XML data
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("account_id", "1")
-	writer.WriteField("xml_data", "dGVzdC14bWwtZGF0YQ==") // base64 of "test-xml-data"
-	writer.Close()
+	_ = writer.WriteField("account_id", "1")
+	_ = writer.WriteField("xml_data", "dGVzdC14bWwtZGF0YQ==") // base64 of "test-xml-data"
+	_ = writer.Close()
 
 	r := httptest.NewRequest(http.MethodPost, "/transactions/import/ibkr/confirm", body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())
@@ -350,8 +350,8 @@ func TestImportWebHandleConfirmPost_MissingXMLData(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("account_id", "1")
-	writer.Close()
+	_ = writer.WriteField("account_id", "1")
+	_ = writer.Close()
 
 	r := httptest.NewRequest(http.MethodPost, "/transactions/import/ibkr/confirm", body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())
@@ -369,8 +369,8 @@ func TestImportWebHandleConfirmPost_MissingAccountID(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("xml_data", "dGVzdC14bWwtZGF0YQ==")
-	writer.Close()
+	_ = writer.WriteField("xml_data", "dGVzdC14bWwtZGF0YQ==")
+	_ = writer.Close()
 
 	r := httptest.NewRequest(http.MethodPost, "/transactions/import/ibkr/confirm", body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())
@@ -421,15 +421,6 @@ func TestImportWebRegisterRoutes(t *testing.T) {
 		if w.Code == http.StatusNotFound {
 			t.Errorf("expected route %s %s to be registered (got 404)", e.method, e.path)
 		}
-	}
-}
-
-// ---- Helper: checkContains (used in tests above) ----
-
-func checkContains(t *testing.T, label, body, text string) {
-	t.Helper()
-	if !strings.Contains(body, text) {
-		t.Errorf("page missing %s: %q", label, text)
 	}
 }
 

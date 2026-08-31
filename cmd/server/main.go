@@ -49,7 +49,11 @@ func main() {
 		logger.Error("failed to open database", "error", err)
 		os.Exit(1)
 	}
-	defer data.Close(db)
+	defer func() {
+		if err := data.Close(db); err != nil {
+			logger.Error("failed to close database", "error", err)
+		}
+	}()
 
 	// Run migrations
 	if err := data.MigrateUp(db, "migrations", logger); err != nil {
@@ -128,7 +132,7 @@ func setupLogger(level string) *slog.Logger {
 func init() {
 	// Ensure the data directory exists for the default database path
 	if err := os.MkdirAll("data", 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create data directory: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "failed to create data directory: %v\n", err)
 		os.Exit(1)
 	}
 }

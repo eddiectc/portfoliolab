@@ -2,7 +2,6 @@ package position
 
 import (
 	"context"
-	"fmt"
 
 	"strings"
 	"testing"
@@ -16,34 +15,6 @@ import (
 )
 
 // --- Mocks for equity curve tests ---
-
-type mockHistoricalFetcher struct {
-	prices   map[string][]market.HistoricalPrice
-	failed   []string
-	upserted map[string][]market.HistoricalPrice
-}
-
-func (m *mockHistoricalFetcher) FetchQuote(_ context.Context, _ string) (*market.MarketData, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockHistoricalFetcher) FetchFxRate(_ context.Context, _, _ string) (*market.MarketData, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockHistoricalFetcher) FetchQuotesBatch(_ context.Context, _ []string) map[string]*market.MarketData {
-	return nil
-}
-
-func (m *mockHistoricalFetcher) FetchHistoricalPricesBatch(_ context.Context, symbols []string, _, _ time.Time) (map[string][]market.HistoricalPrice, []string) {
-	result := make(map[string][]market.HistoricalPrice)
-	for _, sym := range symbols {
-		if prices, ok := m.prices[sym]; ok {
-			result[sym] = prices
-		}
-	}
-	return result, m.failed
-}
 
 type mockHistoricalRepo struct {
 	upserted     map[string][]market.HistoricalPrice

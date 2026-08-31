@@ -162,12 +162,6 @@ type displayBondCharacteristics struct {
 	AverageDuration string // e.g. "6.80" (years) or "—"
 }
 
-// navPriceChartDataPoint is a single data point for the NAV vs Price chart.
-type navPriceChartDataPoint struct {
-	Date  string  `json:"date"`
-	Value float64 `json:"value"`
-}
-
 // symbolDetailsPageData is the data struct for the symbol details template.
 type symbolDetailsPageData struct {
 	web.PageData

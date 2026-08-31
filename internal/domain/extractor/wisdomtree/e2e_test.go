@@ -51,7 +51,7 @@ func TestExtract_EndToEnd(t *testing.T) {
 		t.Run(fx.name, func(t *testing.T) {
 			var page strings.Builder
 			for _, p := range fx.pages {
-				page.WriteString(loadFixture(t, p))
+				_, _ = page.WriteString(loadFixture(t, p))
 			}
 			holdings := loadFixture(t, fx.holdings)
 			history := loadFixture(t, fx.history)

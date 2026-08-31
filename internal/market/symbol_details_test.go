@@ -470,7 +470,7 @@ func (m *mockYahooAuth) Get(rawURL string, params any) (*client.Response, error)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	headers := make(map[string]string)
@@ -503,7 +503,7 @@ func setupMockServer(t *testing.T, responseJSON string) (YahooAuth, func()) {
 	mux.HandleFunc("/v10/finance/quoteSummary/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(responseJSON))
+		_, _ = w.Write([]byte(responseJSON))
 	})
 
 	server := httptest.NewServer(mux)

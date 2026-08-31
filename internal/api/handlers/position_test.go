@@ -299,7 +299,7 @@ func TestPosHandleListOpen_Success(t *testing.T) {
 
 	// Returns PositionWithMarket (enriched with market data fields).
 	var items []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 position, got %d", len(items))
 	}
@@ -325,7 +325,7 @@ func TestPosHandleListOpen_Empty(t *testing.T) {
 	}
 
 	var items []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if items == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -344,7 +344,7 @@ func TestPosHandleListOpen_WithAccountFilter(t *testing.T) {
 	handler.HandleListOpen(w, req)
 
 	var items []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 position for account_id=1, got %d", len(items))
 	}
@@ -368,7 +368,7 @@ func TestPosHandleListOpen_Pagination(t *testing.T) {
 	handler.HandleListOpen(w, req)
 
 	var items []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 items with limit=2, got %d", len(items))
 	}
@@ -392,7 +392,7 @@ func TestPosHandleListClosed_Success(t *testing.T) {
 	}
 
 	var items []position.Position
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 position, got %d", len(items))
 	}
@@ -411,7 +411,7 @@ func TestPosHandleListClosed_Empty(t *testing.T) {
 	}
 
 	var items []position.Position
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if items == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -434,7 +434,7 @@ func TestPosHandleGetLot_Success(t *testing.T) {
 	}
 
 	var details position.LotWithDetails
-	json.NewDecoder(w.Body).Decode(&details)
+	_ = json.NewDecoder(w.Body).Decode(&details)
 	if details.LotID != "LOT-TEST" {
 		t.Errorf("expected lot 'LOT-TEST', got %q", details.LotID)
 	}
@@ -452,7 +452,7 @@ func TestPosHandleGetLot_NotFound(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "LOT_NOT_FOUND" {
 		t.Errorf("expected LOT_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -486,7 +486,7 @@ func TestPosHandleRecalculate_Account(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["status"] != "recalculated" {
 		t.Errorf("expected status 'recalculated', got %q", resp["status"])
 	}
@@ -505,7 +505,7 @@ func TestPosHandleRecalculate_AccountNotFound(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "ACCOUNT_NOT_FOUND" {
 		t.Errorf("expected ACCOUNT_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -524,7 +524,7 @@ func TestPosHandleRecalculate_Portfolio(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["scope"] != "portfolio 1" {
 		t.Errorf("expected scope 'portfolio 1', got %q", resp["scope"])
 	}
@@ -543,7 +543,7 @@ func TestPosHandleRecalculate_PortfolioNotFound(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "PORTFOLIO_NOT_FOUND" {
 		t.Errorf("expected PORTFOLIO_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -562,7 +562,7 @@ func TestPosHandleRecalculate_All(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["scope"] != "all accounts" {
 		t.Errorf("expected scope 'all accounts', got %q", resp["scope"])
 	}
@@ -596,10 +596,7 @@ func TestPosHandleOpenSummary_Success(t *testing.T) {
 	}
 
 	var resp position.OpenPositionSummary
-	json.NewDecoder(w.Body).Decode(&resp)
-	if resp.TotalCostBasisBase.Equal(decimal.Zero) == false || resp.TotalMktValueBase.Equal(decimal.Zero) == false {
-		// Summary has values — that's fine, just checking it doesn't error
-	}
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 }
 
 func TestPosHandleOpenSummary_NoPortfolio(t *testing.T) {
@@ -621,7 +618,7 @@ func TestPosHandleOpenSummary_NoPortfolio(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "NO_BASE_CURRENCY" {
 		t.Errorf("expected NO_BASE_CURRENCY, got %q", errResp.Code)
 	}
@@ -649,7 +646,7 @@ func TestPosHandleOpenSummary_MixedCurrencies(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "NO_BASE_CURRENCY" {
 		t.Errorf("expected NO_BASE_CURRENCY, got %q", errResp.Code)
 	}
@@ -668,7 +665,7 @@ func TestPosHandleClosedSummary_Success(t *testing.T) {
 	}
 
 	var resp position.ClosedPositionSummary
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	// Just checking it returns without error
 	_ = resp
 }
@@ -712,7 +709,7 @@ func TestPosErrorResponseFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "LOT_NOT_FOUND" {
 		t.Errorf("expected LOT_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -722,7 +719,7 @@ func TestPosErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "ACCOUNT_NOT_FOUND" {
 		t.Errorf("expected ACCOUNT_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -732,7 +729,7 @@ func TestPosErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "PORTFOLIO_NOT_FOUND" {
 		t.Errorf("expected PORTFOLIO_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -760,7 +757,7 @@ func TestPosRouterIntegration(t *testing.T) {
 	}
 
 	var items []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 positions, got %d", len(items))
 	}

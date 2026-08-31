@@ -40,20 +40,6 @@ func (m *mockFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[
 	return result
 }
 
-// benchPricesToday returns a slice of HistoricalPrice for the given benchmark
-// symbols with today's date, so gap-fill sees current cache and skips.
-func benchPricesToday(symbols []string) map[string][]market.HistoricalPrice {
-	nowDate := time.Date(time.Now().UTC().Year(), time.Now().UTC().Month(), time.Now().UTC().Day(), 0, 0, 0, 0, time.UTC)
-	prices := []market.HistoricalPrice{
-		{Date: nowDate, Close: decimal.MustNew(500000, 2), Currency: "USD"},
-	}
-	result := make(map[string][]market.HistoricalPrice, len(symbols))
-	for _, sym := range symbols {
-		result[sym] = prices
-	}
-	return result
-}
-
 func (m *mockFetcher) FetchHistoricalPricesBatch(_ context.Context, symbols []string, start, end time.Time) (map[string][]market.HistoricalPrice, []string) {
 	m.mu.Lock()
 	m.fetchHistoricalCalls++
@@ -602,7 +588,7 @@ func TestPeriodicTicker_GapFill(t *testing.T) {
 	oldPrice := []market.HistoricalPrice{
 		{Date: now.AddDate(0, 0, -10), Close: decimal.MustNew(16000, 2), Currency: "USD"},
 	}
-	repo.UpsertHistoricalPrices(ctx, "AAPL", oldPrice, "stock")
+	_ = repo.UpsertHistoricalPrices(ctx, "AAPL", oldPrice, "stock")
 
 	discoverer := &mockDiscoverer{}
 	discoverer.SetAllSymbols([]string{"AAPL"})
@@ -884,7 +870,7 @@ func TestGapFill_FullCache_SkipsFetch(t *testing.T) {
 	repo := newMockRepo()
 
 	// Pre-seed with today's price (fully covered).
-	repo.UpsertHistoricalPrices(ctx, "AAPL", []market.HistoricalPrice{
+	_ = repo.UpsertHistoricalPrices(ctx, "AAPL", []market.HistoricalPrice{
 		{Date: now, Close: decimal.MustNew(17000, 2), Currency: "USD"},
 	}, "stock")
 

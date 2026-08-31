@@ -20,7 +20,7 @@ func qgrwPage(t *testing.T) string {
 	t.Helper()
 	var b strings.Builder
 	for _, p := range []string{"page_qgrw_wtclassid.txt", "flight_qgrw_tables.html", "flight_qgrw_sector.html"} {
-		b.WriteString(loadFixture(t, p))
+		_, _ = b.WriteString(loadFixture(t, p))
 	}
 	return b.String()
 }

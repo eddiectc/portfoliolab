@@ -33,7 +33,7 @@ func setupPos(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64,
 		t.Fatalf("create portfolio: expected 201, got %d", w.Code)
 	}
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	portfolioID = p.ID
 
 	// Create account
@@ -46,7 +46,7 @@ func setupPos(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64,
 		t.Fatalf("create account: expected 201, got %d", w.Code)
 	}
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	accountID = a.ID
 
 	// Create symbol mapping for AAPL
@@ -76,7 +76,7 @@ func createTransaction(t *testing.T, router http.Handler, accountID int64, date,
 		t.Fatalf("create transaction %s %s: expected 201, got %d: %s", txType, symbol, w.Code, w.Body.String())
 	}
 	var tx transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&tx)
+	_ = json.NewDecoder(w.Body).Decode(&tx)
 	return tx
 }
 
@@ -102,7 +102,7 @@ func TestPosition_FullRecalcFlow(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 
 	// Should have AAPL open position + cash position
 	foundAAPL := false
@@ -156,7 +156,7 @@ func TestPosition_FIFOWithRealSQL(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 
 	// Should have 1 AAPL open position with 30 shares remaining
 	foundAAPL := false
@@ -201,7 +201,7 @@ func TestPosition_CashTracking(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 
 	// Cash: 1000000 - 200000 - 150000 + 85000 = 735000 (net_cash sum in cents)
 	for _, p := range positions {
@@ -237,7 +237,7 @@ func TestPosition_Transitions(t *testing.T) {
 	}
 
 	var openPositions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&openPositions)
+	_ = json.NewDecoder(w.Body).Decode(&openPositions)
 
 	aaplOpen := false
 	for _, p := range openPositions {
@@ -261,7 +261,7 @@ func TestPosition_Transitions(t *testing.T) {
 	}
 
 	var closedPositions []position.Position
-	json.NewDecoder(w.Body).Decode(&closedPositions)
+	_ = json.NewDecoder(w.Body).Decode(&closedPositions)
 
 	aaplClosed := false
 	for _, p := range closedPositions {
@@ -293,7 +293,7 @@ func TestPosition_EmptyAccount(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 	// Should include cash positions from the account (if any) or be empty
 	// With no transactions, should be empty or just the account's cash
 	if len(positions) != 0 {
@@ -309,7 +309,7 @@ func TestPosition_EmptyAccount(t *testing.T) {
 	}
 
 	var closed []position.Position
-	json.NewDecoder(w.Body).Decode(&closed)
+	_ = json.NewDecoder(w.Body).Decode(&closed)
 	if len(closed) != 0 {
 		t.Errorf("expected 0 closed positions, got %d", len(closed))
 	}
@@ -341,7 +341,7 @@ func TestPosition_Recalculate(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 
 	foundAAPL := false
 	for _, p := range positions {
@@ -380,7 +380,7 @@ func TestPosition_RecalculateIdempotent(t *testing.T) {
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	var positions1 []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions1)
+	_ = json.NewDecoder(w.Body).Decode(&positions1)
 
 	// Recalculate second time
 	req = httptest.NewRequest(http.MethodPost, "/api/positions/recalculate", bytes.NewBufferString(recalcBody))
@@ -396,7 +396,7 @@ func TestPosition_RecalculateIdempotent(t *testing.T) {
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	var positions2 []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions2)
+	_ = json.NewDecoder(w.Body).Decode(&positions2)
 
 	// Compare: same number of positions, same quantities
 	if len(positions1) != len(positions2) {
@@ -427,7 +427,7 @@ func TestPosition_FilterByAccount(t *testing.T) {
 		t.Fatalf("create account 2: expected 201, got %d", w.Code)
 	}
 	var a2 account.Account
-	json.NewDecoder(w.Body).Decode(&a2)
+	_ = json.NewDecoder(w.Body).Decode(&a2)
 
 	// Buy on account 1
 	createTransaction(t, router, accountID, "2025-01-15", "buy", "AAPL", 10, 15000, -150000)
@@ -444,7 +444,7 @@ func TestPosition_FilterByAccount(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 
 	// Should only have positions from account 1
 	aaplCount := 0
@@ -480,7 +480,7 @@ func TestPosition_ClosedPositions(t *testing.T) {
 	}
 
 	var openPositions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&openPositions)
+	_ = json.NewDecoder(w.Body).Decode(&openPositions)
 	for _, p := range openPositions {
 		if p.Symbol == "AAPL" {
 			t.Error("expected no open AAPL position (all shares sold)")
@@ -496,7 +496,7 @@ func TestPosition_ClosedPositions(t *testing.T) {
 	}
 
 	var closedPositions []position.Position
-	json.NewDecoder(w.Body).Decode(&closedPositions)
+	_ = json.NewDecoder(w.Body).Decode(&closedPositions)
 
 	found := false
 	for _, p := range closedPositions {
@@ -542,7 +542,7 @@ func TestPosition_LotDetail(t *testing.T) {
 	}
 
 	var lotResp map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&lotResp)
+	_ = json.NewDecoder(w.Body).Decode(&lotResp)
 
 	if lotType, ok := lotResp["lot_type"].(string); !ok || lotType != "buy" {
 		t.Errorf("expected lot_type 'buy', got %v", lotType)
@@ -568,7 +568,7 @@ func TestPosition_CascadeDelete(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 	aaplFound := false
 	for _, p := range positions {
 		if p.Symbol == "AAPL" {
@@ -596,7 +596,7 @@ func TestPosition_CascadeDelete(t *testing.T) {
 	}
 
 	var remaining []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&remaining)
+	_ = json.NewDecoder(w.Body).Decode(&remaining)
 	for _, p := range remaining {
 		if p.Symbol == "AAPL" {
 			t.Error("expected AAPL position to be deleted with account")
@@ -625,7 +625,7 @@ func TestPosition_MultipleCycles(t *testing.T) {
 	}
 
 	var openPositions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&openPositions)
+	_ = json.NewDecoder(w.Body).Decode(&openPositions)
 	for _, p := range openPositions {
 		if p.Symbol == "AAPL" {
 			t.Error("expected no open AAPL position after two full cycles")
@@ -641,7 +641,7 @@ func TestPosition_MultipleCycles(t *testing.T) {
 	}
 
 	var closedPositions []position.Position
-	json.NewDecoder(w.Body).Decode(&closedPositions)
+	_ = json.NewDecoder(w.Body).Decode(&closedPositions)
 
 	closedCount := 0
 	for _, p := range closedPositions {
@@ -677,7 +677,7 @@ func TestPosition_DividendWithNoOpenPosition(t *testing.T) {
 	}
 
 	var positions []position.PositionWithMarket
-	json.NewDecoder(w.Body).Decode(&positions)
+	_ = json.NewDecoder(w.Body).Decode(&positions)
 
 	// Cash: deposit 1000000 - buy 1500000 + sell 1700000 + dividend 30000 = 1230000 (net_cash sum in cents)
 	for _, p := range positions {

@@ -15,7 +15,9 @@ type APIError struct {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	// The status code is already sent, so an encode failure (typically a
+	// client disconnect) has nowhere left to be reported.
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // writeJSONError writes a JSON error response.

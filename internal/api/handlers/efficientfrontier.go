@@ -67,7 +67,7 @@ type computeFrontierResponse struct {
 
 // HandleSaveFrontierAsModelPortfolio handles POST /api/efficient-frontier/save.
 func (h *EfficientFrontierHandler) HandleSaveFrontierAsModelPortfolio(w http.ResponseWriter, r *http.Request) {
-	h.OptimizationCommon.HandleSaveAsModelPortfolio(w, r, "/efficient-frontier", "")
+	h.HandleSaveAsModelPortfolio(w, r, "/efficient-frontier", "")
 }
 
 // HandleComputeFrontier handles POST /api/efficient-frontier/compute.
@@ -127,16 +127,16 @@ func (h *EfficientFrontierHandler) HandleComputeFrontier(w http.ResponseWriter, 
 }
 
 func (h *EfficientFrontierHandler) handleComputeError(w http.ResponseWriter, err error) {
-	switch {
-	case err == efficientfrontier.ErrInsufficientSymbols:
+	switch err {
+	case efficientfrontier.ErrInsufficientSymbols:
 		writeJSONError(w, http.StatusBadRequest, "INSUFFICIENT_SYMBOLS", err.Error())
-	case err == efficientfrontier.ErrTooManySymbols:
+	case efficientfrontier.ErrTooManySymbols:
 		writeJSONError(w, http.StatusBadRequest, "TOO_MANY_SYMBOLS", err.Error())
-	case err == efficientfrontier.ErrInsufficientData:
+	case efficientfrontier.ErrInsufficientData:
 		writeJSONError(w, http.StatusBadRequest, "INSUFFICIENT_DATA", err.Error())
-	case err == efficientfrontier.ErrSingularMatrix:
+	case efficientfrontier.ErrSingularMatrix:
 		writeJSONError(w, http.StatusBadRequest, "SINGULAR_MATRIX", err.Error())
-	case err == efficientfrontier.ErrNumericalFailure:
+	case efficientfrontier.ErrNumericalFailure:
 		writeJSONError(w, http.StatusBadRequest, "NUMERICAL_FAILURE", err.Error())
 	default:
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute efficient frontier")

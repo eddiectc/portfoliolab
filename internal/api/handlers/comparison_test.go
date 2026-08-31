@@ -295,7 +295,7 @@ func TestComparisonHandleComparison_InternalError(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INTERNAL_ERROR" {
 		t.Errorf("expected INTERNAL_ERROR, got %q", errResp.Code)
 	}
@@ -321,7 +321,7 @@ func TestComparisonHandleComparison_MissingPortfolioAID(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISSING_PORTFOLIO_A_ID" {
 		t.Errorf("expected MISSING_PORTFOLIO_A_ID, got %q", errResp.Code)
 	}
@@ -342,7 +342,7 @@ func TestComparisonHandleComparison_MissingPortfolioAType(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISSING_PORTFOLIO_A_TYPE" {
 		t.Errorf("expected MISSING_PORTFOLIO_A_TYPE, got %q", errResp.Code)
 	}
@@ -363,7 +363,7 @@ func TestComparisonHandleComparison_MissingPortfolioBID(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISSING_PORTFOLIO_B_ID" {
 		t.Errorf("expected MISSING_PORTFOLIO_B_ID, got %q", errResp.Code)
 	}
@@ -384,7 +384,7 @@ func TestComparisonHandleComparison_MissingPortfolioBType(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISSING_PORTFOLIO_B_TYPE" {
 		t.Errorf("expected MISSING_PORTFOLIO_B_TYPE, got %q", errResp.Code)
 	}
@@ -408,7 +408,7 @@ func TestComparisonHandleComparison_InvalidPortfolioAType(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PORTFOLIO_A_TYPE" {
 		t.Errorf("expected INVALID_PORTFOLIO_A_TYPE, got %q", errResp.Code)
 	}
@@ -429,7 +429,7 @@ func TestComparisonHandleComparison_InvalidPortfolioBType(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PORTFOLIO_B_TYPE" {
 		t.Errorf("expected INVALID_PORTFOLIO_B_TYPE, got %q", errResp.Code)
 	}
@@ -453,7 +453,7 @@ func TestComparisonHandleComparison_InvalidPeriod(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PERIOD" {
 		t.Errorf("expected INVALID_PERIOD, got %q", errResp.Code)
 	}
@@ -495,7 +495,7 @@ func TestComparisonHandleComparison_InvalidDateFrom(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_DATE_FROM" {
 		t.Errorf("expected INVALID_DATE_FROM, got %q", errResp.Code)
 	}
@@ -516,7 +516,7 @@ func TestComparisonHandleComparison_InvalidDateTo(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_DATE_TO" {
 		t.Errorf("expected INVALID_DATE_TO, got %q", errResp.Code)
 	}
@@ -537,7 +537,7 @@ func TestComparisonHandleComparison_InvalidStartingValue(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_STARTING_VALUE" {
 		t.Errorf("expected INVALID_STARTING_VALUE, got %q", errResp.Code)
 	}
@@ -558,7 +558,7 @@ func TestComparisonHandleComparison_ZeroStartingValue(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_STARTING_VALUE" {
 		t.Errorf("expected INVALID_STARTING_VALUE, got %q", errResp.Code)
 	}
@@ -579,7 +579,7 @@ func TestComparisonHandleComparison_NegativeStartingValue(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_STARTING_VALUE" {
 		t.Errorf("expected INVALID_STARTING_VALUE, got %q", errResp.Code)
 	}
@@ -600,7 +600,7 @@ func TestComparisonHandleComparison_InvalidPortfolioAID(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PORTFOLIO_A_ID" {
 		t.Errorf("expected INVALID_PORTFOLIO_A_ID, got %q", errResp.Code)
 	}
@@ -621,7 +621,7 @@ func TestComparisonHandleComparison_InvalidPortfolioBID(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PORTFOLIO_B_ID" {
 		t.Errorf("expected INVALID_PORTFOLIO_B_ID, got %q", errResp.Code)
 	}
@@ -667,7 +667,7 @@ func TestComparisonHandleComparison_EmptyState(t *testing.T) {
 	}
 
 	var result comparison.ComparisonResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.Message == "" {
 		t.Error("expected non-empty message for empty state")
 	}

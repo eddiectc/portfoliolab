@@ -64,7 +64,7 @@ func (c *Client) FetchREST(slug string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetch REST %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, readErr := io.ReadAll(resp.Body)
 
@@ -101,7 +101,7 @@ func (c *Client) FetchGraphQL(operationName string, variables map[string]interfa
 	if err != nil {
 		return nil, fmt.Errorf("fetch GraphQL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, readErr := io.ReadAll(resp.Body)
 

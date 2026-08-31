@@ -359,7 +359,7 @@ func TestHRP_Error_SingleSymbol(t *testing.T) {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INSUFFICIENT_SYMBOLS" {
 		t.Errorf("expected error code INSUFFICIENT_SYMBOLS, got %q", errResp.Code)
 	}
@@ -409,7 +409,7 @@ func TestHRP_Error_TooManySymbols(t *testing.T) {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "TOO_MANY_SYMBOLS" {
 		t.Errorf("expected error code TOO_MANY_SYMBOLS, got %q", errResp.Code)
 	}
@@ -431,7 +431,7 @@ func TestHRP_Error_InvalidPeriod(t *testing.T) {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PERIOD" {
 		t.Errorf("expected error code INVALID_PERIOD, got %q", errResp.Code)
 	}
@@ -537,7 +537,7 @@ func TestHRP_SaveAsModelPortfolio(t *testing.T) {
 	}
 
 	var mp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&mp)
+	_ = json.NewDecoder(w.Body).Decode(&mp)
 
 	if mp.Name != "HRP Single Linkage" {
 		t.Errorf("expected name 'HRP Single Linkage', got %q", mp.Name)
@@ -556,7 +556,7 @@ func TestHRP_SaveAsModelPortfolio(t *testing.T) {
 	}
 
 	var retrieved modelportfolio.ModelPortfolio
-	json.NewDecoder(w2.Body).Decode(&retrieved)
+	_ = json.NewDecoder(w2.Body).Decode(&retrieved)
 	if retrieved.Name != "HRP Single Linkage" {
 		t.Errorf("expected name 'HRP Single Linkage', got %q", retrieved.Name)
 	}
@@ -577,7 +577,7 @@ func TestHRP_GetCandidateSymbols(t *testing.T) {
 	var resp struct {
 		Symbols []string `json:"symbols"`
 	}
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	found := make(map[string]bool)
 	for _, s := range resp.Symbols {
@@ -686,7 +686,7 @@ func TestHRP_SaveAsModelPortfolio_DuplicateName(t *testing.T) {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "NAME_EXISTS" {
 		t.Errorf("expected error code NAME_EXISTS, got %q", errResp.Code)
 	}

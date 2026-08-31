@@ -126,7 +126,8 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 		var err error
 		baseCurrency, err = s.resolveBaseCurrency(ctx, req.PortfolioAID, req.PortfolioAType)
 		if err != nil || baseCurrency == "" {
-			baseCurrency, err = s.resolveBaseCurrency(ctx, req.PortfolioBID, req.PortfolioBType)
+			// Ignore the error: an empty result falls back to USD below.
+			baseCurrency, _ = s.resolveBaseCurrency(ctx, req.PortfolioBID, req.PortfolioBType)
 		}
 		if baseCurrency == "" {
 			baseCurrency = "USD" // fallback
@@ -176,11 +177,9 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 			// No overlapping data.
 			result.Warnings = append(result.Warnings, "No overlapping date range between portfolios")
 		}
-	} else if len(aCurve) >= 2 {
-		// Only A has data — use A's range.
-	} else if len(bCurve) >= 2 {
-		// Only B has data — use B's range.
 	}
+	// If only one portfolio has data, its (unclipped) curve is used as-is;
+	// cross-metric computation below requires both sides.
 
 	// Compute per-portfolio metrics.
 	result.PortfolioA = s.computePortfolioMetrics(aCurve, aData, baseCurrency, req.RiskFreeRatePct)

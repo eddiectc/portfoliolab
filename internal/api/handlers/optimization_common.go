@@ -166,18 +166,18 @@ func (o *OptimizationCommon) HandleSaveAsModelPortfolio(w http.ResponseWriter, r
 // handleModelPortfolioSaveError maps model portfolio creation errors to
 // JSON error responses. Shared by all optimization handlers.
 func handleModelPortfolioSaveError(w http.ResponseWriter, err error) {
-	switch {
-	case err == modelportfolio.ErrNameExists:
+	switch err {
+	case modelportfolio.ErrNameExists:
 		writeJSONError(w, http.StatusConflict, "NAME_EXISTS", err.Error())
-	case err == modelportfolio.ErrInvalidName:
+	case modelportfolio.ErrInvalidName:
 		writeJSONError(w, http.StatusBadRequest, "INVALID_NAME", err.Error())
-	case err == modelportfolio.ErrWeightSumNot100:
+	case modelportfolio.ErrWeightSumNot100:
 		writeJSONError(w, http.StatusBadRequest, "WEIGHT_SUM_NOT_100", err.Error())
-	case err == modelportfolio.ErrInvalidWeight:
+	case modelportfolio.ErrInvalidWeight:
 		writeJSONError(w, http.StatusBadRequest, "INVALID_WEIGHT", err.Error())
-	case err == modelportfolio.ErrDuplicateSymbol:
+	case modelportfolio.ErrDuplicateSymbol:
 		writeJSONError(w, http.StatusBadRequest, "DUPLICATE_SYMBOL", err.Error())
-	case err == modelportfolio.ErrEmptyEntries:
+	case modelportfolio.ErrEmptyEntries:
 		writeJSONError(w, http.StatusBadRequest, "EMPTY_ENTRIES", err.Error())
 	default:
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save model portfolio")

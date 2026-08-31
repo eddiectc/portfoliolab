@@ -30,7 +30,7 @@ func setupAnalysis(t *testing.T) (*sql.DB, http.Handler, int64, int64) {
 		t.Fatalf("create portfolio: expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	portfolioID := p.ID
 
 	// Create account
@@ -45,7 +45,7 @@ func setupAnalysis(t *testing.T) (*sql.DB, http.Handler, int64, int64) {
 	var a struct {
 		ID int64 `json:"id"`
 	}
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	accountID := a.ID
 
 	// Create symbol mappings

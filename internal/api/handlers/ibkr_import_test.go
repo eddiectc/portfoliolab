@@ -84,9 +84,9 @@ func buildMultipartForm(xmlContent, accountID string) (body *bytes.Buffer, conte
 	body = &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("xml_file", "report.xml")
-	part.Write([]byte(xmlContent))
-	writer.WriteField("account_id", accountID)
-	writer.Close()
+	_, _ = part.Write([]byte(xmlContent))
+	_ = writer.WriteField("account_id", accountID)
+	_ = writer.Close()
 	return body, writer.FormDataContentType()
 }
 
@@ -133,7 +133,7 @@ func TestImportHandlePreview_Success(t *testing.T) {
 	}
 
 	var resp ibkrimport.PreviewResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.ImportableCount != 1 {
 		t.Errorf("expected 1 importable, got %d", resp.ImportableCount)
 	}
@@ -156,7 +156,7 @@ func TestImportHandlePreview_InvalidXML(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_XML" {
 		t.Errorf("expected INVALID_XML, got %q", errResp.Code)
 	}
@@ -203,8 +203,8 @@ func TestImportHandlePreview_MissingXMLFile(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("account_id", "1")
-	writer.Close()
+	_ = writer.WriteField("account_id", "1")
+	_ = writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions/import/ibkr/preview", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -241,7 +241,7 @@ func TestImportHandleConfirm_Success(t *testing.T) {
 	}
 
 	var resp ibkrimport.ImportResult
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.CreatedCount != 5 {
 		t.Errorf("expected 5 created, got %d", resp.CreatedCount)
 	}
@@ -272,7 +272,7 @@ func TestImportHandleConfirm_AllDuplicates(t *testing.T) {
 	}
 
 	var resp ibkrimport.ImportResult
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.CreatedCount != 0 {
 		t.Errorf("expected 0 created, got %d", resp.CreatedCount)
 	}
@@ -337,7 +337,7 @@ func TestImportHandleCreateSymbol_Success(t *testing.T) {
 	}
 
 	var resp symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.InternalSymbol != "AAPL" {
 		t.Errorf("expected 'AAPL', got %q", resp.InternalSymbol)
 	}
@@ -446,7 +446,7 @@ func TestImportHandleAddBrokerSymbol_SymbolNotFound(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "SYMBOL_NOT_FOUND" {
 		t.Errorf("expected SYMBOL_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -470,7 +470,7 @@ func TestImportHandleAddBrokerSymbol_BrokerSymbolExists(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "BROKER_SYMBOL_EXISTS" {
 		t.Errorf("expected BROKER_SYMBOL_EXISTS, got %q", errResp.Code)
 	}
@@ -588,7 +588,7 @@ func TestImportErrorResponseFormat(t *testing.T) {
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tt.wantErrCode {
 				t.Errorf("expected error code %q, got %q", tt.wantErrCode, errResp.Code)
 			}

@@ -118,7 +118,7 @@ func TestEfficientFrontierHandleComputeFrontier_Success(t *testing.T) {
 	}
 
 	var resp computeFrontierResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -196,7 +196,7 @@ func TestEfficientFrontierHandleComputeFrontier_Validation(t *testing.T) {
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tc.wantCode {
 				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
 			}
@@ -219,7 +219,7 @@ func TestEfficientFrontierHandleComputeFrontier_ServiceError(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INSUFFICIENT_DATA" {
 		t.Errorf("expected INSUFFICIENT_DATA, got %q", errResp.Code)
 	}
@@ -240,7 +240,7 @@ func TestEfficientFrontierHandleComputeFrontier_SingularMatrix(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "SINGULAR_MATRIX" {
 		t.Errorf("expected SINGULAR_MATRIX, got %q", errResp.Code)
 	}
@@ -261,7 +261,7 @@ func TestEfficientFrontierHandleComputeFrontier_NumericalFailure(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "NUMERICAL_FAILURE" {
 		t.Errorf("expected NUMERICAL_FAILURE, got %q", errResp.Code)
 	}
@@ -290,7 +290,7 @@ func TestEfficientFrontierHandleComputeFrontier_EmptyCandidateSet(t *testing.T) 
 	}
 
 	var resp computeFrontierResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Result.Message == "" {
 		t.Error("expected empty-state message")
 	}
@@ -315,7 +315,7 @@ func TestEfficientFrontierHandleGetCandidateSymbols_Success(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if len(resp.Symbols) != 3 {
 		t.Errorf("expected 3 symbols, got %d", len(resp.Symbols))
 	}
@@ -335,7 +335,7 @@ func TestEfficientFrontierHandleGetCandidateSymbols_Empty(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Symbols == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -374,7 +374,7 @@ func TestEfficientFrontierHandleGetPortfolioSymbols_Success(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if len(resp.Symbols) != 3 {
 		t.Errorf("expected 3 symbols, got %d", len(resp.Symbols))
 	}
@@ -395,7 +395,7 @@ func TestEfficientFrontierHandleGetPortfolioSymbols_EmptyPortfolio(t *testing.T)
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Symbols == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -435,7 +435,7 @@ func TestEfficientFrontierHandleGetModelPortfolioSymbols_Success(t *testing.T) {
 	}
 
 	var resp symbolsResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if len(resp.Symbols) != 2 {
 		t.Errorf("expected 2 symbols, got %d", len(resp.Symbols))
 	}
@@ -546,7 +546,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_Success(t *testing.T) {
 	}
 
 	var resp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Name != "Max Sharpe Portfolio" {
 		t.Errorf("expected name 'Max Sharpe Portfolio', got %q", resp.Name)
 	}
@@ -577,7 +577,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_NoCreator(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "NOT_CONFIGURED" {
 		t.Errorf("expected NOT_CONFIGURED, got %q", errResp.Code)
 	}
@@ -632,7 +632,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_Validation(t *testing.T) {
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tc.wantCode {
 				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
 			}
@@ -672,7 +672,7 @@ func TestEfficientFrontierHandleSaveAsModelPortfolio_ServiceError(t *testing.T) 
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tc.wantCode {
 				t.Errorf("expected code %q, got %q", tc.wantCode, errResp.Code)
 			}

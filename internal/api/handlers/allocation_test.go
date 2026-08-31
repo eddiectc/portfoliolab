@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -149,7 +148,7 @@ func TestAllocHandleAllocation_Success(t *testing.T) {
 	}
 
 	var result allocation.AllocationResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if len(result.Rows) != 2 {
 		t.Errorf("expected 2 rows, got %d", len(result.Rows))
 	}
@@ -194,7 +193,7 @@ func TestAllocHandleAllocation_EmptyPortfolio(t *testing.T) {
 	}
 
 	var result allocation.AllocationResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.Message != "No open positions found" {
 		t.Errorf("expected empty message, got %q", result.Message)
 	}
@@ -213,7 +212,7 @@ func TestAllocHandleAllocation_ZeroTotalValue(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "ZERO_TOTAL_VALUE" {
 		t.Errorf("expected ZERO_TOTAL_VALUE, got %q", errResp.Code)
 	}
@@ -232,7 +231,7 @@ func TestAllocHandleAllocation_MixedCurrencies(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MIXED_CURRENCIES" {
 		t.Errorf("expected MIXED_CURRENCIES, got %q", errResp.Code)
 	}
@@ -256,7 +255,7 @@ func TestAllocHandleGetTarget_Success(t *testing.T) {
 	}
 
 	var targets []allocation.TargetAllocation
-	json.NewDecoder(w.Body).Decode(&targets)
+	_ = json.NewDecoder(w.Body).Decode(&targets)
 	if len(targets) != 2 {
 		t.Errorf("expected 2 targets, got %d", len(targets))
 	}
@@ -274,7 +273,7 @@ func TestAllocHandleGetTarget_NoPortfolioID(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISSING_PORTFOLIO_ID" {
 		t.Errorf("expected MISSING_PORTFOLIO_ID, got %q", errResp.Code)
 	}
@@ -293,7 +292,7 @@ func TestAllocHandleGetTarget_EmptyTargets(t *testing.T) {
 	}
 
 	var targets []allocation.TargetAllocation
-	json.NewDecoder(w.Body).Decode(&targets)
+	_ = json.NewDecoder(w.Body).Decode(&targets)
 	if targets == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -320,7 +319,7 @@ func TestAllocHandleSaveTarget_Success(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["status"] != "saved" {
 		t.Errorf("expected status 'saved', got %q", resp["status"])
 	}
@@ -340,7 +339,7 @@ func TestAllocHandleSaveTarget_InvalidBody(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_REQUEST" {
 		t.Errorf("expected INVALID_REQUEST, got %q", errResp.Code)
 	}
@@ -377,7 +376,7 @@ func TestAllocHandleSaveTarget_InvalidPct(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_TARGET_PCT" {
 		t.Errorf("expected INVALID_TARGET_PCT, got %q", errResp.Code)
 	}
@@ -402,7 +401,7 @@ func TestAllocHandleSaveTarget_SumNot100(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "TARGET_SUM_NOT_100" {
 		t.Errorf("expected TARGET_SUM_NOT_100, got %q", errResp.Code)
 	}
@@ -430,12 +429,9 @@ func TestAllocHandleSaveTarget_CustomError(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "target_sum_not_100" {
 		t.Errorf("expected target_sum_not_100, got %q", errResp.Code)
-	}
-	if !errors.Is(svc.saveErr, &allocation.AllocationError{}) {
-		// This is expected — custom error with delta info
 	}
 }
 
@@ -453,7 +449,7 @@ func TestAllocHandleDeleteTarget_Single(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["scope"] != "AAPL" {
 		t.Errorf("expected scope 'AAPL', got %q", resp["scope"])
 	}
@@ -474,7 +470,7 @@ func TestAllocHandleDeleteTarget_All(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp["scope"] != "all" {
 		t.Errorf("expected scope 'all', got %q", resp["scope"])
 	}
@@ -514,7 +510,7 @@ func TestAllocHandleDrift_Success(t *testing.T) {
 	}
 
 	var result allocation.DriftResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if len(result.Rows) != 2 {
 		t.Errorf("expected 2 rows, got %d", len(result.Rows))
 	}
@@ -554,7 +550,7 @@ func TestAllocHandleDrift_NoTarget(t *testing.T) {
 	}
 
 	var result allocation.DriftResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.HasTarget {
 		t.Error("expected HasTarget=false")
 	}
@@ -583,7 +579,7 @@ func TestAllocHandleRebalance_Success(t *testing.T) {
 	}
 
 	var result allocation.RebalanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if len(result.Suggestions) != 2 {
 		t.Errorf("expected 2 suggestions, got %d", len(result.Suggestions))
 	}
@@ -610,7 +606,7 @@ func TestAllocHandleRebalance_Balanced(t *testing.T) {
 	}
 
 	var result allocation.RebalanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if !result.IsBalanced {
 		t.Error("expected IsBalanced=true")
 	}

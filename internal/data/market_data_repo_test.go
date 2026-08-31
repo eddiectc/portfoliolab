@@ -41,7 +41,7 @@ func setupMarketDataDB(t *testing.T) *sql.DB {
 		t.Fatalf("create tables: %v", err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
@@ -114,7 +114,7 @@ func TestMarketDataRepository_Upsert_OverwritesExisting(t *testing.T) {
 		Date:      "",
 		FetchedAt: time.Now(),
 	}
-	repo.Upsert(context.Background(), md1)
+	_ = repo.Upsert(context.Background(), md1)
 
 	// Upsert with new price (same symbol/source/date)
 	price2, _ := decimal.NewFromFloat64(185.50)
@@ -127,7 +127,7 @@ func TestMarketDataRepository_Upsert_OverwritesExisting(t *testing.T) {
 		Date:      "",
 		FetchedAt: time.Now(),
 	}
-	repo.Upsert(context.Background(), md2)
+	_ = repo.Upsert(context.Background(), md2)
 
 	got, err := repo.GetLatest(context.Background(), "AAPL")
 	if err != nil {
@@ -152,7 +152,7 @@ func TestMarketDataRepository_GetBySourceAndDate(t *testing.T) {
 		Date:      "2026-05-08",
 		FetchedAt: time.Now(),
 	}
-	repo.Upsert(context.Background(), md)
+	_ = repo.Upsert(context.Background(), md)
 
 	got, err := repo.GetBySourceAndDate(context.Background(), "GBP/USD", "yahoo", "2026-05-08")
 	if err != nil {
@@ -196,7 +196,7 @@ func TestMarketDataRepository_GetCurrentFxRate(t *testing.T) {
 		Date:      "", // current (latest)
 		FetchedAt: time.Now(),
 	}
-	repo.Upsert(context.Background(), md)
+	_ = repo.Upsert(context.Background(), md)
 
 	got, err := repo.GetCurrentFxRate(context.Background(), "GBP", "USD")
 	if err != nil {
@@ -253,7 +253,7 @@ func TestMarketDataRepository_GetHistoricalFxRateOnOrBefore(t *testing.T) {
 			Date:      r.date,
 			FetchedAt: time.Now(),
 		}
-		repo.Upsert(context.Background(), md)
+		_ = repo.Upsert(context.Background(), md)
 	}
 
 	// Exact match.
@@ -312,7 +312,7 @@ func TestMarketDataRepository_MultipleSources(t *testing.T) {
 			Date:      "",
 			FetchedAt: time.Now(),
 		}
-		repo.Upsert(context.Background(), md)
+		_ = repo.Upsert(context.Background(), md)
 	}
 
 	// GetBySourceAndDate should distinguish sources
@@ -344,7 +344,7 @@ func TestMarketDataRepository_DeleteStaleMarketData(t *testing.T) {
 
 	// Manually insert with old fetched_at to simulate stale data
 	price1, _ := decimal.NewFromFloat64(180.00)
-	db.Exec(`INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+	_, _ = db.Exec(`INSERT INTO market_data (symbol, price, currency, data_type, source, date, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		"AAPL", price1.String(), "USD", "stock", "yahoo", "", oldTime.Format(time.RFC3339))
 
 	// Delete stale entries older than 1 hour ago
@@ -368,7 +368,7 @@ func TestMarketDataRepository_DeleteStaleMarketData(t *testing.T) {
 		Date:      "",
 		FetchedAt: newTime,
 	}
-	repo.Upsert(context.Background(), md2)
+	_ = repo.Upsert(context.Background(), md2)
 
 	// Verify fresh entry survives
 	got, err := repo.GetLatest(context.Background(), "AAPL")
@@ -449,7 +449,7 @@ func TestMarketDataRepository_UpsertHistoricalPrices_OverwritesExisting(t *testi
 		Date:      "2026-05-08",
 		FetchedAt: time.Now(),
 	}
-	repo.Upsert(context.Background(), md)
+	_ = repo.Upsert(context.Background(), md)
 
 	// Upsert historical prices including the same date with a new price.
 	prices := []market.HistoricalPrice{
@@ -518,7 +518,7 @@ func TestMarketDataRepository_GetHistoricalPricesBySymbol_PartialRange(t *testin
 		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
 		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
 	}
-	repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices, "stock")
+	_ = repo.UpsertHistoricalPrices(context.Background(), "AAPL", prices, "stock")
 
 	// Query only the middle day.
 	got, err := repo.GetHistoricalPricesBySymbol(context.Background(), "AAPL",
@@ -558,10 +558,10 @@ func TestMarketDataRepository_GetHistoricalPricesBySymbol_ExcludesCurrent(t *tes
 	histPrice := []market.HistoricalPrice{
 		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17500, 2), Currency: "USD"},
 	}
-	repo.UpsertHistoricalPrices(context.Background(), "AAPL", histPrice, "stock")
+	_ = repo.UpsertHistoricalPrices(context.Background(), "AAPL", histPrice, "stock")
 
 	currentPrice, _ := decimal.NewFromFloat64(185.00)
-	repo.Upsert(context.Background(), &market.MarketData{
+	_ = repo.Upsert(context.Background(), &market.MarketData{
 		Symbol:    "AAPL",
 		Price:     currentPrice,
 		Currency:  "USD",
@@ -593,7 +593,7 @@ func TestMarketDataRepository_GetLatestQuotesBatch(t *testing.T) {
 		if sym == "MSFT" {
 			price, _ = decimal.NewFromFloat64(420.00)
 		}
-		repo.Upsert(context.Background(), &market.MarketData{
+		_ = repo.Upsert(context.Background(), &market.MarketData{
 			Symbol:    sym,
 			Price:     price,
 			Currency:  "USD",
@@ -644,11 +644,11 @@ func TestMarketDataRepository_GetLatestPriceDatePerSymbol(t *testing.T) {
 	repo := NewMarketDataRepository(db)
 
 	// Insert historical prices for two symbols.
-	repo.UpsertHistoricalPrices(context.Background(), "AAPL", []market.HistoricalPrice{
+	_ = repo.UpsertHistoricalPrices(context.Background(), "AAPL", []market.HistoricalPrice{
 		{Date: time.Date(2026, 5, 6, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(17000, 2), Currency: "USD"},
 		{Date: time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(18000, 2), Currency: "USD"},
 	}, "stock")
-	repo.UpsertHistoricalPrices(context.Background(), "MSFT", []market.HistoricalPrice{
+	_ = repo.UpsertHistoricalPrices(context.Background(), "MSFT", []market.HistoricalPrice{
 		{Date: time.Date(2026, 5, 7, 0, 0, 0, 0, time.UTC), Close: decimal.MustNew(41000, 2), Currency: "USD"},
 	}, "stock")
 
