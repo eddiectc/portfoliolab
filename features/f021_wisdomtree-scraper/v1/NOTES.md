@@ -1,5 +1,9 @@
 # Notes: WisdomTree Scraper
 
+> **SUPERSEDED.** WisdomTree relaunched its website on 2026-08-30 (Sitecore → React/Next.js).
+> These notes cover the v1 implementation (old site), which was rebuilt in place in Phase 2.
+> Current notes: `../NOTES.md`.
+
 ## Decisions
 - 2026-05-27: **Sector aggregation bug fixed** — `ParseSectors` was summing `wgtSector` values across all rows per sector, but `wgtSector` is already the sector total repeated for each security. E.g. Industrials with 250 securities × 0.37 = 91.76% (wrong) instead of 37%. Fixed to take the first `wgtSector` value per sector (all rows in the same sector have the same value). Also fixed: `wgtSector` is a fraction (0.3685 = 36.85%), not a percentage — added `× 100` conversion. The old comment "Weight is already a percentage in sectors data" was incorrect.
 - 2026-05-27: **Optional sections return nil, nil instead of error** — QGRW.L failed with "parse nav history: fund market data not found" because its WisdomTree page lacks `fundMarketData` and `fundThemeData` variables (WMGT lacks `fundSectorsData`). Different WisdomTree pages include different data sections. Changed parsers for optional sections (`ParseNavHistory`, `ParseThemes`, `ParseSectors`, `ParseCountryAllocation`, `ParseFundProfile`, `ParseMarketCap`, `ParseFundCharacteristics`) to return `nil, nil` (empty result, no error) when the section is not found. Only parsing errors (malformed CSV, etc.) remain as hard failures. Required sections (`ParseFundInfo`, `ParseHoldings`, `ParseAsOfDate`) still fail on missing data. Updated corresponding tests to use `wantNil` instead of `wantErr` for missing-section cases.

@@ -1,5 +1,8 @@
 # Retrospective: Data Extractor Framework with WisdomTree Provider
 
+> **SUPERSEDED.** Covers the v1 implementation (old site), rebuilt in place after the 2026-08-30
+> site relaunch. The Phase 2 retrospective is pending; current state: `../NOTES.md`.
+
 **Feature ID**: f021
 **Date**: 2026-05-28
 **Duration**: ~2 days (2026-05-26 to 2026-05-27)

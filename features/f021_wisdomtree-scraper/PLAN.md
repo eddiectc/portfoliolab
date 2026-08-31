@@ -1,7 +1,7 @@
 # Implementation Plan: f021 WisdomTree Scraper — Phase 2 (New-Site Rebuild)
 
 **Date**: 2026-08-30
-**Status**: Approved 2026-08-30 (user confirmed); implementation in progress
+**Status**: Approved 2026-08-30 (user confirmed); implementation complete (retrospective pending)
 **Spec**: `SPEC.md` is **unchanged** (user decision 2026-08-30). The spec is implementation-agnostic and every
 data section it requires is still available on the new site. All rebuild decisions live here and in `RESEARCH.md`.
 **Context**: The 2026-08-30 relaunch (Sitecore → Next.js) broke every v1 parser. v1 code is replaced, not patched.
@@ -100,7 +100,7 @@ sections", RESEARCH.md §4
 - [x] Holdings ← API: ticker (`securityTicker`), name, weight (`wgt` fraction), sector (`sectorName`), FIGI;
       keep cash-row filtering by name keywords (existing convention)
 - [x] NAV history ← `fund-history` default view (ascending, since inception): each record → NAV point;
-      latest `aum` (millions → USD, e.g. `47442.9648` → $47,442,965) → AUM field
+      latest `aum` (thousands of USD → USD, e.g. `47442.9648` → $47,442,965) → AUM field
 - [x] Overview ← Product Overview table (ISIN, inception date, base currency, asset class) + Fees table (TER)
 - [x] Country allocation, Market Capitalisation, Fund characteristic (P/E, P/B, P/S, P/CF, dividend yield)
       ← flight tables
@@ -127,7 +127,7 @@ missing as-of, rate limiting), RESEARCH.md §10
       whole extraction; optional sections → `nil, nil`; API failures surfaced distinctly from parse failures
       (undocumented-API risk, RESEARCH.md §9.1)
 - [x] Rewrite `e2e_test.go`: injected fetch serving page + both API bodies — full flow for QGRW (UCITS) and
-      EZM (US); assert every section, as-of date, holdings count (101 / 493), no product-charts calls
+      EZM (US); assert every section, as-of date, holdings count (100 / 506 tradeable), no product-charts calls
 - [x] Write tests
 
 **Verification:** `go test ./internal/domain/extractor/wisdomtree/` (full package)
@@ -185,7 +185,7 @@ migrated before the new code is deployed.
   both variants (RESEARCH §9.2).
 - **URL migration window** — between portal URL updates and deploy, extraction fails explicitly (no data loss);
   Task 7 ordering minimizes the window.
-- **AUM unit trap** — API `aum` is in millions; conversion asserted in tests against the NAV-table cross-check
+- **AUM unit trap** — API `aum` is in thousands of USD; conversion asserted in tests against the NAV-table cross-check
   (RESEARCH §7: QGRW `47442.9648` ↔ `US$47,442,965`).
 - **Large responses** (WMGT holdings 350 KB, pages ~5 MB) — same CycleTLS client already handles 480 KB pages;
   no change, monitored in e2e timings.
