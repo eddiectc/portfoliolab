@@ -226,7 +226,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	expectedReturnsPct := make([]float64, len(expectedReturns))
 	for i, r := range expectedReturns {
-		expectedReturnsPct[i] = stats.RoundTo2(r*retScale*100)
+		expectedReturnsPct[i] = stats.RoundTo2(r * retScale * 100)
 	}
 
 	// Round correlation matrix to 4 decimal places.
@@ -249,8 +249,8 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	for i, p := range frontierPoints {
 		result.FrontierPoints[i] = FrontierPoint{
-			ReturnPct:      stats.RoundTo2(p.return_*retScale*100),
-			VolatilityPct:  stats.RoundTo2(p.volatility*volScale*100),
+			ReturnPct:      stats.RoundTo2(p.return_ * retScale * 100),
+			VolatilityPct:  stats.RoundTo2(p.volatility * volScale * 100),
 			SharpeRatio:    stats.RoundTo4(p.sharpe),
 			SortinoRatio:   stats.RoundTo4(p.sortino),
 			MaxDrawdownPct: stats.RoundTo2(p.maxDrawdownPct * 100),
@@ -270,43 +270,43 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	if minVarWeights != nil && minVarVol > 0 {
 		result.MinVariance = &OptimizedPortfolio{
 			Name:           "Min Variance",
-			ReturnPct:      stats.RoundTo2(minVarReturn*retScale*100),
-			VolatilityPct:  stats.RoundTo2(minVarVol*volScale*100),
+			ReturnPct:      stats.RoundTo2(minVarReturn * retScale * 100),
+			VolatilityPct:  stats.RoundTo2(minVarVol * volScale * 100),
 			SharpeRatio:    stats.RoundTo4(stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)),
 			SortinoRatio:   stats.RoundTo4(minVarSortino),
-			MaxDrawdownPct: stats.RoundTo2(minVarDD*100),
+			MaxDrawdownPct: stats.RoundTo2(minVarDD * 100),
 			Weights:        roundWeights(minVarWeights),
 		}
 	}
 
 	result.MaxSharpe = &OptimizedPortfolio{
 		Name:           "Max Sharpe",
-		ReturnPct:      stats.RoundTo2(best.return_*retScale*100),
-		VolatilityPct:  stats.RoundTo2(best.volatility*volScale*100),
+		ReturnPct:      stats.RoundTo2(best.return_ * retScale * 100),
+		VolatilityPct:  stats.RoundTo2(best.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(best.sharpe),
 		SortinoRatio:   stats.RoundTo4(best.sortino),
-		MaxDrawdownPct: stats.RoundTo2(best.maxDrawdownPct*100),
+		MaxDrawdownPct: stats.RoundTo2(best.maxDrawdownPct * 100),
 		Weights:        roundWeights(best.weights),
 	}
 
 	result.HighestReturn = &OptimizedPortfolio{
 		Name:           "Highest Return",
-		ReturnPct:      stats.RoundTo2(highest.return_*retScale*100),
-		VolatilityPct:  stats.RoundTo2(highest.volatility*volScale*100),
+		ReturnPct:      stats.RoundTo2(highest.return_ * retScale * 100),
+		VolatilityPct:  stats.RoundTo2(highest.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(highest.sharpe),
 		SortinoRatio:   stats.RoundTo4(highest.sortino),
-		MaxDrawdownPct: stats.RoundTo2(highestDD*100),
+		MaxDrawdownPct: stats.RoundTo2(highestDD * 100),
 		Weights:        roundWeights(highest.weights),
 	}
 
 	// Max Sortino portfolio.
 	result.MaxSortino = &OptimizedPortfolio{
 		Name:           "Max Sortino",
-		ReturnPct:      stats.RoundTo2(bestSortino.return_*retScale*100),
-		VolatilityPct:  stats.RoundTo2(bestSortino.volatility*volScale*100),
+		ReturnPct:      stats.RoundTo2(bestSortino.return_ * retScale * 100),
+		VolatilityPct:  stats.RoundTo2(bestSortino.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(bestSortino.sharpe),
 		SortinoRatio:   stats.RoundTo4(bestSortino.sortino),
-		MaxDrawdownPct: stats.RoundTo2(bestSortino.maxDrawdownPct*100),
+		MaxDrawdownPct: stats.RoundTo2(bestSortino.maxDrawdownPct * 100),
 		Weights:        roundWeights(bestSortino.weights),
 	}
 
@@ -321,8 +321,8 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	minDD := frontierPoints[minDDIdx]
 	result.MinDrawdown = &OptimizedPortfolio{
 		Name:           "Min Drawdown",
-		ReturnPct:      stats.RoundTo2(minDD.return_*retScale*100),
-		VolatilityPct:  stats.RoundTo2(minDD.volatility*volScale*100),
+		ReturnPct:      stats.RoundTo2(minDD.return_ * retScale * 100),
+		VolatilityPct:  stats.RoundTo2(minDD.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(minDD.sharpe),
 		SortinoRatio:   stats.RoundTo4(minDD.sortino),
 		MaxDrawdownPct: stats.RoundTo2(minDD.maxDrawdownPct * 100),
@@ -331,8 +331,6 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	return result, nil
 }
-
-
 
 // samplePortfolios generates n-dimensional portfolios on the simplex
 // using the Dirichlet(1,1,...,1) method (uniform on simplex).
@@ -432,5 +430,3 @@ func roundWeights(weights []float64) []float64 {
 	rounded[maxIdx] += diff
 	return rounded
 }
-
-

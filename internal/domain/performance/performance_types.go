@@ -49,21 +49,21 @@ type EquityCurvePoint struct {
 type ReturnMetrics struct {
 	ProfitLoss                *decimal.Decimal `json:"profit_loss,omitempty"`
 	TWRPct                    *decimal.Decimal `json:"twr_pct,omitempty"`
-	AnnualizedTWRPct        *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
-	MWRPct                  *decimal.Decimal `json:"mwr_pct,omitempty"`
-	HoldingPeriodMWRPct     *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
-	SimpleReturnPct         *decimal.Decimal `json:"simple_return_pct,omitempty"`         // Total profit / total net deposit (%). Nil when net deposit ≤ 0.
+	AnnualizedTWRPct          *decimal.Decimal `json:"annualized_twr_pct,omitempty"`
+	MWRPct                    *decimal.Decimal `json:"mwr_pct,omitempty"`
+	HoldingPeriodMWRPct       *decimal.Decimal `json:"holding_period_mwr_pct,omitempty"`
+	SimpleReturnPct           *decimal.Decimal `json:"simple_return_pct,omitempty"`            // Total profit / total net deposit (%). Nil when net deposit ≤ 0.
 	AnnualizedSimpleReturnPct *decimal.Decimal `json:"annualized_simple_return_pct,omitempty"` // Annualized simple return. Nil when simple return is nil or zero days elapsed.
 	// Profit breakdown — sum of these equals profit_loss.
 	// UnrealizedPnL and RealizedPnL come from position summaries (capital gains only).
 	// Dividends, Interest, Fees, Taxes come from transaction aggregation.
-	UnrealizedPnL    *decimal.Decimal `json:"unrealized_pnl,omitempty"`    // Open position price gains/losses
-	RealizedPnL      *decimal.Decimal `json:"realized_pnl,omitempty"`      // Closed position locked-in gains/losses
-	Dividends        *decimal.Decimal `json:"dividends,omitempty"`         // Dividend income
-	Interest         *decimal.Decimal `json:"interest,omitempty"`          // Interest income
-	Fees             *decimal.Decimal `json:"fees,omitempty"`              // Transaction and other fees (negative)
-	Taxes            *decimal.Decimal `json:"taxes,omitempty"`             // Tax withholdings (negative)
-	HasInsufficientData     bool             `json:"has_insufficient_data"`
+	UnrealizedPnL       *decimal.Decimal `json:"unrealized_pnl,omitempty"` // Open position price gains/losses
+	RealizedPnL         *decimal.Decimal `json:"realized_pnl,omitempty"`   // Closed position locked-in gains/losses
+	Dividends           *decimal.Decimal `json:"dividends,omitempty"`      // Dividend income
+	Interest            *decimal.Decimal `json:"interest,omitempty"`       // Interest income
+	Fees                *decimal.Decimal `json:"fees,omitempty"`           // Transaction and other fees (negative)
+	Taxes               *decimal.Decimal `json:"taxes,omitempty"`          // Tax withholdings (negative)
+	HasInsufficientData bool             `json:"has_insufficient_data"`
 }
 
 // NavSummary holds the current unitization state of the portfolio.
@@ -93,8 +93,8 @@ type MonthlyReturn struct {
 
 // YearlyMonthlyReturns holds monthly returns grouped by year.
 type YearlyMonthlyReturns struct {
-	Year   int                    `json:"year"`
-	Months map[int]MonthlyReturn  `json:"months"` // month number (1-12) -> return data
+	Year   int                   `json:"year"`
+	Months map[int]MonthlyReturn `json:"months"` // month number (1-12) -> return data
 }
 
 // PerformanceResult is the complete output of a performance computation.
@@ -113,20 +113,20 @@ type YearlyMonthlyReturns struct {
 // YearlyPerformance holds calendar-year return breakdown.
 // MonthlyReturns holds monthly return heatmap data (portfolio vs benchmark).
 type PerformanceResult struct {
-	EquityCurve           []EquityCurvePoint     `json:"equity_curve"`
-	ReturnMetrics         ReturnMetrics          `json:"return_metrics"`
-	BaseCurrency          string                 `json:"base_currency"`
-	Warnings              []string               `json:"warnings,omitempty"`
-	BenchmarkTicker       string                 `json:"benchmark_ticker,omitempty"`
-	BenchmarkPrices       []market.HistoricalPrice `json:"benchmark_prices,omitempty"`
-	BenchmarkMWRPct       *decimal.Decimal       `json:"benchmark_mwr_pct,omitempty"`
-	BenchmarkCurrency     string                 `json:"benchmark_currency,omitempty"`
-	BenchmarkWarning      string                 `json:"benchmark_warning,omitempty"`
-	NavSummary            *NavSummary            `json:"nav_summary,omitempty"`
-	RiskMetrics           RiskMetrics            `json:"risk_metrics"`
-	DrawdownAnalysis      DrawdownAnalysis       `json:"drawdown_analysis"`
-	YearlyPerformance     YearlyPerformance      `json:"yearly_returns,omitempty"`
-	MonthlyReturns        []YearlyMonthlyReturns `json:"monthly_returns,omitempty"`
+	EquityCurve       []EquityCurvePoint       `json:"equity_curve"`
+	ReturnMetrics     ReturnMetrics            `json:"return_metrics"`
+	BaseCurrency      string                   `json:"base_currency"`
+	Warnings          []string                 `json:"warnings,omitempty"`
+	BenchmarkTicker   string                   `json:"benchmark_ticker,omitempty"`
+	BenchmarkPrices   []market.HistoricalPrice `json:"benchmark_prices,omitempty"`
+	BenchmarkMWRPct   *decimal.Decimal         `json:"benchmark_mwr_pct,omitempty"`
+	BenchmarkCurrency string                   `json:"benchmark_currency,omitempty"`
+	BenchmarkWarning  string                   `json:"benchmark_warning,omitempty"`
+	NavSummary        *NavSummary              `json:"nav_summary,omitempty"`
+	RiskMetrics       RiskMetrics              `json:"risk_metrics"`
+	DrawdownAnalysis  DrawdownAnalysis         `json:"drawdown_analysis"`
+	YearlyPerformance YearlyPerformance        `json:"yearly_returns,omitempty"`
+	MonthlyReturns    []YearlyMonthlyReturns   `json:"monthly_returns,omitempty"`
 }
 
 // PerformanceFilters holds optional filter criteria for performance queries.

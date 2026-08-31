@@ -46,7 +46,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 
 	// The sourceURL for DWS is expected to be the slug.
-	// In the current framework, the sourceURL is passed. 
+	// In the current framework, the sourceURL is passed.
 	// For DWS, we expect the slug to be part of the URL or the URL itself.
 	slug := extractSlug(sourceURL)
 	if slug == "" {
@@ -138,4 +138,3 @@ func extractSlug(sourceURL string) string {
 }
 
 // containsProtocol is no longer needed as we use url.Parse
-

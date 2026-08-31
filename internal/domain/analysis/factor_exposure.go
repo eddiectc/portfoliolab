@@ -65,18 +65,18 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 	}
 
 	var (
-		peWeightedSum, pbWeightedSum      float64
-		peTrackedWeight, pbTrackedWeight  float64
-		pcfWeightedSum, psWeightedSum     float64
-		pcfTrackedWeight, psTrackedWeight float64
-		expenseWeightedSum, turnWeightedSum float64
-		expenseTrackedWeight, turnTrackedWeight float64
+		peWeightedSum, pbWeightedSum                 float64
+		peTrackedWeight, pbTrackedWeight             float64
+		pcfWeightedSum, psWeightedSum                float64
+		pcfTrackedWeight, psTrackedWeight            float64
+		expenseWeightedSum, turnWeightedSum          float64
+		expenseTrackedWeight, turnTrackedWeight      float64
 		largeCapWeight, midCapWeight, smallCapWeight float64
-		sizeTrackedWeight float64
-		hhiSum float64
-		topWeight float64 // as fraction 0-1
-		warnings []string
-		peCount, pbCount, pcfCount, psCount int
+		sizeTrackedWeight                            float64
+		hhiSum                                       float64
+		topWeight                                    float64 // as fraction 0-1
+		warnings                                     []string
+		peCount, pbCount, pcfCount, psCount          int
 	)
 
 	for _, p := range positions {
@@ -303,7 +303,7 @@ func computeMomentum(positions []PositionWithDetails, pricesBySymbol map[string]
 	twelveMonthsAgo := now.AddDate(-1, 0, 0)
 
 	var (
-		return3M, return6M, return12M float64
+		return3M, return6M, return12M                      float64
 		trackedWeight3M, trackedWeight6M, trackedWeight12M float64
 	)
 
@@ -435,7 +435,7 @@ func computeVolatility(positions []PositionWithDetails, pricesBySymbol map[strin
 	}
 
 	var (
-		volWeightedSum float64
+		volWeightedSum   float64
 		volTrackedWeight float64
 	)
 
@@ -529,10 +529,10 @@ func classifyInvertedTilt(value, benchmark float64) string {
 	}
 	threshold := benchmark * qualityThresholdFraction
 	if value < benchmark-threshold {
-		return "value"   // below benchmark = high quality
+		return "value" // below benchmark = high quality
 	}
 	if value > benchmark+threshold {
-		return "growth"  // above benchmark = low quality
+		return "growth" // above benchmark = low quality
 	}
 	return "" // neutral
 }

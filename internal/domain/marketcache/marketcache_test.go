@@ -507,7 +507,7 @@ func TestRefreshAll(t *testing.T) {
 	}
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
-	
+
 	discoverer.SetAllSymbols([]string{"AAPL"})
 
 	cache := New(fetcher, repo, discoverer, nil)
@@ -555,7 +555,6 @@ func TestPeriodicTicker_RefreshesQuotes(t *testing.T) {
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
 	discoverer.SetAllSymbols([]string{"AAPL"})
-	
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.tickerInterval = 50 * time.Millisecond
@@ -607,7 +606,6 @@ func TestPeriodicTicker_GapFill(t *testing.T) {
 
 	discoverer := &mockDiscoverer{}
 	discoverer.SetAllSymbols([]string{"AAPL"})
-	
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.tickerInterval = 50 * time.Millisecond
@@ -634,7 +632,6 @@ func TestPeriodicTicker_SkipsGapFillDuringManualRefresh(t *testing.T) {
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
 	discoverer.SetAllSymbols([]string{"AAPL"})
-	
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.tickerInterval = 50 * time.Millisecond
@@ -912,8 +909,8 @@ func TestGapFill_FullCache_SkipsFetch(t *testing.T) {
 
 func TestParseFxPair(t *testing.T) {
 	tests := []struct {
-		input    string
-		wantBase string
+		input     string
+		wantBase  string
 		wantQuote string
 	}{
 		{"GBP/USD", "GBP", "USD"},
@@ -1173,7 +1170,7 @@ func TestRefreshStaleSymbolDetails_PeriodicTickerIntegration(t *testing.T) {
 	repo := newMockRepo()
 	discoverer := &mockDiscoverer{}
 	discoverer.SetAllSymbols([]string{"AAPL"})
-	
+
 	source := &mockSymbolDetailsRefresh{}
 	source.SetStaleSymbols(staleSymbols)
 
@@ -1345,4 +1342,3 @@ func TestRefreshAll_SkipsSymbolDetails_WhenNoSource(t *testing.T) {
 	// Should not panic — nil source is a no-op.
 	cache.doRefreshAll(ctx)
 }
-

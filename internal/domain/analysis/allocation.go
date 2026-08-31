@@ -150,7 +150,7 @@ func normalizeSector(sector string) string {
 // slice of entries, ordered by weight descending. This is a convenience
 // function for consumers that need ordered output (e.g., charts, tables).
 type AllocationEntry struct {
-	Category string
+	Category  string
 	WeightPct float64
 }
 

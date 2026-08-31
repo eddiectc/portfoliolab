@@ -571,9 +571,9 @@ func TestCalculatePositions_IdempotentRecalc(t *testing.T) {
 
 func TestGetCurrencyFromLots(t *testing.T) {
 	tests := []struct {
-		name     string
-		lots     []LotGroup
-		wantCur  string
+		name    string
+		lots    []LotGroup
+		wantCur string
 	}{
 		{
 			name: "single_buy_lot_with_currency",

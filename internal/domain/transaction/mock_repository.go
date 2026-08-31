@@ -12,10 +12,10 @@ import (
 // mockRepository is an in-memory implementation of Repository for testing.
 // It simulates real repository behavior: filtering, pagination, and auto-increment IDs.
 type mockRepository struct {
-	mu         sync.RWMutex
-	items      map[int64]Transaction
-	nextID     int64
-	accNames   map[int64]string
+	mu       sync.RWMutex
+	items    map[int64]Transaction
+	nextID   int64
+	accNames map[int64]string
 }
 
 func newMockRepository() *mockRepository {

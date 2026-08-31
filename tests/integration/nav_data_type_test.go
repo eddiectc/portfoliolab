@@ -16,7 +16,7 @@ func TestNAV_DataTypeIsolation(t *testing.T) {
 	ctx := context.Background()
 
 	symbol := "WMGG.L"
-	navPrice, _ := decimal.New(100000, 2) // 1000.00
+	navPrice, _ := decimal.New(100000, 2)  // 1000.00
 	stockPrice, _ := decimal.New(50000, 2) // 500.00
 
 	// Insert NAV data (wisdomtree source)

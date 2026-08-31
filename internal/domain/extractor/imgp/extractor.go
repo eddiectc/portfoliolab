@@ -113,12 +113,12 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 
 	return &extractor.ExtractResult{
-		AsOfDate:                    refDate,
-		FundInfo:                    fundInfo,
-		FundProfile:                 profile,
-		RiskMeasures:                risk,
-		AssetClassAllocation:        assetClass,
-		EquityDerivativesByRegion:   equityRegions,
+		AsOfDate:                      refDate,
+		FundInfo:                      fundInfo,
+		FundProfile:                   profile,
+		RiskMeasures:                  risk,
+		AssetClassAllocation:          assetClass,
+		EquityDerivativesByRegion:     equityRegions,
 		CurrencyDerivativesAllocation: currencyAlloc,
 	}, nil
 }

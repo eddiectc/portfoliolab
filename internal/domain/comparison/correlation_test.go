@@ -415,5 +415,3 @@ func TestCorrelationPeriodCutoff(t *testing.T) {
 		})
 	}
 }
-
-

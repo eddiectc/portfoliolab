@@ -122,7 +122,7 @@ func TestComputeEquityCurve_NAVWithSubsequentDeposit(t *testing.T) {
 
 	// Deposit, buy, deposit again.
 	txnRepo.SetTransactions(1, []transaction.Transaction{
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),  // $10,000
+		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000), // $10,000
 		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -150000),   // buy 10 AAPL @ $150
 		eqTxn(1, testTime(2024, 3, 15), "deposit", "$CASH-USD", "USD", 0, 0, 500000),  // deposit $5,000
 	})
@@ -290,8 +290,8 @@ func TestComputeEquityCurve_NAVWithWithdrawal(t *testing.T) {
 	})
 
 	txnRepo.SetTransactions(1, []transaction.Transaction{
-		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000), // $10,000
-		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -150000),  // buy 10 @ $150
+		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),    // $10,000
+		eqTxn(1, testTime(2024, 2, 15), "buy", "AAPL", "USD", 1000, 15000, -150000),      // buy 10 @ $150
 		eqTxn(1, testTime(2024, 3, 15), "withdrawal", "$CASH-USD", "USD", 0, 0, -300000), // withdraw $3,000
 	})
 

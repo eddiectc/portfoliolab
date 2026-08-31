@@ -27,7 +27,7 @@ type Position struct {
 	AvgOpenPrice    decimal.Decimal  `json:"avg_open_price"`
 	AvgClosePrice   *decimal.Decimal `json:"avg_close_price,omitempty"`
 	RealizedPnL     decimal.Decimal  `json:"realized_pnl"`
-	RealizedPnlPct  *decimal.Decimal `json:"realized_pnl_pct,omitempty"`  // P&L as % of cost basis
+	RealizedPnlPct  *decimal.Decimal `json:"realized_pnl_pct,omitempty"` // P&L as % of cost basis
 	RealizedPnlBase *decimal.Decimal `json:"realized_pnl_base,omitempty"`
 	FxRateUsed      *decimal.Decimal `json:"fx_rate_used,omitempty"`
 	FxRateFallback  bool             `json:"fx_rate_fallback"`
@@ -49,7 +49,7 @@ type PositionWithMarket struct {
 	MarketValueBase     *decimal.Decimal `json:"market_value_base,omitempty"`
 	UnrealizedPnLBase   *decimal.Decimal `json:"unrealized_pnl_base,omitempty"`
 	BaseCurrency        string           `json:"base_currency,omitempty"`
-	MarketDataAvailable   bool           `json:"market_data_available"`
+	MarketDataAvailable bool             `json:"market_data_available"`
 }
 
 // Lot represents a buy or sell lot, grouping one or more transactions
@@ -73,13 +73,13 @@ type Lot struct {
 // LotConsumption records how much of a buy lot was consumed by a sell lot,
 // and the realized P&L for that portion.
 type LotConsumption struct {
-	ID                int64            `json:"id"`
-	SellLotID         string           `json:"sell_lot_id"`
-	BuyLotID          string           `json:"buy_lot_id"`
-	QuantityConsumed  decimal.Decimal  `json:"quantity_consumed"`
-	CostBasisConsumed decimal.Decimal  `json:"cost_basis_consumed"`
-	RealizedPnL       decimal.Decimal  `json:"realized_pnl"`
-	CreatedAt         time.Time        `json:"created_at"`
+	ID                int64           `json:"id"`
+	SellLotID         string          `json:"sell_lot_id"`
+	BuyLotID          string          `json:"buy_lot_id"`
+	QuantityConsumed  decimal.Decimal `json:"quantity_consumed"`
+	CostBasisConsumed decimal.Decimal `json:"cost_basis_consumed"`
+	RealizedPnL       decimal.Decimal `json:"realized_pnl"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 // LotWithDetails is a Lot with its consumptions and source transactions,
@@ -93,22 +93,22 @@ type LotWithDetails struct {
 // TransactionRef is a lightweight reference to a source transaction,
 // returned alongside lot details for drill-down.
 type TransactionRef struct {
-	ID       int64            `json:"id"`
-	Date     time.Time        `json:"date"`
-	Type     string           `json:"type"`
-	Symbol   string           `json:"symbol"`
-	Quantity decimal.Decimal  `json:"quantity"`
-	Price    decimal.Decimal  `json:"price"`
-	Currency string           `json:"currency"`
-	NetCash  decimal.Decimal  `json:"net_cash"`
+	ID       int64           `json:"id"`
+	Date     time.Time       `json:"date"`
+	Type     string          `json:"type"`
+	Symbol   string          `json:"symbol"`
+	Quantity decimal.Decimal `json:"quantity"`
+	Price    decimal.Decimal `json:"price"`
+	Currency string          `json:"currency"`
+	NetCash  decimal.Decimal `json:"net_cash"`
 }
 
 // ListFilters holds optional filter criteria for listing positions.
 // Nil fields are treated as "no filter" for that dimension.
 type ListFilters struct {
-	AccountID *int64
+	AccountID   *int64
 	PortfolioID *int64
-	AccountIDs *[]int64
+	AccountIDs  *[]int64
 }
 
 // QueryParams serializes non-nil filter fields into a URL query fragment
@@ -173,31 +173,31 @@ func (e *PositionError) Error() string {
 // LotGroup groups transactions that share the same lot_id into a single
 // buy or sell lot with aggregated quantities and prices.
 type LotGroup struct {
-	LotID       string
-	AccountID   int64
-	Symbol      string
-	LotType     string // "buy" or "sell"
+	LotID        string
+	AccountID    int64
+	Symbol       string
+	LotType      string // "buy" or "sell"
 	Transactions []TransactionRef
-	OpenDate    time.Time
-	Quantity    decimal.Decimal
-	CostBasis   decimal.Decimal // sum of net_cash for buys (negative)
+	OpenDate     time.Time
+	Quantity     decimal.Decimal
+	CostBasis    decimal.Decimal // sum of net_cash for buys (negative)
 	SellProceeds decimal.Decimal // sum of net_cash for sells (positive)
 }
 
 // MatchResult records how a sell lot was matched against one or more buy lots,
 // including the consumptions created and total realized P&L.
 type MatchResult struct {
-	SellLot       LotGroup
-	Consumptions  []LotConsumption
-	RealizedPnL   decimal.Decimal
+	SellLot      LotGroup
+	Consumptions []LotConsumption
+	RealizedPnL  decimal.Decimal
 }
 
 // CalculateResult holds the complete output of the position calculator:
 // open positions, closed positions, lots, and lot consumptions.
 type CalculateResult struct {
-	OpenPositions    []Position
-	ClosedPositions  []Position
-	Lots             []Lot
-	Consumptions     []LotConsumption
-	CashPositions    []Position
+	OpenPositions   []Position
+	ClosedPositions []Position
+	Lots            []Lot
+	Consumptions    []LotConsumption
+	CashPositions   []Position
 }

@@ -7,18 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/govalues/decimal"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/govalues/decimal"
 )
 
 // JSON structs for DWS API responses
 
 type pdpSettingsResp struct {
-	ProductType    string `json:"productType"`
-	InternalId     string `json:"internalId"`
-	FundFamily     string `json:"fundFamily"`
-	LegalType      string `json:"legalType"`
-	CostsAndFees   struct {
+	ProductType  string `json:"productType"`
+	InternalId   string `json:"internalId"`
+	FundFamily   string `json:"fundFamily"`
+	LegalType    string `json:"legalType"`
+	CostsAndFees struct {
 		TotalOngoingCosts string `json:"totalOngoingCosts"`
 	} `json:"costsAndFees"`
 }
@@ -48,11 +48,11 @@ type holdingsResp struct {
 	Tables []struct {
 		Values []struct {
 			Header struct {
-				Value     string  `json:"value"`
+				Value     string      `json:"value"`
 				SortValue interface{} `json:"sortValue"`
 			} `json:"header"`
 			Column0 struct {
-				Value     string  `json:"value"`
+				Value     string      `json:"value"`
 				SortValue interface{} `json:"sortValue"`
 			} `json:"column_0"`
 			Column1 struct {
@@ -64,15 +64,15 @@ type holdingsResp struct {
 				SortValue float64 `json:"sortValue"`
 			} `json:"column_2"`
 			Column3 struct {
-				Value     string  `json:"value"`
+				Value     string      `json:"value"`
 				SortValue interface{} `json:"sortValue"`
 			} `json:"column_3"`
 			Column4 struct {
-				Value     string  `json:"value"`
+				Value     string      `json:"value"`
 				SortValue interface{} `json:"sortValue"`
 			} `json:"column_4"`
 			Column5 struct {
-				Value     string  `json:"value"`
+				Value     string      `json:"value"`
 				SortValue interface{} `json:"sortValue"`
 			} `json:"column_5"`
 		} `json:"values"`
@@ -80,10 +80,10 @@ type holdingsResp struct {
 }
 
 type performanceChartResp struct {
-	AsOfDate string `json:"asOfDate"`
+	AsOfDate            string `json:"asOfDate"`
 	SeriesConfiguration []struct {
-		ChartType   string `json:"chartType"`
-		Identifier  string `json:"identifier"`
+		ChartType  string `json:"chartType"`
+		Identifier string `json:"identifier"`
 	} `json:"seriesConfiguration"`
 	Values [][]interface{} `json:"values"`
 }
@@ -300,7 +300,7 @@ func ParseAsOfDate(data string) (time.Time, error) {
 
 func parseAUMValue(s string) float64 {
 	s = strings.ToUpper(strings.TrimSpace(s))
-	
+
 	// Extract numeric part and multiplier
 	// Example: "1.77 B GBP" -> 1.77, "B"
 	var val float64
@@ -352,4 +352,3 @@ func extractCurrencyFromIdentifier(s string) string {
 	}
 	return ""
 }
-

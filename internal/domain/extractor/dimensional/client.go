@@ -26,7 +26,6 @@ type ClientAPI interface {
 
 // Client fetches Dimensional fund data with browser-grade TLS fingerprinting.
 type Client struct {
-
 	cycleTLS cycletls.CycleTLS
 	mu       sync.Mutex
 	lastReq  time.Time

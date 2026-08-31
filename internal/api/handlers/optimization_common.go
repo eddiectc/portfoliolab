@@ -120,7 +120,7 @@ func (o *OptimizationCommon) HandleSaveAsModelPortfolio(w http.ResponseWriter, r
 	}
 
 	var req struct {
-		Name    string                      `json:"name"`
+		Name    string                    `json:"name"`
 		Entries []saveModelPortfolioEntry `json:"entries"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

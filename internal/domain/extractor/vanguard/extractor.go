@@ -19,16 +19,16 @@ const DefaultNavHistoryDays = 730
 
 // Extractor extracts fund data from Vanguard UK investor pages.
 type Extractor struct {
-	matcher       *URLMatcher
-	client        *Client
+	matcher        *URLMatcher
+	client         *Client
 	navHistoryDays int
 }
 
 // NewExtractor creates a new Vanguard extractor.
 func NewExtractor() *Extractor {
 	return &Extractor{
-		matcher:       NewURLMatcher(),
-		client:        NewClient(),
+		matcher:        NewURLMatcher(),
+		client:         NewClient(),
 		navHistoryDays: DefaultNavHistoryDays,
 	}
 }

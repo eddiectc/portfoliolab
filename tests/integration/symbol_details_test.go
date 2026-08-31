@@ -83,12 +83,12 @@ func TestSymbolDetails_CreateAndEnrich(t *testing.T) {
 
 	var resp2 struct {
 		SymbolDetails *struct {
-			InternalSymbol string  `json:"internal_symbol"`
-			ShortName      string  `json:"short_name"`
-			LongName       string  `json:"long_name"`
-			Exchange       string  `json:"exchange"`
-			Currency       string  `json:"currency"`
-			QuoteType      string  `json:"quote_type"`
+			InternalSymbol string `json:"internal_symbol"`
+			ShortName      string `json:"short_name"`
+			LongName       string `json:"long_name"`
+			Exchange       string `json:"exchange"`
+			Currency       string `json:"currency"`
+			QuoteType      string `json:"quote_type"`
 			TopHoldings    []struct {
 				Symbol  string  `json:"symbol"`
 				Name    string  `json:"name"`
@@ -104,10 +104,10 @@ func TestSymbolDetails_CreateAndEnrich(t *testing.T) {
 				Cash  float64 `json:"cash"`
 			} `json:"aggregate_positions"`
 			FundProfile *struct {
-				Family           string  `json:"family"`
-				LegalType        string  `json:"legalType"`
-				TotalNetAssets   float64 `json:"totalNetAssets"`
-				ExpenseRatio     float64 `json:"annualExpenseRatio"`
+				Family         string  `json:"family"`
+				LegalType      string  `json:"legalType"`
+				TotalNetAssets float64 `json:"totalNetAssets"`
+				ExpenseRatio   float64 `json:"annualExpenseRatio"`
 			} `json:"fund_profile"`
 			EquityValuation *struct {
 				PriceToEarnings float64 `json:"priceToEarnings"`

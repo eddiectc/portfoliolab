@@ -122,9 +122,9 @@ func computePairOverlap(a, b PositionWithDetails) OverlapPair {
 	}
 
 	return OverlapPair{
-		ETFA:            a.Symbol,
-		ETFB:            b.Symbol,
-		OverlappingCount: overlappingCount,
+		ETFA:              a.Symbol,
+		ETFB:              b.Symbol,
+		OverlappingCount:  overlappingCount,
 		CombinedWeightPct: stats.RoundTo2(combinedWeightPct),
 	}
 }
@@ -143,9 +143,9 @@ func buildHoldingMap(holdings []symbol.TopHolding) map[string]float64 {
 func computeConcentratedStocks(etfs []PositionWithDetails) []ConcentratedStock {
 	// symbol → aggregated info
 	type stockInfo struct {
-		name         string
-		totalWeight  float64
-		heldByETFs   map[string]struct{} // dedup
+		name        string
+		totalWeight float64
+		heldByETFs  map[string]struct{} // dedup
 	}
 
 	agg := make(map[string]*stockInfo)
@@ -179,10 +179,10 @@ func computeConcentratedStocks(etfs []PositionWithDetails) []ConcentratedStock {
 			etfList = append(etfList, etf)
 		}
 		stocks = append(stocks, ConcentratedStock{
-			Symbol:        sym,
-			Name:          info.name,
+			Symbol:         sym,
+			Name:           info.name,
 			TotalWeightPct: stats.RoundTo2(info.totalWeight),
-			HeldByETFs:    etfList,
+			HeldByETFs:     etfList,
 		})
 	}
 
@@ -207,5 +207,3 @@ func sortByWeightDesc(stocks []ConcentratedStock) {
 		}
 	}
 }
-
-

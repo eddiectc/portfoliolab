@@ -686,14 +686,14 @@ func formatFloatPercent(val float64) string {
 
 // navPriceChartData is the JSON structure for the ECharts NAV vs Price chart.
 type navPriceChartData struct {
-	NavDates    []string  `json:"navDates"`
-	NavValues   []float64 `json:"navValues"`
-	PriceDates  []string  `json:"priceDates"`
-	PriceValues []float64 `json:"priceValues"`
-	RatioDates  []string  `json:"ratioDates"`
-	RatioValues []float64 `json:"ratioValues"`
-	NavCurrency string    `json:"navCurrency"`
-	PriceCurrency string  `json:"priceCurrency"`
+	NavDates      []string  `json:"navDates"`
+	NavValues     []float64 `json:"navValues"`
+	PriceDates    []string  `json:"priceDates"`
+	PriceValues   []float64 `json:"priceValues"`
+	RatioDates    []string  `json:"ratioDates"`
+	RatioValues   []float64 `json:"ratioValues"`
+	NavCurrency   string    `json:"navCurrency"`
+	PriceCurrency string    `json:"priceCurrency"`
 }
 
 // serializeNavPriceChartData converts NAV and stock price history to JSON for

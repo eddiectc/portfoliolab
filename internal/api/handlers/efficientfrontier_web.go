@@ -67,12 +67,12 @@ func (h *EfficientFrontierWebHandler) RegisterRoutes(r *chi.Mux) {
 type frontierPageData struct {
 	web.PageData
 	// Shared optimization partial fields.
-	FormID        string // "frontier"
-	FormAction    string // "/efficient-frontier"
+	FormID         string // "frontier"
+	FormAction     string // "/efficient-frontier"
 	FormButtonText string // "Compute Frontier"
-	SymbolHint    string // "Comma-separated symbols. Min 2, max 10."
-	ApiBase       string // "/api/efficient-frontier"
-	RiskFreeRate  bool   // true for frontier (shows risk-free rate field)
+	SymbolHint     string // "Comma-separated symbols. Min 2, max 10."
+	ApiBase        string // "/api/efficient-frontier"
+	RiskFreeRate   bool   // true for frontier (shows risk-free rate field)
 	// Pre-serialized JSON for ECharts.
 	FrontierChartData string
 	// Frontier result data.
@@ -230,12 +230,12 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 			Title: "Efficient Frontier",
 			Flash: getFlash(w, r),
 		},
-		FormID:           "frontier",
-		FormAction:       "/efficient-frontier",
-		FormButtonText:   "Compute Frontier",
-		SymbolHint:       "Comma-separated symbols. Min 2, max 10.",
-		ApiBase:          "/api/efficient-frontier",
-		RiskFreeRate:     true,
+		FormID:               "frontier",
+		FormAction:           "/efficient-frontier",
+		FormButtonText:       "Compute Frontier",
+		SymbolHint:           "Comma-separated symbols. Min 2, max 10.",
+		ApiBase:              "/api/efficient-frontier",
+		RiskFreeRate:         true,
 		FrontierChartData:    frontierChart,
 		Result:               result,
 		Warnings:             warnings,
@@ -491,11 +491,11 @@ func serializeFrontierChartData(result *efficientfrontier.FrontierResult, annual
 	}
 
 	data := frontierChartData{
-		FrontierPoints:      points,
-		Symbols:             result.Symbols,
-		ExpectedReturns:     expectedReturns,
-		CorrelationMatrix:   result.CorrelationMatrix,
-		TradingDays:         result.TradingDays,
+		FrontierPoints:    points,
+		Symbols:           result.Symbols,
+		ExpectedReturns:   expectedReturns,
+		CorrelationMatrix: result.CorrelationMatrix,
+		TradingDays:       result.TradingDays,
 	}
 
 	if result.MaxSharpe != nil {

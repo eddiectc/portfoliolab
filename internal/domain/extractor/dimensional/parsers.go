@@ -23,15 +23,15 @@ type FundDetailResponse struct {
 		} `json:"asOfDate"`
 		LensGroups []struct {
 			Data struct {
-				Slug    string `json:"slug"`
-				Lenses  []struct {
+				Slug   string `json:"slug"`
+				Lenses []struct {
 					Data struct {
-						Name    string `json:"name"`
-						Slug    string `json:"slug"`
-						Blends  []struct {
+						Name   string `json:"name"`
+						Slug   string `json:"slug"`
+						Blends []struct {
 							Data struct {
 								FundFacts struct {
-									MarketingName string `json:"marketingName"`
+									MarketingName string   `json:"marketingName"`
 									Benchmarks    []string `json:"benchmarks"`
 									FundAum       struct {
 										Aum struct {
@@ -58,12 +58,12 @@ type FundDetailResponse struct {
 									} `json:"fees"`
 								} `json:"fees"`
 								Allocations []struct {
-									Name    string `json:"name"`
+									Name   string `json:"name"`
 									Weight struct {
 										Value float64 `json:"value"`
 									} `json:"weight"`
 									SubCategories []struct {
-										Name    string `json:"name"`
+										Name   string `json:"name"`
 										Weight struct {
 											Value float64 `json:"value"`
 										} `json:"weight"`
@@ -108,9 +108,9 @@ func ParseFundDetail(jsonContent string) (*extractor.FundInfo, *extractor.FundPr
 					Name: ff.MarketingName,
 				}
 				profile = &extractor.FundProfile{
-					TotalNetAssets:     ff.FundAum.Aum.Value,
-					Family:             "Dimensional Fund Advisors",
-					LegalType:          "ETF",
+					TotalNetAssets: ff.FundAum.Aum.Value,
+					Family:         "Dimensional Fund Advisors",
+					LegalType:      "ETF",
 				}
 				if t, err := time.Parse("2006-01-02", ff.InceptionDate.Value); err == nil {
 					profile.InceptionDate = t

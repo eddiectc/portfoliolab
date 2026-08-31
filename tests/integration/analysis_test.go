@@ -69,7 +69,7 @@ func insertAnalysisMarketData(t *testing.T, db *sql.DB) {
 
 	// Current prices (empty date = "latest" row, used for position enrichment)
 	for _, sym := range []struct {
-		sym  string
+		sym   string
 		price string
 	}{
 		{"AAPL", "180.00"},
@@ -224,16 +224,16 @@ func TestAnalysis_FullPortfolio(t *testing.T) {
 	}
 
 	var result struct {
-		PortfolioID          int64             `json:"portfolio_id"`
-		ComputedAt           string            `json:"computed_at"`
-		Overlap              *json.RawMessage  `json:"overlap"`
-		Correlation          *json.RawMessage  `json:"correlation"`
-		SectorAllocation     *json.RawMessage  `json:"sector_allocation"`
-		GeographicAllocation *json.RawMessage  `json:"geographic_allocation"`
-		StressTest           *json.RawMessage  `json:"stress_test"`
-		FactorExposure       *json.RawMessage  `json:"factor_exposure"`
-		Warnings             []string          `json:"warnings"`
-		Message              string            `json:"message"`
+		PortfolioID          int64            `json:"portfolio_id"`
+		ComputedAt           string           `json:"computed_at"`
+		Overlap              *json.RawMessage `json:"overlap"`
+		Correlation          *json.RawMessage `json:"correlation"`
+		SectorAllocation     *json.RawMessage `json:"sector_allocation"`
+		GeographicAllocation *json.RawMessage `json:"geographic_allocation"`
+		StressTest           *json.RawMessage `json:"stress_test"`
+		FactorExposure       *json.RawMessage `json:"factor_exposure"`
+		Warnings             []string         `json:"warnings"`
+		Message              string           `json:"message"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("decode response: %v", err)
@@ -285,9 +285,9 @@ func TestAnalysis_NoPositions(t *testing.T) {
 	}
 
 	var result struct {
-		Message    string `json:"message"`
-		Overlap    *struct{} `json:"overlap"`
-		Warnings   []string `json:"warnings"`
+		Message  string    `json:"message"`
+		Overlap  *struct{} `json:"overlap"`
+		Warnings []string  `json:"warnings"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("decode response: %v", err)
@@ -383,10 +383,10 @@ func TestAnalysis_StressTestScenarios(t *testing.T) {
 	var result struct {
 		StressTest *struct {
 			Scenarios []struct {
-				Name                string `json:"name"`
-				EstimatedReturnPct  float64 `json:"estimated_return_pct"`
-				EstimatedDollarImpact string `json:"estimated_dollar_impact"`
-				SectorContributions map[string]float64 `json:"sector_contributions"`
+				Name                  string             `json:"name"`
+				EstimatedReturnPct    float64            `json:"estimated_return_pct"`
+				EstimatedDollarImpact string             `json:"estimated_dollar_impact"`
+				SectorContributions   map[string]float64 `json:"sector_contributions"`
 			} `json:"scenarios"`
 			Warnings []string `json:"warnings"`
 		} `json:"stress_test"`
@@ -444,11 +444,11 @@ func TestAnalysis_OverlapWithETFs(t *testing.T) {
 
 	var result struct {
 		Overlap *struct {
-			PairwiseMatrix         []struct{} `json:"pairwise_matrix"`
-			TopConcentratedStocks  []struct {
-				Symbol        string   `json:"symbol"`
-				TotalWeightPct float64 `json:"total_weight_pct"`
-				HeldByETFs    []string `json:"held_by_etfs"`
+			PairwiseMatrix        []struct{} `json:"pairwise_matrix"`
+			TopConcentratedStocks []struct {
+				Symbol         string   `json:"symbol"`
+				TotalWeightPct float64  `json:"total_weight_pct"`
+				HeldByETFs     []string `json:"held_by_etfs"`
 			} `json:"top_concentrated_stocks"`
 			Message string `json:"message"`
 		} `json:"overlap"`
@@ -516,5 +516,3 @@ func TestAnalysis_CorrelationMatrix(t *testing.T) {
 		t.Errorf("expected 2x2 matrix, got %dxN", len(result.Correlation.Matrix))
 	}
 }
-
-

@@ -129,7 +129,6 @@ var (
 
 	// ErrInvalidLotID indicates the lot ID format is invalid.
 	ErrInvalidLotID = fmt.Errorf("invalid lot ID")
-
 )
 
 // Service handles transaction business logic.

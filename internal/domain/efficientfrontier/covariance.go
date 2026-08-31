@@ -4,8 +4,8 @@ import (
 	"math"
 	"sort"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
 // ComputeCovarianceMatrix computes the sample covariance matrix from aligned
@@ -119,5 +119,3 @@ func symbolIndex(symbols []string, sym string) int {
 	}
 	return -1
 }
-
-

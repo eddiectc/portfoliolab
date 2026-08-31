@@ -14,14 +14,14 @@ import (
 // cashAffectingTypes are transaction types whose net_cash flows into or out
 // of the account's cash balance. Only these types contribute to cash positions.
 var cashAffectingTypes = map[string]bool{
-	"deposit":   true,
+	"deposit":    true,
 	"withdrawal": true,
-	"dividend":  true,
-	"interest":  true,
-	"fee":       true,
-	"tax":       true,
-	"buy":       true,
-	"sell":      true,
+	"dividend":   true,
+	"interest":   true,
+	"fee":        true,
+	"tax":        true,
+	"buy":        true,
+	"sell":       true,
 }
 
 // ComputeCashPositions computes cash positions from all transactions that
@@ -90,12 +90,12 @@ func ComputeCashPositions(transactions []transaction.Transaction) []Position {
 		date, _ := time.Parse("2006-01-02", earliestDate[sym])
 		qty := balances[sym]
 		positions = append(positions, Position{
-			Symbol:     sym,
-			Currency:   strings.TrimPrefix(sym, "$CASH-"),
-			Quantity:   qty,
-			CostBasis:  qty, // cost basis = balance, so P&L = 0
-			OpenDate:   date,
-			IsClosed:   false,
+			Symbol:    sym,
+			Currency:  strings.TrimPrefix(sym, "$CASH-"),
+			Quantity:  qty,
+			CostBasis: qty, // cost basis = balance, so P&L = 0
+			OpenDate:  date,
+			IsClosed:  false,
 		})
 	}
 

@@ -82,7 +82,7 @@ func TestParseCSV_LimitBuy_AAPL(t *testing.T) {
 		{"Name", row.Name, "Apple Inc."},
 		{"ID", row.ID, "EOF50000000001"},
 		{"Quantity", row.Quantity, "10.0000000000"},
-		{"Price", row.Price, "150.00"},   // converted from 15000 GBX
+		{"Price", row.Price, "150.00"},    // converted from 15000 GBX
 		{"Currency", row.Currency, "GBP"}, // converted from GBX
 		{"Total", row.Total, "1500.00"},
 		{"TotalCurrency", row.TotalCurrency, "GBP"},
@@ -115,7 +115,7 @@ func TestParseCSV_MarketBuy_MSFT(t *testing.T) {
 		{"Name", row.Name, "Microsoft Corporation"},
 		{"ID", row.ID, "EOF50000000002"},
 		{"Quantity", row.Quantity, "5.0000000000"},
-		{"Price", row.Price, "380.00"},   // converted from 38000 GBX
+		{"Price", row.Price, "380.00"},    // converted from 38000 GBX
 		{"Currency", row.Currency, "GBP"}, // converted from GBX
 		{"Total", row.Total, "1900.00"},
 		{"TotalCurrency", row.TotalCurrency, "GBP"},
@@ -176,7 +176,7 @@ func TestParseCSV_LimitSell_AAPL(t *testing.T) {
 		{"Ticker", row.Ticker, "AAPL"},
 		{"ID", row.ID, "EOF50000000003"},
 		{"Quantity", row.Quantity, "5.0000000000"},
-		{"Price", row.Price, "155.00"},   // converted from 15500 GBX
+		{"Price", row.Price, "155.00"}, // converted from 15500 GBX
 		{"Currency", row.Currency, "GBP"},
 		{"Total", row.Total, "775.00"},
 	}
@@ -207,7 +207,7 @@ func TestParseCSV_MarketSell_MSFT(t *testing.T) {
 		{"Ticker", row.Ticker, "MSFT"},
 		{"ID", row.ID, "EOF50000000004"},
 		{"Quantity", row.Quantity, "2.0000000000"},
-		{"Price", row.Price, "390.00"},   // converted from 39000 GBX
+		{"Price", row.Price, "390.00"}, // converted from 39000 GBX
 		{"Currency", row.Currency, "GBP"},
 		{"Total", row.Total, "780.00"},
 	}
@@ -267,7 +267,7 @@ func TestParseCSV_ETF_QGRP(t *testing.T) {
 		{"Ticker", row.Ticker, "QGRP"},
 		{"ID", row.ID, "EOF50000000005"},
 		{"Quantity", row.Quantity, "100.0000000000"},
-		{"Price", row.Price, "26.00"},   // converted from 2600 GBX
+		{"Price", row.Price, "26.00"}, // converted from 2600 GBX
 		{"Currency", row.Currency, "GBP"},
 		{"Total", row.Total, "260.00"},
 	}
@@ -298,7 +298,7 @@ func TestParseCSV_ETF_DBMG(t *testing.T) {
 		{"Ticker", row.Ticker, "DBMG"},
 		{"ID", row.ID, "EOF50000000006"},
 		{"Quantity", row.Quantity, "50.0000000000"},
-		{"Price", row.Price, "97.00"},   // converted from 9700 GBX
+		{"Price", row.Price, "97.00"}, // converted from 9700 GBX
 		{"Currency", row.Currency, "GBP"},
 		{"Total", row.Total, "485.00"},
 	}

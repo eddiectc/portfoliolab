@@ -47,8 +47,8 @@ func ComputeDailyReturns(prices []market.HistoricalPrice) ([]float64, error) {
 // of each return for alignment across symbols.
 // A series of N prices produces N-1 returns.
 type DatedReturn struct {
-	Date  int64     // Unix timestamp of the trading day
-	Return float64  // (close[t]/close[t-1]) - 1
+	Date   int64   // Unix timestamp of the trading day
+	Return float64 // (close[t]/close[t-1]) - 1
 }
 
 func ComputeDailyReturnsWithDates(series []market.HistoricalPrice) []DatedReturn {

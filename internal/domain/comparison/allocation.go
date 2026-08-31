@@ -11,21 +11,21 @@ import (
 // SectorAllocationResult holds the weighted sector allocation of a portfolio
 // computed from PortfolioHolding data (comparison domain).
 type SectorAllocationResult struct {
-	Breakdown      map[string]float64 `json:"breakdown"`
-	UnknownWeightPct float64          `json:"unknown_weight_pct"`
-	Warnings       []string           `json:"warnings,omitempty"`
-	MissingSymbols []string           `json:"missing_symbols,omitempty"`
-	Message        string             `json:"message,omitempty"`
+	Breakdown        map[string]float64 `json:"breakdown"`
+	UnknownWeightPct float64            `json:"unknown_weight_pct"`
+	Warnings         []string           `json:"warnings,omitempty"`
+	MissingSymbols   []string           `json:"missing_symbols,omitempty"`
+	Message          string             `json:"message,omitempty"`
 }
 
 // CountryAllocationResult holds the weighted geographic (country) allocation
 // of a portfolio computed from PortfolioHolding data (comparison domain).
 type CountryAllocationResult struct {
-	Breakdown      map[string]float64 `json:"breakdown"`
-	UnknownWeightPct float64          `json:"unknown_weight_pct"`
-	Warnings       []string           `json:"warnings,omitempty"`
-	MissingSymbols []string           `json:"missing_symbols,omitempty"`
-	Message        string             `json:"message,omitempty"`
+	Breakdown        map[string]float64 `json:"breakdown"`
+	UnknownWeightPct float64            `json:"unknown_weight_pct"`
+	Warnings         []string           `json:"warnings,omitempty"`
+	MissingSymbols   []string           `json:"missing_symbols,omitempty"`
+	Message          string             `json:"message,omitempty"`
 }
 
 // ComputeSectorAllocationForHoldings computes the weighted sector allocation
@@ -43,9 +43,9 @@ type CountryAllocationResult struct {
 func ComputeSectorAllocationForHoldings(holdings []PortfolioHolding) *SectorAllocationResult {
 	if len(holdings) == 0 {
 		return &SectorAllocationResult{
-			Breakdown:      map[string]float64{},
+			Breakdown:        map[string]float64{},
 			UnknownWeightPct: 0,
-			Message:        "No holdings to analyze. Sector allocation requires at least one holding.",
+			Message:          "No holdings to analyze. Sector allocation requires at least one holding.",
 		}
 	}
 
@@ -107,9 +107,9 @@ func ComputeSectorAllocationForHoldings(holdings []PortfolioHolding) *SectorAllo
 func ComputeCountryAllocationForHoldings(holdings []PortfolioHolding) *CountryAllocationResult {
 	if len(holdings) == 0 {
 		return &CountryAllocationResult{
-			Breakdown:      map[string]float64{},
+			Breakdown:        map[string]float64{},
 			UnknownWeightPct: 0,
-			Message:        "No holdings to analyze. Country allocation requires at least one holding.",
+			Message:          "No holdings to analyze. Country allocation requires at least one holding.",
 		}
 	}
 

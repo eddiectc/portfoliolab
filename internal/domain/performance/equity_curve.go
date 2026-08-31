@@ -25,12 +25,12 @@ type MarketDataProvider interface {
 // dateSnapshot captures the portfolio state at a specific date during
 // the equity curve walk.
 type dateSnapshot struct {
-	date                   time.Time
-	positions              map[string]decimal.Decimal
-	positionCurrency       map[string]string
-	cashBalance            map[string]decimal.Decimal
-	netDeposit             map[string]decimal.Decimal
-	preCashFlowSnapshots   []preCashFlowSnapshot
+	date                 time.Time
+	positions            map[string]decimal.Decimal
+	positionCurrency     map[string]string
+	cashBalance          map[string]decimal.Decimal
+	netDeposit           map[string]decimal.Decimal
+	preCashFlowSnapshots []preCashFlowSnapshot
 }
 
 // preCashFlowSnapshot captures the portfolio state just before a cash flow.

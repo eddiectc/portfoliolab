@@ -9,11 +9,11 @@ import (
 
 func TestComputeMaxDrawdown(t *testing.T) {
 	tests := []struct {
-		name      string
-		returns   []float64
-		wantMin   float64 // expected max drawdown range (negative)
-		wantMax   float64
-		epsilon   float64
+		name    string
+		returns []float64
+		wantMin float64 // expected max drawdown range (negative)
+		wantMax float64
+		epsilon float64
 	}{
 		{
 			name:    "no drawdown — monotonically increasing",
@@ -23,8 +23,8 @@ func TestComputeMaxDrawdown(t *testing.T) {
 			epsilon: 0.0001,
 		},
 		{
-			name:      "single drawdown",
-			returns:   []float64{0.01, 0.02, -0.05, 0.01},
+			name:    "single drawdown",
+			returns: []float64{0.01, 0.02, -0.05, 0.01},
 			// equity: 1.0, 1.01, 1.0302, 0.97869, 0.98848
 			// peak = 1.0302, trough = 0.97869, dd = (0.97869-1.0302)/1.0302 = -0.05
 			wantMin: -0.051,
@@ -32,8 +32,8 @@ func TestComputeMaxDrawdown(t *testing.T) {
 			epsilon: 0.001,
 		},
 		{
-			name:      "large drawdown",
-			returns:   []float64{0.05, 0.05, -0.2, -0.1, 0.02},
+			name:    "large drawdown",
+			returns: []float64{0.05, 0.05, -0.2, -0.1, 0.02},
 			// equity: 1.0, 1.05, 1.1025, 0.882, 0.7938, 0.8097
 			// peak = 1.1025, trough = 0.7938, dd = (0.7938-1.1025)/1.1025 = -0.28
 			wantMin: -0.285,
@@ -41,8 +41,8 @@ func TestComputeMaxDrawdown(t *testing.T) {
 			epsilon: 0.001,
 		},
 		{
-			name:      "recovery after drawdown",
-			returns:   []float64{0.01, -0.1, 0.15, 0.05},
+			name:    "recovery after drawdown",
+			returns: []float64{0.01, -0.1, 0.15, 0.05},
 			// equity: 1.0, 1.01, 0.909, 1.0454, 1.0977
 			// peak = 1.01, trough = 0.909, dd = (0.909-1.01)/1.01 = -0.1
 			wantMin: -0.101,
@@ -50,8 +50,8 @@ func TestComputeMaxDrawdown(t *testing.T) {
 			epsilon: 0.001,
 		},
 		{
-			name:      "multiple drawdowns — worst wins",
-			returns:   []float64{0.01, -0.03, 0.02, -0.1, 0.05},
+			name:    "multiple drawdowns — worst wins",
+			returns: []float64{0.01, -0.03, 0.02, -0.1, 0.05},
 			// equity: 1.0, 1.01, 0.9797, 0.9993, 0.8994, 0.9443
 			// peak = 1.01, trough = 0.8994, dd = (0.8994-1.01)/1.01 = -0.1096
 			wantMin: -0.111,
@@ -73,11 +73,11 @@ func TestComputeMaxDrawdown(t *testing.T) {
 			epsilon: 0.0001,
 		},
 		{
-			name:      "constant returns (zero)",
-			returns:   []float64{0, 0, 0, 0},
-			wantMin:   0,
-			wantMax:   0,
-			epsilon:   0.0001,
+			name:    "constant returns (zero)",
+			returns: []float64{0, 0, 0, 0},
+			wantMin: 0,
+			wantMax: 0,
+			epsilon: 0.0001,
 		},
 	}
 

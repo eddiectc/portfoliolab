@@ -168,19 +168,19 @@ func TestComputeCorrelation(t *testing.T) {
 			prices: map[string][]market.HistoricalPrice{
 				"AAPL": makePriceSeries([]float64{100, 102, 101}),
 			},
-			period: "10Y",
-			wantMatrix: nil,
+			period:      "10Y",
+			wantMatrix:  nil,
 			wantSymbols: []string{"AAPL"},
 			wantMessage: "Only 1 symbol has sufficient price data. Correlation requires at least 2.",
 		},
 
 		{
-			name:          "no symbols returns message",
-			prices:        map[string][]market.HistoricalPrice{},
-			period:        "10Y",
-			wantMatrix:    nil,
-			wantSymbols:   []string{},
-			wantMessage:   "Correlation requires at least 2 symbols with price data.",
+			name:        "no symbols returns message",
+			prices:      map[string][]market.HistoricalPrice{},
+			period:      "10Y",
+			wantMatrix:  nil,
+			wantSymbols: []string{},
+			wantMessage: "Correlation requires at least 2 symbols with price data.",
 		},
 
 		{

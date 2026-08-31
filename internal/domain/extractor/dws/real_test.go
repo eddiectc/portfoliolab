@@ -52,10 +52,10 @@ func TestRealExtractor_InvalidSlug(t *testing.T) {
 		t.Skip("skipping live API test in short mode")
 	}
 	ext := NewExtractor()
-	
+
 	slug := "non-existent-slug-12345"
 	_, err := ext.Extract(context.Background(), slug)
-	
+
 	if err == nil {
 		t.Error("expected error for invalid slug, got nil")
 	}

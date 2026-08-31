@@ -3,11 +3,11 @@
 // features.
 //
 // The algorithm:
-//   1. Filter price series to the lookback period
-//   2. Compute daily returns per symbol with date tracking
-//   3. Check for short-coverage symbols (< 80% of expected period)
-//   4. Compute pairwise Pearson correlation for all symbol pairs
-//   5. Mark cells as nil when overlap is below threshold
+//  1. Filter price series to the lookback period
+//  2. Compute daily returns per symbol with date tracking
+//  3. Check for short-coverage symbols (< 80% of expected period)
+//  4. Compute pairwise Pearson correlation for all symbol pairs
+//  5. Mark cells as nil when overlap is below threshold
 package correlation
 
 import (
@@ -51,7 +51,8 @@ type Input struct {
 // price series.
 //
 // For each symbol the daily returns are derived from close prices:
-//   return[t] = close[t] / close[t-1] - 1
+//
+//	return[t] = close[t] / close[t-1] - 1
 //
 // Pairs with fewer than the adaptive overlap threshold (80% of expected period)
 // produce a warning and a nil matrix cell (null in JSON, "-" in UI).

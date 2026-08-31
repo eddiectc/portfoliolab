@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/govalues/decimal"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/govalues/decimal"
 )
 
 // Name is the identifier for the Dimensional extractor.
@@ -125,7 +125,7 @@ func (e *Extractor) getPortfolioNumberAndNavHistory(ctx context.Context, isin st
 		Data struct {
 			Portfolios []struct {
 				PortfolioNumber int `json:"portfolioNumber"`
-				Meta struct {
+				Meta            struct {
 					Identifiers []struct {
 						Value string `json:"value"`
 						Slug  string `json:"slug"`

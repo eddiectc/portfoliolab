@@ -73,8 +73,8 @@ type sectorWeightItem map[string]float64
 
 // fundProfileModule contains fund-level metadata.
 type fundProfileModule struct {
-	Family     string `json:"family"`
-	LegalType  string `json:"legalType"`
+	Family       string `json:"family"`
+	LegalType    string `json:"legalType"`
 	FeesExpenses struct {
 		TotalNetAssets           float64 `json:"totalNetAssets"`
 		AnnualReportExpenseRatio float64 `json:"annualReportExpenseRatio"`
@@ -85,13 +85,13 @@ type fundProfileModule struct {
 // priceModule contains symbol identity and pricing data.
 // This is where shortName, longName, exchange, currency, and quoteType live.
 type priceModule struct {
-	Symbol    string  `json:"symbol"`
-	ShortName string  `json:"shortName"`
-	LongName  string  `json:"longName"`
-	Exchange  string  `json:"exchange"`
-	Currency  string  `json:"currency"`
-	QuoteType string  `json:"quoteType"`
-	MaxAge    int     `json:"maxAge"`
+	Symbol    string `json:"symbol"`
+	ShortName string `json:"shortName"`
+	LongName  string `json:"longName"`
+	Exchange  string `json:"exchange"`
+	Currency  string `json:"currency"`
+	QuoteType string `json:"quoteType"`
+	MaxAge    int    `json:"maxAge"`
 }
 
 // assetProfileModule contains company/fund descriptive info (industry, sector, etc.).

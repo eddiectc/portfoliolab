@@ -41,12 +41,12 @@ func ComputePeriodReturn(
 ) ReturnMetrics {
 	if len(equityCurve) < 2 {
 		return ReturnMetrics{
-			ProfitLoss:            nil,
-			TWRPct:                nil,
-			AnnualizedTWRPct:      nil,
-			MWRPct:                nil,
-			HoldingPeriodMWRPct:   nil,
-			HasInsufficientData:   true,
+			ProfitLoss:          nil,
+			TWRPct:              nil,
+			AnnualizedTWRPct:    nil,
+			MWRPct:              nil,
+			HoldingPeriodMWRPct: nil,
+			HasInsufficientData: true,
 		}
 	}
 
@@ -56,11 +56,11 @@ func ComputePeriodReturn(
 
 	if !beginValue.IsPos() {
 		return ReturnMetrics{
-			ProfitLoss:            nil,
-			TWRPct:                nil,
-			AnnualizedTWRPct:      nil,
-			MWRPct:                nil,
-			HoldingPeriodMWRPct:   nil,
+			ProfitLoss:          nil,
+			TWRPct:              nil,
+			AnnualizedTWRPct:    nil,
+			MWRPct:              nil,
+			HoldingPeriodMWRPct: nil,
 		}
 	}
 
@@ -222,7 +222,7 @@ func computeTWR(
 				return nil
 			}
 			product *= r
-				handledUpTo = 1
+			handledUpTo = 1
 		}
 	} else {
 		// Normal case: return from first equity curve point to first pre-cash-flow.
@@ -336,7 +336,7 @@ type mwrCashFlow struct {
 //
 // The equation solved is:
 //
-//   -PV_0 + Σ(CF_i / (1+r)^t_i) + PV_T / (1+r)^T = 0
+//	-PV_0 + Σ(CF_i / (1+r)^t_i) + PV_T / (1+r)^T = 0
 //
 // where t_i is the time in years from the start date.
 //

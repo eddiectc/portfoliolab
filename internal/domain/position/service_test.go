@@ -22,19 +22,19 @@ var ctx = context.Background()
 // --- Mocks ---
 
 type mockPositionRepository struct {
-	mu              sync.RWMutex
-	positions       []Position
-	lots            []Lot
-	consumptions    []LotConsumption
-	deleteErr       error
-	createPosErr    error
-	createLotErr    error
+	mu               sync.RWMutex
+	positions        []Position
+	lots             []Lot
+	consumptions     []LotConsumption
+	deleteErr        error
+	createPosErr     error
+	createLotErr     error
 	createConsumeErr error
-	getOpenErr      error
-	getClosedErr    error
-	getLotErr       error
-	getConsumeErr   error
-	recalculateErr  error
+	getOpenErr       error
+	getClosedErr     error
+	getLotErr        error
+	getConsumeErr    error
+	recalculateErr   error
 }
 
 func newMockPositionRepository() *mockPositionRepository {
@@ -386,8 +386,6 @@ func makeSellTxn(accountID int64, symbol string, date time.Time, qty, price int6
 	}
 }
 
-
-
 // --- RecalculateAccount tests ---
 
 func TestRecalculateAccount_AccountNotFound(t *testing.T) {
@@ -706,10 +704,10 @@ func TestGetLotDetails_WithConsumptions(t *testing.T) {
 	lot := Lot{
 		ID: 1, LotID: "LOT-TEST", AccountID: 1, Symbol: "AAPL",
 		LotType: "sell", Quantity: decimal.MustNew(1000, 2),
-		CostBasis: decimal.MustNew(0, 2),
-		SellPrice: ptrDecimal(decimal.MustNew(16000, 2)),
+		CostBasis:   decimal.MustNew(0, 2),
+		SellPrice:   ptrDecimal(decimal.MustNew(16000, 2)),
 		RealizedPnL: decimal.MustNew(10000, 2),
-		OpenDate: now(), CreatedAt: now(), UpdatedAt: now(),
+		OpenDate:    now(), CreatedAt: now(), UpdatedAt: now(),
 	}
 	posRepo.lots = []Lot{lot}
 	posRepo.consumptions = []LotConsumption{
@@ -862,22 +860,34 @@ func (m *mockMarketDataService) RefreshFxRates(_ context.Context, _ []marketserv
 
 // mockCacheScheduler records scheduled fetches for verification in tests.
 type mockCacheScheduler struct {
-	mu              sync.Mutex
-	symbolFetches   []struct{ symbol string; fromDate time.Time }
-	fxPairFetches   []struct{ base, quote string; fromDate time.Time }
+	mu            sync.Mutex
+	symbolFetches []struct {
+		symbol   string
+		fromDate time.Time
+	}
+	fxPairFetches []struct {
+		base, quote string
+		fromDate    time.Time
+	}
 	refreshAllCalls int
 }
 
 func (m *mockCacheScheduler) ScheduleSymbolFetch(symbol string, fromDate time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.symbolFetches = append(m.symbolFetches, struct{ symbol string; fromDate time.Time }{symbol, fromDate})
+	m.symbolFetches = append(m.symbolFetches, struct {
+		symbol   string
+		fromDate time.Time
+	}{symbol, fromDate})
 }
 
 func (m *mockCacheScheduler) ScheduleFxPairFetch(base, quote string, fromDate time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.fxPairFetches = append(m.fxPairFetches, struct{ base, quote string; fromDate time.Time }{base, quote, fromDate})
+	m.fxPairFetches = append(m.fxPairFetches, struct {
+		base, quote string
+		fromDate    time.Time
+	}{base, quote, fromDate})
 }
 
 func (m *mockCacheScheduler) RefreshAll(context.Context) {
@@ -886,18 +896,30 @@ func (m *mockCacheScheduler) RefreshAll(context.Context) {
 	m.refreshAllCalls++
 }
 
-func (m *mockCacheScheduler) GetSymbolFetches() []struct{ symbol string; fromDate time.Time } {
+func (m *mockCacheScheduler) GetSymbolFetches() []struct {
+	symbol   string
+	fromDate time.Time
+} {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	result := make([]struct{ symbol string; fromDate time.Time }, len(m.symbolFetches))
+	result := make([]struct {
+		symbol   string
+		fromDate time.Time
+	}, len(m.symbolFetches))
 	copy(result, m.symbolFetches)
 	return result
 }
 
-func (m *mockCacheScheduler) GetFxPairFetches() []struct{ base, quote string; fromDate time.Time } {
+func (m *mockCacheScheduler) GetFxPairFetches() []struct {
+	base, quote string
+	fromDate    time.Time
+} {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	result := make([]struct{ base, quote string; fromDate time.Time }, len(m.fxPairFetches))
+	result := make([]struct {
+		base, quote string
+		fromDate    time.Time
+	}, len(m.fxPairFetches))
 	copy(result, m.fxPairFetches)
 	return result
 }
@@ -1150,8 +1172,8 @@ func TestGetClosedPositionsSummary_SumsAllPositions(t *testing.T) {
 
 	// Create 3 closed positions with known RealizedPnlBase.
 	rpnl1 := decimal.MustNew(20000, 2) // 200.00
-	rpnl2 := decimal.MustNew(-5000, 2)  // -50.00
-	rpnl3 := decimal.MustNew(30000, 2)  // 300.00
+	rpnl2 := decimal.MustNew(-5000, 2) // -50.00
+	rpnl3 := decimal.MustNew(30000, 2) // 300.00
 	repo.CreatePosition(ctx, &Position{
 		AccountID: 1, Symbol: "AAPL", Currency: "USD", IsClosed: true,
 		RealizedPnlBase: &rpnl1,

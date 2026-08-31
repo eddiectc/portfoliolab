@@ -26,9 +26,9 @@ type PortfolioHolding struct {
 
 // CrossPortfolioOverlapInput holds the two portfolios to compare.
 type CrossPortfolioOverlapInput struct {
-	PortfolioA   []PortfolioHolding
+	PortfolioA     []PortfolioHolding
 	PortfolioAName string
-	PortfolioB   []PortfolioHolding
+	PortfolioB     []PortfolioHolding
 	PortfolioBName string
 }
 
@@ -99,18 +99,18 @@ func ComputeCrossPortfolioOverlap(input CrossPortfolioOverlapInput) *OverlapResu
 	overweight, underweight, neutral := ComputeWeightDifferences(input.PortfolioA, input.PortfolioB, 10)
 
 	return &OverlapResult{
-		TopHoldingsA:       topA,
-		TopHoldingsB:       topB,
-		OverlapPct:         &overlapPct,
-		SectorAllocationA:  sectorA,
-		SectorAllocationB:  sectorB,
-		CountryAllocationA: countryA,
-		CountryAllocationB: countryB,
-		MergedHoldings:     mergedHoldings,
-		OverweightHoldings: overweight,
+		TopHoldingsA:        topA,
+		TopHoldingsB:        topB,
+		OverlapPct:          &overlapPct,
+		SectorAllocationA:   sectorA,
+		SectorAllocationB:   sectorB,
+		CountryAllocationA:  countryA,
+		CountryAllocationB:  countryB,
+		MergedHoldings:      mergedHoldings,
+		OverweightHoldings:  overweight,
 		UnderweightHoldings: underweight,
-		NeutralHoldings:    neutral,
-		Warnings:           warnings,
+		NeutralHoldings:     neutral,
+		Warnings:            warnings,
 	}
 }
 

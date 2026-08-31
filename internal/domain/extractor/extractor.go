@@ -180,9 +180,9 @@ type FundCharacteristics struct {
 	AverageQuality  float64 // average quality rating
 	AverageDuration float64 // average duration
 	// BlackRock/iShares-specific fields
-	Beta3Y             float64 // 3-year beta
+	Beta3Y              float64 // 3-year beta
 	StandardDeviation3Y float64 // 3-year standard deviation
-	NumberOfHoldings   int     // number of holdings
+	NumberOfHoldings    int     // number of holdings
 	// FieldsPresent tracks which fields were actually populated by the parser.
 	// A zero value means the field was not present in the source data (distinct
 	// from the field being genuinely zero).

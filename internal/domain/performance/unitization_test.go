@@ -291,11 +291,11 @@ func TestComputeNavHistory_MultipleDepositsDifferentDays(t *testing.T) {
 	//   portfolio = $18,000, NAV = $1.0839
 
 	equityCurve := []EquityCurvePoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)},  // $10,000
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1050000, 2)},  // $10,500
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(1550000, 2)},  // $15,500
-		{Date: mustTime("2024-01-04"), PortfolioValue: dec(1600000, 2)},  // $16,000
-		{Date: mustTime("2024-01-05"), PortfolioValue: dec(1800000, 2)},  // $18,000
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000
+		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1050000, 2)}, // $10,500
+		{Date: mustTime("2024-01-03"), PortfolioValue: dec(1550000, 2)}, // $15,500
+		{Date: mustTime("2024-01-04"), PortfolioValue: dec(1600000, 2)}, // $16,000
+		{Date: mustTime("2024-01-05"), PortfolioValue: dec(1800000, 2)}, // $18,000
 	}
 
 	breakpoints := []NavBreakpoint{
@@ -441,11 +441,11 @@ func TestComputeNavHistory_BuyBeforeDeposit(t *testing.T) {
 	// Buy on Jan 1, deposit on Jan 5. Unitization starts on Jan 5.
 	// Points before Jan 5 show 0 units and 0 NAV.
 	equityCurve := []EquityCurvePoint{
-		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)},  // $10,000 (buy)
-		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1010000, 2)},  // $10,100
-		{Date: mustTime("2024-01-03"), PortfolioValue: dec(999900, 2)},   // $9,999
-		{Date: mustTime("2024-01-05"), PortfolioValue: dec(1500000, 2)},  // $15,000 (after deposit)
-		{Date: mustTime("2024-01-06"), PortfolioValue: dec(1515000, 2)},  // $15,150
+		{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2)}, // $10,000 (buy)
+		{Date: mustTime("2024-01-02"), PortfolioValue: dec(1010000, 2)}, // $10,100
+		{Date: mustTime("2024-01-03"), PortfolioValue: dec(999900, 2)},  // $9,999
+		{Date: mustTime("2024-01-05"), PortfolioValue: dec(1500000, 2)}, // $15,000 (after deposit)
+		{Date: mustTime("2024-01-06"), PortfolioValue: dec(1515000, 2)}, // $15,150
 	}
 
 	// Inception date is the deposit date (Jan 5).

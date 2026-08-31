@@ -11,12 +11,12 @@ import (
 type AnalysisSection string
 
 const (
-	SectionOverlap            AnalysisSection = "overlap"
-	SectionCorrelation        AnalysisSection = "correlation"
-	SectionSectorAllocation   AnalysisSection = "sector_allocation"
+	SectionOverlap              AnalysisSection = "overlap"
+	SectionCorrelation          AnalysisSection = "correlation"
+	SectionSectorAllocation     AnalysisSection = "sector_allocation"
 	SectionGeographicAllocation AnalysisSection = "geographic_allocation"
-	SectionStressTest         AnalysisSection = "stress_test"
-	SectionFactorExposure     AnalysisSection = "factor_exposure"
+	SectionStressTest           AnalysisSection = "stress_test"
+	SectionFactorExposure       AnalysisSection = "factor_exposure"
 )
 
 // AnalysisFilters holds optional filter criteria for analysis queries.
@@ -32,16 +32,16 @@ type AnalysisFilters struct {
 // Sections that could not be computed (e.g., no ETFs for overlap) are nil
 // and carry a Message explaining the empty state.
 type AnalysisResult struct {
-	PortfolioID           int64                     `json:"portfolio_id"`
-	ComputedAt            time.Time                 `json:"computed_at"`
-	Overlap               *OverlapResult            `json:"overlap,omitempty"`
-	Correlation           *CorrelationResult        `json:"correlation,omitempty"`
-	SectorAllocation      *AllocationResult         `json:"sector_allocation,omitempty"`
-	GeographicAllocation  *AllocationResult         `json:"geographic_allocation,omitempty"`
-	StressTest            *StressTestResult         `json:"stress_test,omitempty"`
-	FactorExposure        *FactorExposureResult     `json:"factor_exposure,omitempty"`
-	Warnings              []string                  `json:"warnings,omitempty"`
-	Message               string                    `json:"message,omitempty"` // empty-state message when no positions
+	PortfolioID          int64                 `json:"portfolio_id"`
+	ComputedAt           time.Time             `json:"computed_at"`
+	Overlap              *OverlapResult        `json:"overlap,omitempty"`
+	Correlation          *CorrelationResult    `json:"correlation,omitempty"`
+	SectorAllocation     *AllocationResult     `json:"sector_allocation,omitempty"`
+	GeographicAllocation *AllocationResult     `json:"geographic_allocation,omitempty"`
+	StressTest           *StressTestResult     `json:"stress_test,omitempty"`
+	FactorExposure       *FactorExposureResult `json:"factor_exposure,omitempty"`
+	Warnings             []string              `json:"warnings,omitempty"`
+	Message              string                `json:"message,omitempty"` // empty-state message when no positions
 }
 
 // --- Overlap ---
@@ -49,27 +49,27 @@ type AnalysisResult struct {
 // OverlapResult holds the ETF overlap analysis: pairwise overlap matrix and
 // top concentrated stocks across all ETFs.
 type OverlapResult struct {
-	PairwiseMatrix         []OverlapPair       `json:"pairwise_matrix"`
-	TopConcentratedStocks  []ConcentratedStock `json:"top_concentrated_stocks"`
-	Warnings               []string            `json:"warnings,omitempty"`
-	Message                string              `json:"message,omitempty"`
+	PairwiseMatrix        []OverlapPair       `json:"pairwise_matrix"`
+	TopConcentratedStocks []ConcentratedStock `json:"top_concentrated_stocks"`
+	Warnings              []string            `json:"warnings,omitempty"`
+	Message               string              `json:"message,omitempty"`
 }
 
 // OverlapPair describes the overlap between two ETFs in the portfolio.
 type OverlapPair struct {
-	ETFA            string  `json:"etf_a"`
-	ETFB            string  `json:"etf_b"`
-	OverlappingCount int    `json:"overlapping_count"`
+	ETFA              string  `json:"etf_a"`
+	ETFB              string  `json:"etf_b"`
+	OverlappingCount  int     `json:"overlapping_count"`
 	CombinedWeightPct float64 `json:"combined_weight_pct"`
 }
 
 // ConcentratedStock describes a single underlying stock held by multiple ETFs,
 // aggregated across all ETFs holding it.
 type ConcentratedStock struct {
-	Symbol        string   `json:"symbol"`
-	Name          string   `json:"name"`
-	TotalWeightPct float64 `json:"total_weight_pct"`
-	HeldByETFs    []string `json:"held_by_etfs"`
+	Symbol         string   `json:"symbol"`
+	Name           string   `json:"name"`
+	TotalWeightPct float64  `json:"total_weight_pct"`
+	HeldByETFs     []string `json:"held_by_etfs"`
 }
 
 // --- Correlation ---
@@ -79,11 +79,11 @@ type ConcentratedStock struct {
 // correlation between Symbols[i] and Symbols[j], or nil when there is
 // insufficient overlapping data (the UI renders this as "-" or "N/A").
 type CorrelationResult struct {
-	Matrix  [][]*float64 `json:"matrix,omitempty"`
-	Symbols []string    `json:"symbols"`
-	Period  string      `json:"period"`
-	Warnings []string   `json:"warnings,omitempty"`
-	Message string      `json:"message,omitempty"`
+	Matrix   [][]*float64 `json:"matrix,omitempty"`
+	Symbols  []string     `json:"symbols"`
+	Period   string       `json:"period"`
+	Warnings []string     `json:"warnings,omitempty"`
+	Message  string       `json:"message,omitempty"`
 }
 
 // --- Allocation ---
@@ -92,10 +92,10 @@ type CorrelationResult struct {
 // (sector or geographic region). Breakdown maps category name → weighted %.
 // UnknownWeightPct is the portion of the portfolio that could not be classified.
 type AllocationResult struct {
-	Breakdown       map[string]float64 `json:"breakdown"`
-	UnknownWeightPct float64           `json:"unknown_weight_pct"`
-	Warnings        []string           `json:"warnings,omitempty"`
-	Message         string             `json:"message,omitempty"`
+	Breakdown        map[string]float64 `json:"breakdown"`
+	UnknownWeightPct float64            `json:"unknown_weight_pct"`
+	Warnings         []string           `json:"warnings,omitempty"`
+	Message          string             `json:"message,omitempty"`
 }
 
 // --- Stress Test ---
@@ -111,11 +111,11 @@ type StressTestResult struct {
 // StressScenarioResult describes the estimated impact of a single historical
 // crisis scenario on the portfolio.
 type StressScenarioResult struct {
-	Name                string              `json:"name"`
-	DateRange           string              `json:"date_range"`
-	EstimatedReturnPct  float64             `json:"estimated_return_pct"`
-	EstimatedDollarImpact decimal.Decimal   `json:"estimated_dollar_impact"`
-	SectorContributions map[string]float64  `json:"sector_contributions"`
+	Name                  string             `json:"name"`
+	DateRange             string             `json:"date_range"`
+	EstimatedReturnPct    float64            `json:"estimated_return_pct"`
+	EstimatedDollarImpact decimal.Decimal    `json:"estimated_dollar_impact"`
+	SectorContributions   map[string]float64 `json:"sector_contributions"`
 }
 
 // --- Factor Exposure ---
@@ -124,16 +124,16 @@ type StressScenarioResult struct {
 // cached valuation data (P/E, P/B, market cap, concentration) and, when
 // price history is provided, time-series factors (momentum, volatility).
 type FactorExposureResult struct {
-	ValueGrowthTilt     FactorValueGrowth `json:"value_growth_tilt"`
-	SizeTilt            FactorSizeTilt    `json:"size_tilt"`
+	ValueGrowthTilt     FactorValueGrowth   `json:"value_growth_tilt"`
+	SizeTilt            FactorSizeTilt      `json:"size_tilt"`
 	Concentration       FactorConcentration `json:"concentration"`
-	TopHoldingWeightPct float64           `json:"top_holding_weight_pct"`
-	Quality             FactorQuality     `json:"quality"`
-	Cost                FactorCost        `json:"cost"`
-	Momentum            FactorMomentum    `json:"momentum"`
-	Volatility          FactorVolatility  `json:"volatility"`
-	Warnings            []string          `json:"warnings,omitempty"`
-	Message             string            `json:"message,omitempty"`
+	TopHoldingWeightPct float64             `json:"top_holding_weight_pct"`
+	Quality             FactorQuality       `json:"quality"`
+	Cost                FactorCost          `json:"cost"`
+	Momentum            FactorMomentum      `json:"momentum"`
+	Volatility          FactorVolatility    `json:"volatility"`
+	Warnings            []string            `json:"warnings,omitempty"`
+	Message             string              `json:"message,omitempty"`
 }
 
 // FactorValueGrowth describes the portfolio's value vs growth tilt based on
@@ -196,6 +196,6 @@ type FactorVolatility struct {
 // details (holdings, sectors, valuation) for analysis computations.
 type PositionWithDetails struct {
 	Symbol          string
-	PortfolioWeight float64  // position market value / total portfolio value (0-100 %)
+	PortfolioWeight float64 // position market value / total portfolio value (0-100 %)
 	SymbolDetails   *symbol.SymbolDetails
 }

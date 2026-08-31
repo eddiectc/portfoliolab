@@ -274,10 +274,10 @@ func TestParseQuoteSummaryResponse_Error(t *testing.T) {
 
 func TestParseTopHoldings(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []topHoldingItem
-		wantNil  bool
-		wantLen  int
+		name      string
+		input     []topHoldingItem
+		wantNil   bool
+		wantLen   int
 		wantFirst symbol.TopHolding
 	}{
 		{

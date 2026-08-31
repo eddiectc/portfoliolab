@@ -289,36 +289,36 @@ func TestParseHoldingsCSV(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "success with holdings unsorted",
-			csv: "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL,Apple Inc,0.05,5000000\n2026-05-28,IE000EGGFVG6,MSFT,Microsoft Corp,0.08,8000000\n2026-05-28,IE000EGGFVG6,CASH,Cash,0.01,100000",
+			name:    "success with holdings unsorted",
+			csv:     "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL,Apple Inc,0.05,5000000\n2026-05-28,IE000EGGFVG6,MSFT,Microsoft Corp,0.08,8000000\n2026-05-28,IE000EGGFVG6,CASH,Cash,0.01,100000",
 			wantLen: 2, // AAPL and MSFT, CASH filtered
 			wantTop: "MSFT",
 			wantErr: false,
 		},
 		{
-			name: "cash positions filtered",
-			csv: "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL,Apple Inc,0.05,5000000\n2026-05-28,IE000EGGFVG6,XXX,Euro Income,0.02,200000\n2026-05-28,IE000EGGFVG6,YYY,US Dollar,0.01,100000",
+			name:    "cash positions filtered",
+			csv:     "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL,Apple Inc,0.05,5000000\n2026-05-28,IE000EGGFVG6,XXX,Euro Income,0.02,200000\n2026-05-28,IE000EGGFVG6,YYY,US Dollar,0.01,100000",
 			wantLen: 1,
 			wantTop: "AAPL",
 			wantErr: false,
 		},
 		{
-			name: "malformed rows skipped gracefully",
-			csv: "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL",
+			name:    "malformed rows skipped gracefully",
+			csv:     "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL",
 			wantLen: 0,
 			wantTop: "",
 			wantErr: false,
 		},
 		{
-			name: "weight with percent sign",
-			csv: "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL,Apple Inc,5%,5000000",
+			name:    "weight with percent sign",
+			csv:     "date,etf_isin,ticker,description,weight,market_value\n2026-05-28,IE000EGGFVG6,AAPL,Apple Inc,5%,5000000",
 			wantLen: 1,
 			wantTop: "AAPL",
 			wantErr: false,
 		},
 		{
-			name: "empty CSV body",
-			csv: "date,etf_isin,ticker,description,weight,market_value",
+			name:    "empty CSV body",
+			csv:     "date,etf_isin,ticker,description,weight,market_value",
 			wantLen: 0,
 			wantTop: "",
 			wantErr: false,

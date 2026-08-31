@@ -158,9 +158,9 @@ type hrpResult struct {
 }
 
 type hrpAllocation struct {
-	Method     string                `json:"method"`
-	Weights    map[string]float64    `json:"weights"`
-	Dendrogram *hrpDendrogramNode    `json:"dendrogram,omitempty"`
+	Method     string             `json:"method"`
+	Weights    map[string]float64 `json:"weights"`
+	Dendrogram *hrpDendrogramNode `json:"dendrogram,omitempty"`
 }
 
 type hrpDendrogramNode struct {

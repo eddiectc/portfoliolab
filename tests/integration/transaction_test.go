@@ -531,63 +531,63 @@ func TestTransaction_ValidationErrors(t *testing.T) {
 	_, router, _, accountID := setupTx(t)
 
 	tests := []struct {
-		name    string
-		body    string
-		want    int
+		name     string
+		body     string
+		want     int
 		wantCode string
 	}{
 		{
-			name:    "invalid type",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"exchange","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "invalid type",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"exchange","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "INVALID_TYPE",
 		},
 		{
-			name:    "invalid price (zero)",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":0,"currency":"USD","net_cash":-1500}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "invalid price (zero)",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":0,"currency":"USD","net_cash":-1500}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "INVALID_PRICE",
 		},
 		{
-			name:    "invalid quantity (zero)",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":0,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "invalid quantity (zero)",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":0,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "INVALID_QUANTITY",
 		},
 		{
-			name:    "invalid currency",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"US","net_cash":-1500}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "invalid currency",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"US","net_cash":-1500}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "INVALID_CURRENCY",
 		},
 		{
-			name:    "invalid date",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"not-a-date","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "invalid date",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"not-a-date","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "INVALID_DATE",
 		},
 		{
-			name:    "empty symbol",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "empty symbol",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "INVALID_SYMBOL",
 		},
 		{
-			name:    "non-existent account",
-			body:    `{"account_id":999,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`,
-			want:    http.StatusNotFound,
+			name:     "non-existent account",
+			body:     `{"account_id":999,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`,
+			want:     http.StatusNotFound,
 			wantCode: "ACCOUNT_NOT_FOUND",
 		},
 		{
-			name:    "non-existent symbol",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"XYZZY","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "non-existent symbol",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"XYZZY","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "SYMBOL_NOT_FOUND",
 		},
 		{
-			name:    "missing net_cash (zero)",
-			body:    fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":0}`, accountID),
-			want:    http.StatusBadRequest,
+			name:     "missing net_cash (zero)",
+			body:     fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":0}`, accountID),
+			want:     http.StatusBadRequest,
 			wantCode: "INVALID_NET_CASH",
 		},
 	}

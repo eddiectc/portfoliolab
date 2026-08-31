@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
@@ -52,9 +52,9 @@ type AccountLister interface {
 
 // AccountRef holds minimal account info for position queries.
 type AccountRef struct {
-	ID               int64
-	Name             string
-	PortfolioID      int64
+	ID                int64
+	Name              string
+	PortfolioID       int64
 	PortfolioCurrency string
 }
 

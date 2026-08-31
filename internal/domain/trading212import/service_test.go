@@ -251,19 +251,19 @@ func TestService_Preview_AllDuplicates(t *testing.T) {
 	// Mark all 15 IDs from sample CSV as duplicates
 	allRefs := []string{
 		"019a0001-0001-0001-0001-000000000001", // Deposit
-		"EOF50000000001",                        // Limit buy AAPL
-		"EOF50000000002",                        // Market buy MSFT
+		"EOF50000000001",                       // Limit buy AAPL
+		"EOF50000000002",                       // Market buy MSFT
 		"019a0002-0002-0002-0002-000000000002", // Interest
-		"EOF50000000003",                        // Limit sell AAPL
-		"EOF50000000004",                        // Market sell MSFT
+		"EOF50000000003",                       // Limit sell AAPL
+		"EOF50000000004",                       // Market sell MSFT
 		"019a0003-0003-0003-0003-000000000003", // Interest
 		"019a0004-0004-0004-0004-000000000004", // Withdrawal
-		"EOF50000000005",                        // Limit buy QGRP
+		"EOF50000000005",                       // Limit buy QGRP
 		"019a0005-0005-0005-0005-000000000005", // Interest
-		"EOF50000000006",                        // Market buy DBMG
+		"EOF50000000006",                       // Market buy DBMG
 		"019a0006-0006-0006-0006-000000000006", // Deposit
 		"019a0007-0007-0007-0007-000000000007", // Interest
-		"EOF50000000007",                        // Limit sell QGRP
+		"EOF50000000007",                       // Limit sell QGRP
 		"019a0008-0008-0008-0008-000000000008", // Interest
 	}
 	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "MSFT", "QGRP", "DBMG", "$CASH-GBP"}, allRefs)

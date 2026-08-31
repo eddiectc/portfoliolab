@@ -60,7 +60,7 @@ func (s *Service) GetHistoricalPrices(ctx context.Context, symbol string, start,
 }
 
 // GetLatestPriceDatePerSymbol returns the latest cached date per symbol,
-// excluding current (date='') entries. Symbols with no cached history are
+// excluding current (date=”) entries. Symbols with no cached history are
 // omitted from the result.
 func (s *Service) GetLatestPriceDatePerSymbol(ctx context.Context, symbols []string) map[string]*time.Time {
 	if s.repo == nil {
