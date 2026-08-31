@@ -155,9 +155,10 @@
   fraction × 100, `round10`); market-cap rows by label (`Large`/`Mid`/`Small`/`Micro`, total row separate);
   characteristics P/E, P/B, P/S, P/CF, dividend yield from the Fund characteristic table.
 - **Sectors / Themes** (`ParseSectorsFromFlight` / `ParseThemesFromFlight`): section entries → name,
-  `weight` fraction × 100 (`round10`), entry `date`; absent section → `nil, nil` (QGRW has sectors, no
-  themes; EZM both; WMGT both).
-- **Fixtures**: `flight_ezm_sector.html` added (EZM sector + theme sections).
+  `weight` fraction × 100 (`round10`), entry `date`; absent section → `nil, nil` (QGRW: sectors only;
+  EZM: sectors only — its page has no theme section; WMGT: both).
+- **Fixtures**: `flight_ezm_sector.html` added (EZM sector section only — the EZM page has no theme
+  section; the e2e test asserts `Themes == nil` for EZM).
 - **Tests**: `parsers_test.go` rewritten for the v2 surface — every parser against real fixtures in both
   regions (QGRW/WMGT UCITS + EZM US), absent-table/section → `nil, nil` cases, float-artifact rounding,
   AUM ×1000 conversion, percent-fraction conventions, date parsing (both regions + ambiguous `05/04`).
@@ -237,7 +238,9 @@ Review of parsers + orchestrator against SPEC/PLAN/NOTES/DoD. Findings and dispo
   efficient_frontier tests).
 - **Pre-existing failure (not this feature):** `TestBenchmarkChartAllPeriods/1M` is date-dependent — on
   2026-08-31 the 1M window (2026-08-01→31) contains no monthly benchmark points (latest is 2026-07-15),
-  so the chart page has no data. Fails on the parent commit as well; left as-is.
+  so the chart page has no data. Fails on the parent commit as well; left as-is. Since fixed in
+  `8e59226` — the test now seeds benchmark prices for every calendar day from 2000 through today,
+  so all period windows contain data regardless of run date.
 
 ## 2026-08-31 — Task 6 (Cleanup + full verification) complete
 
@@ -255,9 +258,28 @@ Remaining Task 6 tail executed (Tasks 1–5 and most of Task 6 were done by the 
   goimports-clean at HEAD; the only f021 change from the run was the comment fix above. The sweep was
   reverted to keep Task 6's commit focused (one concern per commit). **Open question for the user:**
   commit a separate format-only repo-wide `goimports` pass, or leave the drift for a dedicated task.
+  (Resolved: the user committed the separate format-only pass as `fda1c42`.)
 - **Full suite re-run:** `go test ./...` green except the documented pre-existing
   `TestBenchmarkChartAllPeriods/1M` (same date-dependent failure as at review time).
 - **PLAN.md:** Tasks 4–6 checked off (Task 6's user-verification box and Task 7 remain — user's scope).
 - **Completed by the user:** live portal verification passed (WisdomTree symbol refresh works, details
   page renders) and all stored `data_source_url` values updated to the new region/asset-class/slug
   format before deploying. **All f021 tasks complete** — feature done, retrospective pending.
+
+## 2026-08-31 — Full-feature implementation review (`/review-impl`)
+
+- **Result: pass** — no code issues. `go test ./...` green, `golangci-lint` 0 issues on the
+  package, all SPEC scenarios covered (Stories 1–5 + edge cases; the two unavailable items — fund
+  family, annual holdings turnover — documented as no longer existing on the new site).
+- **Doc fixes applied** (all minor, no code):
+  - `features/README.md` — f021 status `in-progress` → `done`.
+  - `v1/` archive — added `SUPERSEDED` headers to `NOTES.md`, `PLAN.md`, `RETRO.md`
+    (`RESEARCH.md` already had one) per the feature-revision convention in `features/README.md`.
+  - This file — resolved the goimports "open question" (separate format-only pass committed as
+    `fda1c42`) and the "pre-existing failure" note (`8e59226` made `TestBenchmarkChartAllPeriods`
+    date-independent; full suite now green); corrected the Task 4 entry's EZM theme wording —
+    the EZM page has **no** theme section (sectors only), matching the e2e's `Themes == nil`
+    assertion.
+  - `PLAN.md` — stale wording corrected: status → complete; AUM unit label "millions" →
+    thousands of USD (two places); e2e holdings count 101/493 → 100/506 tradeable.
+- **Remaining process step:** retrospective (`/retro f021`).

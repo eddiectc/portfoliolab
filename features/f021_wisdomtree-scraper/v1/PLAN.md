@@ -1,5 +1,9 @@
 # Implementation Plan: Data Extractor Framework with WisdomTree Provider
 
+> **SUPERSEDED.** WisdomTree relaunched its website on 2026-08-30 (Sitecore → React/Next.js).
+> This plan covers the v1 implementation (old site), which was rebuilt in place in Phase 2.
+> Current plan: `../PLAN.md`.
+
 ## Overview
 
 Build an extensible data extractor framework that routes symbol details fetching to alternative providers (WisdomTree) instead of Yahoo Finance. The user sets a source URL on the symbol mapping (e.g. `https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt---...`), and the dispatcher determines which extractor to use by matching the URL domain/pattern. The WisdomTree extractor parses inline CSV data embedded in JavaScript variables on fund pages for comprehensive data: full holdings (800+), NAV history, market cap breakdown, fund characteristics, theme/sector/country allocations. NAV history is stored in the existing `market_data` table with a new `nav` data type.
