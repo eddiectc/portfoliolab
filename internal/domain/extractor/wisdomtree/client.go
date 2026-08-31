@@ -33,6 +33,10 @@ type Client struct {
 	minDelay time.Duration
 	timeout  int
 	fetch    fetchFunc // overridden in tests
+	// throttle is called with the computed wait between requests.
+	// Production: time.Sleep. Tests: recorder (asserts rate limiting
+	// without sleeping) or no-op (disables waiting entirely).
+	throttle func(time.Duration)
 	baseURL  string
 }
 
@@ -42,6 +46,7 @@ func NewClient() *Client {
 		cycleTLS: cycletls.Init(),
 		minDelay: 1 * time.Second,
 		timeout:  30,
+		throttle: time.Sleep,
 		baseURL:  apiBaseURL,
 	}
 }
@@ -62,7 +67,7 @@ func (c *Client) fetchURL(url string) (string, error) {
 	c.mu.Unlock()
 
 	if wait > 0 {
-		time.Sleep(wait)
+		c.throttle(wait)
 	}
 
 	c.mu.Lock()
@@ -178,4 +183,11 @@ func (c *Client) FundHistory(ctx context.Context, wtClassID int) ([]historyPoint
 // SetFetchFunc sets a custom fetch function (for testing).
 func (c *Client) SetFetchFunc(fn fetchFunc) {
 	c.fetch = fn
+}
+
+// SetThrottle overrides the rate-limit wait (for testing). Pass a recorder
+// to assert the waits the limiter requests, or func(time.Duration) {} to
+// disable waiting without touching minDelay.
+func (c *Client) SetThrottle(fn func(time.Duration)) {
+	c.throttle = fn
 }

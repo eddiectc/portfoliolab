@@ -7,7 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
+
+// newTestClient returns a client that keeps the production rate limit
+// (minDelay = 1s) but does not actually sleep between requests.
+func newTestClient() *Client {
+	c := NewClient()
+	c.SetThrottle(func(time.Duration) {})
+	return c
+}
 
 func TestExtractor_Name(t *testing.T) {
 	e := NewExtractor()
@@ -180,7 +189,7 @@ func TestExtractor_Extract(t *testing.T) {
 	navBytes, _ := json.Marshal(map[string]interface{}{"data": navData})
 
 	e := NewExtractor()
-	e.client = &Client{}
+	e.client = newTestClient()
 
 	// Mock REST fetch
 	e.client.SetRestFetch(func(slug string) ([]byte, error) {
@@ -292,7 +301,7 @@ func TestExtractor_Extract(t *testing.T) {
 
 func TestExtractor_Extract_Phase1Failure(t *testing.T) {
 	e := NewExtractor()
-	e.client = &Client{}
+	e.client = newTestClient()
 
 	// Mock REST fetch to fail
 	e.client.SetRestFetch(func(slug string) ([]byte, error) {
@@ -316,7 +325,7 @@ func TestExtractor_Extract_Phase2Failure(t *testing.T) {
 	restBytes, _ := json.Marshal(restResponse)
 
 	e := NewExtractor()
-	e.client = &Client{}
+	e.client = newTestClient()
 	e.client.SetRestFetch(func(slug string) ([]byte, error) {
 		return restBytes, nil
 	})
@@ -357,7 +366,7 @@ func TestExtractor_Extract_EmptyHoldings(t *testing.T) {
 	holdingsBytes, _ := json.Marshal(map[string]interface{}{"data": holdingsData})
 
 	e := NewExtractor()
-	e.client = &Client{}
+	e.client = newTestClient()
 	e.client.SetRestFetch(func(slug string) ([]byte, error) {
 		return restBytes, nil
 	})
@@ -436,7 +445,7 @@ func TestExtractor_Extract_HTTPError(t *testing.T) {
 	// Use real HTTP client pointing to our test server
 	// We can't easily override the base URL, so we test through the client directly
 
-	client := &Client{}
+	client := newTestClient()
 	client.SetRestFetch(func(slug string) ([]byte, error) {
 		return nil, fmt.Errorf("HTTP 404")
 	})

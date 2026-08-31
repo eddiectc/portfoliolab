@@ -13,7 +13,6 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
@@ -253,7 +252,7 @@ func testLogger() *slog.Logger {
 
 func TestIntegration_CreateAndGet(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	body := `{"name": "Integration Test", "currency": "GBP"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/portfolios", bytes.NewBufferString(body))
@@ -296,7 +295,7 @@ func TestIntegration_CreateAndGet(t *testing.T) {
 
 func TestIntegration_ListEmpty(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/portfolios", nil)
 	w := httptest.NewRecorder()
@@ -315,7 +314,7 @@ func TestIntegration_ListEmpty(t *testing.T) {
 
 func TestIntegration_CreateListDelete(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create two portfolios
 	for _, name := range []string{"Portfolio A", "Portfolio B"} {
@@ -366,7 +365,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 
 func TestIntegration_Update(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create
 	body := json.RawMessage(`{"name": "Original", "currency": "USD"}`)
@@ -400,7 +399,7 @@ func TestIntegration_Update(t *testing.T) {
 
 func TestIntegration_DuplicateName(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create first
 	body := json.RawMessage(`{"name": "Unique", "currency": "USD"}`)
@@ -424,7 +423,7 @@ func TestIntegration_DuplicateName(t *testing.T) {
 
 func TestIntegration_Pagination(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create 5 portfolios
 	for i := 0; i < 5; i++ {

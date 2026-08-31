@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
@@ -19,7 +18,7 @@ import (
 func setupAlloc(t *testing.T) (*sql.DB, http.Handler, int64, int64) {
 	t.Helper()
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Alloc Test", "currency": "USD"}`)
@@ -648,7 +647,7 @@ func TestAllocation_WebPage_WithDrift_Renders200(t *testing.T) {
 
 func TestAllocation_NoPortfolios(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// GET /api/allocation with no portfolios at all
 	req := httptest.NewRequest(http.MethodGet, "/api/allocation", nil)

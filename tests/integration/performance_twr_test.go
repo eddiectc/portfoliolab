@@ -13,7 +13,6 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/market"
@@ -62,7 +61,7 @@ func insertMarketData(t *testing.T, db *sql.DB, stockPrices, fxRates map[string]
 func setupPerf(t *testing.T, baseCurrency, acctCurrency string) (*sql.DB, http.Handler, int64, int64) {
 	t.Helper()
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Portfolio
 	body := json.RawMessage(`{"name":"Perf","currency":"` + baseCurrency + `"}`)

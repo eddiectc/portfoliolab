@@ -11,7 +11,6 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
@@ -90,7 +89,7 @@ func insertMarketDataRaw(t *testing.T, db *sql.DB, prices map[string]string) {
 
 func TestModelPortfolio_CreateAndGet(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	id := createModelPortfolio(t, router, "Growth Model", []modelportfolio.ModelPortfolioEntry{
 		{Symbol: "AAPL", WeightPct: mustDecimal("40.0")},
@@ -122,7 +121,7 @@ func TestModelPortfolio_CreateAndGet(t *testing.T) {
 
 func TestModelPortfolio_CreateInvalidWeights(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Weights sum to 70%, not 100%
 	body := json.RawMessage(`{
@@ -152,7 +151,7 @@ func TestModelPortfolio_CreateInvalidWeights(t *testing.T) {
 
 func TestModelPortfolio_CreateNegativeWeight(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	body := json.RawMessage(`{
 		"name": "Negative Weight",
@@ -172,7 +171,7 @@ func TestModelPortfolio_CreateNegativeWeight(t *testing.T) {
 
 func TestModelPortfolio_CreateWithInlineSymbol(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create a model portfolio with a symbol that doesn't exist yet (TSLA)
 	id := createModelPortfolio(t, router, "New Symbol Model", []modelportfolio.ModelPortfolioEntry{
@@ -220,7 +219,7 @@ func TestModelPortfolio_CreateWithInlineSymbol(t *testing.T) {
 
 func TestModelPortfolio_Edit(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	id := createModelPortfolio(t, router, "Edit Test", []modelportfolio.ModelPortfolioEntry{
 		{Symbol: "AAPL", WeightPct: mustDecimal("50.0")},
@@ -261,7 +260,7 @@ func TestModelPortfolio_Edit(t *testing.T) {
 
 func TestModelPortfolio_Delete(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	id := createModelPortfolio(t, router, "Delete Me", []modelportfolio.ModelPortfolioEntry{
 		{Symbol: "AAPL", WeightPct: mustDecimal("100.0")},
@@ -286,7 +285,7 @@ func TestModelPortfolio_Delete(t *testing.T) {
 
 func TestModelPortfolio_ListEmpty(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/model-portfolios", nil)
 	w := httptest.NewRecorder()
@@ -307,7 +306,7 @@ func TestModelPortfolio_ListEmpty(t *testing.T) {
 
 func TestModelPortfolio_CreateDuplicateName(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	createModelPortfolio(t, router, "Duplicate", []modelportfolio.ModelPortfolioEntry{
 		{Symbol: "AAPL", WeightPct: mustDecimal("100.0")},
@@ -329,7 +328,7 @@ func TestModelPortfolio_CreateDuplicateName(t *testing.T) {
 
 func TestModelPortfolio_ApplyAsTarget(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create portfolio, account, symbols
 	portfolioID := createPortfolioViaAPI(t, router, "Target Test", "USD")
@@ -436,7 +435,7 @@ func TestModelPortfolio_ApplyAsTarget(t *testing.T) {
 func TestModelPortfolio_WebPage_List_Renders200(t *testing.T) {
 	skipIfTemplatesUnavailable(t)
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/model-portfolios", nil)
 	w := httptest.NewRecorder()
@@ -454,7 +453,7 @@ func TestModelPortfolio_WebPage_List_Renders200(t *testing.T) {
 func TestModelPortfolio_WebPage_New_Renders200(t *testing.T) {
 	skipIfTemplatesUnavailable(t)
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/model-portfolios/new", nil)
 	w := httptest.NewRecorder()
@@ -467,7 +466,7 @@ func TestModelPortfolio_WebPage_New_Renders200(t *testing.T) {
 func TestModelPortfolio_WebPage_Edit_Renders200(t *testing.T) {
 	skipIfTemplatesUnavailable(t)
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	id := createModelPortfolio(t, router, "Edit Page Test", []modelportfolio.ModelPortfolioEntry{
 		{Symbol: "AAPL", WeightPct: mustDecimal("100.0")},
@@ -484,7 +483,7 @@ func TestModelPortfolio_WebPage_Edit_Renders200(t *testing.T) {
 func TestModelPortfolio_WebPage_CreateRedirects(t *testing.T) {
 	skipIfTemplatesUnavailable(t)
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	form := "name=Web+Create&symbol=AAPL&weight=50.0&symbol=MSFT&weight=50.0"
 	req := httptest.NewRequest(http.MethodPost, "/model-portfolios", bytes.NewBufferString(form))
@@ -499,7 +498,7 @@ func TestModelPortfolio_WebPage_CreateRedirects(t *testing.T) {
 func TestModelPortfolio_WebPage_DeleteRedirects(t *testing.T) {
 	skipIfTemplatesUnavailable(t)
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	id := createModelPortfolio(t, router, "Web Delete", []modelportfolio.ModelPortfolioEntry{
 		{Symbol: "AAPL", WeightPct: mustDecimal("100.0")},

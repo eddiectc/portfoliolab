@@ -10,13 +10,11 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
-
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 )
 
 func TestSymbolDetails_CreateAndEnrich(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create a symbol via API
 	body := json.RawMessage(`{"internal_symbol": "TESTSYM", "market_data_symbol": "TEST"}`)
@@ -152,7 +150,7 @@ func TestSymbolDetails_CreateAndEnrich(t *testing.T) {
 
 func TestSymbolDetails_ListExcludesDetails(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create a symbol
 	body := json.RawMessage(`{"internal_symbol": "LISTSYM", "market_data_symbol": "LIST"}`)

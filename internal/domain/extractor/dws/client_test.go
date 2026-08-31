@@ -63,9 +63,14 @@ func TestClient_Fetch(t *testing.T) {
 	}
 }
 
+// TestClient_RateLimiting verifies the limiter waits ~minDelay before every
+// request after the first. Waits are asserted via the throttle hook, so the
+// test is deterministic and sleep-free, and runs against the production
+// minDelay (1s).
 func TestClient_RateLimiting(t *testing.T) {
 	client := NewClient()
-	client.minDelay = 100 * time.Millisecond
+	var waits []time.Duration
+	client.SetThrottle(func(d time.Duration) { waits = append(waits, d) })
 
 	count := 0
 	client.SetFetchFunc(func(url string) (string, error) {
@@ -73,20 +78,24 @@ func TestClient_RateLimiting(t *testing.T) {
 		return "{}", nil
 	})
 
-	start := time.Now()
 	for i := 0; i < 3; i++ {
 		_, err := client.Fetch("slug", "endpoint")
 		if err != nil {
 			t.Fatalf("fetch failed at iteration %d: %v", i, err)
 		}
 	}
-	duration := time.Since(start)
 
-	expectedMinDuration := 200 * time.Millisecond // 2 intervals of 100ms
-	if duration < expectedMinDuration {
-		t.Errorf("Rate limiting not applied, duration %v < %v", duration, expectedMinDuration)
-	}
 	if count != 3 {
 		t.Errorf("Expected 3 requests, got %d", count)
+	}
+	if len(waits) != 2 {
+		t.Fatalf("throttle called %d times, want 2 (first request must not wait)", len(waits))
+	}
+	for i, w := range waits {
+		// Mocked fetches are instantaneous, so each wait is ~minDelay
+		// (1s minus the few microseconds between requests).
+		if w < 900*time.Millisecond {
+			t.Errorf("throttle wait[%d] = %v, want ~%v", i, w, client.minDelay)
+		}
 	}
 }

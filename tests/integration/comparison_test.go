@@ -12,7 +12,6 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 )
 
@@ -128,7 +127,7 @@ type intraCorrelation struct {
 func setupComparison(t *testing.T) (*sql.DB, http.Handler) {
 	t.Helper()
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create symbol mappings for test symbols.
 	for _, sym := range []string{"AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"} {
@@ -857,7 +856,7 @@ func TestComparison_EnhancedOverlap_WebPageRendersSections(t *testing.T) {
 func TestComparison_EnhancedOverlap_FullStackWithData(t *testing.T) {
 	skipIfTemplatesUnavailable(t)
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Seed symbol_details with sector and geographic data for test symbols.
 	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
