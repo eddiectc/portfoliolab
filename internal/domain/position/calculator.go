@@ -50,9 +50,9 @@ func buildLots(txnMap map[string][]transaction.Transaction) []LotGroup {
 		})
 
 		var (
-			quantity  decimal.Decimal = decimal.Zero
-			netCash   decimal.Decimal = decimal.Zero
-			openDate                  = txns[0].Date
+			quantity decimal.Decimal = decimal.Zero
+			netCash  decimal.Decimal = decimal.Zero
+			openDate                 = txns[0].Date
 		)
 
 		refs := make([]TransactionRef, 0, len(txns))

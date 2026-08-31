@@ -636,8 +636,6 @@ func TestIBKRImport_MissingAccountID(t *testing.T) {
 	}
 }
 
-
-
 func TestIBKRImport_ListTransactionsAfterImport(t *testing.T) {
 	_, router, accountID := setupIBKR(t)
 	xmlData := loadIBKRSampleXML(t)

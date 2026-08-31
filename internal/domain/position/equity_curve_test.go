@@ -3,7 +3,7 @@ package position
 import (
 	"context"
 	"fmt"
-	
+
 	"strings"
 	"testing"
 	"time"
@@ -46,9 +46,9 @@ func (m *mockHistoricalFetcher) FetchHistoricalPricesBatch(_ context.Context, sy
 }
 
 type mockHistoricalRepo struct {
-	upserted      map[string][]market.HistoricalPrice
-	cachedPrices  map[string][]market.HistoricalPrice
-	latestDates   map[string]*time.Time
+	upserted     map[string][]market.HistoricalPrice
+	cachedPrices map[string][]market.HistoricalPrice
+	latestDates  map[string]*time.Time
 }
 
 func newMockHistoricalRepo() *mockHistoricalRepo {
@@ -1035,8 +1035,8 @@ func TestComputeEquityCurve_FXForwardFillWeekend(t *testing.T) {
 	})
 	// Account 2 (USD): buy 1 BRK-B @ $400, funded by $400 deposit
 	txnRepo.SetTransactions(2, []transaction.Transaction{
-		eqTxn(2, testTime(2024, 3, 25), "deposit", "$CASH-USD", "USD", 0, 0, 40000),  // $400
-		eqTxn(2, testTime(2024, 3, 25), "buy", "BRK-B", "USD", 100, 40000, -40000), // 1 share @ $400
+		eqTxn(2, testTime(2024, 3, 25), "deposit", "$CASH-USD", "USD", 0, 0, 40000), // $400
+		eqTxn(2, testTime(2024, 3, 25), "buy", "BRK-B", "USD", 100, 40000, -40000),  // 1 share @ $400
 	})
 
 	// FX rates: only Mon-Fri (no weekend data)
@@ -1051,7 +1051,7 @@ func TestComputeEquityCurve_FXForwardFillWeekend(t *testing.T) {
 				{Date: testTime(2024, 3, 28), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Thu
 				{Date: testTime(2024, 3, 29), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Fri
 				// No Sat (3/30) or Sun (3/31)
-				{Date: testTime(2024, 3, 1), Close: decimal.MustNew(40000, 2), Currency: "USD"},  // Mon 4/1
+				{Date: testTime(2024, 3, 1), Close: decimal.MustNew(40000, 2), Currency: "USD"}, // Mon 4/1
 			},
 			"USD/GBP": {
 				{Date: testTime(2024, 3, 25), Close: fxRate}, // Mon
@@ -1060,7 +1060,7 @@ func TestComputeEquityCurve_FXForwardFillWeekend(t *testing.T) {
 				{Date: testTime(2024, 3, 28), Close: fxRate}, // Thu
 				{Date: testTime(2024, 3, 29), Close: fxRate}, // Fri
 				// No Sat (3/30) or Sun (3/31)
-				{Date: testTime(2024, 3, 1), Close: fxRate},  // Mon 4/1
+				{Date: testTime(2024, 3, 1), Close: fxRate}, // Mon 4/1
 			},
 		},
 	}, nil)
@@ -1114,8 +1114,8 @@ func TestComputeEquityCurve_MissingFXRateWarns(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-GBP", "GBP", 0, 0, 1000000), // £10,000
 	})
 	txnRepo.SetTransactions(2, []transaction.Transaction{
-		eqTxn(2, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 40000),  // $400
-		eqTxn(2, testTime(2024, 1, 15), "buy", "BRK-B", "USD", 100, 40000, -40000), // 1 share @ $400
+		eqTxn(2, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 40000), // $400
+		eqTxn(2, testTime(2024, 1, 15), "buy", "BRK-B", "USD", 100, 40000, -40000),  // 1 share @ $400
 	})
 
 	svc.WithMarketDataService(&mockMarketDataService{
@@ -1149,4 +1149,3 @@ func TestComputeEquityCurve_MissingFXRateWarns(t *testing.T) {
 		t.Errorf("portfolio value with missing FX: got %s, want %s (GBP only)", gotValue.String(), wantGBP.String())
 	}
 }
-

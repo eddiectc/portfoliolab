@@ -220,7 +220,7 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return "heat-even"
 		},
-		"queryPreserve": func(filter interface{}) template.HTMLAttr { 
+		"queryPreserve": func(filter interface{}) template.HTMLAttr {
 			// Returns filter query params preserved for pagination links.
 			// Returns template.HTML to prevent double-escaping of & in hrefs.
 			// Expects the filter to implement FilterEncoder.
@@ -327,7 +327,7 @@ func (r *Renderer) parseTemplates() error {
 			}
 			return fmt.Sprintf("%s %s", display.Pair, formatDecimal(display.Rate.String(), 4))
 		},
-	} 
+	}
 
 	// Collect layout files (base + partials) and page files separately
 	var layoutFiles []string
@@ -448,7 +448,8 @@ func StaticHandler(staticDir string) http.Handler {
 // formatDecimal parses a decimal string and formats it with the given number of
 // decimal places and thousands separators. Negative values are prefixed with "-".
 // e.g. formatDecimal("-1234567.8912", 2) → "-1,234,567.89"
-//      formatDecimal("1.2345", 4) → "1.2345"
+//
+//	formatDecimal("1.2345", 4) → "1.2345"
 func formatDecimal(s string, decimals int) string {
 	if s == "" {
 		return ""

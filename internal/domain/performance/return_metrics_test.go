@@ -362,8 +362,9 @@ func TestDeduplicateBreakpoints(t *testing.T) {
 // TestComputePeriodReturn_SubPeriodFromPreCashFlow validates the TWR formula
 // with multiple cash flows and known market returns. Each sub-period measures
 // market performance between cash flow events:
-//   sub-period i: post-cash-flow[i-1] → pre-cash-flow[i]
-//   ratio = pre[i] / post[i-1]
+//
+//	sub-period i: post-cash-flow[i-1] → pre-cash-flow[i]
+//	ratio = pre[i] / post[i-1]
 func TestComputePeriodReturn_SubPeriodFromPreCashFlow(t *testing.T) {
 	// Scenario: initial deposit, then two more cash flows with market growth between
 	//
@@ -553,7 +554,7 @@ func TestComputeMWR_Basic(t *testing.T) {
 	//           = -100k - 45.87k + 142.86k = -3.01k
 	//
 	// Exact solution: r ≈ 19.99%
-	// (Verified: 100k*(1.2)^1 + 50k*(1.2)^0.5 = 140k + 45.64k = 185.64k... 
+	// (Verified: 100k*(1.2)^1 + 50k*(1.2)^0.5 = 140k + 45.64k = 185.64k...
 	//  Actually FV = 100k*(1+r) + 50k*sqrt(1+r) = 170k
 	//  With x = sqrt(1+r): 100x^2 + 50x - 170 = 0
 	//  x = (-50 + sqrt(2500 + 68000)) / 200 = (-50 + 262.49) / 200 = 1.06245
@@ -727,10 +728,10 @@ func TestComputeSimpleReturn_ProfitOverNetDeposit(t *testing.T) {
 				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1150000, 2), NetDeposit: dec(1000000, 2)},
 			}, // profit = 15000, nd = 100000 → 15%
-			breakpoints:    nil,
-			wantNil:        false,
-			wantApprox:     15.0,
-			approxMargin:   0.5,
+			breakpoints:  nil,
+			wantNil:      false,
+			wantApprox:   15.0,
+			approxMargin: 0.5,
 		},
 		{
 			name: "loss on deposits",
@@ -738,10 +739,10 @@ func TestComputeSimpleReturn_ProfitOverNetDeposit(t *testing.T) {
 				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(900000, 2), NetDeposit: dec(1000000, 2)},
 			}, // profit = -10000, nd = 100000 → -10%
-			breakpoints:    nil,
-			wantNil:        false,
-			wantApprox:     -10.0,
-			approxMargin:   0.5,
+			breakpoints:  nil,
+			wantNil:      false,
+			wantApprox:   -10.0,
+			approxMargin: 0.5,
 		},
 		{
 			name: "zero net deposit",
@@ -758,10 +759,10 @@ func TestComputeSimpleReturn_ProfitOverNetDeposit(t *testing.T) {
 				{Date: mustTime("2023-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
 				{Date: mustTime("2024-01-01"), PortfolioValue: dec(1000000, 2), NetDeposit: dec(1000000, 2)},
 			}, // profit = 0, nd = 100000 → 0%
-			breakpoints:    nil,
-			wantNil:        false,
-			wantApprox:     0.0,
-			approxMargin:   0.1,
+			breakpoints:  nil,
+			wantNil:      false,
+			wantApprox:   0.0,
+			approxMargin: 0.1,
 		},
 		{
 			name: "with intermediate deposits",
@@ -835,7 +836,7 @@ func TestComputeAnnualizedSimpleReturn(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name: "200% over 214 days",
+			name:         "200% over 214 days",
 			simpleReturn: ptrDec(decimal.MustParse("200.00")),
 			first: EquityCurvePoint{
 				Date: mustTime("2023-06-01"),
@@ -849,7 +850,7 @@ func TestComputeAnnualizedSimpleReturn(t *testing.T) {
 			approxMargin: 1.0,
 		},
 		{
-			name: "15% over 1 year",
+			name:         "15% over 1 year",
 			simpleReturn: ptrDec(decimal.MustParse("15.00")),
 			first: EquityCurvePoint{
 				Date: mustTime("2023-01-01"),
@@ -863,7 +864,7 @@ func TestComputeAnnualizedSimpleReturn(t *testing.T) {
 			approxMargin: 0.5,
 		},
 		{
-			name: "10% over 182 days (half year)",
+			name:         "10% over 182 days (half year)",
 			simpleReturn: ptrDec(decimal.MustParse("10.00")),
 			first: EquityCurvePoint{
 				Date: mustTime("2023-01-01"),
@@ -914,11 +915,11 @@ func TestComputePeriodReturn_MultipleBreakpointsSameDate(t *testing.T) {
 
 	// Multiple breakpoints on 1/15 (simulating multiple cash flows same day)
 	breakpoints := []twrBreakpoint{
-		{date: mustTime("2024-01-01"), value: decimal.Zero}, // initial deposit
-		{date: mustTime("2024-01-15"), value: dec(1000000, 2)},  // pre-cash-flow #1
-		{date: mustTime("2024-01-15"), value: dec(1010000, 2)},  // pre-cash-flow #2 (same date)
-		{date: mustTime("2024-01-15"), value: dec(1020000, 2)},  // pre-cash-flow #3 (same date)
-		{date: mustTime("2024-02-01"), value: dec(1080000, 2)},  // another date
+		{date: mustTime("2024-01-01"), value: decimal.Zero},    // initial deposit
+		{date: mustTime("2024-01-15"), value: dec(1000000, 2)}, // pre-cash-flow #1
+		{date: mustTime("2024-01-15"), value: dec(1010000, 2)}, // pre-cash-flow #2 (same date)
+		{date: mustTime("2024-01-15"), value: dec(1020000, 2)}, // pre-cash-flow #3 (same date)
+		{date: mustTime("2024-02-01"), value: dec(1080000, 2)}, // another date
 	}
 
 	metrics := ComputePeriodReturn(curve, breakpoints, "USD")

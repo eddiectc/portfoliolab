@@ -308,5 +308,3 @@ func RoundTo2(v float64) float64 {
 func RoundTo4(v float64) float64 {
 	return math.Round(v*10000) / 10000
 }
-
-

@@ -13,9 +13,9 @@ import (
 
 // RefreshResult summarizes the outcome of a market data refresh.
 type RefreshResult struct {
-	SymbolsRefreshed  []string `json:"symbols_refreshed"`
-	FxPairsRefreshed  []string `json:"fx_pairs_refreshed"`
-	FailedSymbols     []string `json:"failed_symbols,omitempty"`
+	SymbolsRefreshed []string `json:"symbols_refreshed"`
+	FxPairsRefreshed []string `json:"fx_pairs_refreshed"`
+	FailedSymbols    []string `json:"failed_symbols,omitempty"`
 }
 
 // RefreshMarketData refreshes current market data (prices and FX rates) for

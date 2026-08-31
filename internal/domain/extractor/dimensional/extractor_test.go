@@ -183,8 +183,8 @@ func TestExtractor_Extract(t *testing.T) {
 			fetchFunc: func(url string, headers map[string]string) (string, error) {
 				return "", fmt.Errorf("registry api failure")
 			},
-			sourceURL: sourceURL,
-			wantErr:   true,
+			sourceURL:  sourceURL,
+			wantErr:    true,
 			wantErrSub: "map ISIN to portfolio number",
 		},
 		{
@@ -192,8 +192,8 @@ func TestExtractor_Extract(t *testing.T) {
 			fetchFunc: func(url string, headers map[string]string) (string, error) {
 				return buildRegistryJSON("IE000XXXXXXXX"), nil
 			},
-			sourceURL: sourceURL,
-			wantErr:   true,
+			sourceURL:  sourceURL,
+			wantErr:    true,
 			wantErrSub: "not found in fund center",
 		},
 		{
@@ -204,8 +204,8 @@ func TestExtractor_Extract(t *testing.T) {
 			postFunc: func(url string, body interface{}, headers map[string]string) (string, error) {
 				return "", fmt.Errorf("detail api failure")
 			},
-			sourceURL: sourceURL,
-			wantErr:   true,
+			sourceURL:  sourceURL,
+			wantErr:    true,
 			wantErrSub: "fetch fund detail",
 		},
 		{
@@ -222,8 +222,8 @@ func TestExtractor_Extract(t *testing.T) {
 			postFunc: func(url string, body interface{}, headers map[string]string) (string, error) {
 				return buildDetailJSON(csvURL), nil
 			},
-			sourceURL: sourceURL,
-			wantErr:   true,
+			sourceURL:  sourceURL,
+			wantErr:    true,
 			wantErrSub: "fetch holdings CSV",
 		},
 		{
@@ -241,8 +241,8 @@ func TestExtractor_Extract(t *testing.T) {
 			postFunc: func(url string, body interface{}, headers map[string]string) (string, error) {
 				return buildDetailJSON(csvURL), nil
 			},
-			sourceURL: sourceURL,
-			wantErr:   true,
+			sourceURL:  sourceURL,
+			wantErr:    true,
 			wantErrSub: "holdings list is empty",
 		},
 		{
@@ -253,8 +253,8 @@ func TestExtractor_Extract(t *testing.T) {
 			postFunc: func(url string, body interface{}, headers map[string]string) (string, error) {
 				return `{"data":{"lensGroups":[{"data":{"lenses":[{"data":{"slug":"fundFacts","blends":[{"data":{"fundFacts":{"marketingName":"Test","fundAum":{"aum":{"value":1}},"inceptionDate":{"value":"2025-01-01"}}}}]}}]}}]}}`, nil
 			},
-			sourceURL: sourceURL,
-			wantErr:   true,
+			sourceURL:  sourceURL,
+			wantErr:    true,
 			wantErrSub: "full holdings CSV URL not found",
 		},
 		{
@@ -267,8 +267,8 @@ func TestExtractor_Extract(t *testing.T) {
 				cancel()
 				return ctx
 			}(),
-			sourceURL: sourceURL,
-			wantErr:   true,
+			sourceURL:  sourceURL,
+			wantErr:    true,
 			wantErrSub: "context canceled",
 		},
 		{
@@ -276,8 +276,8 @@ func TestExtractor_Extract(t *testing.T) {
 			fetchFunc: func(url string, headers map[string]string) (string, error) {
 				return "", fmt.Errorf("should not be called")
 			},
-			sourceURL: "https://www.dimensional.com/gb-en/funds/not-a-valid-isin/fund-name",
-			wantErr:   true,
+			sourceURL:  "https://www.dimensional.com/gb-en/funds/not-a-valid-isin/fund-name",
+			wantErr:    true,
 			wantErrSub: "ISIN not found in URL",
 		},
 		{

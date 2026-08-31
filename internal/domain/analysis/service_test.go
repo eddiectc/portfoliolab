@@ -17,10 +17,10 @@ var ctx = context.Background()
 // --- Mocks ---
 
 type mockPositionSource struct {
-	positions       []position.Position
-	enriched        []position.PositionWithMarket
-	getOpenErr      error
-	enrichFn        func(ctx context.Context, positions []position.Position, baseCurrency string) []position.PositionWithMarket
+	positions  []position.Position
+	enriched   []position.PositionWithMarket
+	getOpenErr error
+	enrichFn   func(ctx context.Context, positions []position.Position, baseCurrency string) []position.PositionWithMarket
 }
 
 func (m *mockPositionSource) GetOpenPositions(_ context.Context, accountIDs []int64, limit, offset int) ([]position.Position, error) {
@@ -178,14 +178,14 @@ func (m *mockSymbolRefresher) RefreshSymbol(_ context.Context, internalSymbol, m
 
 func makePosition(accountID int64, sym, currency string, quantity, costBasis decimal.Decimal) position.Position {
 	return position.Position{
-		ID:         int64(accountID),
-		AccountID:  accountID,
-		Symbol:     sym,
-		Currency:   currency,
-		Quantity:   quantity,
-		CostBasis:  costBasis,
-		OpenDate:   time.Now().AddDate(0, 0, -30),
-		IsClosed:   false,
+		ID:        int64(accountID),
+		AccountID: accountID,
+		Symbol:    sym,
+		Currency:  currency,
+		Quantity:  quantity,
+		CostBasis: costBasis,
+		OpenDate:  time.Now().AddDate(0, 0, -30),
+		IsClosed:  false,
 	}
 }
 
@@ -247,12 +247,12 @@ func TestComputeAnalysis_HappyPath(t *testing.T) {
 	)
 
 	pos1 := makePosition(1, "VOO", "USD", decimal.MustNew(10, 0), decimal.MustNew(-10000000, 2)) // -100.00
-	pos2 := makePosition(1, "VEA", "USD", decimal.MustNew(50, 0), decimal.MustNew(-25000000, 2))  // -250.00
+	pos2 := makePosition(1, "VEA", "USD", decimal.MustNew(50, 0), decimal.MustNew(-25000000, 2)) // -250.00
 	pos3 := makePosition(1, "AAPL", "USD", decimal.MustNew(5, 0), decimal.MustNew(-5000000, 2))  // -50.00
 
-	mv1 := decimal.MustNew(10500000, 2)  // 105.00
-	mv2 := decimal.MustNew(26000000, 2)  // 260.00
-	mv3 := decimal.MustNew(5500000, 2)   // 55.00
+	mv1 := decimal.MustNew(10500000, 2) // 105.00
+	mv2 := decimal.MustNew(26000000, 2) // 260.00
+	mv3 := decimal.MustNew(5500000, 2)  // 55.00
 
 	enriched := []position.PositionWithMarket{
 		makeEnrichedPosition(pos1, mv1, true, &mv1),

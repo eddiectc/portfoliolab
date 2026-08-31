@@ -37,5 +37,3 @@ func ComputeReturns(prices []market.HistoricalPrice) ([]float64, error) {
 	}
 	return rets, nil
 }
-
-

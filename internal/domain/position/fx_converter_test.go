@@ -15,7 +15,7 @@ var fxCtx = context.Background()
 
 type mockFxRepo struct {
 	bySymbolDate map[string]map[string]*market.MarketData // symbol → date → MarketData
-	currentFx    map[string]*market.MarketData             // pair string → MarketData
+	currentFx    map[string]*market.MarketData            // pair string → MarketData
 	upsertCalls  []*market.MarketData
 }
 

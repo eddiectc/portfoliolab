@@ -109,5 +109,3 @@ func MatchSellLotsAgainstBuys(buyLots, sellLots []LotGroup) ([]LotConsumption, m
 
 	return consumptions, remaining
 }
-
-

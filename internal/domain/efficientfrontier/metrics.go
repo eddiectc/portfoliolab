@@ -4,8 +4,8 @@ import (
 	"math"
 	"sort"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
+	"codeberg.org/eddiectc/portfoliolab/internal/market"
 )
 
 // alignReturnsBySymbol aligns daily returns across all symbols by date.
@@ -39,7 +39,7 @@ func alignReturnsBySymbol(pricesBySymbol map[string][]market.HistoricalPrice, sy
 				continue
 			}
 			date := sorted[i].Date.Unix()
-			ret := (curr/prev) - 1.0
+			ret := (curr / prev) - 1.0
 			entry, ok := dateMap[date]
 			if !ok {
 				entry = make([]float64, n)

@@ -54,8 +54,8 @@ type graphqlRoot struct {
 type holdingsResponse struct {
 	Funds []struct {
 		Profile struct {
-			FundFullName                    string `json:"fundFullName"`
-			FundCurrency                    string `json:"fundCurrency"`
+			FundFullName                      string `json:"fundFullName"`
+			FundCurrency                      string `json:"fundCurrency"`
 			PrimarySectorEquityClassification string `json:"primarySectorEquityClassification"`
 		} `json:"profile"`
 	} `json:"funds"`

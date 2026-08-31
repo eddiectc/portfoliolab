@@ -10,7 +10,7 @@ import (
 // computed from the first and last NAV per unit within the year.
 // ReturnPct is expressed as a percentage (e.g. 12.50 = 12.50%).
 type YearlyReturn struct {
-	Year      int             `json:"year"`
+	Year      int              `json:"year"`
 	ReturnPct *decimal.Decimal `json:"return_pct,omitempty"`
 }
 

@@ -823,11 +823,11 @@ func TestComputeComparison_RiskMetrics(t *testing.T) {
 
 	rf := decimal.MustParse("4.5")
 	req := ComparisonRequest{
-		PortfolioAID:   1,
-		PortfolioAType: PortTypeReal,
-		PortfolioBID:   1,
-		PortfolioBType: PortTypeReal,
-		BaseCurrency:   "USD",
+		PortfolioAID:    1,
+		PortfolioAType:  PortTypeReal,
+		PortfolioBID:    1,
+		PortfolioBType:  PortTypeReal,
+		BaseCurrency:    "USD",
 		RiskFreeRatePct: &rf,
 	}
 
@@ -1736,9 +1736,9 @@ func TestBuildHoldings_EnrichmentWithSectorAndGeo(t *testing.T) {
 	}
 
 	cases := []struct {
-		name   string
-		build  func(*Service, context.Context) ([]PortfolioHolding, bool)
-		setup  func(*Service)
+		name    string
+		build   func(*Service, context.Context) ([]PortfolioHolding, bool)
+		setup   func(*Service)
 		wantETF int // expected SectorWeightings count for VOO
 	}{
 		{
@@ -2302,4 +2302,3 @@ func TestComputeComparison_EnhancedOverlap_OneSideMissingData(t *testing.T) {
 		t.Logf("No missing-data warning found (may be expected if empty data is silent). Warnings: %v", overlap.Warnings)
 	}
 }
-

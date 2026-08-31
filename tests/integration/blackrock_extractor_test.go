@@ -143,7 +143,7 @@ func TestBlackRock_SymbolDetails_FullStackRoundTrip(t *testing.T) {
 		NotionalValue  float64 `json:"notionalValue"`
 		Shares         float64 `json:"shares"`
 		Price          float64 `json:"price"`
-		ISIN     string  `json:"isin"`
+		ISIN           string  `json:"isin"`
 		Location       string  `json:"location"`
 		Exchange       string  `json:"exchange"`
 		MarketCurrency string  `json:"marketCurrency"`
@@ -343,7 +343,7 @@ func TestBlackRock_BondFund_OnlyBondCharacteristics(t *testing.T) {
 	var holdings []struct {
 		Sector     string `json:"sector"`
 		AssetClass string `json:"assetClass"`
-		ISIN string `json:"isin"`
+		ISIN       string `json:"isin"`
 		Location   string `json:"location"`
 		Exchange   string `json:"exchange"`
 	}

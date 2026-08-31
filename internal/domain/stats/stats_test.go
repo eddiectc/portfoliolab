@@ -93,41 +93,41 @@ func TestPearsonCorrelation(t *testing.T) {
 
 func TestAlignSeries(t *testing.T) {
 	tests := []struct {
-		name      string
-		a         map[string]float64
-		b         map[string]float64
+		name        string
+		a           map[string]float64
+		b           map[string]float64
 		wantOverlap int
 		// We verify alignment by checking that paired values correspond
 		// to the same keys.
 	}{
 		{
-			name: "full overlap",
-			a:    map[string]float64{"2024-01-01": 1.0, "2024-01-02": 2.0, "2024-01-03": 3.0},
-			b:    map[string]float64{"2024-01-01": 10.0, "2024-01-02": 20.0, "2024-01-03": 30.0},
+			name:        "full overlap",
+			a:           map[string]float64{"2024-01-01": 1.0, "2024-01-02": 2.0, "2024-01-03": 3.0},
+			b:           map[string]float64{"2024-01-01": 10.0, "2024-01-02": 20.0, "2024-01-03": 30.0},
 			wantOverlap: 3,
 		},
 		{
-			name: "partial overlap",
-			a:    map[string]float64{"a": 1, "b": 2, "c": 3, "d": 4},
-			b:    map[string]float64{"c": 30, "d": 40, "e": 50, "f": 60},
+			name:        "partial overlap",
+			a:           map[string]float64{"a": 1, "b": 2, "c": 3, "d": 4},
+			b:           map[string]float64{"c": 30, "d": 40, "e": 50, "f": 60},
 			wantOverlap: 2,
 		},
 		{
-			name: "no overlap",
-			a:    map[string]float64{"a": 1, "b": 2},
-			b:    map[string]float64{"c": 3, "d": 4},
+			name:        "no overlap",
+			a:           map[string]float64{"a": 1, "b": 2},
+			b:           map[string]float64{"c": 3, "d": 4},
 			wantOverlap: 0,
 		},
 		{
-			name:      "one empty",
-			a:         map[string]float64{},
-			b:         map[string]float64{"a": 1, "b": 2},
+			name:        "one empty",
+			a:           map[string]float64{},
+			b:           map[string]float64{"a": 1, "b": 2},
 			wantOverlap: 0,
 		},
 		{
-			name:      "both empty",
-			a:         map[string]float64{},
-			b:         map[string]float64{},
+			name:        "both empty",
+			a:           map[string]float64{},
+			b:           map[string]float64{},
 			wantOverlap: 0,
 		},
 	}

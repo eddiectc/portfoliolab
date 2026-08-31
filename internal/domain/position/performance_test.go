@@ -110,8 +110,8 @@ func TestReturnMetrics_JSONRoundTrip(t *testing.T) {
 				AnnualizedTWRPct:    nil,
 				HasInsufficientData: true,
 			},
-			wantTWR:        nil,
-			wantAnnualized: nil,
+			wantTWR:          nil,
+			wantAnnualized:   nil,
 			wantInsufficient: true,
 		},
 	}
@@ -236,25 +236,25 @@ func TestRefreshResult_JSONRoundTrip(t *testing.T) {
 		{
 			name: "successful refresh",
 			result: RefreshResult{
-				SymbolsRefreshed:  []string{"AAPL", "MSFT", "GOOGL"},
-				FxPairsRefreshed:  []string{"GBP/USD", "EUR/USD"},
-				FailedSymbols:     nil,
+				SymbolsRefreshed: []string{"AAPL", "MSFT", "GOOGL"},
+				FxPairsRefreshed: []string{"GBP/USD", "EUR/USD"},
+				FailedSymbols:    nil,
 			},
 		},
 		{
 			name: "partial failure",
 			result: RefreshResult{
-				SymbolsRefreshed:  []string{"AAPL", "MSFT"},
-				FxPairsRefreshed:  []string{"GBP/USD"},
-				FailedSymbols:     []string{"XYZ.DE"},
+				SymbolsRefreshed: []string{"AAPL", "MSFT"},
+				FxPairsRefreshed: []string{"GBP/USD"},
+				FailedSymbols:    []string{"XYZ.DE"},
 			},
 		},
 		{
 			name: "empty refresh",
 			result: RefreshResult{
-				SymbolsRefreshed:  []string{},
-				FxPairsRefreshed:  []string{},
-				FailedSymbols:     nil,
+				SymbolsRefreshed: []string{},
+				FxPairsRefreshed: []string{},
+				FailedSymbols:    nil,
 			},
 		},
 	}

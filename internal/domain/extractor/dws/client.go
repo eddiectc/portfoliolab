@@ -21,13 +21,13 @@ type fetchFunc func(url string) (string, error)
 
 // Client fetches data from the DWS JSON API.
 type Client struct {
-	cycleTLS   cycletls.CycleTLS
-	mu         sync.Mutex
-	lastReq    time.Time
-	minDelay   time.Duration
-	timeout    int
-	fetch      fetchFunc // overridden in tests
-	baseURL    string
+	cycleTLS cycletls.CycleTLS
+	mu       sync.Mutex
+	lastReq  time.Time
+	minDelay time.Duration
+	timeout  int
+	fetch    fetchFunc // overridden in tests
+	baseURL  string
 }
 
 // NewClient creates a new DWS HTTP client with CycleTLS and rate limiting.

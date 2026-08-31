@@ -81,7 +81,7 @@ func TestComputeCorrelationMatrix(t *testing.T) {
 			},
 			n:        2,
 			wantDiag: 1.0, // diagonal[1][1] should be 1.0
-			wantOff:  0.0,  // row 0 should be zeros
+			wantOff:  0.0, // row 0 should be zeros
 			epsilon:  0.0001,
 		},
 	}

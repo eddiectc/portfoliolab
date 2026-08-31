@@ -118,9 +118,9 @@ type EquityValuation struct {
 	ForwardEPSGrowth float64 // forward 5-year EPS growth
 	RevenueRatio     float64 // revenue / revenue prior year
 	// BlackRock/iShares-specific fields
-	Beta3Y             float64 // 3-year beta
+	Beta3Y              float64 // 3-year beta
 	StandardDeviation3Y float64 // 3-year standard deviation
-	NumberOfHoldings   int     // number of holdings
+	NumberOfHoldings    int     // number of holdings
 }
 
 // BondCharacteristics represents bond-specific fund metrics.

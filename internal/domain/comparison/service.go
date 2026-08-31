@@ -847,9 +847,9 @@ func (s *Service) computeOverlap(ctx context.Context, aData, bData portfolioMeta
 	}
 
 	return ComputeCrossPortfolioOverlap(CrossPortfolioOverlapInput{
-		PortfolioA:   holdingsA,
+		PortfolioA:     holdingsA,
 		PortfolioAName: aData.getName(),
-		PortfolioB:   holdingsB,
+		PortfolioB:     holdingsB,
 		PortfolioBName: bData.getName(),
 	})
 }

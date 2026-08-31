@@ -65,12 +65,12 @@ func (h *HrpWebHandler) RegisterRoutes(r *chi.Mux) {
 type hrpPageData struct {
 	web.PageData
 	// Shared optimization partial fields.
-	FormID        string // "hrp"
-	FormAction    string // "/hrp"
+	FormID         string // "hrp"
+	FormAction     string // "/hrp"
 	FormButtonText string // "Compute HRP"
-	SymbolHint    string // "Comma-separated symbols. Min 2, max 20."
-	ApiBase       string // "/api/hrp"
-	RiskFreeRate  bool   // false for HRP
+	SymbolHint     string // "Comma-separated symbols. Min 2, max 20."
+	ApiBase        string // "/api/hrp"
+	RiskFreeRate   bool   // false for HRP
 	// Pre-serialized JSON for ECharts dendrograms.
 	HrpChartData string
 	// HRP result data.
@@ -175,12 +175,12 @@ func (h *HrpWebHandler) buildPageData(
 			Title: "Hierarchical Risk Parity",
 			Flash: getFlash(w, r),
 		},
-		FormID:           "hrp",
-		FormAction:       "/hrp",
-		FormButtonText:   "Compute HRP",
-		SymbolHint:       "Comma-separated symbols. Min 2, max 20.",
-		ApiBase:          "/api/hrp",
-		RiskFreeRate:     false,
+		FormID:               "hrp",
+		FormAction:           "/hrp",
+		FormButtonText:       "Compute HRP",
+		SymbolHint:           "Comma-separated symbols. Min 2, max 20.",
+		ApiBase:              "/api/hrp",
+		RiskFreeRate:         false,
 		HrpChartData:         serializeHrpChartData(result),
 		Result:               result,
 		Warnings:             warnings,
@@ -353,5 +353,3 @@ func fetchOptimizationModelPortfolios(svc optimizationModelPortfolioSelector, ct
 	}
 	return summaries
 }
-
-

@@ -22,7 +22,7 @@ func TestParseFundInfo(t *testing.T) {
 	settingsData := loadTestData(t, "pdpSettings.json")
 	metaData := loadTestData(t, "pdpMetaTags.json")
 	symbol := "DE000A2X47S0"
-	
+
 	info, err := ParseFundInfo(settingsData, metaData, symbol)
 	if err != nil {
 		t.Fatalf("ParseFundInfo failed: %v", err)
@@ -39,7 +39,7 @@ func TestParseFundInfo(t *testing.T) {
 func TestParseFundProfile(t *testing.T) {
 	settingsData := loadTestData(t, "pdpSettings.json")
 	metaData := loadTestData(t, "pdpMetaTags.json")
-	
+
 	profile, err := ParseFundProfile(settingsData, metaData)
 	if err != nil {
 		t.Fatalf("ParseFundProfile failed: %v", err)
@@ -58,7 +58,7 @@ func TestParseFundProfile(t *testing.T) {
 
 func TestParseHoldings(t *testing.T) {
 	data := loadTestData(t, "holdings.json")
-	
+
 	holdings, countries, sectors, err := ParseHoldings(data)
 	if err != nil {
 		t.Fatalf("ParseHoldings failed: %v", err)

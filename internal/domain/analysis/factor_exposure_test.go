@@ -333,9 +333,9 @@ func TestComputeFactorExposure_HHICalculation(t *testing.T) {
 
 func TestComputeFactorExposure_ValueVsGrowthAxis(t *testing.T) {
 	tests := []struct {
-		name       string
-		pe, pb     float64
-		wantTilt   string
+		name     string
+		pe, pb   float64
+		wantTilt string
 	}{
 		{
 			name: "clear value — low P/E and P/B",
@@ -669,9 +669,9 @@ func TestClassifySizeTilt(t *testing.T) {
 
 func TestClassifyHHI(t *testing.T) {
 	tests := []struct {
-		name  string
-		hhi   float64
-		want  string
+		name string
+		hhi  float64
+		want string
 	}{
 		{"well diversified", 0.01, "well-diversified"},
 		{"boundary well diversified", 0.0199, "well-diversified"},
@@ -984,9 +984,9 @@ func TestComputeFactorExposure_VolatilityUnavailable(t *testing.T) {
 // --- Helper for price-based tests ---
 
 type priceEntry struct {
-	sym  string
+	sym     string
 	daysAgo int
-	price  float64
+	price   float64
 }
 
 func makePriceMap(entries []priceEntry) map[string][]market.HistoricalPrice {

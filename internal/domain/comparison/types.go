@@ -142,16 +142,16 @@ type OverlapResult struct {
 	TopHoldingsB []HoldingWeight  `json:"top_holdings_b"`
 	OverlapPct   *decimal.Decimal `json:"overlap_pct,omitempty"`
 	// Sector/Country allocation for each portfolio.
-	SectorAllocationA  *SectorAllocationResult   `json:"sector_allocation_a,omitempty"`
-	SectorAllocationB  *SectorAllocationResult   `json:"sector_allocation_b,omitempty"`
-	CountryAllocationA *CountryAllocationResult  `json:"country_allocation_a,omitempty"`
-	CountryAllocationB *CountryAllocationResult  `json:"country_allocation_b,omitempty"`
+	SectorAllocationA  *SectorAllocationResult  `json:"sector_allocation_a,omitempty"`
+	SectorAllocationB  *SectorAllocationResult  `json:"sector_allocation_b,omitempty"`
+	CountryAllocationA *CountryAllocationResult `json:"country_allocation_a,omitempty"`
+	CountryAllocationB *CountryAllocationResult `json:"country_allocation_b,omitempty"`
 	// Merged and differential holdings.
-	MergedHoldings     []MergedHolding           `json:"merged_holdings,omitempty"`
-	OverweightHoldings []WeightDifferenceHolding `json:"overweight_holdings,omitempty"`
+	MergedHoldings      []MergedHolding           `json:"merged_holdings,omitempty"`
+	OverweightHoldings  []WeightDifferenceHolding `json:"overweight_holdings,omitempty"`
 	UnderweightHoldings []WeightDifferenceHolding `json:"underweight_holdings,omitempty"`
-	NeutralHoldings    []WeightDifferenceHolding `json:"neutral_holdings,omitempty"`
-	Warnings           []string                  `json:"warnings,omitempty"`
+	NeutralHoldings     []WeightDifferenceHolding `json:"neutral_holdings,omitempty"`
+	Warnings            []string                  `json:"warnings,omitempty"`
 }
 
 // MergedHolding represents a single holding in the merged holdings table,
@@ -159,8 +159,8 @@ type OverlapResult struct {
 type MergedHolding struct {
 	Symbol     string          `json:"symbol"`
 	Name       string          `json:"name,omitempty"`
-	WeightA    decimal.Decimal `json:"weight_a"` // as fraction (0.0-1.0)
-	WeightB    decimal.Decimal `json:"weight_b"` // as fraction (0.0-1.0)
+	WeightA    decimal.Decimal `json:"weight_a"`    // as fraction (0.0-1.0)
+	WeightB    decimal.Decimal `json:"weight_b"`    // as fraction (0.0-1.0)
 	OverlapPct float64         `json:"overlap_pct"` // min(weightA, weightB) * 100, or 0 if unique
 }
 
@@ -170,8 +170,8 @@ type MergedHolding struct {
 type WeightDifferenceHolding struct {
 	Symbol     string          `json:"symbol"`
 	Name       string          `json:"name,omitempty"`
-	WeightA    decimal.Decimal `json:"weight_a"` // as fraction (0.0-1.0)
-	WeightB    decimal.Decimal `json:"weight_b"` // as fraction (0.0-1.0)
+	WeightA    decimal.Decimal `json:"weight_a"`   // as fraction (0.0-1.0)
+	WeightB    decimal.Decimal `json:"weight_b"`   // as fraction (0.0-1.0)
 	Difference float64         `json:"difference"` // (weightA - weightB) * 100, in percentage points
 }
 

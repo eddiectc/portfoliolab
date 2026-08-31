@@ -899,7 +899,7 @@ func TestComputeCrossPortfolioOverlap_EnhancedFieldsPopulated(t *testing.T) {
 	}
 
 	input := CrossPortfolioOverlapInput{
-		PortfolioA:   []PortfolioHolding{
+		PortfolioA: []PortfolioHolding{
 			portfolioHoldingETFWithSector(t, "VOO", 0.6, topHoldings(
 				[]string{"AAPL", "MSFT"},
 				[]float64{5, 4},
@@ -908,7 +908,7 @@ func TestComputeCrossPortfolioOverlap_EnhancedFieldsPopulated(t *testing.T) {
 			portfolioHoldingStockWithSector(t, "AAPL", 0.4, "Apple", "Technology"),
 		},
 		PortfolioAName: "My Model",
-		PortfolioB:   []PortfolioHolding{
+		PortfolioB: []PortfolioHolding{
 			portfolioHoldingETFWithSector(t, "IVV", 0.5, topHoldings(
 				[]string{"AAPL", "MSFT"},
 				[]float64{4.5, 3.5},

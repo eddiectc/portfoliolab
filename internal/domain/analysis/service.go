@@ -54,14 +54,14 @@ type SymbolRefresher interface {
 // Service orchestrates data fetching and delegates to the computation functions.
 // It is the single entry point for all portfolio analysis.
 type Service struct {
-	positions          PositionSource
-	symbolDetails      SymbolDetailsSource
-	marketHistory      MarketDataHistorySource
-	accounts           AccountResolver
-	portfolioCurrency  PortfolioCurrencySource
-	marketDataSymbol   MarketDataSymbolResolver
-	symbolRefresher    SymbolRefresher
-	logger             *slog.Logger
+	positions         PositionSource
+	symbolDetails     SymbolDetailsSource
+	marketHistory     MarketDataHistorySource
+	accounts          AccountResolver
+	portfolioCurrency PortfolioCurrencySource
+	marketDataSymbol  MarketDataSymbolResolver
+	symbolRefresher   SymbolRefresher
+	logger            *slog.Logger
 }
 
 // NewService creates a new analysis service.
@@ -74,10 +74,10 @@ func NewService(
 	marketDataSymbol MarketDataSymbolResolver,
 ) *Service {
 	return &Service{
-		positions:       positions,
-		symbolDetails:   symbolDetails,
-		marketHistory:   marketHistory,
-		accounts:        accounts,
+		positions:         positions,
+		symbolDetails:     symbolDetails,
+		marketHistory:     marketHistory,
+		accounts:          accounts,
 		portfolioCurrency: portfolioCurrency,
 		marketDataSymbol:  marketDataSymbol,
 	}

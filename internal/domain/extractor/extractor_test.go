@@ -117,11 +117,11 @@ func TestRegistry_FindByURL_FirstMatchWins(t *testing.T) {
 
 	// Both matchers match everything; first registered should win
 	reg.Register(&mockExtractor{
-		name: "first",
+		name:    "first",
 		matchFn: func(string) bool { return true },
 	})
 	reg.Register(&mockExtractor{
-		name: "second",
+		name:    "second",
 		matchFn: func(string) bool { return true },
 	})
 
@@ -148,7 +148,7 @@ func TestRegistry_FindByURL_EmptyRegistry(t *testing.T) {
 func TestDispatcher_Dispatch_Success(t *testing.T) {
 	reg := NewRegistry()
 	reg.Register(&mockExtractor{
-		name: "test",
+		name:    "test",
 		matchFn: func(string) bool { return true },
 		result: &ExtractResult{
 			AsOfDate: time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC),
@@ -188,9 +188,9 @@ func TestDispatcher_Dispatch_NoMatch(t *testing.T) {
 func TestDispatcher_Dispatch_ExtractorError(t *testing.T) {
 	reg := NewRegistry()
 	reg.Register(&mockExtractor{
-		name: "test",
+		name:    "test",
 		matchFn: func(string) bool { return true },
-		err:   fmt.Errorf("network timeout"),
+		err:     fmt.Errorf("network timeout"),
 	})
 
 	dispatcher := NewDispatcher(reg)

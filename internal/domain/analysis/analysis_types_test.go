@@ -24,7 +24,7 @@ func TestAnalysisResultJSONRoundTrip(t *testing.T) {
 		Period:  "1Y",
 	}
 	sectorAlloc := &AllocationResult{
-		Breakdown:       map[string]float64{"technology": 30.5, "financials": 15.2},
+		Breakdown:        map[string]float64{"technology": 30.5, "financials": 15.2},
 		UnknownWeightPct: 2.1,
 	}
 	stress := &StressTestResult{
@@ -43,22 +43,22 @@ func TestAnalysisResultJSONRoundTrip(t *testing.T) {
 			Tilt:       "growth",
 		},
 		Concentration: FactorConcentration{
-			HHI:          0.025,
+			HHI:            0.025,
 			Interpretation: "moderately-concentrated",
 		},
 		TopHoldingWeightPct: 5.8,
 	}
 
 	result := AnalysisResult{
-		PortfolioID:        1,
-		ComputedAt:         computedAt,
-		Overlap:            overlap,
-		Correlation:        correlation,
-		SectorAllocation:   sectorAlloc,
+		PortfolioID:          1,
+		ComputedAt:           computedAt,
+		Overlap:              overlap,
+		Correlation:          correlation,
+		SectorAllocation:     sectorAlloc,
 		GeographicAllocation: nil, // explicitly nil — should serialize as omitted
-		StressTest:         stress,
-		FactorExposure:     factor,
-		Warnings:           []string{"some data may be stale"},
+		StressTest:           stress,
+		FactorExposure:       factor,
+		Warnings:             []string{"some data may be stale"},
 	}
 
 	data, err := json.Marshal(result)
@@ -127,9 +127,9 @@ func TestAnalysisResultEmptyState(t *testing.T) {
 func TestStressScenarioResultDollarImpactRoundTrip(t *testing.T) {
 	impact := decimal.MustParse("-35200.50")
 	scenario := StressScenarioResult{
-		Name:                "2008 GFC",
-		DateRange:           "2007-10-09 to 2009-03-09",
-		EstimatedReturnPct:  -35.2,
+		Name:                  "2008 GFC",
+		DateRange:             "2007-10-09 to 2009-03-09",
+		EstimatedReturnPct:    -35.2,
 		EstimatedDollarImpact: impact,
 		SectorContributions: map[string]float64{
 			"financials": -15.3,
@@ -185,9 +185,9 @@ func TestCorrelationResultNilMatrix(t *testing.T) {
 
 func TestAllocationResultEmptyBreakdown(t *testing.T) {
 	result := AllocationResult{
-		Breakdown:       map[string]float64{},
+		Breakdown:        map[string]float64{},
 		UnknownWeightPct: 100.0,
-		Message:         "no allocation data available",
+		Message:          "no allocation data available",
 	}
 
 	data, err := json.Marshal(result)
@@ -219,7 +219,7 @@ func TestFactorExposureResultJSON(t *testing.T) {
 			Tilt:        "large",
 		},
 		Concentration: FactorConcentration{
-			HHI:          0.015,
+			HHI:            0.015,
 			Interpretation: "well-diversified",
 		},
 		TopHoldingWeightPct: 3.5,

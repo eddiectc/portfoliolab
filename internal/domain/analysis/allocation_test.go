@@ -83,10 +83,10 @@ func TestComputeSectorAllocation_ETFOnly(t *testing.T) {
 	// Expected: Technology=18, Healthcare=12, Financial Services=40, Consumer Cyclical=30
 
 	want := map[string]float64{
-		"Technology":          18.0,
-		"Healthcare":          12.0,
-		"Financial Services":  40.0,
-		"Consumer Cyclical":   30.0,
+		"Technology":         18.0,
+		"Healthcare":         12.0,
+		"Financial Services": 40.0,
+		"Consumer Cyclical":  30.0,
 	}
 
 	for sector, wantWeight := range want {
@@ -272,11 +272,11 @@ func TestComputeGeographicAllocation_HappyPath(t *testing.T) {
 	// Expected: US=60, China=7.5, Japan=25, UK=5, Other=2.5
 
 	want := map[string]float64{
-		"United States": 60.0,
-		"China":         7.5,
-		"Japan":         25.0,
+		"United States":  60.0,
+		"China":          7.5,
+		"Japan":          25.0,
 		"United Kingdom": 5.0,
-		"Other":         2.5,
+		"Other":          2.5,
 	}
 
 	for country, wantWeight := range want {
@@ -429,9 +429,9 @@ func TestComputeGeographicAllocation_Empty(t *testing.T) {
 func TestAllocationBreakdownSorted(t *testing.T) {
 	result := &AllocationResult{
 		Breakdown: map[string]float64{
-			"Technology":  50.0,
-			"Healthcare":  30.0,
-			"Energy":      20.0,
+			"Technology": 50.0,
+			"Healthcare": 30.0,
+			"Energy":     20.0,
 		},
 	}
 

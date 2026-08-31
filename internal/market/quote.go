@@ -9,8 +9,8 @@ import (
 
 	"github.com/govalues/decimal"
 	"github.com/wnjoon/go-yfinance/pkg/client"
-	"github.com/wnjoon/go-yfinance/pkg/multi"
 	"github.com/wnjoon/go-yfinance/pkg/models"
+	"github.com/wnjoon/go-yfinance/pkg/multi"
 	yf "github.com/wnjoon/go-yfinance/pkg/ticker"
 )
 
@@ -30,8 +30,8 @@ type MarketData struct {
 	Price     decimal.Decimal `json:"price"`
 	Currency  string          `json:"currency"`
 	DataType  string          `json:"data_type"` // "stock" or "fx"
-	Source    string          `json:"source"`     // provider identifier, e.g. "yahoo"
-	Date      string          `json:"date"`       // "" = latest, "YYYY-MM-DD" = historical
+	Source    string          `json:"source"`    // provider identifier, e.g. "yahoo"
+	Date      string          `json:"date"`      // "" = latest, "YYYY-MM-DD" = historical
 	FetchedAt time.Time       `json:"fetched_at"`
 }
 
@@ -42,7 +42,7 @@ type MarketDataFetcher interface {
 	FetchFxRate(ctx context.Context, baseCurrency, quoteCurrency string) (*MarketData, error)
 	// FetchQuotesBatch fetches quotes for multiple symbols using a shared
 	// HTTP client (single auth session). Returns a map of symbol → MarketData
-	 // for successfully fetched quotes. Symbols that fail are omitted.
+	// for successfully fetched quotes. Symbols that fail are omitted.
 	FetchQuotesBatch(ctx context.Context, symbols []string) map[string]*MarketData
 	// FetchHistoricalPricesBatch fetches daily historical prices for multiple
 	// symbols over a date range using a shared HTTP client. Returns a map of
@@ -130,12 +130,12 @@ func (f *YahooFinanceFetcher) FetchQuote(_ context.Context, symbol string) (*Mar
 	}
 
 	return &MarketData{
-		Symbol:   quote.Symbol,
-		Price:    price,
-		Currency: quote.Currency,
-		DataType: "stock",
-		Source:   "yahoo",
-		Date:     "",
+		Symbol:    quote.Symbol,
+		Price:     price,
+		Currency:  quote.Currency,
+		DataType:  "stock",
+		Source:    "yahoo",
+		Date:      "",
 		FetchedAt: time.Now(),
 	}, nil
 }
@@ -224,12 +224,12 @@ func (f *YahooFinanceFetcher) FetchQuotesBatch(_ context.Context, symbols []stri
 		}
 
 		result[sym] = &MarketData{
-			Symbol:   quote.Symbol,
-			Price:    price,
-			Currency: currency,
-			DataType: "stock",
-			Source:   "yahoo",
-			Date:     "",
+			Symbol:    quote.Symbol,
+			Price:     price,
+			Currency:  currency,
+			DataType:  "stock",
+			Source:    "yahoo",
+			Date:      "",
 			FetchedAt: now,
 		}
 	}

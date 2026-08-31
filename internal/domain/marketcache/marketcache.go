@@ -73,13 +73,13 @@ type fetchRequest struct {
 // rates. It runs a channel-based worker for on-demand fetches and a periodic
 // ticker for current quotes and historical gap-fill.
 type MarketCache struct {
-	fetcher          MarketDataFetcher
-	repo             MarketDataRepository
-	discoverer       SymbolDiscoverer
+	fetcher              MarketDataFetcher
+	repo                 MarketDataRepository
+	discoverer           SymbolDiscoverer
 	symbolDetailsRefresh SymbolDetailsRefreshSource
-	logger           *slog.Logger
-	tickerInterval   time.Duration
-	historicalFrom   time.Time // earliest date to fetch historical prices from
+	logger               *slog.Logger
+	tickerInterval       time.Duration
+	historicalFrom       time.Time // earliest date to fetch historical prices from
 
 	mu                   sync.RWMutex
 	inProgress           map[string]bool
@@ -89,26 +89,26 @@ type MarketCache struct {
 	refreshAllInProgress bool
 	totalSymbols         int
 
-	fetchCh    chan fetchRequest
-	fetchDone  chan string // test-only: signals when a fetch completes (symbol name)
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
+	fetchCh   chan fetchRequest
+	fetchDone chan string // test-only: signals when a fetch completes (symbol name)
+	ctx       context.Context
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
 }
 
 // New creates a new MarketCache.
 func New(fetcher MarketDataFetcher, repo MarketDataRepository, discoverer SymbolDiscoverer, logger *slog.Logger) *MarketCache {
 	return &MarketCache{
-		fetcher:          fetcher,
-		repo:             repo,
-		discoverer:       discoverer,
-		logger:           logger,
-		tickerInterval:   2 * time.Minute,
-		inProgress:       make(map[string]bool),
-		queued:           make(map[string]bool),
-		failedSymbols:    make(map[string]string),
-		fetchCh:          make(chan fetchRequest, 100),
-		historicalFrom:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		fetcher:        fetcher,
+		repo:           repo,
+		discoverer:     discoverer,
+		logger:         logger,
+		tickerInterval: 2 * time.Minute,
+		inProgress:     make(map[string]bool),
+		queued:         make(map[string]bool),
+		failedSymbols:  make(map[string]string),
+		fetchCh:        make(chan fetchRequest, 100),
+		historicalFrom: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 }
 

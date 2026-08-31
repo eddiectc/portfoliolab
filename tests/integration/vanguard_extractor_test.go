@@ -132,13 +132,13 @@ func TestVanguard_SymbolDetails_FullStackRoundTrip(t *testing.T) {
 		t.Fatalf("query holdings: %v", err)
 	}
 	var holdings []struct {
-		Symbol        string  `json:"symbol"`
-		Name          string  `json:"name"`
-		Percent       float64 `json:"percent"`
-		SecurityType  string  `json:"securityType"`
+		Symbol        string   `json:"symbol"`
+		Name          string   `json:"name"`
+		Percent       float64  `json:"percent"`
+		SecurityType  string   `json:"securityType"`
 		CouponRate    *float64 `json:"couponRate"`
-		FinalMaturity *string `json:"finalMaturity"`
-		AsOfDate      string  `json:"asOfDate"`
+		FinalMaturity *string  `json:"finalMaturity"`
+		AsOfDate      string   `json:"asOfDate"`
 	}
 	if err := json.Unmarshal([]byte(holdingsJSONRead), &holdings); err != nil {
 		t.Fatalf("parse holdings JSON: %v", err)

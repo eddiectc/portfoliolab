@@ -13,47 +13,47 @@ import (
 //
 // Quantity sign convention:
 //
-//	- Buys, deposits, dividends: positive quantity
-//	- Sells, withdrawals: negative quantity
+//   - Buys, deposits, dividends: positive quantity
+//   - Sells, withdrawals: negative quantity
 //
 // This sign is preserved throughout the domain layer (calculator, equity curve,
 // position tracking). Code consuming Quantity must respect the sign — never
 // apply Neg() or Abs() unless the semantics explicitly require it.
 type Transaction struct {
-	ID                int64            `json:"id"`
-	AccountID         int64            `json:"account_id"`
-	Date              time.Time        `json:"date"`
-	Type              string           `json:"type"`
-	Symbol            string           `json:"symbol"`
+	ID        int64     `json:"id"`
+	AccountID int64     `json:"account_id"`
+	Date      time.Time `json:"date"`
+	Type      string    `json:"type"`
+	Symbol    string    `json:"symbol"`
 	// Quantity follows the sign convention documented on the Transaction type:
 	// positive for buys/deposits/dividends, negative for sells/withdrawals.
-	Quantity          decimal.Decimal  `json:"quantity"`
-	Price             decimal.Decimal  `json:"price"`
-	Currency          string           `json:"currency"`
-	NetCash           decimal.Decimal  `json:"net_cash"`
-	Description       *string          `json:"description,omitempty"`
-	LotID             *string          `json:"lot_id,omitempty"`
-	ExternalSystem    *string          `json:"external_system,omitempty"`
-	ExternalReference *string          `json:"external_reference,omitempty"`
-	CreatedAt         time.Time        `json:"created_at"`
-	UpdatedAt         time.Time        `json:"updated_at"`
+	Quantity          decimal.Decimal `json:"quantity"`
+	Price             decimal.Decimal `json:"price"`
+	Currency          string          `json:"currency"`
+	NetCash           decimal.Decimal `json:"net_cash"`
+	Description       *string         `json:"description,omitempty"`
+	LotID             *string         `json:"lot_id,omitempty"`
+	ExternalSystem    *string         `json:"external_system,omitempty"`
+	ExternalReference *string         `json:"external_reference,omitempty"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
 }
 
 // CreateRequest is the DTO for creating a transaction.
 // Date is accepted as a string (YYYY-MM-DD) and parsed to time.Time in the service layer.
 type CreateRequest struct {
-	AccountID         int64            `json:"account_id"`
-	Date              string           `json:"date"`
-	Type              string           `json:"type"`
-	Symbol            string           `json:"symbol"`
-	Quantity          decimal.Decimal  `json:"quantity"`
-	Price             decimal.Decimal  `json:"price"`
-	Currency          string           `json:"currency"`
-	NetCash           decimal.Decimal  `json:"net_cash"`
-	Description       *string          `json:"description,omitempty"`
-	LotID             *string          `json:"lot_id,omitempty"`
-	ExternalSystem    *string          `json:"external_system,omitempty"`
-	ExternalReference *string          `json:"external_reference,omitempty"`
+	AccountID         int64           `json:"account_id"`
+	Date              string          `json:"date"`
+	Type              string          `json:"type"`
+	Symbol            string          `json:"symbol"`
+	Quantity          decimal.Decimal `json:"quantity"`
+	Price             decimal.Decimal `json:"price"`
+	Currency          string          `json:"currency"`
+	NetCash           decimal.Decimal `json:"net_cash"`
+	Description       *string         `json:"description,omitempty"`
+	LotID             *string         `json:"lot_id,omitempty"`
+	ExternalSystem    *string         `json:"external_system,omitempty"`
+	ExternalReference *string         `json:"external_reference,omitempty"`
 }
 
 // OptionalDecimal distinguishes between "field not sent" (IsSet=false) and

@@ -45,5 +45,3 @@ func TestFxRateFields(t *testing.T) {
 		t.Errorf("QuoteCurrency = %q, want %q", fx.QuoteCurrency, "USD")
 	}
 }
-
-

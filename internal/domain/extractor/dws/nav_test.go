@@ -132,7 +132,7 @@ func TestParseNavHistory(t *testing.T) {
 	// Let's check the actual implementation: decimal.MustNew(int64(navVal*1000000), 6)
 	// 30.3211 * 1000000 = 30321100.
 	// So expectedNav should be decimal.MustNew(30321100, 6)
-	
+
 	expectedNav = decimal.MustNew(30321100, 6)
 	if !navs[0].NAV.Equal(expectedNav) {
 		t.Errorf("expected NAV %s, got %s", expectedNav.String(), navs[0].NAV.String())

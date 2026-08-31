@@ -355,12 +355,12 @@ func TestExtractFundNameFromTitle(t *testing.T) {
 // mockClient wraps Client with tracking.
 type mockClient struct {
 	*Client
-	htmlResp   string
-	htmlErr    error
-	pdfResp    []byte
-	pdfErr     error
-	pageCalls  int
-	pdfCalls   int
+	htmlResp  string
+	htmlErr   error
+	pdfResp   []byte
+	pdfErr    error
+	pageCalls int
+	pdfCalls  int
 }
 
 func newMockClient() *mockClient {

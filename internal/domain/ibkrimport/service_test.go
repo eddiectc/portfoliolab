@@ -60,8 +60,8 @@ func (m *mockDuplicateChecker) ExternalReferenceExists(_ context.Context, extern
 }
 
 type mockTransactionCreator struct {
-	created   []*transaction.Transaction
-	fail      bool
+	created []*transaction.Transaction
+	fail    bool
 }
 
 func newMockTransactionCreator() *mockTransactionCreator {
@@ -1248,10 +1248,10 @@ func TestClassifyCashTransaction(t *testing.T) {
 
 func TestClassifyTransfer(t *testing.T) {
 	tests := []struct {
-		name       string
-		direction  string
+		name         string
+		direction    string
 		cashTransfer string
-		expected   string
+		expected     string
 	}{
 		{"deposit IN", "IN", "250.00", "deposit"},
 		{"withdrawal OUT", "OUT", "-100.00", "withdrawal"},
@@ -1337,10 +1337,10 @@ func TestCashSymbol(t *testing.T) {
 
 func TestParseDate(t *testing.T) {
 	tests := []struct {
-		input  string
-		wantYear int
+		input     string
+		wantYear  int
 		wantMonth time.Month
-		wantDay  int
+		wantDay   int
 	}{
 		{"20241204", 2024, 12, 4},
 		{"20250415", 2025, 4, 15},

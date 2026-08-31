@@ -8,12 +8,12 @@ import (
 
 func TestClient_Fetch(t *testing.T) {
 	tests := []struct {
-		name       string
-		slug       string
-		endpoint   string
-		mockResp   string
-		mockErr    error
-		wantErr    bool
+		name        string
+		slug        string
+		endpoint    string
+		mockResp    string
+		mockErr     error
+		wantErr     bool
 		expectedURL string
 	}{
 		{
@@ -39,7 +39,7 @@ func TestClient_Fetch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewClient()
-			
+
 			// Use a captured URL to verify the endpoint construction
 			var capturedURL string
 			client.SetFetchFunc(func(url string) (string, error) {
@@ -66,7 +66,7 @@ func TestClient_Fetch(t *testing.T) {
 func TestClient_RateLimiting(t *testing.T) {
 	client := NewClient()
 	client.minDelay = 100 * time.Millisecond
-	
+
 	count := 0
 	client.SetFetchFunc(func(url string) (string, error) {
 		count++

@@ -63,9 +63,9 @@ func (m *mockRefreshFetcher) FetchHistoricalPricesBatch(_ context.Context, _ []s
 }
 
 type mockRefreshRepo struct {
-	mu         sync.Mutex
-	upserted   []*market.MarketData
-	upsertErr  error
+	mu        sync.Mutex
+	upserted  []*market.MarketData
+	upsertErr error
 }
 
 func newMockRefreshRepo() *mockRefreshRepo {
@@ -326,9 +326,9 @@ func TestRefreshMarketData_Success(t *testing.T) {
 	}
 
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
@@ -393,9 +393,9 @@ func TestRefreshMarketData_PartialFailure(t *testing.T) {
 	posRepo := &mockRefreshPositionRepo{}
 
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
@@ -432,9 +432,9 @@ func TestRefreshMarketData_EmptyPortfolio(t *testing.T) {
 	posRepo := &mockRefreshPositionRepo{}
 
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
@@ -496,10 +496,10 @@ func TestRefreshMarketData_MultiCurrency(t *testing.T) {
 	posRepo := &mockRefreshPositionRepo{}
 
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
-		marketService:  &mockRefreshMarketService{fetcher: fetcher, repo: repo},
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
+		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
 	result, err := svc.RefreshMarketData(ctx, performance.PerformanceFilters{})
@@ -540,9 +540,9 @@ func TestRefreshMarketData_OpenPositionsOnly(t *testing.T) {
 	}
 
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
@@ -622,9 +622,9 @@ func TestRefreshMarketData_PeriodFilter(t *testing.T) {
 	posRepo := &mockRefreshPositionRepo{}
 
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 
@@ -673,9 +673,9 @@ func TestRefreshMarketData_PortfolioFilter(t *testing.T) {
 
 	portfolioID := int64(1)
 	svc := &Service{
-		positions:      posRepo,
-		transactions:   txnRepo,
-		accountLister:  accountLister,
+		positions:     posRepo,
+		transactions:  txnRepo,
+		accountLister: accountLister,
 		marketService: &mockRefreshMarketService{fetcher: fetcher, repo: repo},
 	}
 

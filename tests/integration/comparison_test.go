@@ -18,28 +18,28 @@ import (
 
 // comparisonResult is the JSON-decoded shape of a ComparisonResult.
 type comparisonResult struct {
-	ComputedAt   string                   `json:"computed_at"`
-	PortfolioA   *portfolioComparison     `json:"portfolio_a"`
-	PortfolioB   *portfolioComparison     `json:"portfolio_b"`
-	CrossMetrics *crossPortfolioMetrics   `json:"cross_metrics,omitempty"`
-	Warnings     []string                 `json:"warnings,omitempty"`
-	Message      string                   `json:"message,omitempty"`
+	ComputedAt   string                 `json:"computed_at"`
+	PortfolioA   *portfolioComparison   `json:"portfolio_a"`
+	PortfolioB   *portfolioComparison   `json:"portfolio_b"`
+	CrossMetrics *crossPortfolioMetrics `json:"cross_metrics,omitempty"`
+	Warnings     []string               `json:"warnings,omitempty"`
+	Message      string                 `json:"message,omitempty"`
 }
 
 type portfolioComparison struct {
-	ID                 int64                 `json:"id"`
-	Name               string                `json:"name"`
-	Type               string                `json:"type"`
-	ReturnMetrics      *returnMetrics        `json:"return_metrics,omitempty"`
-	RiskMetrics        *riskMetrics          `json:"risk_metrics,omitempty"`
-	Drawdown           *drawdownResult       `json:"drawdown,omitempty"`
-	DrawdownSeries     []json.RawMessage     `json:"drawdown_series,omitempty"`
-	YearlyReturns      []yearlyReturn        `json:"yearly_returns,omitempty"`
-	PeriodExtremes     *periodExtremes       `json:"period_extremes,omitempty"`
-	ReturnDistribution *returnDistribution   `json:"return_distribution,omitempty"`
-	IntraCorrelation   *intraCorrelation     `json:"intra_correlation,omitempty"`
-	Warnings           []string              `json:"warnings,omitempty"`
-	Message            string                `json:"message,omitempty"`
+	ID                 int64               `json:"id"`
+	Name               string              `json:"name"`
+	Type               string              `json:"type"`
+	ReturnMetrics      *returnMetrics      `json:"return_metrics,omitempty"`
+	RiskMetrics        *riskMetrics        `json:"risk_metrics,omitempty"`
+	Drawdown           *drawdownResult     `json:"drawdown,omitempty"`
+	DrawdownSeries     []json.RawMessage   `json:"drawdown_series,omitempty"`
+	YearlyReturns      []yearlyReturn      `json:"yearly_returns,omitempty"`
+	PeriodExtremes     *periodExtremes     `json:"period_extremes,omitempty"`
+	ReturnDistribution *returnDistribution `json:"return_distribution,omitempty"`
+	IntraCorrelation   *intraCorrelation   `json:"intra_correlation,omitempty"`
+	Warnings           []string            `json:"warnings,omitempty"`
+	Message            string              `json:"message,omitempty"`
 }
 
 type returnMetrics struct {
@@ -70,15 +70,15 @@ type yearlyReturn struct {
 }
 
 type crossPortfolioMetrics struct {
-	BetaAlpha   *betaAlphaResult  `json:"beta_alpha,omitempty"`
+	BetaAlpha   *betaAlphaResult   `json:"beta_alpha,omitempty"`
 	Correlation *correlationResult `json:"correlation,omitempty"`
-	Overlap     *overlapResult    `json:"overlap,omitempty"`
-	Warnings    []string          `json:"warnings,omitempty"`
+	Overlap     *overlapResult     `json:"overlap,omitempty"`
+	Warnings    []string           `json:"warnings,omitempty"`
 }
 
 type betaAlphaResult struct {
-	Beta    *decimal.Decimal `json:"beta,omitempty"`
-	Alpha   *decimal.Decimal `json:"alpha,omitempty"`
+	Beta  *decimal.Decimal `json:"beta,omitempty"`
+	Alpha *decimal.Decimal `json:"alpha,omitempty"`
 }
 
 type correlationResult struct {
@@ -86,10 +86,10 @@ type correlationResult struct {
 }
 
 type overlapResult struct {
-	TopHoldingsA []holdingWeight `json:"top_holdings_a"`
-	TopHoldingsB []holdingWeight `json:"top_holdings_b"`
+	TopHoldingsA []holdingWeight  `json:"top_holdings_a"`
+	TopHoldingsB []holdingWeight  `json:"top_holdings_b"`
 	OverlapPct   *decimal.Decimal `json:"overlap_pct,omitempty"`
-	Warnings     []string        `json:"warnings,omitempty"`
+	Warnings     []string         `json:"warnings,omitempty"`
 }
 
 type holdingWeight struct {
@@ -99,12 +99,12 @@ type holdingWeight struct {
 }
 
 type periodExtremes struct {
-	BestMonth       *decimal.Decimal `json:"best_month,omitempty"`
-	WorstMonth      *decimal.Decimal `json:"worst_month,omitempty"`
-	BestYear        *decimal.Decimal `json:"best_year,omitempty"`
-	WorstYear       *decimal.Decimal `json:"worst_year,omitempty"`
-	WinRateMonthly  *decimal.Decimal `json:"win_rate_monthly,omitempty"`
-	WinRateYearly   *decimal.Decimal `json:"win_rate_yearly,omitempty"`
+	BestMonth      *decimal.Decimal `json:"best_month,omitempty"`
+	WorstMonth     *decimal.Decimal `json:"worst_month,omitempty"`
+	BestYear       *decimal.Decimal `json:"best_year,omitempty"`
+	WorstYear      *decimal.Decimal `json:"worst_year,omitempty"`
+	WinRateMonthly *decimal.Decimal `json:"win_rate_monthly,omitempty"`
+	WinRateYearly  *decimal.Decimal `json:"win_rate_yearly,omitempty"`
 }
 
 type returnBucket struct {

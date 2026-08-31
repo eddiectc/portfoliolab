@@ -13,10 +13,10 @@ func TestExtractor_Extract_Success(t *testing.T) {
 
 	// Mock responses
 	responses := map[string]string{
-		"test-slug/pdpSettings":      `{"productType": "ETF", "internalId": "ID123", "fundFamily": "Xtrackers", "costsAndFees": {"totalOngoingCosts": "0.20%"}}`,
+		"test-slug/pdpSettings":        `{"productType": "ETF", "internalId": "ID123", "fundFamily": "Xtrackers", "costsAndFees": {"totalOngoingCosts": "0.20%"}}`,
 		"test-slug/pdpMetaTagsTealium": `{"pdpResult": {"pageFrame": {"productHeader": {"texts": {"title": "Test ETF"}, "tableValues": [{"key": "isin", "value": "US123"}, {"key": "totalNetAssets", "value": "1000000000"}, {"key": "inceptionDate", "value": "2020-01-15"}]}}}}`,
-		"test-slug/holdings":         `{"tables": [{"values": [{"header": {"value": "US123"}, "column_0": {"value": "Asset 1"}, "column_1": {"value": "10.0%"}, "column_3": {"value": "USA"}, "column_4": {"value": "Tech"}}]}]}`,
-		"test-slug/performancechart": `{"asOfDate": "2026-05-27T00:00:00Z", "seriesConfiguration": [{"chartType": "Nav", "identifier": "NAV (USD)"}], "values": [[1611187200000, [[100.0, 100.0, 0]]]]}`,
+		"test-slug/holdings":           `{"tables": [{"values": [{"header": {"value": "US123"}, "column_0": {"value": "Asset 1"}, "column_1": {"value": "10.0%"}, "column_3": {"value": "USA"}, "column_4": {"value": "Tech"}}]}]}`,
+		"test-slug/performancechart":   `{"asOfDate": "2026-05-27T00:00:00Z", "seriesConfiguration": [{"chartType": "Nav", "identifier": "NAV (USD)"}], "values": [[1611187200000, [[100.0, 100.0, 0]]]]}`,
 	}
 
 	ext.client.SetFetchFunc(func(url string) (string, error) {
@@ -59,7 +59,7 @@ func TestExtractor_Extract_AtomicFailure(t *testing.T) {
 		{
 			name: "fail on settings",
 			mockResponses: map[string]string{
-				"test-slug/pdpSettings":      `invalid json`,
+				"test-slug/pdpSettings":        `invalid json`,
 				"test-slug/pdpMetaTagsTealium": metaTagsJSON,
 			},
 			wantErrContain: "parse fund info",
@@ -67,19 +67,19 @@ func TestExtractor_Extract_AtomicFailure(t *testing.T) {
 		{
 			name: "fail on holdings",
 			mockResponses: map[string]string{
-				"test-slug/pdpSettings":      `{"productType": "ETF", "internalId": "ID123", "fundFamily": "Xtrackers", "costsAndFees": {"totalOngoingCosts": "0.20%"}}`,
+				"test-slug/pdpSettings":        `{"productType": "ETF", "internalId": "ID123", "fundFamily": "Xtrackers", "costsAndFees": {"totalOngoingCosts": "0.20%"}}`,
 				"test-slug/pdpMetaTagsTealium": metaTagsJSON,
-				"test-slug/holdings":         `{"tables": []}`, // Empty holdings should fail
+				"test-slug/holdings":           `{"tables": []}`, // Empty holdings should fail
 			},
 			wantErrContain: "parse holdings",
 		},
 		{
 			name: "fail on performance chart",
 			mockResponses: map[string]string{
-				"test-slug/pdpSettings":      `{"productType": "ETF", "internalId": "ID123", "fundFamily": "Xtrackers", "costsAndFees": {"totalOngoingCosts": "0.20%"}}`,
+				"test-slug/pdpSettings":        `{"productType": "ETF", "internalId": "ID123", "fundFamily": "Xtrackers", "costsAndFees": {"totalOngoingCosts": "0.20%"}}`,
 				"test-slug/pdpMetaTagsTealium": metaTagsJSON,
-				"test-slug/holdings":         `{"tables": [{"values": [{"header": {"value": "US123"}, "column_0": {"value": "Asset 1"}, "column_1": {"value": "10.0%"}, "column_3": {"value": "USA"}, "column_4": {"value": "Tech"}}]}]}`,
-				"test-slug/performancechart": `{"asOfDate": "invalid-date", "seriesConfiguration": [{"chartType": "Nav", "identifier": "NAV (USD)"}]}`,
+				"test-slug/holdings":           `{"tables": [{"values": [{"header": {"value": "US123"}, "column_0": {"value": "Asset 1"}, "column_1": {"value": "10.0%"}, "column_3": {"value": "USA"}, "column_4": {"value": "Tech"}}]}]}`,
+				"test-slug/performancechart":   `{"asOfDate": "invalid-date", "seriesConfiguration": [{"chartType": "Nav", "identifier": "NAV (USD)"}]}`,
 			},
 			wantErrContain: "parse as-of date",
 		},

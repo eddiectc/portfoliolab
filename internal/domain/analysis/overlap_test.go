@@ -14,8 +14,8 @@ func etfPosition(t *testing.T, sym string, weight float64, holdings []symbol.Top
 		Symbol:          sym,
 		PortfolioWeight: weight,
 		SymbolDetails: &symbol.SymbolDetails{
-			QuoteType:     "ETF",
-			TopHoldings:   holdings,
+			QuoteType:   "ETF",
+			TopHoldings: holdings,
 		},
 	}
 }
@@ -84,7 +84,7 @@ func TestComputeOverlap(t *testing.T) {
 				// IVV-QQQ: AAPL, MSFT, AMZN = 3 overlapping → 1.8 + 1.45 + 1.125 = 4.375 → 4.38
 				{ETFA: "IVV", ETFB: "QQQ", OverlappingCount: 3, CombinedWeightPct: 4.38},
 			},
-			wantStocks: nil, // checked separately below
+			wantStocks:     nil, // checked separately below
 			wantMessage:    "",
 			wantWarningLen: 0,
 		},
@@ -127,7 +127,7 @@ func TestComputeOverlap(t *testing.T) {
 		},
 
 		{
-			name:           "no ETFs returns message",
+			name: "no ETFs returns message",
 			positions: []PositionWithDetails{
 				stockPosition(t, "AAPL", 40),
 				stockPosition(t, "MSFT", 30),
@@ -340,7 +340,7 @@ func TestComputeOverlap_ConcentratedStocks(t *testing.T) {
 
 // floatEq checks two float64 values are within epsilon.
 func floatEq(got, want, eps float64) bool {
-	return (got - want) < eps && (want - got) < eps
+	return (got-want) < eps && (want-got) < eps
 }
 
 func TestComputeOverlap_DuplicateETFAggregated(t *testing.T) {

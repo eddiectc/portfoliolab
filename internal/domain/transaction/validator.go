@@ -12,14 +12,14 @@ import (
 var (
 	// allowedTypes is the set of valid transaction types.
 	allowedTypes = map[string]bool{
-		"buy":       true,
-		"sell":      true,
-		"deposit":   true,
+		"buy":        true,
+		"sell":       true,
+		"deposit":    true,
 		"withdrawal": true,
-		"dividend":  true,
-		"interest":  true,
-		"fee":       true,
-		"tax":       true,
+		"dividend":   true,
+		"interest":   true,
+		"fee":        true,
+		"tax":        true,
 	}
 
 	// cashSymbolPrefix is the prefix for cash account symbols.

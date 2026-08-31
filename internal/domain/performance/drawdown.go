@@ -18,8 +18,8 @@ import (
 // peak was set. Zero when the portfolio is currently at its peak. Nil when
 // fewer than 2 data points or all values are non-positive.
 type DrawdownAnalysis struct {
-	MaxDrawdownPct      *decimal.Decimal `json:"max_drawdown_pct,omitempty"`
-	CurrentDrawdownPct  *decimal.Decimal `json:"current_drawdown_pct,omitempty"`
+	MaxDrawdownPct       *decimal.Decimal `json:"max_drawdown_pct,omitempty"`
+	CurrentDrawdownPct   *decimal.Decimal `json:"current_drawdown_pct,omitempty"`
 	DrawdownDurationDays *int             `json:"drawdown_duration_days,omitempty"`
 }
 
@@ -42,11 +42,11 @@ func ComputeDrawdownAnalysis(points []NavPoint) DrawdownAnalysis {
 	}
 
 	var (
-		peakVal          decimal.Decimal
-		peakIdx          int
-		maxDrawdownPct   decimal.Decimal
+		peakVal            decimal.Decimal
+		peakIdx            int
+		maxDrawdownPct     decimal.Decimal
 		currentDrawdownPct decimal.Decimal
-		hasPositive      bool
+		hasPositive        bool
 	)
 
 	for i := 0; i < len(points); i++ {

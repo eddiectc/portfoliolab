@@ -15,10 +15,10 @@ var ctx = context.Background()
 // --- Mocks ---
 
 type mockFetcher struct {
-	quotes   map[string]*market.MarketData
-	fxRates  map[string]*market.MarketData // key: "BASE/QUOTE"
-	fxErr    error
-	err      error
+	quotes  map[string]*market.MarketData
+	fxRates map[string]*market.MarketData // key: "BASE/QUOTE"
+	fxErr   error
+	err     error
 }
 
 func (m *mockFetcher) FetchQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {
@@ -49,13 +49,13 @@ func (m *mockFetcher) FetchFxRate(_ context.Context, base, quote string) (*marke
 }
 
 type mockRepo struct {
-	quotes       map[string]*market.MarketData
-	fxRates      map[string]*market.MarketData
-	historical   map[string][]market.HistoricalPrice
-	latestDates  map[string]*time.Time
-	upserted     []*market.MarketData
-	upsertErr    error
-	getHistErr   error
+	quotes      map[string]*market.MarketData
+	fxRates     map[string]*market.MarketData
+	historical  map[string][]market.HistoricalPrice
+	latestDates map[string]*time.Time
+	upserted    []*market.MarketData
+	upsertErr   error
+	getHistErr  error
 }
 
 func (m *mockRepo) GetLatestQuotesBatch(_ context.Context, symbols []string) map[string]*market.MarketData {

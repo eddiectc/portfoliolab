@@ -123,8 +123,8 @@ func computePositionsForLots(lots []LotGroup) ([]Position, []Position) {
 // buildPosition constructs a Position from a cycle of lots.
 func buildPosition(c cycleState) Position {
 	var (
-			buyLotsInCycle  []LotGroup
-			sellLotsInCycle []LotGroup
+		buyLotsInCycle  []LotGroup
+		sellLotsInCycle []LotGroup
 	)
 
 	for _, lot := range c.lots {
@@ -241,7 +241,7 @@ func buildPosition(c cycleState) Position {
 // cycleState groups lots that belong to the same open-to-close cycle.
 type cycleState struct {
 	lots         []LotGroup
-	quantitySign int            // -1, 0, or +1
+	quantitySign int             // -1, 0, or +1
 	finalQty     decimal.Decimal // runningQty at the time the cycle ended
 }
 

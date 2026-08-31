@@ -73,8 +73,8 @@ func TestComputeCashPositions_DepositAndWithdrawal(t *testing.T) {
 func TestComputeCashPositions_MultipleCurrencies(t *testing.T) {
 	// USD and GBP transactions → separate cash positions.
 	txs := []transaction.Transaction{
-		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(1000000, 2)),  // $10,000
-		tx("2025-01-20", "deposit", "$CASH-GBP", "GBP", dec(500000, 2)),   // £5,000
+		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(1000000, 2)),    // $10,000
+		tx("2025-01-20", "deposit", "$CASH-GBP", "GBP", dec(500000, 2)),     // £5,000
 		tx("2025-02-01", "withdrawal", "$CASH-USD", "USD", dec(-100000, 2)), // -$1,000
 	}
 
@@ -131,7 +131,7 @@ func TestComputeCashPositions_DividendAddsToCash(t *testing.T) {
 func TestComputeCashPositions_NegativeBalance(t *testing.T) {
 	// Overdraft: withdrawals exceed deposits.
 	txs := []transaction.Transaction{
-		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(50000, 2)),    // $500
+		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(50000, 2)),      // $500
 		tx("2025-02-01", "withdrawal", "$CASH-USD", "USD", dec(-100000, 2)), // -$1,000
 	}
 
@@ -164,9 +164,9 @@ func TestComputeCashPositions_EmptyTransactions(t *testing.T) {
 func TestComputeCashPositions_BuyAndSellAffectCash(t *testing.T) {
 	// Deposit, then buy (cash out), then sell (cash in).
 	txs := []transaction.Transaction{
-		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(1000000, 2)),  // $10,000
-		tx("2025-02-01", "buy", "AAPL", "USD", dec(-150000, 2)),           // -$1,500
-		tx("2025-03-01", "sell", "AAPL", "USD", dec(51000, 2)),            // $510
+		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(1000000, 2)), // $10,000
+		tx("2025-02-01", "buy", "AAPL", "USD", dec(-150000, 2)),          // -$1,500
+		tx("2025-03-01", "sell", "AAPL", "USD", dec(51000, 2)),           // $510
 	}
 
 	positions := ComputeCashPositions(txs)
@@ -205,8 +205,8 @@ func TestComputeCashPositions_FeeAndTax(t *testing.T) {
 func TestComputeCashPositions_OpenDateIsEarliest(t *testing.T) {
 	// Open date should be the earliest transaction date.
 	txs := []transaction.Transaction{
-		tx("2025-03-01", "buy", "AAPL", "USD", dec(-150000, 2)),    // -$1,500 (earliest)
-		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(1000000, 2)), // $10,000
+		tx("2025-03-01", "buy", "AAPL", "USD", dec(-150000, 2)),            // -$1,500 (earliest)
+		tx("2025-01-15", "deposit", "$CASH-USD", "USD", dec(1000000, 2)),   // $10,000
 		tx("2025-02-01", "withdrawal", "$CASH-USD", "USD", dec(-50000, 2)), // -$500
 	}
 

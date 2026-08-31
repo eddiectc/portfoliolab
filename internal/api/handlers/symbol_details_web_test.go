@@ -1838,7 +1838,7 @@ func TestToDisplayDetails_BlackRockHoldings(t *testing.T) {
 				NotionalValue:  118e9,
 				Shares:         350000,
 				Price:          337.14,
-				ISIN:     "037833100",
+				ISIN:           "037833100",
 				Location:       "United States",
 				Exchange:       "NASDAQ",
 				MarketCurrency: "USD",

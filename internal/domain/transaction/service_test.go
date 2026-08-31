@@ -145,8 +145,8 @@ func TestService_Create_WithExternalReference(t *testing.T) {
 	req := CreateRequest{
 		AccountID: 3, Date: "2025-02-10", Type: "buy", Symbol: "VOO",
 		Quantity: dec(2, 0), Price: dec(25000, 2), Currency: "USD",
-		NetCash:         dec(-50500, 2),
-		ExternalSystem:  &extSys,
+		NetCash:           dec(-50500, 2),
+		ExternalSystem:    &extSys,
 		ExternalReference: &extRef,
 	}
 	got, err := svc.Create(ctx, req)
@@ -1090,7 +1090,7 @@ func TestService_Create_WithUserSpecifiedLotID(t *testing.T) {
 		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
 		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
 		NetCash: dec(-150000, 2),
-		LotID: &lotID,
+		LotID:   &lotID,
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -1108,7 +1108,7 @@ func TestService_Create_LotIDTooLong(t *testing.T) {
 		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
 		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
 		NetCash: dec(-150000, 2),
-		LotID: &longLotID,
+		LotID:   &longLotID,
 	}
 	_, err := svc.Create(ctx, req)
 	if !errors.Is(err, ErrInvalidLotID) {
@@ -1123,7 +1123,7 @@ func TestService_Create_LotIDEmptyStringAutoGenerates(t *testing.T) {
 		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
 		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
 		NetCash: dec(-150000, 2),
-		LotID: &emptyLotID,
+		LotID:   &emptyLotID,
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
@@ -1148,7 +1148,7 @@ func TestService_Create_LotIDExistingDifferentSymbol(t *testing.T) {
 		AccountID: 3, Date: "2025-01-15", Type: "buy", Symbol: "AAPL",
 		Quantity: dec(10, 0), Price: dec(15000, 2), Currency: "USD",
 		NetCash: dec(-150000, 2),
-		LotID: &lotID,
+		LotID:   &lotID,
 	}
 	got, err := svc.Create(ctx, req)
 	if err != nil {
