@@ -2,893 +2,519 @@ package wisdomtree
 
 import (
 	"testing"
-	"time"
-
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
-func TestParseFundInfo(t *testing.T) {
-	tests := []struct {
-		name    string
-		html    string
-		want    *extractor.FundInfo
-		wantErr bool
-	}{
-		{
-			name: "basic fund info",
-			html: `var fundInfo = {'symbol':'WMGT', 'name':'WisdomTree Megatrends UCITS ETF'}`,
-			want: &extractor.FundInfo{
-				Symbol: "WMGT",
-				Name:   "WisdomTree Megatrends UCITS ETF",
+func TestParseHoldingsFromAPI(t *testing.T) {
+	t.Run("full mapping with cash and currency filter", func(t *testing.T) {
+		figi := "BBG000BBJQV0"
+		sector := "Information Technology"
+		ticker := "NVDA UQ"
+		records := []holdingRecord{
+			{
+				SecurityName:    "Nvidia Corp",
+				SecurityTicker:  &ticker,
+				Wgt:             0.1476209845990145,
+				DT:              "2026-08-27T00:00:00.000Z",
+				AssetGroup:      "EQ",
+				MarketValueBase: 7003317.62,
+				Shares:          30719,
+				SectorName:      &sector,
+				Figi:            &figi,
 			},
-		},
-		{
-			name: "fund info with hash suffix",
-			html: `var fundInfoA1B2C3 = {'symbol':'WMST', 'name':'WisdomTree STOXX Europe'}`,
-			want: &extractor.FundInfo{
-				Symbol: "WMST",
-				Name:   "WisdomTree STOXX Europe",
+			{
+				SecurityName:   "CASH W-O",
+				SecurityTicker: nil, // cash: no ticker, filtered out
 			},
-		},
-		{
-			name:    "missing fund info",
-			html:    `<script>var somethingElse = 'data'</script>`,
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name:    "empty html",
-			html:    ``,
-			want:    nil,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseFundInfo(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got.Symbol != tt.want.Symbol {
-				t.Errorf("symbol = %q, want %q", got.Symbol, tt.want.Symbol)
-			}
-			if got.Name != tt.want.Name {
-				t.Errorf("name = %q, want %q", got.Name, tt.want.Name)
-			}
-		})
-	}
-}
-
-func TestParseHoldings(t *testing.T) {
-	tests := []struct {
-		name    string
-		html    string
-		wantLen int
-		wantErr bool
-	}{
-		{
-			name:    "basic holdings with cash filter",
-			html:    `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.0137,"Apple Inc"\n5/11/2026,0.0025,"CASH W-O"\n5/11/2026,0.0100,"Microsoft Corp"'`,
-			wantLen: 2, // cash filtered out
-		},
-		{
-			name:    "empty holdings (header only)",
-			html:    `var fundHoldingsData = 'date,Weight,Security Description'`,
-			wantLen: 0,
-		},
-		{
-			name:    "missing holdings data",
-			html:    `<script>var otherData = 'something'</script>`,
-			wantErr: true,
-		},
-		{
-			name:    "holdings with escaped quotes",
-			html:    `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.0100,\"Johnson \u0026 Johnson"'`,
-			wantLen: 1,
-		},
-		{
-			name:    "currency positions filtered",
-			html:    `var fundHoldingsData = 'date,Weight,Security Description\n5/11/2026,0.001,"APPLE"\n5/11/2026,0.0005,"JAPANESE YEN"\n5/11/2026,0.0003,"SWISS FRANC"'`,
-			wantLen: 1, // only Apple remains
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseHoldings(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if len(got) != tt.wantLen {
-				t.Errorf("got %d holdings, want %d", len(got), tt.wantLen)
-			}
-		})
-	}
-}
-
-func TestParseNavHistory(t *testing.T) {
-	tests := []struct {
-		name      string
-		html      string
-		wantLen   int
-		wantNil   bool
-		wantErr   bool
-		checkDate func(t *testing.T, got []extractor.NavPoint)
-	}{
-		{
-			name:    "basic nav history",
-			html:    `var fundMarketDataX1 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846\n5/8/2026,WMGT LN,,,45.1556'`,
-			wantLen: 2,
-		},
-		{
-			name:    "nav with empty nav values skipped",
-			html:    `var fundMarketDataA = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846\n5/8/2026,WMGT LN,,,'`,
-			wantLen: 1, // empty nav skipped
-		},
-		{
-			name:    "missing nav data",
-			html:    `<script>var other = 'data'</script>`,
-			wantNil: true, // optional section — nil, nil when not found
-		},
-		{
-			name:    "nav with hash suffix",
-			html:    `var fundMarketDataB123 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n5/11/2026,WMGT LN,,,45.846'`,
-			wantLen: 1,
-		},
-		{
-			// fundMarketData CSV uses US M/D/YYYY (month first) despite wisdomtree.eu.
-			// 12/13/2023 is unambiguous — day 13 can't be a month.
-			name:    "us month-first format",
-			html:    `var fundMarketDataX1 = 'date,fund_ticker,close_price_adj,volume_adj,nav\n12/13/2023,WMGT LN,,,26.169\n1/2/2024,WMGT LN,,,26.834\n2/16/2026,WMGT LN,,,40.109'`,
-			wantLen: 3,
-			checkDate: func(t *testing.T, got []extractor.NavPoint) {
-				if !got[0].Date.Equal(time.Date(2023, 12, 13, 0, 0, 0, 0, time.UTC)) {
-					t.Errorf("got %s, want 2023-12-13", got[0].Date)
-				}
-				if !got[1].Date.Equal(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)) {
-					t.Errorf("got %s, want 2024-01-02", got[1].Date)
-				}
-				if !got[2].Date.Equal(time.Date(2026, 2, 16, 0, 0, 0, 0, time.UTC)) {
-					t.Errorf("got %s, want 2026-02-16", got[2].Date)
-				}
+			{
+				SecurityName:   "JAPANESE YEN",
+				SecurityTicker: nil, // currency basket: no ticker, filtered out
 			},
-		},
-	}
+		}
+		got := ParseHoldingsFromAPI(records)
+		if len(got) != 1 {
+			t.Fatalf("got %d holdings, want 1 (cash and currency filtered)", len(got))
+		}
+		h := got[0]
+		if h.Symbol != "NVDA" || h.Name != "Nvidia Corp" {
+			t.Errorf("got %+v, want NVDA/Nvidia Corp", h)
+		}
+		if h.Percent != 14.7620984599 { // wgt 0.1476209845990145 * 100, float artifacts stripped
+			t.Errorf("Percent = %v, want 14.7620984599 (wgt*100)", h.Percent)
+		}
+		if h.AsOfDate != "2026-08-27" {
+			t.Errorf("AsOfDate = %q, want 2026-08-27", h.AsOfDate)
+		}
+		if h.AssetClass != "Equity" {
+			t.Errorf("AssetClass = %q, want Equity", h.AssetClass)
+		}
+		if h.MarketValue != 7003317.62 || h.Shares != 30719 {
+			t.Errorf("MarketValue/Shares = %v/%v", h.MarketValue, h.Shares)
+		}
+		if h.Sector != "Information Technology" {
+			t.Errorf("Sector = %q", h.Sector)
+		}
+		if h.ISIN != "BBG000BBJQV0" {
+			t.Errorf("ISIN (FIGI) = %q", h.ISIN)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseNavHistory(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if tt.wantNil {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
-				if got != nil {
-					t.Errorf("expected nil result, got %d items", len(got))
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if len(got) != tt.wantLen {
-				t.Errorf("got %d nav points, want %d", len(got), tt.wantLen)
-			}
-			if tt.checkDate != nil {
-				tt.checkDate(t, got)
-			}
+	t.Run("whitespace-only ticker is filtered", func(t *testing.T) {
+		ticker := "   "
+		got := ParseHoldingsFromAPI([]holdingRecord{{SecurityName: "CASH", SecurityTicker: &ticker}})
+		if len(got) != 0 {
+			t.Errorf("got %d holdings, want 0", len(got))
+		}
+	})
+
+	t.Run("asset group mapping and unknown passthrough", func(t *testing.T) {
+		ticker := "X UQ"
+		got := ParseHoldingsFromAPI([]holdingRecord{
+			{SecurityTicker: &ticker, AssetGroup: "BD"},
+			{SecurityTicker: &ticker, AssetGroup: "CA"},
+			{SecurityTicker: &ticker, AssetGroup: "DER"},
+			{SecurityTicker: &ticker, AssetGroup: "XXX"},
 		})
-	}
+		want := []string{"Bond", "Cash", "Derivative", "XXX"}
+		for i, h := range got {
+			if h.AssetClass != want[i] {
+				t.Errorf("record %d AssetClass = %q, want %q", i, h.AssetClass, want[i])
+			}
+		}
+	})
 }
 
-func TestParseThemes(t *testing.T) {
+func TestFundInfoFromHistory(t *testing.T) {
+	t.Run("latest record, ticker suffix stripped", func(t *testing.T) {
+		info, err := FundInfoFromHistory([]historyPoint{
+			{Name: "Old Name", Ticker: "OLD UQ"},
+			{Name: "WisdomTree US Quality Growth UCITS ETF - USD Acc", Ticker: "QGRW LN"},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if info.Symbol != "QGRW" {
+			t.Errorf("Symbol = %q, want QGRW", info.Symbol)
+		}
+		if info.Name != "WisdomTree US Quality Growth UCITS ETF - USD Acc" {
+			t.Errorf("Name = %q", info.Name)
+		}
+	})
+
+	t.Run("empty history", func(t *testing.T) {
+		if _, err := FundInfoFromHistory(nil); err == nil {
+			t.Error("expected error for empty history")
+		}
+	})
+
+	t.Run("record without ticker", func(t *testing.T) {
+		if _, err := FundInfoFromHistory([]historyPoint{{Name: "X"}}); err == nil {
+			t.Error("expected error for missing ticker")
+		}
+	})
+}
+
+func TestParseNavHistoryFromAPI(t *testing.T) {
+	t.Run("dates, scaling, currency", func(t *testing.T) {
+		pts, err := ParseNavHistoryFromAPI([]historyPoint{
+			{DT: "2024-04-16T00:00:00.000Z", NAV: 25.039, AUM: 1000},
+			{DT: "2026-08-28T00:00:00.000Z", NAV: 42.9737, AUM: 47442.9648},
+		}, "USD")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(pts) != 2 {
+			t.Fatalf("got %d points, want 2", len(pts))
+		}
+		if pts[0].Date.Format("2006-01-02") != "2024-04-16" {
+			t.Errorf("first date = %v", pts[0].Date)
+		}
+		if pts[1].NAV.String() != "42.9737" {
+			t.Errorf("last NAV = %v, want 42.9737", pts[1].NAV)
+		}
+		if pts[1].Currency != "USD" {
+			t.Errorf("currency = %q, want USD", pts[1].Currency)
+		}
+	})
+
+	t.Run("empty history", func(t *testing.T) {
+		if _, err := ParseNavHistoryFromAPI(nil, "USD"); err == nil {
+			t.Error("expected error for empty history")
+		}
+	})
+
+	t.Run("bad date fails", func(t *testing.T) {
+		if _, err := ParseNavHistoryFromAPI([]historyPoint{{DT: "not-a-date", NAV: 1}}, "USD"); err == nil {
+			t.Error("expected error for unparsable date")
+		}
+	})
+}
+
+func TestLatestAUM(t *testing.T) {
+	t.Run("thousands to whole units", func(t *testing.T) {
+		aum, err := LatestAUM([]historyPoint{{AUM: 47442.9648}})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if aum != 47442965 {
+			t.Errorf("AUM = %v, want 47442965", aum)
+		}
+	})
+
+	t.Run("empty history", func(t *testing.T) {
+		if _, err := LatestAUM(nil); err == nil {
+			t.Error("expected error for empty history")
+		}
+	})
+}
+
+// qgrwFlight decodes the captured QGRW tables page once per test process.
+func qgrwFlight(t *testing.T) *Flight {
+	t.Helper()
+	return DecodeFlight(loadFixture(t, "flight_qgrw_tables.html"))
+}
+
+func ezFlight(t *testing.T) *Flight {
+	t.Helper()
+	return DecodeFlight(loadFixture(t, "flight_ezm_tables.html"))
+}
+
+func TestParseFundProfileFromFlight(t *testing.T) {
+	t.Run("qgrw UCITS page", func(t *testing.T) {
+		p, err := ParseFundProfileFromFlight(qgrwFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if p == nil {
+			t.Fatal("profile is nil")
+		}
+		if p.Isin != "IE000YGEAK03" {
+			t.Errorf("Isin = %q", p.Isin)
+		}
+		if p.AssetClassification != "Equities" {
+			t.Errorf("AssetClassification = %q", p.AssetClassification)
+		}
+		if p.BaseCurrency != "USD" {
+			t.Errorf("BaseCurrency = %q", p.BaseCurrency)
+		}
+		if p.DistributionStrategy != "Accumulating" {
+			t.Errorf("DistributionStrategy = %q", p.DistributionStrategy)
+		}
+		if p.InceptionDate.Format("2006-01-02") != "2024-04-16" {
+			t.Errorf("InceptionDate = %v", p.InceptionDate)
+		}
+		if p.AnnualExpenseRatio != 0.0033 {
+			t.Errorf("AnnualExpenseRatio = %v, want 0.0033 (0.33%% TER)", p.AnnualExpenseRatio)
+		}
+		if p.Domicile != "Ireland" {
+			t.Errorf("Domicile = %q", p.Domicile)
+		}
+		if p.IssuingCompany != "WisdomTree Issuer ICAV" {
+			t.Errorf("IssuingCompany = %q", p.IssuingCompany)
+		}
+		if p.Custodian == "" || p.FundManager == "" {
+			t.Errorf("Custodian/FundManager = %q/%q, want non-empty", p.Custodian, p.FundManager)
+		}
+	})
+
+	t.Run("ezm US page (no ISIN, no Fees table)", func(t *testing.T) {
+		p, err := ParseFundProfileFromFlight(ezFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if p == nil {
+			t.Fatal("profile is nil")
+		}
+		if p.Isin != "" || p.BaseCurrency != "" {
+			t.Errorf("US page should leave Isin/BaseCurrency empty, got %q/%q", p.Isin, p.BaseCurrency)
+		}
+		if p.InceptionDate.Format("2006-01-02") != "2007-02-23" {
+			t.Errorf("InceptionDate = %v", p.InceptionDate)
+		}
+		if p.AnnualExpenseRatio != 0.0038 {
+			t.Errorf("AnnualExpenseRatio = %v, want 0.0038 (0.38%% expense ratio)", p.AnnualExpenseRatio)
+		}
+	})
+
+	t.Run("no overview tables", func(t *testing.T) {
+		p, err := ParseFundProfileFromFlight(&Flight{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if p != nil {
+			t.Errorf("got %+v, want nil", p)
+		}
+	})
+}
+
+func TestParseCountryAllocationFromFlight(t *testing.T) {
+	t.Run("qgrw", func(t *testing.T) {
+		got, err := ParseCountryAllocationFromFlight(qgrwFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 4 {
+			t.Fatalf("got %d countries, want 4", len(got))
+		}
+		if got[0].Country != "United States" || got[0].Percent != 99.54 {
+			t.Errorf("top country = %+v, want United States 99.54", got[0])
+		}
+	})
+
+	t.Run("ezm", func(t *testing.T) {
+		got, err := ParseCountryAllocationFromFlight(ezFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 7 {
+			t.Fatalf("got %d countries, want 7", len(got))
+		}
+		if got[0].Country != "United States" || got[0].Percent != 96.84 {
+			t.Errorf("top country = %+v, want United States 96.84", got[0])
+		}
+	})
+
+	t.Run("absent table", func(t *testing.T) {
+		got, err := ParseCountryAllocationFromFlight(&Flight{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != nil {
+			t.Errorf("got %v, want nil", got)
+		}
+	})
+}
+
+func TestParseMarketCapFromFlight(t *testing.T) {
+	t.Run("qgrw (trillions)", func(t *testing.T) {
+		mc, err := ParseMarketCapFromFlight(qgrwFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if mc == nil {
+			t.Fatal("market cap is nil")
+		}
+		if mc.Total != 34.81 || mc.Large != 100.00 || mc.Mid != 0 || mc.Small != 0 {
+			t.Errorf("MarketCap = %+v", mc)
+		}
+	})
+
+	t.Run("ezm (billion-scale fund)", func(t *testing.T) {
+		mc, err := ParseMarketCapFromFlight(ezFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if mc == nil {
+			t.Fatal("market cap is nil")
+		}
+		if mc.Total != 3.86 || mc.Large != 38.49 || mc.Mid != 61.39 || mc.Small != 0.12 {
+			t.Errorf("MarketCap = %+v", mc)
+		}
+	})
+
+	t.Run("absent table", func(t *testing.T) {
+		mc, err := ParseMarketCapFromFlight(&Flight{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if mc != nil {
+			t.Errorf("got %+v, want nil", mc)
+		}
+	})
+}
+
+func TestParseFundCharacteristicsFromFlight(t *testing.T) {
+	t.Run("qgrw", func(t *testing.T) {
+		c, err := ParseFundCharacteristicsFromFlight(qgrwFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if c == nil {
+			t.Fatal("characteristics is nil")
+		}
+		if c.DividendYield != 0.35 || c.PriceToEarnings != 31.43 {
+			t.Errorf("DY/PE = %v/%v, want 0.35/31.43", c.DividendYield, c.PriceToEarnings)
+		}
+	})
+
+	t.Run("ezm", func(t *testing.T) {
+		c, err := ParseFundCharacteristicsFromFlight(ezFlight(t))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if c == nil {
+			t.Fatal("characteristics is nil")
+		}
+		if c.DividendYield != 1.52 || c.PriceToEarnings != 16.64 {
+			t.Errorf("DY/PE = %v/%v, want 1.52/16.64", c.DividendYield, c.PriceToEarnings)
+		}
+	})
+
+	t.Run("absent table", func(t *testing.T) {
+		c, err := ParseFundCharacteristicsFromFlight(&Flight{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if c != nil {
+			t.Errorf("got %+v, want nil", c)
+		}
+	})
+}
+
+func TestParseSectorsAndThemesFromFlight(t *testing.T) {
+	t.Run("qgrw has sectors, no themes", func(t *testing.T) {
+		sectors, err := ParseSectorsFromFlight(DecodeFlight(loadFixture(t, "flight_qgrw_sector.html")))
+		if err != nil {
+			t.Fatalf("sectors: %v", err)
+		}
+		if len(sectors) != 9 {
+			t.Fatalf("got %d sectors, want 9", len(sectors))
+		}
+		if sectors[0].Sector != "Information Technology" || sectors[0].Percent != 58.4027 {
+			t.Errorf("top sector = %+v", sectors[0])
+		}
+		if sectors[0].Date != "2026-08-27" {
+			t.Errorf("sector date = %q", sectors[0].Date)
+		}
+		themes, err := ParseThemesFromFlight(DecodeFlight(loadFixture(t, "flight_qgrw_sector.html")))
+		if err != nil {
+			t.Fatalf("themes: %v", err)
+		}
+		if themes != nil {
+			t.Errorf("themes = %v, want nil", themes)
+		}
+	})
+
+	t.Run("wmgt themes", func(t *testing.T) {
+		themes, err := ParseThemesFromFlight(DecodeFlight(loadFixture(t, "flight_wmgt_theme.html")))
+		if err != nil {
+			t.Fatalf("themes: %v", err)
+		}
+		if len(themes) != 19 {
+			t.Fatalf("got %d themes, want 19", len(themes))
+		}
+		if themes[0].Name != "Grid Infrastructure" || themes[0].Percent != 8.1002 {
+			t.Errorf("top theme = %+v", themes[0])
+		}
+	})
+
+	t.Run("absent sections", func(t *testing.T) {
+		if s, err := ParseSectorsFromFlight(&Flight{}); err != nil || s != nil {
+			t.Errorf("sectors = %v, %v; want nil, nil", s, err)
+		}
+		if s, err := ParseThemesFromFlight(&Flight{}); err != nil || s != nil {
+			t.Errorf("themes = %v, %v; want nil, nil", s, err)
+		}
+	})
+}
+
+func TestParseDate(t *testing.T) {
 	tests := []struct {
-		name    string
-		html    string
-		wantLen int
-		wantNil bool
+		in      string
+		wantDay string
 		wantErr bool
 	}{
-		{
-			name:    "basic themes",
-			html:    `var fundThemeData = 'date,Weight,Security Description\n5/8/2026,0.0884,"Grid Infrastructure"\n5/8/2026,0.0834,"Sustainable Energy"'`,
-			wantLen: 2,
-		},
-		{
-			name:    "missing theme data",
-			html:    `<script>var other = 'data'</script>`,
-			wantNil: true,
-		},
-		{
-			name:    "single theme",
-			html:    `var fundThemeData = 'date,Weight,Security Description\n5/8/2026,1.0,"AI"'`,
-			wantLen: 1,
-		},
+		{"22 May 2026", "2026-05-22", false},
+		{"1 May 2026", "2026-05-01", false},
+		{"02 Jun 2026", "2026-06-02", false},
+		{"2 Jun 2026", "2026-06-02", false},
+		{"22/05/2026", "2026-05-22", false},
+		{"2/5/2026", "2026-05-02", false},
+		{"2026-05-22", "2026-05-22", false},
+		{"2/23/2007", "2007-02-23", false}, // US month-first
+		{"  22 May 2026  ", "2026-05-22", false},
+		{"not a date", "", true},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseThemes(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
+		got, err := parseDate(tt.in)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("parseDate(%q) = %v, want error", tt.in, got)
 			}
-			if tt.wantNil {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
-				if got != nil {
-					t.Errorf("expected nil result, got %d items", len(got))
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if len(got) != tt.wantLen {
-				t.Errorf("got %d themes, want %d", len(got), tt.wantLen)
-			}
-		})
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseDate(%q): %v", tt.in, err)
+			continue
+		}
+		if got.Format("2006-01-02") != tt.wantDay {
+			t.Errorf("parseDate(%q) = %s, want %s", tt.in, got.Format("2006-01-02"), tt.wantDay)
+		}
 	}
 }
 
-func TestParseSectors(t *testing.T) {
+func TestParseNumber(t *testing.T) {
 	tests := []struct {
-		name       string
-		html       string
-		wantLen    int
-		wantValues map[string]float64 // sector name -> expected percent
-		wantNil    bool
-		wantErr    bool
+		in   string
+		want float64
+		ok   bool
 	}{
-		{
-			name:    "basic sectors — wgtSector repeated, take first",
-			html:    `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"Technology",0.05\n5/11/2026,"B",0.02,"Technology",0.05\n5/11/2026,"C",0.01,"Healthcare",0.12'`,
-			wantLen: 2,
-			wantValues: map[string]float64{
-				"Technology": 5.0,  // 0.05 * 100
-				"Healthcare": 12.0, // 0.12 * 100
-			},
-		},
-		{
-			name:    "missing sectors data",
-			html:    `<script>var other = 'data'</script>`,
-			wantNil: true,
-		},
-		{
-			name:    "empty sector names skipped",
-			html:    `var fundSectorsData = 'date,securityName,weight,Sector,wgtSector\n5/11/2026,"A",0.01,"",0.5\n5/11/2026,"B",0.02,"Tech",0.3'`,
-			wantLen: 1, // empty sector skipped
-		},
+		{"34.81", 34.81, true},
+		{"1,234.56", 1234.56, true},
+		{"0.35%", 0.35, true},
+		{"€1.20", 1.20, true},
+		{"$100", 100, true},
+		{"  42  ", 42, true},
+		{"", 0, false},
+		{"n/a", 0, false},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseSectors(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
+		got, err := parseNumber(tt.in)
+		if !tt.ok {
+			if err == nil {
+				t.Errorf("parseNumber(%q) = %v, want error", tt.in, got)
 			}
-			if tt.wantNil {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
-				if got != nil {
-					t.Errorf("expected nil result, got %d items", len(got))
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if len(got) != tt.wantLen {
-				t.Errorf("got %d sectors, want %d", len(got), tt.wantLen)
-			}
-			if tt.wantValues != nil {
-				gotMap := make(map[string]float64)
-				for _, s := range got {
-					gotMap[s.Sector] = s.Percent
-				}
-				for sector, wantPercent := range tt.wantValues {
-					if gotPercent, ok := gotMap[sector]; !ok {
-						t.Errorf("missing sector %q", sector)
-					} else if gotPercent != wantPercent {
-						t.Errorf("%s: got %.2f%%, want %.2f%%", sector, gotPercent, wantPercent)
-					}
-				}
-			}
-		})
-	}
-}
-
-func TestParseAsOfDate(t *testing.T) {
-	tests := []struct {
-		name    string
-		html    string
-		want    time.Time
-		wantErr bool
-	}{
-		{
-			name: "standard format",
-			html: `<th>Net Asset Value</th><th>22 May 2026</th>`,
-			want: time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC),
-		},
-		{
-			name: "abbreviated month",
-			html: `<th>Net Asset Value</th><th>02 Jun 2026</th>`,
-			want: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC),
-		},
-		{
-			name: "abbreviated month single digit day",
-			html: `<th>Net Asset Value</th><th>1 Jun 2026</th>`,
-			want: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
-		},
-		{
-			name: "with whitespace",
-			html: `<th>  Net Asset Value  </th>  <th> 22 May 2026 </th>`,
-			want: time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC),
-		},
-		{
-			name:    "missing as-of date",
-			html:    `<th>Something Else</th><th>22 May 2026</th>`,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseAsOfDate(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if !got.Equal(tt.want) {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseFundProfile(t *testing.T) {
-	tests := []struct {
-		name             string
-		html             string
-		wantAUM          float64
-		wantTER          float64
-		wantFamily       string
-		wantLegalType    string
-		wantIsin         string
-		wantBaseCurrency string
-		wantNil          bool
-		wantErr          bool
-	}{
-		{
-			name: "complete profile",
-			html: `<table>
-<tr><td>Total AUM of fund</td><td><span class="value currency positive">$60,368,055</span></td></tr>
-<tr><td class="key">TER</td><td>0.40%</td></tr>
-<tr><td class="key">Inception Date</td><td>01/06/2023</td></tr>
-<tr><td class="key">Fund Umbrella</td><td>WisdomTree Issuer ICAV</td></tr>
-<tr><td class="key">Legal Form</td><td>ICAV</td></tr>
-<tr><td>Base Currency</td><td>USD</td></tr>
-</table>
-<table>
-<tr><td>ISIN</td><td>IE000YGEAK03</td></tr>
-</table>`,
-			wantAUM:          60368055,
-			wantTER:          0.0040,
-			wantFamily:       "WisdomTree Issuer ICAV",
-			wantLegalType:    "ICAV",
-			wantIsin:         "IE000YGEAK03",
-			wantBaseCurrency: "USD",
-		},
-		{
-			name: "minimal profile (AUM only)",
-			html: `<table>
-<tr><td>Total AUM of fund</td><td>$1,234,567</td></tr>
-</table>`,
-			wantAUM: 1234567,
-		},
-		{
-			name: "multiline key cells",
-			html: `<table>
-<tr><td class="key">
-								TER
-							</td><td>0.50%</td></tr>
-<tr><td class="key">
-								Fund Umbrella
-							</td><td>Test Fund</td></tr>
-</table>`,
-			wantTER:    0.0050,
-			wantFamily: "Test Fund",
-		},
-		{
-			name:    "no profile data",
-			html:    `<table><tr><td>other</td><td>data</td></tr></table>`,
-			wantNil: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseFundProfile(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if tt.wantNil {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
-				if got != nil {
-					t.Error("expected nil result")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got.TotalNetAssets != tt.wantAUM {
-				t.Errorf("AUM = %f, want %f", got.TotalNetAssets, tt.wantAUM)
-			}
-			if got.AnnualExpenseRatio != tt.wantTER {
-				t.Errorf("TER = %f, want %f", got.AnnualExpenseRatio, tt.wantTER)
-			}
-			if got.Family != tt.wantFamily {
-				t.Errorf("Family = %q, want %q", got.Family, tt.wantFamily)
-			}
-			if got.LegalType != tt.wantLegalType {
-				t.Errorf("LegalType = %q, want %q", got.LegalType, tt.wantLegalType)
-			}
-			if got.Isin != tt.wantIsin {
-				t.Errorf("Isin = %q, want %q", got.Isin, tt.wantIsin)
-			}
-			if got.BaseCurrency != tt.wantBaseCurrency {
-				t.Errorf("BaseCurrency = %q, want %q", got.BaseCurrency, tt.wantBaseCurrency)
-			}
-		})
-	}
-}
-
-func TestParseCountryAllocation(t *testing.T) {
-	tests := []struct {
-		name    string
-		html    string
-		wantLen int
-		wantNil bool
-		wantErr bool
-	}{
-		{
-			name: "basic countries with numbering",
-			html: `<section id="country-allocation-section">
-<table>
-<tbody>
-<tr><td class="key">1. United States</td><td class="value"><span>40.54%</span></td></tr>
-<tr><td class="key">2. Japan</td><td class="value"><span>8.15%</span></td></tr>
-</tbody>
-</table>
-</section>`,
-			wantLen: 2,
-		},
-		{
-			name:    "missing section",
-			html:    `<section id="other-section"></section>`,
-			wantNil: true,
-		},
-		{
-			name:    "empty section",
-			html:    `<section id="country-allocation-section"></section>`,
-			wantNil: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseCountryAllocation(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if tt.wantNil {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
-				if got != nil {
-					t.Errorf("expected nil result, got %d items", len(got))
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if len(got) != tt.wantLen {
-				t.Errorf("got %d countries, want %d", len(got), tt.wantLen)
-			}
-		})
-	}
-}
-
-func TestParseMarketCap(t *testing.T) {
-	tests := []struct {
-		name      string
-		html      string
-		wantTotal float64
-		wantNil   bool
-		wantErr   bool
-	}{
-		{
-			name: "complete market cap",
-			html: `<section id="fund-facts-section">
-<tr><td class="key">Total Market Capitalization ($ Trillion)</td><td class="value">58.68</td></tr>
-<tr><td class="key shifted">Large Cap (&gt; $10 Billion)</td><td class="value">64.42%</td></tr>
-<tr><td class="key shifted">Mid Cap ($2-$10 Billion)</td><td class="value">25.18%</td></tr>
-<tr><td class="key shifted">Small Cap (&lt; $2 Billion)</td><td class="value">10.40%</td></tr>
-</section>`,
-			wantTotal: 58.68,
-		},
-		{
-			name:    "missing data",
-			html:    `<section id="fund-facts-section">nothing here</section>`,
-			wantNil: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseMarketCap(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if tt.wantNil {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
-				if got != nil {
-					t.Error("expected nil result")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got.Total != tt.wantTotal {
-				t.Errorf("Total = %f, want %f", got.Total, tt.wantTotal)
-			}
-		})
-	}
-}
-
-func TestParseFundCharacteristics(t *testing.T) {
-	tests := []struct {
-		name            string
-		html            string
-		wantPE          float64
-		wantEstimatedPE float64
-		wantNil         bool
-		wantErr         bool
-	}{
-		{
-			name: "complete characteristics",
-			html: `<table>
-<thead><tr><th class="key">Fund Characteristics</th><th class="value">As of 22 May 2026</th></tr></thead>
-<tbody>
-<tr><td class="key">*Dividend Yield</td><td class="value">0.94</td></tr>
-<tr><td class="key">Price/Earnings</td><td class="value">69.64</td></tr>
-<tr><td class="key">Estimated Price/Earnings</td><td class="value">34.56</td></tr>
-<tr><td class="key">Price/Book</td><td class="value">4.06</td></tr>
-<tr><td class="key">Price/Sales</td><td class="value">2.61</td></tr>
-<tr><td class="key">Price/Cash Flow</td><td class="value">28.69</td></tr>
-</tbody>
-</table>`,
-			wantPE:          69.64,
-			wantEstimatedPE: 34.56,
-		},
-		{
-			name: "partial characteristics",
-			html: `<table>
-<thead><tr><th class="key">Fund Characteristics</th><th class="value">As of 22 May 2026</th></tr></thead>
-<tbody>
-<tr><td class="key">Price/Earnings</td><td class="value">15.20</td></tr>
-<tr><td class="key">Price/Book</td><td class="value">2.10</td></tr>
-</tbody>
-</table>`,
-			wantPE: 15.20,
-		},
-		{
-			name:    "missing section",
-			html:    `<section id="other">no characteristics here</section>`,
-			wantNil: true,
-		},
-		{
-			name: "negative values",
-			html: `<table>
-<thead><tr><th class="key">Fund Characteristics</th><th class="value">As of 22 May 2026</th></tr></thead>
-<tbody>
-<tr><td class="key">Price/Earnings</td><td class="value">-5.20</td></tr>
-<tr><td class="key">Price/Book</td><td class="value">1.50</td></tr>
-</tbody>
-</table>`,
-			wantPE: -5.20,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseFundCharacteristics(tt.html)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-				return
-			}
-			if tt.wantNil {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
-				if got != nil {
-					t.Error("expected nil result")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got.PriceToEarnings != tt.wantPE {
-				t.Errorf("PriceToEarnings = %f, want %f", got.PriceToEarnings, tt.wantPE)
-			}
-			if got.EstimatedPriceToEarnings != tt.wantEstimatedPE {
-				t.Errorf("EstimatedPriceToEarnings = %f, want %f", got.EstimatedPriceToEarnings, tt.wantEstimatedPE)
-			}
-		})
-	}
-}
-
-func TestIsCashPosition(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected bool
-	}{
-		{"cash", "CASH W-O", true},
-		{"euro income", "EURO INCOME A/C", true},
-		{"japanese yen", "JAPANESE YEN", true},
-		{"chinese renimbi", "CHINESE RENIMBI", true},
-		{"cgt adj", "BRL CGT ADJ", true},
-		{"regular holding", "Apple Inc", false},
-		{"microsoft", "Microsoft Corp", false},
-		{"empty", "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isCashPosition(tt.input)
-			if got != tt.expected {
-				t.Errorf("isCashPosition(%q) = %v, want %v", tt.input, got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestExtractModalURL(t *testing.T) {
-	tests := []struct {
-		name     string
-		html     string
-		expected string
-	}{
-		{
-			name:     "standard modal url",
-			html:     `<a data-href="https://www.wisdomtree.eu/en-gb/global/etf-details/modals/all-holdings?id={8B845B79-F55C-4B6A-8D67-CA84E1C19C5B}">`,
-			expected: "https://www.wisdomtree.eu/en-gb/global/etf-details/modals/all-holdings?id={8B845B79-F55C-4B6A-8D67-CA84E1C19C5B}",
-		},
-		{
-			name:     "missing modal url",
-			html:     `<div>no modal here</div>`,
-			expected: "",
-		},
-		{
-			name:     "empty html",
-			html:     ``,
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ExtractModalURL(tt.html)
-			if got != tt.expected {
-				t.Errorf("ExtractModalURL() = %q, want %q", got, tt.expected)
-			}
-		})
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseNumber(%q): %v", tt.in, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("parseNumber(%q) = %v, want %v", tt.in, got, tt.want)
+		}
 	}
 }
 
 func TestExtractTicker(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"bloomberg format", "NVDA UQ", "NVDA"},
-		{"bloomberg with US", "MSFT US", "MSFT"},
-		{"bloomberg with UN", "LLY UN", "LLY"},
-		{"cusip", "US5128073062", "US5128073062"},
-		{"simple ticker", "AAPL", "AAPL"},
-		{"empty", "", ""},
-		{"with spaces", "  AMD US  ", "AMD"},
+	tests := []struct{ in, want string }{
+		{"NVDA UQ", "NVDA"},
+		{"US5128073062", "US5128073062"}, // CUSIP kept as-is
+		{"  AAPL UQ  ", "AAPL"},
+		{"", ""},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractTicker(tt.input)
-			if got != tt.expected {
-				t.Errorf("extractTicker(%q) = %q, want %q", tt.input, got, tt.expected)
-			}
-		})
+		if got := extractTicker(tt.in); got != tt.want {
+			t.Errorf("extractTicker(%q) = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }
 
-func TestParseHoldingsFromModal(t *testing.T) {
-	modalHTML := `<script>
-var source = [
-{"CountryCode":"US ","Weight":0.1426250,"COBDate":"2026-06-02T00:00:00","IdentifierName":"Nvidia Corp","IdentifierTicker":"NVDA UQ","FIGI":null,"SharesPar":"26576","MarketValue":5921664.32,"ContractType":null},
-{"CountryCode":"US ","Weight":0.1228107,"COBDate":"2026-06-02T00:00:00","IdentifierName":"Apple Inc","IdentifierTicker":"AAPL UQ","FIGI":null,"SharesPar":"16177","MarketValue":5098990.40,"ContractType":null},
-{"CountryCode":"US ","Weight":0.0114614,"COBDate":"2026-06-02T00:00:00","IdentifierName":"LAM RESEARCH CORP","IdentifierTicker":"US5128073062","FIGI":null,"SharesPar":"1423","MarketValue":475865.43,"ContractType":null},
-{"CountryCode":"   ","Weight":0.0011587,"COBDate":"2026-06-02T00:00:00","IdentifierName":"CASH W-O","IdentifierTicker":null,"FIGI":null,"SharesPar":"0","MarketValue":null,"ContractType":null}
-];
-</script>`
-
-	t.Run("basic modal holdings", func(t *testing.T) {
-		got, err := ParseHoldingsFromModal(modalHTML)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(got) != 3 {
-			t.Fatalf("expected 3 holdings (cash filtered), got %d", len(got))
-		}
-
-		// Check first holding
-		if got[0].Name != "Nvidia Corp" {
-			t.Errorf("holding[0].Name = %q, want %q", got[0].Name, "Nvidia Corp")
-		}
-		if got[0].Symbol != "NVDA" {
-			t.Errorf("holding[0].Symbol = %q, want %q", got[0].Symbol, "NVDA")
-		}
-		if got[0].Percent != 14.2625 {
-			t.Errorf("holding[0].Percent = %f, want %f", got[0].Percent, 14.2625)
-		}
-
-		// Check CUSIP ticker preserved
-		if got[2].Symbol != "US5128073062" {
-			t.Errorf("holding[2].Symbol = %q, want %q", got[2].Symbol, "US5128073062")
-		}
-	})
-
-	t.Run("missing JSON", func(t *testing.T) {
-		_, err := ParseHoldingsFromModal(`<div>no JSON here</div>`)
-		if err == nil {
-			t.Error("expected error, got nil")
-		}
-	})
-}
-
-func TestUnescapeJSString(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"ampersand", `Hello\u0026World`, "Hello&World"},
-		{"escaped quote", `\"F5, Inc\"`, `"F5, Inc"`},
-		{"escaped single quote", `it\'s`, "it's"},
-		{"newline", `line1\\nline2`, "line1\nline2"},
-		{"percent", `\u0025`, "%"},
-		{"slash", `\u002F`, "/"},
-		{"backslash", `\\`, `\`},
+// TestParseAsOfDate covers the NAV table header date parsing (both site
+// regions: UCITS "As of 28/08/2026", US "As of 8/28/2026").
+func TestParseAsOfDate(t *testing.T) {
+	f := qgrwFlight(t)
+	tbl := f.Table("Net Asset Value")
+	if tbl == nil {
+		t.Fatal("no Net Asset Value table in qgrw fixture")
+	}
+	d, ok := tbl.AsOfDate()
+	if !ok {
+		t.Fatal("no as-of date")
+	}
+	if d.Format("2006-01-02") != "2026-08-28" {
+		t.Errorf("as-of = %v, want 2026-08-28", d)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := unescapeJSString(tt.input)
-			if got != tt.expected {
-				t.Errorf("unescapeJSString(%q) = %q, want %q", tt.input, got, tt.expected)
-			}
-		})
+	fe := ezFlight(t)
+	tbl = fe.Table("Net Asset Value")
+	if tbl == nil {
+		t.Fatal("no Net Asset Value table in ezm fixture")
 	}
-}
-
-func TestParseNavHistoryFromModal(t *testing.T) {
-	tests := []struct {
-		name    string
-		html    string
-		wantLen int
-		wantErr bool
-	}{
-		{
-			name: "basic nav table",
-			html: `<table>
-	<tbody>
-		<tr><td class="key">04 Jun 2026</td><td class="value">42.7375</td></tr>
-		<tr><td class="key">03 Jun 2026</td><td class="value">42.7419</td></tr>
-	</tbody>
-</table>`,
-			wantLen: 2,
-		},
-		{
-			name:    "empty html",
-			html:    "",
-			wantLen: 0,
-		},
-		{
-			name:    "no matching table",
-			html:    `<table><tr><td>something else</td></tr></table>`,
-			wantLen: 0,
-		},
-		{
-			name: "with whitespace",
-			html: `<tr>
-				<td class="key">  04 Jun 2026  </td>
-				<td class="value">  42.7375  </td>
-			</tr>`,
-			wantLen: 1,
-		},
-		{
-			name: "empty nav skipped",
-			html: `<tr><td class="key">04 Jun 2026</td><td class="value">42.7375</td></tr>
-<tr><td class="key">03 Jun 2026</td><td class="value"></td></tr>`,
-			wantLen: 1,
-		},
+	d, ok = tbl.AsOfDate()
+	if !ok {
+		t.Fatal("no as-of date")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseNavHistoryFromModal(tt.html)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseNavHistoryFromModal() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if len(got) != tt.wantLen {
-				t.Errorf("got %d points, want %d", len(got), tt.wantLen)
-			}
-			if len(got) > 0 && tt.wantLen > 0 {
-				expectedDate := time.Date(2026, 6, 4, 0, 0, 0, 0, time.UTC)
-				if !got[0].Date.Equal(expectedDate) {
-					t.Errorf("got date %v, want %v", got[0].Date, expectedDate)
-				}
-			}
-		})
+	if d.Format("2006-01-02") != "2026-08-28" {
+		t.Errorf("as-of = %v, want 2026-08-28 (US format 8/28/2026)", d)
 	}
 }

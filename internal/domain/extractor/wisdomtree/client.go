@@ -128,8 +128,9 @@ type holdingRecord struct {
 }
 
 // historyPoint is one record of GET /api/fund-history/{wtClassID} (default
-// view: full history since inception, ascending by date). AUM is in millions
-// of the fund's base currency (47442.9648 = $47,442,965). NavDelta, NavDeltaPCT
+// view: full history since inception, ascending by date). AUM is in
+// thousands of the fund's base currency (47442.9648 = $47,442,965). NavDelta,
+// NavDeltaPCT
 // and NavPrevious are null on the first record. See RESEARCH.md §5.2.
 type historyPoint struct {
 	AUM               float64  `json:"aum"`

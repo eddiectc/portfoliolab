@@ -10,7 +10,7 @@ import (
 // Name is the identifier for the WisdomTree extractor.
 const Name = "wisdomtree"
 
-// Extractor extracts fund data from WisdomTree ETF pages.
+// Extractor extracts fund data from WisdomTree product pages (2026 site).
 type Extractor struct {
 	matcher *URLMatcher
 	client  *Client
@@ -34,154 +34,118 @@ func (e *Extractor) Match(rawURL string) bool {
 	return e.matcher.Match(rawURL)
 }
 
-// Extract fetches and parses data from a WisdomTree ETF page.
-// All sections are parsed atomically — if any fails, the entire extraction is rejected.
+// Extract fetches and parses data from a WisdomTree product page.
+//
+// Flow (RESEARCH.md §10):
+//  1. fetch the fund page (CycleTLS, browser fingerprint)
+//  2. extract the wtClassID (fails explicitly when absent)
+//  3. call the JSON API sequentially (fund-holdings, then fund-history;
+//     the client enforces the rate limit between requests)
+//  4. decode the React Flight payload from the page body
+//  5. assemble the ExtractResult
+//
+// Error semantics: required data (fund info, holdings, the page "As of"
+// date) is atomic — any failure rejects the whole extraction. Optional
+// sections (profile, country, market cap, characteristics, sectors,
+// themes) degrade to nil when absent from the page. JSON API failures are
+// surfaced distinctly from page-parse failures (undocumented API,
+// RESEARCH.md §9.1).
 func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.ExtractResult, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
-	html, err := e.client.Fetch(sourceURL)
+	// 1. Fund page.
+	pageBody, err := e.client.Fetch(sourceURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetch page: %w", err)
 	}
 
-	// Fetch all-holdings modal for ticker data
-	modalURL := ExtractModalURL(html)
-	var modalHTML string
-	if modalURL != "" {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		modalHTML, err = e.client.Fetch(modalURL)
-		if err != nil {
-			return nil, fmt.Errorf("fetch holdings modal: %w", err)
-		}
-	}
-
-	// Fetch NAV history modal for funds where main page doesn't embed fundMarketData
-	navModalURL := ExtractNavHistoryModalURL(html)
-	var navModalHTML string
-	if navModalURL != "" {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		navModalHTML, err = e.client.Fetch(navModalURL)
-		if err != nil {
-			return nil, fmt.Errorf("fetch nav history modal: %w", err)
-		}
-	}
-
-	return extractFromHTMLWithModals(html, modalHTML, navModalHTML)
-}
-
-// SetClient sets the HTTP client for fetching pages.
-func (e *Extractor) SetClient(c *Client) {
-	e.client = c
-}
-
-// extractFromHTML parses all sections from pre-fetched HTML.
-// Used for testing and when renderer is not available.
-// Prefer extractFromHTMLWithModals for holdings with ticker data.
-func extractFromHTML(html string) (*extractor.ExtractResult, error) {
-	return extractFromHTMLWithModals(html, "", "")
-}
-
-// extractFromHTMLWithModals parses all sections from pre-fetched HTML,
-// using the optional modalHTML for holdings with ticker/symbol data,
-// and navModalHTML for NAV history when main page doesn't embed fundMarketData.
-func extractFromHTMLWithModals(html, modalHTML, navModalHTML string) (*extractor.ExtractResult, error) {
-	fundInfo, err := ParseFundInfo(html)
+	// 2. wtClassID keys both JSON API endpoints.
+	wtClassID, err := ExtractWtClassID(pageBody)
 	if err != nil {
-		return nil, fmt.Errorf("parse fund info: %w", err)
+		return nil, fmt.Errorf("wtClassID: %w", err)
 	}
 
-	fundProfile, err := ParseFundProfile(html)
+	// 3. JSON API (sequential; client rate-limits).
+	holdingRecords, err := e.client.FundHoldings(ctx, wtClassID)
 	if err != nil {
-		return nil, fmt.Errorf("parse fund profile: %w", err)
+		return nil, fmt.Errorf("fund-holdings API: %w", err)
 	}
-
-	// Use modal data for holdings (has tickers) if available, otherwise fall back to CSV
-	var holdings []extractor.Holding
-	if modalHTML != "" {
-		holdings, err = ParseHoldingsFromModal(modalHTML)
-		if err != nil {
-			return nil, fmt.Errorf("parse holdings from modal: %w", err)
-		}
-	} else {
-		holdings, err = ParseHoldings(html)
-		if err != nil {
-			return nil, fmt.Errorf("parse holdings: %w", err)
-		}
-	}
-
-	navHistory, err := ParseNavHistory(html)
+	history, err := e.client.FundHistory(ctx, wtClassID)
 	if err != nil {
-		return nil, fmt.Errorf("parse nav history: %w", err)
+		return nil, fmt.Errorf("fund-history API: %w", err)
 	}
-	// Some funds don't embed fundMarketData on the main page —
-	// fall back to the nav-history modal (HTML table format).
-	if navHistory == nil && navModalHTML != "" {
-		navHistory, err = ParseNavHistoryFromModal(navModalHTML)
-		if err != nil {
-			return nil, fmt.Errorf("parse nav history from modal: %w", err)
-		}
-	}
-	// Set NAV currency from the fund's base currency.
-	// The NAV values on WisdomTree pages are in the fund's base currency
-	// (e.g. USD for WMGT), which can differ from the listing currency (e.g. GBP on LSE).
-	if fundProfile != nil && fundProfile.BaseCurrency != "" {
-		for i := range navHistory {
-			navHistory[i].Currency = fundProfile.BaseCurrency
-		}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
-	themes, err := ParseThemes(html)
+	// 4. Flight payload.
+	flight := DecodeFlight(pageBody)
+
+	// 5. Assemble.
+	info, err := FundInfoFromHistory(history)
 	if err != nil {
-		return nil, fmt.Errorf("parse themes: %w", err)
+		return nil, fmt.Errorf("fund info: %w", err)
 	}
 
-	sectors, err := ParseSectors(html)
+	profile, err := ParseFundProfileFromFlight(flight)
 	if err != nil {
-		return nil, fmt.Errorf("parse sectors: %w", err)
+		return nil, err
 	}
 
-	asOfDate, err := ParseAsOfDate(html)
-	if err != nil {
-		return nil, fmt.Errorf("parse as-of date: %w", err)
+	// As-of semantics (RESEARCH.md §9.8): the page "As of" table header is
+	// the extraction as-of date; a missing as-of fails the extraction. The
+	// NAV table's header carries the fund's reporting date.
+	navTable := flight.Table("Net Asset Value")
+	if navTable == nil {
+		return nil, fmt.Errorf("page has no Net Asset Value table (as-of date unavailable)")
+	}
+	asOf, ok := navTable.AsOfDate()
+	if !ok {
+		return nil, fmt.Errorf("Net Asset Value table header %q carries no as-of date", navTable.AsOf)
 	}
 
-	countryAllocation, err := ParseCountryAllocation(html)
-	if err != nil {
-		return nil, fmt.Errorf("parse country allocation: %w", err)
+	navCurrency := "USD"
+	if profile != nil && profile.BaseCurrency != "" {
+		navCurrency = profile.BaseCurrency
 	}
 
-	marketCap, err := ParseMarketCap(html)
+	navHistory, err := ParseNavHistoryFromAPI(history, navCurrency)
 	if err != nil {
-		return nil, fmt.Errorf("parse market cap: %w", err)
+		return nil, fmt.Errorf("nav history: %w", err)
+	}
+	aum, err := LatestAUM(history)
+	if err != nil {
+		return nil, fmt.Errorf("aum: %w", err)
+	}
+	if profile != nil {
+		profile.TotalNetAssets = aum
 	}
 
-	characteristics, err := ParseFundCharacteristics(html)
-	if err != nil {
-		return nil, fmt.Errorf("parse fund characteristics: %w", err)
+	holdings := ParseHoldingsFromAPI(holdingRecords)
+	if len(holdings) == 0 {
+		return nil, fmt.Errorf("fund-holdings returned no tradeable rows")
 	}
+
+	// Optional sections — nil when absent on the page.
+	countries, _ := ParseCountryAllocationFromFlight(flight)
+	marketCap, _ := ParseMarketCapFromFlight(flight)
+	characteristics, _ := ParseFundCharacteristicsFromFlight(flight)
+	sectors, _ := ParseSectorsFromFlight(flight)
+	themes, _ := ParseThemesFromFlight(flight)
 
 	return &extractor.ExtractResult{
-		AsOfDate:          asOfDate,
-		FundInfo:          fundInfo,
-		FundProfile:       fundProfile,
+		Source:            Name,
+		AsOfDate:          asOf,
+		FundInfo:          info,
+		FundProfile:       profile,
 		Holdings:          holdings,
 		NavHistory:        navHistory,
-		Themes:            themes,
-		Sectors:           sectors,
-		CountryAllocation: countryAllocation,
+		CountryAllocation: countries,
 		MarketCap:         marketCap,
 		Characteristics:   characteristics,
+		Sectors:           sectors,
+		Themes:            themes,
 	}, nil
 }

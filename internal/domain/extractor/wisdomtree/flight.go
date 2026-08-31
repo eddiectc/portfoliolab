@@ -53,8 +53,9 @@ type Table struct {
 	asOfDate    *time.Time
 }
 
-// KV is one label/value cell pair from a table row. Rows whose label cell is
-// an embedded component rather than plain text are not included.
+// KV is one label/value cell pair from a table row. Label cells that are
+// embedded React components (e.g. the Market Capitalisation breakdown bars)
+// are reduced to their visible text before the row is included.
 type KV struct {
 	Label string
 	Value string
@@ -219,11 +220,12 @@ func tableFrom(obj map[string]any) (*Table, bool) {
 		if !ok {
 			continue
 		}
-		label, okL := rm["0"].(string)
+		label, okL := labelCell(rm["0"])
 		value, okV := rm["1"].(string)
-		if !okL || !okV {
-			// Label or value is an embedded component (e.g. the Market
-			// Capitalisation breakdown bars) — not usable as plain text.
+		if !okL || !okV || label == "" {
+			// The value cell is an embedded component, or the label carries
+			// no visible text (e.g. a flag icon) — not usable as a
+			// label/value row.
 			continue
 		}
 		t.Rows = append(t.Rows, KV{Label: label, Value: value})
@@ -232,6 +234,47 @@ func tableFrom(obj map[string]any) (*Table, bool) {
 		t.asOfDate = &d
 	}
 	return t, true
+}
+
+// labelCell extracts the label text from a table row's first cell. Plain
+// strings are returned as-is; embedded React elements (flight reference form
+// ["$", "span", null, {...}]) are reduced to their visible text.
+func labelCell(cell any) (string, bool) {
+	switch v := cell.(type) {
+	case string:
+		return v, true
+	case []any:
+		return componentLabel(v), true
+	default:
+		return "", false
+	}
+}
+
+// componentLabel collects the visible text of a flight React element: every
+// string "children" value in its tree, in document order. Element reference
+// tokens ("$"), type names, and className values are not children and are
+// skipped.
+func componentLabel(comp []any) string {
+	var out strings.Builder
+	var walk func(n any)
+	walk = func(n any) {
+		switch v := n.(type) {
+		case map[string]any:
+			if c, ok := v["children"].(string); ok {
+				out.WriteString(c)
+				return
+			}
+			for _, val := range v {
+				walk(val)
+			}
+		case []any:
+			for _, val := range v {
+				walk(val)
+			}
+		}
+	}
+	walk(comp)
+	return out.String()
 }
 
 // asOfHeader returns the second column header of a table (usually the

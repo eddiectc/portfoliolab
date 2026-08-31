@@ -120,3 +120,76 @@
 - **Deviations**: none of substance. `DecodeFlight` returns a struct (not separate functions) so one
   decode serves every accessor; `AsOf` is a `*time.Time` field rather than a second return value, so
   "missing section" stays `nil`-clean as the plan requires.
+
+## 2026-08-31 — Task 4 done (parsers rewritten against new sources)
+
+- **`parsers.go`** — v1 parsers (modal CSV/HTML parsing) deleted; all section parsers now read the
+  React Flight tables / section objects or the JSON APIs, same `extractor.ExtractResult` contract.
+- **Holdings** (`ParseHoldingsFromAPI`): `Symbol`/`Name`/`Sector`/`MarketValue`/`Shares` straight from the
+  record; `Percent = wgt * 100` passed through `round10()` to strip float-multiplication artifacts
+  (`0.1476209845990145 * 100 = 14.762098459901448` → `14.7620984599`, matching the old site's 10dp percent
+  convention); `AsOfDate` = row `dt` truncated to `YYYY-MM-DD`; `AssetClass` from the `assetGroup` code
+  (`EQ`/`BD`/`CF`/`DER` → labels, unknown codes passed through); identifier slot carries the FIGI — the API
+  returns no per-holding ISINs (RESEARCH.md §6.2).
+- **Cash-row filtering — deviation from plan wording**: the plan says "keep cash-row filtering by name
+  keywords (existing convention)", but v2 filters on `securityTicker` nil/whitespace instead. The name-keyword
+  approach was a v1 hack that mis-filtered real tickers (e.g. FirstCash Holdings — name contains "CASH");
+  the new API provides the structural signal (verified on fixtures: non-ticker rows are exactly `CASH W-O`
+  on QGRW (1/101 rows) and `DREYFUS TRSY OBLIG CASH MGMT CL INS` + `US DOLLAR` on EZM (2/508 rows)).
+- **NAV history** (`ParseNavHistoryFromAPI`): one `NavPoint{Date, NAV, Currency}` per record, in the
+  API's ascending order (since inception). **`FundInfoFromHistory`**: ticker + name from the first record,
+  inception = first record's date. **`LatestAUM`**: last record's `aum`.
+- **AUM unit — plan label wrong, plan example right**: the plan says "millions → USD, e.g. `47442.9648` →
+  $47,442,965"; the example is ×1000, and the captures confirm thousands-of-USD: QGRW last `aum 47442.9648`
+  → **$47.4M** and EZM `946609.717` → **$946.6M** are both plausible fund sizes, while ×10⁶ would give
+  $47B/$946B (absurd). `LatestAUM` converts ×1000 with round-half-up. (Task 2's note "aum is in millions"
+  was mislabelled — same value, correct unit is thousands.)
+- **Overview** (`ParseFundProfileFromFlight`): Product Overview table (ISIN, asset class, base currency,
+  use of income, inception) + Fees table TER on UCITS pages; US pages carry the expense ratio in the
+  overview and have **no ISIN and no Fees table** (empty profile fields, not an error). The site displays
+  TER as a percent; the contract wants a fraction (`/100`). Structure + Key Service Providers tables fill
+  legal form/structure/methodology/domicile/issuer/custodian/manager. Missing both overview and fees →
+  `nil, nil` (assembled as an optional-ish section by the orchestrator, which treats a *present but
+  empty* overview as the "no overview" failure — see Task 5).
+- **Country / Market cap / Characteristics** (flight tables): country rows → `CountryAllocation` (weight
+  fraction × 100, `round10`); market-cap rows by label (`Large`/`Mid`/`Small`/`Micro`, total row separate);
+  characteristics P/E, P/B, P/S, P/CF, dividend yield from the Fund characteristic table.
+- **Sectors / Themes** (`ParseSectorsFromFlight` / `ParseThemesFromFlight`): section entries → name,
+  `weight` fraction × 100 (`round10`), entry `date`; absent section → `nil, nil` (QGRW has sectors, no
+  themes; EZM both; WMGT both).
+- **Fixtures**: `flight_ezm_sector.html` added (EZM sector + theme sections).
+- **Tests**: `parsers_test.go` rewritten for the v2 surface — every parser against real fixtures in both
+  regions (QGRW/WMGT UCITS + EZM US), absent-table/section → `nil, nil` cases, float-artifact rounding,
+  AUM ×1000 conversion, percent-fraction conventions, date parsing (both regions + ambiguous `05/04`).
+  32 tests in the package, all pass.
+
+## 2026-08-31 — Task 5 done (orchestrator `Extract()` + e2e tests)
+
+- **`extractor.go` `Extract()`**: 1. fetch page → 2. `ExtractWtClassID` (explicit failure if absent) →
+  3. `FundHoldings` + `FundHistory` (sequential; shared 1 s rate limit) → 4. `DecodeFlight` → 5. assemble.
+  Context is checked before the fetches and after them.
+- **As-of semantics** (RESEARCH.md §9.8): the extraction `AsOfDate` is the **Net Asset Value table's
+  "As of" header** (second column: UCITS `28/08/2026`, US `8/28/2026`), not the page-level "As of" banner
+  — the NAV table is the fund's reporting anchor and is present on both regions. Missing NAV table or
+  non-date header fails the extraction (required). Holdings keep their own `dt` as `Holding.AsOfDate`.
+- **Error semantics**: required (fund info, overview profile, NAV table/as-of, tradeable holdings) are
+  atomic — any failure rejects the whole extraction. Optional sections (countries, market cap,
+  characteristics, sectors, themes) are `nil` on absence and their parse errors are ignored. API
+  transport failures are wrapped distinctly (`fetch page:`, `wtClassID:`, `fund-holdings API:`,
+  `fund-history API:`) from parse failures (RESEARCH.md §9.1 undocumented-API risk).
+- **`e2e_test.go`** (rewritten): injected fetch serves the concatenated page captures + both API bodies;
+  full pipeline for **QGRW (UCITS)** and **EZM (US)** asserting: fetch order (page → fund-holdings →
+  fund-history, URLs built from the *extracted* wtClassID, exactly 3 fetches, **no product-charts call**),
+  source, as-of date (2026-08-28 both), inception (2024-04-16 / 2007-02-23), ISIN (BBG000BBJQV0, FIGI slot),
+  NAV history length + last point, AUM, country top (United States 99.54 / 96.84), market cap,
+  characteristics, sector top (Information Technology 58.4027 / Financials 19.322, with section dates),
+  holdings (all Equity, per-row AsOfDate, first-row spot checks incl. Percent 14.7620984599).
+- **Holdings counts — deviation from plan numbers**: the plan's e2e line says "holdings count (101 / 493)";
+  the fixtures hold **100 tradeable / 101 rows** (QGRW, one cash row) and **506 / 508** (EZM, two cash
+  rows) — the plan's numbers were pre-measurement guesses. Tests assert the actual fixture counts.
+- **Tests**: `extractor_test.go` rewritten for the v2 orchestrator — error paths (page fetch failure,
+  missing wtClassID, holdings API failure, no tradeable rows, missing NAV table, canceled context), each
+  asserting the distinct wrap. Full package suite (32 tests) green.
+- **Known follow-up (Task 6)**: `tests/integration/wisdomtree_extractor_e2e_test.go` is v1 (modal fixtures +
+  a `SetClient` seam that no longer exists) and breaks `go test ./...` — it references exactly the v1
+  fixtures the cleanup task deletes.

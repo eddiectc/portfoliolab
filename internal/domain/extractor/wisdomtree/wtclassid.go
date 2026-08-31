@@ -14,7 +14,9 @@ import (
 // out substring matches inside longer field names (e.g. parentwtClassID). The
 // closing quote is escaped or plain likewise. All occurrences on a single page
 // carry the same value.
-var wtClassIDRe = regexp.MustCompile(`\\?"wtClassID\\?":(\d{6,10})`)
+// The space after the colon is optional — captures show both
+// `wtClassID\":46987205` and `wtClassID\": 46987205` on the same fund.
+var wtClassIDRe = regexp.MustCompile(`\\?"wtClassID\\?":\s*(\d{6,10})`)
 
 // ErrWtClassIDNotFound is returned when no wtClassID is found in a page body.
 var ErrWtClassIDNotFound = errors.New("wtClassID not found in page body")

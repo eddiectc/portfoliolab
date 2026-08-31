@@ -97,17 +97,17 @@ sections", RESEARCH.md §4
 **Corresponds to:** Story 2 (all data sections), Edge cases (800+ holdings, optional sections), RESEARCH.md §6
 **Description:** Replace the v1 parsers; same `extractor.ExtractResult` contract, new input sources.
 
-- [ ] Holdings ← API: ticker (`securityTicker`), name, weight (`wgt` fraction), sector (`sectorName`), FIGI;
+- [x] Holdings ← API: ticker (`securityTicker`), name, weight (`wgt` fraction), sector (`sectorName`), FIGI;
       keep cash-row filtering by name keywords (existing convention)
-- [ ] NAV history ← `fund-history` default view (ascending, since inception): each record → NAV point;
+- [x] NAV history ← `fund-history` default view (ascending, since inception): each record → NAV point;
       latest `aum` (millions → USD, e.g. `47442.9648` → $47,442,965) → AUM field
-- [ ] Overview ← Product Overview table (ISIN, inception date, base currency, asset class) + Fees table (TER)
-- [ ] Country allocation, Market Capitalisation, Fund characteristic (P/E, P/B, P/S, P/CF, dividend yield)
+- [x] Overview ← Product Overview table (ISIN, inception date, base currency, asset class) + Fees table (TER)
+- [x] Country allocation, Market Capitalisation, Fund characteristic (P/E, P/B, P/S, P/CF, dividend yield)
       ← flight tables
-- [ ] Sector breakdown ← Sector Breakdown section; Theme breakdown ← Theme section (absent on some funds →
+- [x] Sector breakdown ← Sector Breakdown section; Theme breakdown ← Theme section (absent on some funds →
       `nil, nil`, e.g. QGRW has no themes)
-- [ ] Remove all v1 parsers that have no new-site equivalent (old CSV/HTML parsing)
-- [ ] Write tests: every parser against fixtures (UCITS QGRW/WMGT + US EZM variants); weight fraction→percent
+- [x] Remove all v1 parsers that have no new-site equivalent (old CSV/HTML parsing)
+- [x] Write tests: every parser against fixtures (UCITS QGRW/WMGT + US EZM variants); weight fraction→percent
       convention consistent with the old site; AUM unit conversion asserted
 
 **Verification:** `go test ./internal/domain/extractor/wisdomtree/ -run "TestParse"`
@@ -118,17 +118,17 @@ sections", RESEARCH.md §4
 missing as-of, rate limiting), RESEARCH.md §10
 **Description:** New flow: page → wtClassID → API calls → flight decode → assemble, with spec error semantics.
 
-- [ ] `extractor.go` `Extract()`:
+- [x] `extractor.go` `Extract()`:
       1. fetch page (CycleTLS) → 2. extract `wtClassID` (fail explicitly if absent) → 3. `fund-holdings` +
          `fund-history` (sequential, rate-limited) → 4. flight decode → 5. assemble `ExtractResult`
-- [ ] As-of semantics (RESEARCH.md §9.8): page "As of" table header → `extractor_as_of_date` (required —
+- [x] As-of semantics (RESEARCH.md §9.8): page "As of" table header → `extractor_as_of_date` (required —
       missing as-of fails the extraction, per spec); holdings section keeps its own `dt`
-- [ ] Error semantics per spec: required (fund info/overview, holdings, as-of) atomic — any failure rejects the
+- [x] Error semantics per spec: required (fund info/overview, holdings, as-of) atomic — any failure rejects the
       whole extraction; optional sections → `nil, nil`; API failures surfaced distinctly from parse failures
       (undocumented-API risk, RESEARCH.md §9.1)
-- [ ] Rewrite `e2e_test.go`: injected fetch serving page + both API bodies — full flow for QGRW (UCITS) and
+- [x] Rewrite `e2e_test.go`: injected fetch serving page + both API bodies — full flow for QGRW (UCITS) and
       EZM (US); assert every section, as-of date, holdings count (101 / 493), no product-charts calls
-- [ ] Write tests
+- [x] Write tests
 
 **Verification:** `go test ./internal/domain/extractor/wisdomtree/` (full package)
 
