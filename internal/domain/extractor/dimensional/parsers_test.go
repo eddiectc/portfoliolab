@@ -17,6 +17,7 @@ func TestParseFundDetail(t *testing.T) {
 		wantCSVURL    string
 		wantSectors   int
 		wantCountries int
+		wantLegalType string
 		wantErr       bool
 	}{
 		{
@@ -35,6 +36,8 @@ func TestParseFundDetail(t *testing.T) {
 													"data": {
 														"fundFacts": {
 															"marketingName": "Global Core Equity UCITS ETF (Acc.)",
+															"isEtf": true,
+															"isDfaUcitsEtf": true,
 															"fundAum": { "aum": { "value": 1483669606.1 } },
 															"inceptionDate": { "value": "2025-11-12" }
 														}
@@ -130,6 +133,52 @@ func TestParseFundDetail(t *testing.T) {
 			wantCSVURL:    "https://tools-blob.dimensional.com/etf/20260528/IE000EGGFVG6.csv",
 			wantSectors:   1,
 			wantCountries: 1,
+			wantLegalType: "ETF",
+			wantErr:       false,
+		},
+		{
+			name: "mutual fund facts — no holdings lens, mutual fund legal type",
+			jsonContent: `			{
+				"data": {
+					"lensGroups": [
+						{
+							"data": {
+								"lenses": [
+									{
+										"data": {
+											"slug": "fundFacts",
+											"blends": [
+												{
+													"data": {
+														"fundFacts": {
+															"marketingName": "Global Targeted Value Fund (USD, Acc.)",
+															"isEtf": false,
+															"isDfaUcitsEtf": false,
+															"fundAum": {
+																"aum": {
+																	"value": 99979314.0
+																}
+															},
+															"inceptionDate": {
+																"value": "1994-12-30"
+															}
+														}
+													}
+												}
+											]
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}`,
+			wantName:      "Global Targeted Value Fund (USD, Acc.)",
+			wantAUM:       99979314.0,
+			wantInception: "1994-12-30",
+			wantCSVURL:    "",
+			wantLegalType: "Mutual Fund",
 			wantErr:       false,
 		},
 		{
@@ -211,6 +260,9 @@ func TestParseFundDetail(t *testing.T) {
 			}
 			if len(countries) != tt.wantCountries {
 				t.Errorf("len(countries) = %d, want %d", len(countries), tt.wantCountries)
+			}
+			if tt.wantLegalType != "" && profile.LegalType != tt.wantLegalType {
+				t.Errorf("profile.LegalType = %q, want %q", profile.LegalType, tt.wantLegalType)
 			}
 		})
 	}

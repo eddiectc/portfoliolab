@@ -24,3 +24,10 @@ Initially, the plan was to use a headless browser to scrape rendered HTML pages.
 - **EOF handling**: Replaced fragile `err.Error() == "EOF"` string comparison with `errors.Is(err, io.EOF)`.
 - **Silent failure fix**: Added `slog.Warn` logging for skipped CSV rows (malformed, short, unparseable weight).
 - **Explicit error logging**: Extractor returns errors (standard pattern); logging happens at the dispatcher/handler layer via existing `slog` middleware.
+
+## Mutual Fund Detection (2026-08-31)
+- **Root cause of the DDGT extraction failure**: The Dimensional Fund Center publishes full holdings CSVs only for UCITS ETFs. `IE00B2PC0609` (DFA Global Targeted Value, USD, Acc.) is a **mutual fund** — its `funddetail` response carries no `charsEtfTopHoldingsDaily` lens, so no `fullHoldingsCsvUrl` exists. The old generic "full holdings CSV URL not found in response" error gave no actionable direction. The Dimensional site's own "Download all holdings" link is likewise absent for mutual funds (verified against the relaunched frontend, ddxtools 2.69.1).
+- **Detection**: `fundFacts` carries `isEtf` / `isDfaUcitsEtf` boolean flags. `ParseFundDetail` now maps them to `FundProfile.LegalType` ("ETF" / "Mutual Fund") and returns the legal type alongside the name.
+- **Actionable error**: When the CSV URL is missing and `LegalType != "ETF"`, `Extract` returns "… is a Dimensional mutual fund, not a UCITS ETF — full holdings are only published for UCITS ETFs — use the UCITS ETF share class <ISIN> instead". The suggested ISIN is found by matching the mutual fund's `marketingName` against the registry (e.g. "Global Targeted Value Fund (USD, Acc.)" → "Global Targeted Value UCITS ETF (Acc.)", `isDfaUcitsEtf` required); if no unique match exists the suggestion is omitted.
+- **Tests**: three new `TestExtractor_Extract` cases (suggestion, no-matching-ETF, ETF-without-CSV → generic error), `TestSuggestUcitsEtf` table test, and a mutual-fund legal-type case in `TestParseFundDetail`.
+- **User-facing fix**: for DDGT, track the UCITS ETF `IE000S67ID55` (DFA Global Targeted Value UCITS ETF (Acc)) instead — it publishes all 100+ holdings.

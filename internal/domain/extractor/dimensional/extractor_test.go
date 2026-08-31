@@ -2,6 +2,7 @@ package dimensional
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -36,6 +37,9 @@ func buildRegistryJSON(isin string) string {
 				{
 					"portfolioNumber": 1600,
 					"meta": {
+						"marketingName": "Global Core Equity UCITS ETF (Acc.)",
+						"isEtf": true,
+						"isDfaUcitsEtf": true,
 						"identifiers": [ { "slug": "isin", "value": "%s" } ]
 					},
 					"prices": [
@@ -46,6 +50,77 @@ func buildRegistryJSON(isin string) string {
 			]
 		}
 	}`, isin)
+}
+
+// buildMutualFundRegistryJSON returns a registry containing a mutual fund
+// (DDGT) and its corresponding UCITS ETF share class (GTV UCITS ETF).
+func buildMutualFundRegistryJSON() string {
+	return `{
+		"data": {
+			"portfolios": [
+				{
+					"portfolioNumber": 406,
+					"meta": {
+						"marketingName": "Global Targeted Value Fund (USD, Acc.)",
+						"isEtf": false,
+						"isDfaUcitsEtf": false,
+						"identifiers": [ { "slug": "isin", "value": "IE00B2PC0609" } ]
+					},
+					"prices": [
+						{ "date": { "value": "2026-08-31" }, "nav": { "value": 100.0 } }
+					]
+				},
+				{
+					"portfolioNumber": 1602,
+					"meta": {
+						"marketingName": "Global Targeted Value UCITS ETF (Acc.)",
+						"isEtf": true,
+						"isDfaUcitsEtf": true,
+						"identifiers": [ { "slug": "isin", "value": "IE000S67ID55" } ]
+					},
+					"prices": [
+						{ "date": { "value": "2026-08-31" }, "nav": { "value": 28.34 } }
+					]
+				}
+			]
+		}
+	}`
+}
+
+// buildMutualFundDetailJSON returns a fund detail response for a mutual fund:
+// fundFacts with isEtf/isDfaUcitsEtf false and no charsEtfTopHoldingsDaily lens
+// (Dimensional only publishes full holdings for UCITS ETFs).
+func buildMutualFundDetailJSON(marketingName string) string {
+	return fmt.Sprintf(`{
+		"data": {
+			"lensGroups": [
+				{
+					"data": {
+						"lenses": [
+							{
+								"data": {
+									"slug": "fundFacts",
+									"blends": [
+										{
+											"data": {
+												"fundFacts": {
+													"marketingName": %q,
+													"isEtf": false,
+													"isDfaUcitsEtf": false,
+													"fundAum": { "aum": { "value": 99979314.0 } },
+													"inceptionDate": { "value": "1994-12-30" }
+												}
+											}
+										}
+									]
+								}
+							}
+						]
+					}
+				}
+			]
+		}
+	}`, marketingName)
 }
 
 // buildDetailJSON returns a minimal fund detail response with all required sections.
@@ -251,11 +326,36 @@ func TestExtractor_Extract(t *testing.T) {
 				return buildRegistryJSON(isin), nil
 			},
 			postFunc: func(url string, body interface{}, headers map[string]string) (string, error) {
-				return `{"data":{"lensGroups":[{"data":{"lenses":[{"data":{"slug":"fundFacts","blends":[{"data":{"fundFacts":{"marketingName":"Test","fundAum":{"aum":{"value":1}},"inceptionDate":{"value":"2025-01-01"}}}}]}}]}}]}}`, nil
+				// ETF flags present but no charsEtfTopHoldingsDaily lens — generic error path
+				return `{"data":{"lensGroups":[{"data":{"lenses":[{"data":{"slug":"fundFacts","blends":[{"data":{"fundFacts":{"marketingName":"Test","isEtf":true,"isDfaUcitsEtf":true,"fundAum":{"aum":{"value":1}},"inceptionDate":{"value":"2025-01-01"}}}}]}}]}}]}}`, nil
 			},
 			sourceURL:  sourceURL,
 			wantErr:    true,
 			wantErrSub: "full holdings CSV URL not found",
+		},
+		{
+			name: "mutual fund — suggests corresponding UCITS ETF",
+			fetchFunc: func(url string, headers map[string]string) (string, error) {
+				return buildMutualFundRegistryJSON(), nil
+			},
+			postFunc: func(url string, body interface{}, headers map[string]string) (string, error) {
+				return buildMutualFundDetailJSON("Global Targeted Value Fund (USD, Acc.)"), nil
+			},
+			sourceURL:  "https://www.dimensional.com/gb-en/funds/IE00B2PC0609/global-targeted-value-fund-usd-acc",
+			wantErr:    true,
+			wantErrSub: "use the UCITS ETF share class IE000S67ID55 instead",
+		},
+		{
+			name: "mutual fund — no corresponding UCITS ETF in registry",
+			fetchFunc: func(url string, headers map[string]string) (string, error) {
+				return buildMutualFundRegistryJSON(), nil
+			},
+			postFunc: func(url string, body interface{}, headers map[string]string) (string, error) {
+				return buildMutualFundDetailJSON("Some Oddly Named Fund (XYZ, Acc.)"), nil
+			},
+			sourceURL:  "https://www.dimensional.com/gb-en/funds/IE00B2PC0609/global-targeted-value-fund-usd-acc",
+			wantErr:    true,
+			wantErrSub: "full holdings are only published for UCITS ETFs",
 		},
 		{
 			name: "context cancelled",
@@ -344,6 +444,38 @@ func TestExtractor_Extract(t *testing.T) {
 			}
 			if tt.validate != nil {
 				tt.validate(t, result)
+			}
+		})
+	}
+}
+
+func TestSuggestUcitsEtf(t *testing.T) {
+	var reg struct {
+		Data struct {
+			Portfolios []fundCenterEntry `json:"portfolios"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(buildMutualFundRegistryJSON()), &reg); err != nil {
+		t.Fatalf("unmarshal registry: %v", err)
+	}
+	entries := reg.Data.Portfolios
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+		ok    bool
+	}{
+		{name: "matches corresponding UCITS ETF", input: "Global Targeted Value Fund (USD, Acc.)", want: "IE000S67ID55", ok: true},
+		{name: "name without currency suffix", input: "Global Targeted Value Fund", want: "IE000S67ID55", ok: true},
+		{name: "no matching UCITS ETF", input: "Some Oddly Named Fund (XYZ, Acc.)", want: "", ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := suggestUcitsEtf(entries, tt.input)
+			if ok != tt.ok || got != tt.want {
+				t.Errorf("suggestUcitsEtf(%q) = (%q, %v), want (%q, %v)", tt.input, got, ok, tt.want, tt.ok)
 			}
 		})
 	}
