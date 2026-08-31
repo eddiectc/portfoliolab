@@ -238,3 +238,26 @@ Review of parsers + orchestrator against SPEC/PLAN/NOTES/DoD. Findings and dispo
 - **Pre-existing failure (not this feature):** `TestBenchmarkChartAllPeriods/1M` is date-dependent — on
   2026-08-31 the 1M window (2026-08-01→31) contains no monthly benchmark points (latest is 2026-07-15),
   so the chart page has no data. Fails on the parent commit as well; left as-is.
+
+## 2026-08-31 — Task 6 (Cleanup + full verification) complete
+
+Remaining Task 6 tail executed (Tasks 1–5 and most of Task 6 were done by the 2026-08-31 review):
+
+- **Stale references — none.** Repo-wide grep for v1 parser/function names
+  (`ParseFundInfo`, `ParseHoldingsFromModal`, `ParseNavHistoryFromModal`, `ExtractModalURL`,
+  `ParseAsOfDate`, `isCashPosition`, `tableValueAny`, `real_test`) finds hits only in other providers'
+  own packages (expected). One stale comment in `flight_test.go:338` ("removed in Task 6" for
+  `ParseAsOfDate`, actually removed in Task 4) — corrected.
+- **`goimports -w .` — repo-wide sweep reverted (pre-existing drift, not f021).** Running it modified 114
+  files (~1,144 lines, whitespace/alignment only). Verification: `gofmt -l` on HEAD blobs flags the same
+  unrelated files (e.g. `ibkrimport/parser.go`, `analysis/analysis_types.go`, `position/position.go`), so
+  the repo has pre-existing gofmt drift from earlier features. The wisdomtree package itself was already
+  goimports-clean at HEAD; the only f021 change from the run was the comment fix above. The sweep was
+  reverted to keep Task 6's commit focused (one concern per commit). **Open question for the user:**
+  commit a separate format-only repo-wide `goimports` pass, or leave the drift for a dedicated task.
+- **Full suite re-run:** `go test ./...` green except the documented pre-existing
+  `TestBenchmarkChartAllPeriods/1M` (same date-dependent failure as at review time).
+- **PLAN.md:** Tasks 4–6 checked off (Task 6's user-verification box and Task 7 remain — user's scope).
+- **Completed by the user:** live portal verification passed (WisdomTree symbol refresh works, details
+  page renders) and all stored `data_source_url` values updated to the new region/asset-class/slug
+  format before deploying. **All f021 tasks complete** — feature done, retrospective pending.
