@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 )
@@ -367,7 +368,7 @@ func newMockClient() *mockClient {
 	mc := &mockClient{
 		Client: NewClient(),
 	}
-	mc.SetMinDelay(0) // disable rate limiting in tests
+	mc.SetThrottle(func(time.Duration) {}) // no real waiting in tests
 	return mc
 }
 

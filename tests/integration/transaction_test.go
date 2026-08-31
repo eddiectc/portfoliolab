@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
@@ -19,7 +18,7 @@ import (
 func setupTx(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64, accountID int64) {
 	t.Helper()
 	db = setupTestDB(t)
-	router, _ = api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router = newTestRouter(t, db)
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Test Portfolio", "currency": "USD"}`)

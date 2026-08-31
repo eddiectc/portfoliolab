@@ -31,8 +31,9 @@ type Client struct {
 	lastReq  time.Time
 	minDelay time.Duration
 	timeout  int
-	fetch    fetchFunc    // overridden in tests
-	fetchPDF fetchPDFFunc // overridden in tests
+	fetch    fetchFunc           // overridden in tests
+	fetchPDF fetchPDFFunc        // overridden in tests
+	throttle func(time.Duration) // replaces time.Sleep for testability; default time.Sleep
 }
 
 // NewClient creates a new iMGP HTTP client with CycleTLS and rate limiting.
@@ -41,6 +42,7 @@ func NewClient() *Client {
 		cycleTLS: cycletls.Init(),
 		minDelay: 1 * time.Second,
 		timeout:  30,
+		throttle: time.Sleep,
 	}
 }
 
@@ -135,6 +137,13 @@ func (c *Client) SetMinDelay(d time.Duration) {
 	c.minDelay = d
 }
 
+// SetThrottle sets the function used to wait between requests (for testing).
+// Production uses time.Sleep; tests may pass a no-op or recorder to assert
+// the wait sequence without burning wall-clock time.
+func (c *Client) SetThrottle(fn func(time.Duration)) {
+	c.throttle = fn
+}
+
 // wait enforces the minimum delay between requests.
 func (c *Client) wait() {
 	c.mu.Lock()
@@ -143,7 +152,7 @@ func (c *Client) wait() {
 	c.mu.Unlock()
 
 	if wait > 0 {
-		time.Sleep(wait)
+		c.throttle(wait)
 	}
 
 	c.mu.Lock()

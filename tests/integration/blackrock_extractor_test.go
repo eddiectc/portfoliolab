@@ -13,7 +13,6 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/blackrock"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
@@ -48,7 +47,7 @@ func TestBlackRock_ExtractorDispatch_Routing(t *testing.T) {
 
 func TestBlackRock_ExtractorRegisteredInRouter(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -546,7 +545,7 @@ func TestBlackRock_CountryAllocation_DerivedFromHoldings(t *testing.T) {
 // beta, extended holdings).
 func TestBlackRock_SymbolAPIDetailsWithNewFields(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	internalSymbol := "ISHY.L"
 
@@ -694,7 +693,7 @@ func TestBlackRock_SymbolAPIDetailsWithNewFields(t *testing.T) {
 // /symbols/{id}/details renders correctly with symbol name and data.
 func TestBlackRock_WebPageRendersWithNewFields(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	internalSymbol := "ISHY.L"
 

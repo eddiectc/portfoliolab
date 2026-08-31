@@ -12,7 +12,6 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/vanguard"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
@@ -44,7 +43,7 @@ func TestVanguard_ExtractorDispatch_Routing(t *testing.T) {
 
 func TestVanguard_ExtractorRegisteredInRouter(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -265,7 +264,7 @@ func TestVanguard_SymbolDetails_FullStackRoundTrip(t *testing.T) {
 
 func TestVanguard_SymbolAPIDetailsWithNewFields(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	internalSymbol := "VWRL.L"
 
@@ -406,7 +405,7 @@ func TestVanguard_SymbolAPIDetailsWithNewFields(t *testing.T) {
 
 func TestVanguard_WebPageRendersWithNewFields(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	internalSymbol := "VWRL.L"
 

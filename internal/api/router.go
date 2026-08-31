@@ -41,12 +41,22 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
 )
 
+// MarketDataFetcher bundles quote/FX/historical fetching with symbol-details
+// fetching for every consumer wired in the router.
+// *market.YahooFinanceFetcher satisfies it; tests may inject a stub to avoid
+// real network calls.
+type MarketDataFetcher interface {
+	market.MarketDataFetcher
+	market.SymbolDetailsFetcher
+}
+
 // RouterOption configures the router.
 type RouterOption func(*routerConfig)
 
 type routerConfig struct {
-	templatesDir string
-	extractorCfg config.ExtractorConfig
+	templatesDir  string
+	extractorCfg  config.ExtractorConfig
+	marketFetcher MarketDataFetcher
 }
 
 // WithTemplatesDir sets the templates directory for the router.
@@ -60,6 +70,14 @@ func WithTemplatesDir(dir string) RouterOption {
 func WithExtractorConfig(cfg config.ExtractorConfig) RouterOption {
 	return func(c *routerConfig) {
 		c.extractorCfg = cfg
+	}
+}
+
+// WithMarketDataFetcher overrides the market data fetcher. When omitted,
+// the real Yahoo Finance fetcher is used.
+func WithMarketDataFetcher(f MarketDataFetcher) RouterOption {
+	return func(c *routerConfig) {
+		c.marketFetcher = f
 	}
 }
 
@@ -128,20 +146,23 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 
 	// Symbol CRUD (API)
 	symbolMappingRepo := data.NewSymbolMappingRepository(db)
-	yahooFetcher := market.NewYahooFinanceFetcher(logger)
+	var marketFetcher MarketDataFetcher = cfg.marketFetcher
+	if marketFetcher == nil {
+		marketFetcher = market.NewYahooFinanceFetcher(logger)
+	}
 
 	// Market data repository (stock quotes + FX rates)
 	marketDataRepo := data.NewMarketDataRepository(db)
 
 	// Symbol details (API enrichment)
 	symbolDetailsRepo := data.NewSymbolDetailsRepository(db)
-	symbolDetailsSvc := symbols.NewService(symbolDetailsRepo, yahooFetcher)
+	symbolDetailsSvc := symbols.NewService(symbolDetailsRepo, marketFetcher)
 	symbolDetailsSvc.WithExtractorDispatcher(extractorDispatcher)
 	symbolDetailsSvc.WithDataSourceURLRepo(data.NewSymbolMappingDataSourceURLAdapter(symbolMappingRepo))
 	symbolDetailsSvc.WithMarketDataRepo(marketDataRepo)
 
 	symbolMappingSvc := symbolmapping.NewService(symbolMappingRepo,
-		symbolmapping.WithMarketDataFetcher(yahooFetcher),
+		symbolmapping.WithMarketDataFetcher(marketFetcher),
 		symbolmapping.WithSymbolDetailsFetcher(symbolDetailsSvc),
 		symbolmapping.WithLogger(logger))
 	symbolHandler := handlers.NewSymbolHandler(symbolMappingSvc, symbolDetailsSvc)
@@ -161,12 +182,12 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	accountLister := data.NewAccountLister(accountRepo)
 	positionSvc := position.NewService(positionRepo, transactionRepo, accountChecker, portfolioChecker, accountLister, portfolioCurrencyChecker)
 	// Wire market data service for enriching positions, FX rates, and refreshing.
-	marketSvc := marketservice.New(yahooFetcher, marketDataRepo)
+	marketSvc := marketservice.New(marketFetcher, marketDataRepo)
 	positionSvc.WithMarketDataService(marketSvc, logger)
 
 	// Create market cache (needs discoverer for symbols and FX pairs).
 	discoverer := data.NewMarketDataDiscoverer(symbolMappingRepo, transactionRepo)
-	marketCache := marketcache.New(yahooFetcher, marketDataRepo, discoverer, logger)
+	marketCache := marketcache.New(marketFetcher, marketDataRepo, discoverer, logger)
 	marketCache.WithSymbolDetailsRefresh(symbolDetailsSvc)
 	// Wire market cache into position service for scheduling.
 	positionSvc.WithMarketCache(marketCache)
@@ -233,7 +254,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		symbolWebHandler.RegisterRoutes(r)
 
 		// Symbol details web pages
-		symbolDetailsWebHandler := handlers.NewSymbolDetailsWebHandler(symbolMappingSvc, symbolDetailsSvc, yahooFetcher, marketDataRepo, renderer)
+		symbolDetailsWebHandler := handlers.NewSymbolDetailsWebHandler(symbolMappingSvc, symbolDetailsSvc, marketFetcher, marketDataRepo, renderer)
 		symbolDetailsWebHandler.RegisterRoutes(r)
 
 		// Transaction web pages

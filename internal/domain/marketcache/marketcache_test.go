@@ -1009,6 +1009,17 @@ func (m *mockSymbolDetailsRefresh) RefreshCalls() int {
 	return m.refreshCalls
 }
 
+// throttleRecorder records the waits requested between consecutive stale
+// symbol details refreshes. Tests install it via cache.detailsRefreshSleep
+// so the rate limiting can be asserted without actually sleeping.
+type throttleRecorder struct {
+	waits []time.Duration
+}
+
+func (r *throttleRecorder) sleep(d time.Duration) {
+	r.waits = append(r.waits, d)
+}
+
 func TestRefreshStaleSymbolDetails_NoSource_Skips(t *testing.T) {
 	fetcher := &mockFetcher{
 		quotes:     map[string]*market.MarketData{},
@@ -1067,6 +1078,8 @@ func TestRefreshStaleSymbolDetails_RefreshesStale(t *testing.T) {
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
+	rec := &throttleRecorder{}
+	cache.detailsRefreshSleep = rec.sleep
 	// Don't Start() — call refreshStaleSymbolDetails directly to avoid
 	// the periodic ticker's immediate first pass interfering with the count.
 	cache.refreshStaleSymbolDetails(ctx)
@@ -1074,6 +1087,10 @@ func TestRefreshStaleSymbolDetails_RefreshesStale(t *testing.T) {
 	calls := source.RefreshCalls()
 	if calls != 2 {
 		t.Errorf("expected 2 refresh calls, got %d", calls)
+	}
+	// The two refreshes must be spaced with the rate-limit wait.
+	if len(rec.waits) != 1 || rec.waits[0] != detailsRefreshDelay {
+		t.Errorf("expected one %v wait between refreshes, got %v", detailsRefreshDelay, rec.waits)
 	}
 }
 
@@ -1097,6 +1114,8 @@ func TestRefreshStaleSymbolDetails_PartialFailure(t *testing.T) {
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
+	rec := &throttleRecorder{}
+	cache.detailsRefreshSleep = rec.sleep
 	// Don't Start() — call directly to isolate this test.
 	cache.refreshStaleSymbolDetails(ctx)
 
@@ -1104,6 +1123,10 @@ func TestRefreshStaleSymbolDetails_PartialFailure(t *testing.T) {
 	calls := source.RefreshCalls()
 	if calls != 3 {
 		t.Errorf("expected 3 refresh calls (all attempted despite partial failure), got %d", calls)
+	}
+	// All refreshes are spaced, even across failures.
+	if len(rec.waits) != 2 {
+		t.Errorf("expected 2 rate-limit waits for 3 symbols, got %v", rec.waits)
 	}
 }
 
@@ -1126,18 +1149,20 @@ func TestRefreshStaleSymbolDetails_RateLimiting(t *testing.T) {
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
+	rec := &throttleRecorder{}
+	cache.detailsRefreshSleep = rec.sleep
 
-	// With 3 symbols and 500ms delay between them, should take ~1s total.
-	start := time.Now()
 	cache.refreshStaleSymbolDetails(ctx)
-	duration := time.Since(start)
 
-	// Should be at least 1s (2 delays of 500ms) and less than 2s.
-	if duration < 900*time.Millisecond {
-		t.Errorf("expected rate limiting (>= 1s), got %v", duration)
+	// 3 refreshes must be spaced with the rate-limit wait: exactly n-1
+	// waits of detailsRefreshDelay each (the first refresh does not wait).
+	if len(rec.waits) != 2 {
+		t.Fatalf("throttle called %d times, want 2 (n-1 for 3 symbols), got %v", len(rec.waits), rec.waits)
 	}
-	if duration > 2*time.Second {
-		t.Errorf("refresh took too long (%v), expected ~1s", duration)
+	for i, w := range rec.waits {
+		if w != detailsRefreshDelay {
+			t.Errorf("wait[%d] = %v, want %v", i, w, detailsRefreshDelay)
+		}
 	}
 }
 
@@ -1162,12 +1187,15 @@ func TestRefreshStaleSymbolDetails_PeriodicTickerIntegration(t *testing.T) {
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
+	rec := &throttleRecorder{}
+	cache.detailsRefreshSleep = rec.sleep
 	cache.tickerInterval = 50 * time.Millisecond
 	cache.Start(ctx)
 	defer cache.Stop()
 
-	// Wait for the periodic ticker's immediate first pass + 500ms rate limit delay.
-	waitBackground(t, 1200*time.Millisecond)
+	// Wait for a couple of ticker cycles (50ms interval; the first pass is
+	// immediate, and the single stale symbol triggers no rate-limit wait).
+	waitBackground(t, 250*time.Millisecond)
 
 	// Symbol details refresh should have been called at least once by the periodic ticker.
 	calls := source.RefreshCalls()
@@ -1239,6 +1267,8 @@ func TestRefreshStaleSymbolDetails_AbortOnAuthError(t *testing.T) {
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
+	rec := &throttleRecorder{}
+	cache.detailsRefreshSleep = rec.sleep
 
 	cache.doRefresh(ctx)
 
@@ -1246,6 +1276,10 @@ func TestRefreshStaleSymbolDetails_AbortOnAuthError(t *testing.T) {
 	calls := source.RefreshCalls()
 	if calls != 1 {
 		t.Errorf("expected 1 refresh call (batch aborted on auth error), got %d", calls)
+	}
+	// No wait is requested: the batch aborts before a second symbol.
+	if len(rec.waits) != 0 {
+		t.Errorf("expected no rate-limit waits after abort, got %v", rec.waits)
 	}
 }
 
@@ -1268,6 +1302,8 @@ func TestRefreshStaleSymbolDetails_NonAuthErrorContinues(t *testing.T) {
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
+	rec := &throttleRecorder{}
+	cache.detailsRefreshSleep = rec.sleep
 
 	cache.doRefresh(ctx)
 
@@ -1275,6 +1311,10 @@ func TestRefreshStaleSymbolDetails_NonAuthErrorContinues(t *testing.T) {
 	calls := source.RefreshCalls()
 	if calls != 2 {
 		t.Errorf("expected 2 refresh calls (non-auth error continues), got %d", calls)
+	}
+	// The two attempts are still spaced with the rate-limit wait.
+	if len(rec.waits) != 1 || rec.waits[0] != detailsRefreshDelay {
+		t.Errorf("expected one %v wait between attempts, got %v", detailsRefreshDelay, rec.waits)
 	}
 }
 
@@ -1302,6 +1342,8 @@ func TestRefreshAll_IncludesStaleSymbolDetails(t *testing.T) {
 
 	cache := New(fetcher, repo, discoverer, nil)
 	cache.WithSymbolDetailsRefresh(source)
+	rec := &throttleRecorder{}
+	cache.detailsRefreshSleep = rec.sleep
 
 	// Call doRefreshAll directly to isolate from periodic ticker.
 	cache.doRefreshAll(ctx)
@@ -1310,6 +1352,10 @@ func TestRefreshAll_IncludesStaleSymbolDetails(t *testing.T) {
 	calls := source.RefreshCalls()
 	if calls != 2 {
 		t.Errorf("expected 2 stale symbol detail refresh calls from RefreshAll, got %d", calls)
+	}
+	// The two refreshes are spaced with the rate-limit wait.
+	if len(rec.waits) != 1 || rec.waits[0] != detailsRefreshDelay {
+		t.Errorf("expected one %v wait between refreshes, got %v", detailsRefreshDelay, rec.waits)
 	}
 }
 

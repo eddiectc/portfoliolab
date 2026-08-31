@@ -54,6 +54,12 @@ type SymbolDetailsRefreshSource interface {
 	RefreshSymbol(ctx context.Context, internalSymbol, marketDataSymbol string) error
 }
 
+// detailsRefreshDelay is the wait between consecutive stale symbol details
+// refreshes. All symbols share one Yahoo Finance session (shared
+// crumb/cookie pool), so refreshes are spaced out to avoid tripping the
+// provider's rate limit.
+const detailsRefreshDelay = 500 * time.Millisecond
+
 // CacheStatus holds the current state of the market data cache.
 type CacheStatus struct {
 	LastRefresh   time.Time `json:"last_refresh"`
@@ -89,6 +95,11 @@ type MarketCache struct {
 	refreshAllInProgress bool
 	totalSymbols         int
 
+	// detailsRefreshSleep is called with detailsRefreshDelay between
+	// consecutive stale symbol details refreshes (rate limiting). Tests
+	// replace it with a recorder to assert the waits without sleeping.
+	detailsRefreshSleep func(time.Duration)
+
 	fetchCh   chan fetchRequest
 	fetchDone chan string // test-only: signals when a fetch completes (symbol name)
 	ctx       context.Context
@@ -99,16 +110,17 @@ type MarketCache struct {
 // New creates a new MarketCache.
 func New(fetcher MarketDataFetcher, repo MarketDataRepository, discoverer SymbolDiscoverer, logger *slog.Logger) *MarketCache {
 	return &MarketCache{
-		fetcher:        fetcher,
-		repo:           repo,
-		discoverer:     discoverer,
-		logger:         logger,
-		tickerInterval: 2 * time.Minute,
-		inProgress:     make(map[string]bool),
-		queued:         make(map[string]bool),
-		failedSymbols:  make(map[string]string),
-		fetchCh:        make(chan fetchRequest, 100),
-		historicalFrom: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		fetcher:             fetcher,
+		repo:                repo,
+		discoverer:          discoverer,
+		logger:              logger,
+		tickerInterval:      2 * time.Minute,
+		inProgress:          make(map[string]bool),
+		queued:              make(map[string]bool),
+		failedSymbols:       make(map[string]string),
+		fetchCh:             make(chan fetchRequest, 100),
+		historicalFrom:      time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		detailsRefreshSleep: time.Sleep,
 	}
 }
 
@@ -652,9 +664,9 @@ func (m *MarketCache) refreshStaleSymbolDetails(ctx context.Context) {
 			return
 		}
 
-		// Rate limit: ~500ms delay between symbols (skip delay for first symbol).
+		// Rate limit: wait between symbols (skip wait for first symbol).
 		if i > 0 {
-			time.Sleep(500 * time.Millisecond)
+			m.detailsRefreshSleep(detailsRefreshDelay)
 		}
 
 		if err := m.symbolDetailsRefresh.RefreshSymbol(ctx, s.InternalSymbol, s.MarketDataSymbol); err != nil {

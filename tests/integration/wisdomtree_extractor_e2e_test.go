@@ -11,11 +11,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
-	"codeberg.org/eddiectc/portfoliolab/internal/config"
 	"codeberg.org/eddiectc/portfoliolab/internal/data"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
@@ -57,6 +56,7 @@ func mockWisdomTreeClient(t *testing.T) *wisdomtree.Client {
 	t.Helper()
 	page := qgrwPageWtClassID + qgrwFlightTables + qgrwFlightSector
 	c := wisdomtree.NewClient()
+	c.SetThrottle(func(time.Duration) {}) // no real waiting in tests
 	c.SetFetchFunc(func(url string) (string, error) {
 		switch {
 		case strings.Contains(url, "/fund-holdings/"):
@@ -210,9 +210,7 @@ func TestWisdomTree_ServiceLayerRoundTrip(t *testing.T) {
 // (including equity_valuation and fund_profile). No network calls.
 func TestWisdomTree_FullAPIRoundTrip(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(),
-		api.WithTemplatesDir("../../templates"),
-		api.WithExtractorConfig(config.ExtractorConfig{}))
+	router := newTestRouter(t, db)
 
 	internalSymbol := "QGRW.L"
 

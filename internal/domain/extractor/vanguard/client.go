@@ -35,9 +35,10 @@ type Client struct {
 	lastReq      time.Time
 	minDelay     time.Duration
 	pageDelay    time.Duration
-	fetch        fetchFunc   // overridden in tests
-	restFetch    restFunc    // overridden in tests
-	graphqlFetch graphqlFunc // overridden in tests
+	fetch        fetchFunc           // overridden in tests
+	restFetch    restFunc            // overridden in tests
+	graphqlFetch graphqlFunc         // overridden in tests
+	throttle     func(time.Duration) // replaces time.Sleep for testability; default time.Sleep
 }
 
 // NewClient creates a new Vanguard HTTP client with rate limiting.
@@ -48,6 +49,7 @@ func NewClient() *Client {
 		},
 		minDelay:  1 * time.Second,        // between major queries
 		pageDelay: 500 * time.Millisecond, // between pagination pages
+		throttle:  time.Sleep,
 	}
 }
 
@@ -129,7 +131,7 @@ func (c *Client) enforceDelay(minDelay time.Duration) {
 	c.mu.Unlock()
 
 	if wait > 0 {
-		time.Sleep(wait)
+		c.throttle(wait)
 	}
 
 	c.mu.Lock()
@@ -150,4 +152,11 @@ func (c *Client) SetRestFetch(fn restFunc) {
 // SetGraphqlFetch sets a custom GraphQL fetch function (for testing).
 func (c *Client) SetGraphqlFetch(fn graphqlFunc) {
 	c.graphqlFetch = fn
+}
+
+// SetThrottle sets the function used to wait between requests (for testing).
+// Production uses time.Sleep; tests may pass a no-op or recorder to assert
+// the wait sequence without burning wall-clock time.
+func (c *Client) SetThrottle(fn func(time.Duration)) {
+	c.throttle = fn
 }

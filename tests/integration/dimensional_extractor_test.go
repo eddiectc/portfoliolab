@@ -12,7 +12,6 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dimensional"
 )
@@ -44,7 +43,7 @@ func TestDimensional_ExtractorDispatch_Routing(t *testing.T) {
 
 func TestDimensional_ExtractorRegisteredInRouter(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Verify the router is functional by hitting a known endpoint
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -102,7 +101,7 @@ func TestDimensional_SymbolWithDataSourceURL_RoundTrip(t *testing.T) {
 
 func TestDimensional_SymbolAPICreatesWithSourceURL(t *testing.T) {
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create a symbol first (without data_source_url)
 	body := json.RawMessage(`{"internal_symbol": "DGRC.L", "market_data_symbol": "DGRC.L"}`)

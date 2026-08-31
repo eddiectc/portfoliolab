@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 )
 
@@ -19,7 +18,7 @@ import (
 func setupHrp(t *testing.T, symbols []string) (*sql.DB, http.Handler) {
 	t.Helper()
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	for _, sym := range symbols {
 		body := json.RawMessage(fmt.Sprintf(

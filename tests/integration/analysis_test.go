@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
@@ -18,7 +17,7 @@ import (
 func setupAnalysis(t *testing.T) (*sql.DB, http.Handler, int64, int64) {
 	t.Helper()
 	db := setupTestDB(t)
-	router, _ := api.Router(db, testLogger(), api.WithTemplatesDir("../../templates"))
+	router := newTestRouter(t, db)
 
 	// Create portfolio
 	body := json.RawMessage(`{"name": "Analysis Test", "currency": "USD"}`)

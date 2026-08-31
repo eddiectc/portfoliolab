@@ -22,12 +22,12 @@ func loadFixture(t *testing.T, name string) string {
 	return string(b)
 }
 
-// newTestClient returns a client with rate limiting minimized (functional
-// tests do not want to wait 1s per request).
+// newTestClient returns a client that keeps the production rate limit
+// (minDelay = 1s) but does not actually sleep between requests.
 func newTestClient(t *testing.T) *Client {
 	t.Helper()
 	c := NewClient()
-	c.minDelay = 10 * time.Millisecond
+	c.throttle = func(time.Duration) {}
 	return c
 }
 
@@ -349,17 +349,19 @@ func TestClient_FundHistory_Errors(t *testing.T) {
 }
 
 // TestClient_RateLimitingShared verifies Fetch, FundHoldings and FundHistory
-// all go through the same shared rate limiter.
+// all go through the same shared rate limiter: the first request does not
+// wait, and each subsequent request waits ~minDelay. The waits are asserted
+// via the throttle hook, so the test is deterministic and sleep-free.
 func TestClient_RateLimitingShared(t *testing.T) {
 	client := NewClient()
-	client.minDelay = 100 * time.Millisecond
+	var waits []time.Duration
+	client.SetThrottle(func(d time.Duration) { waits = append(waits, d) })
 	calls := 0
 	client.SetFetchFunc(func(string) (string, error) {
 		calls++
 		return "[]", nil
 	})
 
-	start := time.Now()
 	ctx := context.Background()
 	if _, err := client.Fetch("https://www.wisdomtree.com/us/funds/ezm/"); err != nil {
 		t.Fatalf("Fetch() error: %v", err)
@@ -370,13 +372,19 @@ func TestClient_RateLimitingShared(t *testing.T) {
 	if _, err := client.FundHistory(ctx, 1); err != nil {
 		t.Fatalf("FundHistory() error: %v", err)
 	}
-	elapsed := time.Since(start)
 
 	if calls != 3 {
 		t.Fatalf("fetch called %d times, want 3", calls)
 	}
-	if elapsed < 200*time.Millisecond {
-		t.Errorf("3 sequential calls with 100ms min delay took %v, want >= 200ms (shared limiter)", elapsed)
+	if len(waits) != 2 {
+		t.Fatalf("throttle called %d times, want 2 (first request must not wait)", len(waits))
+	}
+	for i, w := range waits {
+		// Mocked fetches are instantaneous, so each wait is ~minDelay
+		// (1s minus the few microseconds between requests).
+		if w < 900*time.Millisecond {
+			t.Errorf("throttle wait[%d] = %v, want ~%v (shared limiter)", i, w, client.minDelay)
+		}
 	}
 }
 
