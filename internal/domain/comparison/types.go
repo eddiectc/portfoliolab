@@ -188,12 +188,3 @@ func (h HoldingWeight) WeightPct() string {
 	f, _ := h.Weight.Float64()
 	return fmt.Sprintf("%.1f%%", f*100)
 }
-
-// modelPortfolioData holds the resolved model portfolio with metadata needed
-// for simulation.
-type modelPortfolioData struct {
-	ID       int64
-	Name     string
-	Weights  []ModelPortfolioWeight
-	Currency string // base currency of the portfolio
-}

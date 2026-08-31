@@ -61,7 +61,7 @@ func TestRegistry_RegisterAndGet(t *testing.T) {
 func TestRegistry_RegisterDuplicate(t *testing.T) {
 	reg := NewRegistry()
 
-	reg.Register(&mockExtractor{name: "test"})
+	_ = reg.Register(&mockExtractor{name: "test"})
 	err := reg.Register(&mockExtractor{name: "test"})
 	if err == nil {
 		t.Fatal("expected error for duplicate registration, got nil")
@@ -80,7 +80,7 @@ func TestRegistry_GetNotFound(t *testing.T) {
 func TestRegistry_FindByURL_Success(t *testing.T) {
 	reg := NewRegistry()
 
-	reg.Register(&mockExtractor{
+	_ = reg.Register(&mockExtractor{
 		name: "wisdomtree",
 		matchFn: func(url string) bool {
 			return len(url) > 0
@@ -99,7 +99,7 @@ func TestRegistry_FindByURL_Success(t *testing.T) {
 func TestRegistry_FindByURL_NoMatch(t *testing.T) {
 	reg := NewRegistry()
 
-	reg.Register(&mockExtractor{
+	_ = reg.Register(&mockExtractor{
 		name: "test",
 		matchFn: func(url string) bool {
 			return false
@@ -116,11 +116,11 @@ func TestRegistry_FindByURL_FirstMatchWins(t *testing.T) {
 	reg := NewRegistry()
 
 	// Both matchers match everything; first registered should win
-	reg.Register(&mockExtractor{
+	_ = reg.Register(&mockExtractor{
 		name:    "first",
 		matchFn: func(string) bool { return true },
 	})
-	reg.Register(&mockExtractor{
+	_ = reg.Register(&mockExtractor{
 		name:    "second",
 		matchFn: func(string) bool { return true },
 	})
@@ -147,7 +147,7 @@ func TestRegistry_FindByURL_EmptyRegistry(t *testing.T) {
 
 func TestDispatcher_Dispatch_Success(t *testing.T) {
 	reg := NewRegistry()
-	reg.Register(&mockExtractor{
+	_ = reg.Register(&mockExtractor{
 		name:    "test",
 		matchFn: func(string) bool { return true },
 		result: &ExtractResult{
@@ -171,7 +171,7 @@ func TestDispatcher_Dispatch_Success(t *testing.T) {
 
 func TestDispatcher_Dispatch_NoMatch(t *testing.T) {
 	reg := NewRegistry()
-	reg.Register(&mockExtractor{
+	_ = reg.Register(&mockExtractor{
 		name: "test",
 		matchFn: func(url string) bool {
 			return false
@@ -187,7 +187,7 @@ func TestDispatcher_Dispatch_NoMatch(t *testing.T) {
 
 func TestDispatcher_Dispatch_ExtractorError(t *testing.T) {
 	reg := NewRegistry()
-	reg.Register(&mockExtractor{
+	_ = reg.Register(&mockExtractor{
 		name:    "test",
 		matchFn: func(string) bool { return true },
 		err:     fmt.Errorf("network timeout"),

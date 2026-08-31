@@ -137,7 +137,7 @@ func TestModelPortfolioHandleCreate_Success(t *testing.T) {
 	}
 
 	var mp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&mp)
+	_ = json.NewDecoder(w.Body).Decode(&mp)
 	if mp.Name != "60/40 Portfolio" {
 		t.Errorf("expected name '60/40 Portfolio', got %q", mp.Name)
 	}
@@ -229,7 +229,7 @@ func TestModelPortfolioHandleList(t *testing.T) {
 	}
 
 	var got []modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if len(got) != 3 {
 		t.Errorf("expected 3 model portfolios, got %d", len(got))
 	}
@@ -248,7 +248,7 @@ func TestModelPortfolioHandleList_Empty(t *testing.T) {
 	}
 
 	var portfolios []modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&portfolios)
+	_ = json.NewDecoder(w.Body).Decode(&portfolios)
 	if portfolios == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -283,7 +283,7 @@ func TestModelPortfolioHandleGet_Success(t *testing.T) {
 	}
 
 	var got modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if got.Name != "Test Portfolio" {
 		t.Errorf("expected 'Test Portfolio', got %q", got.Name)
 	}
@@ -350,7 +350,7 @@ func TestModelPortfolioHandleUpdate_Success(t *testing.T) {
 	}
 
 	var got modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if got.Name != "New Name" {
 		t.Errorf("expected 'New Name', got %q", got.Name)
 	}
@@ -382,7 +382,7 @@ func TestModelPortfolioHandleUpdate_EntriesOnly(t *testing.T) {
 	}
 
 	var got modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&got)
+	_ = json.NewDecoder(w.Body).Decode(&got)
 	if got.Name != "Keep Name" {
 		t.Errorf("expected name preserved 'Keep Name', got %q", got.Name)
 	}
@@ -439,7 +439,7 @@ func TestModelPortfolioErrorResponseFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MODEL_PORTFOLIO_NOT_FOUND" {
 		t.Errorf("expected error code MODEL_PORTFOLIO_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -458,7 +458,7 @@ func TestModelPortfolioDuplicateSymbolError(t *testing.T) {
 	handler.HandleCreate(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "DUPLICATE_SYMBOL" {
 		t.Errorf("expected error code DUPLICATE_SYMBOL, got %q", errResp.Code)
 	}

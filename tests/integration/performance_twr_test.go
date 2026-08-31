@@ -74,7 +74,7 @@ func setupPerf(t *testing.T, baseCurrency, acctCurrency string) (*sql.DB, http.H
 		t.Fatalf("create portfolio: %d %s", w.Code, w.Body.String())
 	}
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 
 	// Account
 	body = json.RawMessage(`{"name":"Acct","portfolio_id":` + fmt.Sprintf("%d", p.ID) + `}`)
@@ -86,7 +86,7 @@ func setupPerf(t *testing.T, baseCurrency, acctCurrency string) (*sql.DB, http.H
 		t.Fatalf("create account: %d %s", w.Code, w.Body.String())
 	}
 	var a struct{ ID int64 }
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 
 	// Symbol mappings
 	for _, sym := range []string{"USDSTK", "GBPSTK"} {

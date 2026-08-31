@@ -37,7 +37,7 @@ func createModelPortfolio(t *testing.T, router http.Handler, name string, entrie
 		t.Fatalf("create model portfolio %q: expected 201, got %d: %s", name, w.Code, w.Body.String())
 	}
 	var mp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&mp)
+	_ = json.NewDecoder(w.Body).Decode(&mp)
 	return mp.ID
 }
 
@@ -53,7 +53,7 @@ func createPortfolioViaAPI(t *testing.T, router http.Handler, name, currency str
 		t.Fatalf("create portfolio %q: expected 201, got %d: %s", name, w.Code, w.Body.String())
 	}
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	return p.ID
 }
 
@@ -69,7 +69,7 @@ func createAccountViaAPI(t *testing.T, router http.Handler, name string, portfol
 		t.Fatalf("create account %q: expected 201, got %d: %s", name, w.Code, w.Body.String())
 	}
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	return a.ID
 }
 
@@ -107,7 +107,7 @@ func TestModelPortfolio_CreateAndGet(t *testing.T) {
 	}
 
 	var mp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&mp)
+	_ = json.NewDecoder(w.Body).Decode(&mp)
 
 	if mp.Name != "Growth Model" {
 		t.Errorf("expected name 'Growth Model', got %q", mp.Name)
@@ -144,7 +144,7 @@ func TestModelPortfolio_CreateInvalidWeights(t *testing.T) {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "weight_sum_not_100" {
 		t.Errorf("expected error code 'weight_sum_not_100', got %q", errResp.Code)
 	}
@@ -189,7 +189,7 @@ func TestModelPortfolio_CreateWithInlineSymbol(t *testing.T) {
 	}
 
 	var mp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&mp)
+	_ = json.NewDecoder(w.Body).Decode(&mp)
 	if len(mp.Entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(mp.Entries))
 	}
@@ -205,7 +205,7 @@ func TestModelPortfolio_CreateWithInlineSymbol(t *testing.T) {
 	var symbols []struct {
 		InternalSymbol string `json:"internal_symbol"`
 	}
-	json.NewDecoder(w.Body).Decode(&symbols)
+	_ = json.NewDecoder(w.Body).Decode(&symbols)
 	found := false
 	for _, s := range symbols {
 		if s.InternalSymbol == "TSLA" {
@@ -245,7 +245,7 @@ func TestModelPortfolio_Edit(t *testing.T) {
 	}
 
 	var mp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&mp)
+	_ = json.NewDecoder(w.Body).Decode(&mp)
 
 	if mp.Name != "Updated Model" {
 		t.Errorf("expected name 'Updated Model', got %q", mp.Name)
@@ -296,7 +296,7 @@ func TestModelPortfolio_ListEmpty(t *testing.T) {
 	}
 
 	var portfolios []modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&portfolios)
+	_ = json.NewDecoder(w.Body).Decode(&portfolios)
 	if portfolios == nil {
 		t.Error("expected empty slice, got nil")
 	}
@@ -375,7 +375,7 @@ func TestModelPortfolio_ApplyAsTarget(t *testing.T) {
 	}
 
 	var mp modelportfolio.ModelPortfolio
-	json.NewDecoder(w.Body).Decode(&mp)
+	_ = json.NewDecoder(w.Body).Decode(&mp)
 
 	// Apply as target allocation (simulates user saving after loading model)
 	targets := make([]struct {
@@ -411,7 +411,7 @@ func TestModelPortfolio_ApplyAsTarget(t *testing.T) {
 		Symbol    string `json:"symbol"`
 		TargetPct string `json:"target_pct"`
 	}
-	json.NewDecoder(w.Body).Decode(&savedTargets)
+	_ = json.NewDecoder(w.Body).Decode(&savedTargets)
 
 	if len(savedTargets) != 3 {
 		t.Fatalf("expected 3 targets, got %d", len(savedTargets))

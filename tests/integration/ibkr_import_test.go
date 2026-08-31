@@ -78,7 +78,7 @@ func setupIBKR(t *testing.T) (db *sql.DB, router http.Handler, accountID int64) 
 		t.Fatalf("create account: expected 201, got %d", w.Code)
 	}
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 
 	// Create symbol mappings for symbols in the sample XML: AAPL, STHY
 	for _, sym := range []string{"AAPL", "STHY"} {
@@ -122,7 +122,7 @@ func TestIBKRImport_FullFlow(t *testing.T) {
 	}
 
 	var preview ibkrimport.PreviewResponse
-	json.NewDecoder(w.Body).Decode(&preview)
+	_ = json.NewDecoder(w.Body).Decode(&preview)
 
 	// Sample XML: 6 trades (5 STK + 1 FX→2 entries) + 7 cash + 2 transfers = 16 importable
 	if preview.ImportableCount != 16 {
@@ -148,7 +148,7 @@ func TestIBKRImport_FullFlow(t *testing.T) {
 	}
 
 	var result ibkrimport.ImportResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 
 	if result.CreatedCount != 16 {
 		t.Errorf("expected 16 created, got %d (skipped: %d)", result.CreatedCount, result.SkippedCount)
@@ -192,7 +192,7 @@ func TestIBKRImport_DuplicateDetection(t *testing.T) {
 	}
 
 	var result ibkrimport.ImportResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.CreatedCount != 16 {
 		t.Fatalf("expected 16 created on first import, got %d", result.CreatedCount)
 	}
@@ -209,7 +209,7 @@ func TestIBKRImport_DuplicateDetection(t *testing.T) {
 	}
 
 	var preview ibkrimport.PreviewResponse
-	json.NewDecoder(w.Body).Decode(&preview)
+	_ = json.NewDecoder(w.Body).Decode(&preview)
 
 	if preview.ImportableCount != 0 {
 		t.Errorf("expected 0 importable on re-import, got %d", preview.ImportableCount)
@@ -230,7 +230,7 @@ func TestIBKRImport_DuplicateDetection(t *testing.T) {
 		t.Fatalf("second confirm: expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.CreatedCount != 0 {
 		t.Errorf("expected 0 created on re-import, got %d", result.CreatedCount)
 	}
@@ -349,7 +349,7 @@ func TestIBKRImport_CashTransactionClassification(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query types: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var typ string
@@ -427,7 +427,7 @@ func TestIBKRImport_UnmappedSymbolsSkipped(t *testing.T) {
 		t.Fatalf("create account: expected 201, got %d", w.Code)
 	}
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 
 	xmlData := loadIBKRSampleXML(t)
 
@@ -443,7 +443,7 @@ func TestIBKRImport_UnmappedSymbolsSkipped(t *testing.T) {
 	}
 
 	var preview ibkrimport.PreviewResponse
-	json.NewDecoder(w.Body).Decode(&preview)
+	_ = json.NewDecoder(w.Body).Decode(&preview)
 
 	// 5 STK trades should be skipped (unmapped), 1 FX trade is importable (2 entries, no symbol needed)
 	// 7 cash txns: 1 dividend (needs symbol, skipped), 6 others (no symbol needed, importable)
@@ -493,7 +493,7 @@ func TestIBKRImport_BrokerSymbolMapping(t *testing.T) {
 		t.Fatalf("create account: expected 201, got %d", w.Code)
 	}
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 
 	// Create internal symbol "AAPL" but NO broker symbol mapping
 	smBody := json.RawMessage(`{"internal_symbol": "AAPL", "market_data_symbol": "AAPL"}`)
@@ -519,7 +519,7 @@ func TestIBKRImport_BrokerSymbolMapping(t *testing.T) {
 	}
 
 	var preview ibkrimport.PreviewResponse
-	json.NewDecoder(w.Body).Decode(&preview)
+	_ = json.NewDecoder(w.Body).Decode(&preview)
 
 	// AAPL trades should be importable via direct match, STHY trades skipped (unmapped)
 	// 2 AAPL trades + 1 FX + 6 cash (non-dividend) + 2 transfers = 11 importable
@@ -659,7 +659,7 @@ func TestIBKRImport_ListTransactionsAfterImport(t *testing.T) {
 	}
 
 	var txns []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&txns)
+	_ = json.NewDecoder(w.Body).Decode(&txns)
 
 	// Should have at least 16 transactions
 	if len(txns) < 16 {

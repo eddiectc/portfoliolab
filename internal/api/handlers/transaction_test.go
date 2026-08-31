@@ -73,7 +73,7 @@ func (r *testTxRepo) List(_ context.Context, filters transaction.ListFilters, li
 }
 
 func (r *testTxRepo) ListWithAccount(_ context.Context, filters transaction.ListFilters, limit, offset int) ([]transaction.TransactionWithAccount, error) {
-	items, _ := r.List(nil, filters, limit, offset)
+	items, _ := r.List(context.TODO(), filters, limit, offset)
 	result := make([]transaction.TransactionWithAccount, len(items))
 	for i, t := range items {
 		result[i] = transaction.TransactionWithAccount{
@@ -180,7 +180,7 @@ func TestTxHandleCreate_Success(t *testing.T) {
 	}
 
 	var tx transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&tx)
+	_ = json.NewDecoder(w.Body).Decode(&tx)
 	if tx.Symbol != "AAPL" {
 		t.Errorf("expected symbol 'AAPL', got %q", tx.Symbol)
 	}
@@ -320,7 +320,7 @@ func TestTxHandleList(t *testing.T) {
 	}
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 3 {
 		t.Errorf("expected 3 items, got %d", len(items))
 	}
@@ -339,7 +339,7 @@ func TestTxHandleList_Empty(t *testing.T) {
 	}
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if items == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -370,7 +370,7 @@ func TestTxHandleList_WithFilters(t *testing.T) {
 	handler.HandleList(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 items for account_id=3, got %d", len(items))
 	}
@@ -394,7 +394,7 @@ func TestTxHandleList_Pagination(t *testing.T) {
 	handler.HandleList(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 items with limit=2, got %d", len(items))
 	}
@@ -428,7 +428,7 @@ func TestTxHandleGet_Success(t *testing.T) {
 	}
 
 	var tx transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&tx)
+	_ = json.NewDecoder(w.Body).Decode(&tx)
 	if tx.Symbol != "AAPL" {
 		t.Errorf("expected 'AAPL', got %q", tx.Symbol)
 	}
@@ -504,7 +504,7 @@ func TestTxHandleUpdate_Success(t *testing.T) {
 	}
 
 	var tx transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&tx)
+	_ = json.NewDecoder(w.Body).Decode(&tx)
 	if tx.Type != "sell" {
 		t.Errorf("expected type 'sell', got %q", tx.Type)
 	}
@@ -655,7 +655,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "TRANSACTION_NOT_FOUND" {
 		t.Errorf("expected TRANSACTION_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -667,7 +667,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "ACCOUNT_NOT_FOUND" {
 		t.Errorf("expected ACCOUNT_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -679,7 +679,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "SYMBOL_NOT_FOUND" {
 		t.Errorf("expected SYMBOL_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -691,7 +691,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_TYPE" {
 		t.Errorf("expected INVALID_TYPE, got %q", errResp.Code)
 	}
@@ -703,7 +703,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PRICE" {
 		t.Errorf("expected INVALID_PRICE, got %q", errResp.Code)
 	}
@@ -715,7 +715,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_NET_CASH" {
 		t.Errorf("expected INVALID_NET_CASH, got %q", errResp.Code)
 	}
@@ -727,7 +727,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_CURRENCY" {
 		t.Errorf("expected INVALID_CURRENCY, got %q", errResp.Code)
 	}
@@ -739,7 +739,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_QUANTITY" {
 		t.Errorf("expected INVALID_QUANTITY, got %q", errResp.Code)
 	}
@@ -751,7 +751,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_SYMBOL" {
 		t.Errorf("expected INVALID_SYMBOL, got %q", errResp.Code)
 	}
@@ -763,7 +763,7 @@ func TestTxErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_DATE" {
 		t.Errorf("expected INVALID_DATE, got %q", errResp.Code)
 	}

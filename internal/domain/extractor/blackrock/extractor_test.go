@@ -32,7 +32,7 @@ func TestExtractor_Match(t *testing.T) {
 func TestExtractor_Extract(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(sampleProductPageHTML))
+		_, _ = w.Write([]byte(sampleProductPageHTML))
 	}))
 	defer server.Close()
 

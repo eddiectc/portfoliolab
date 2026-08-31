@@ -15,16 +15,6 @@ func day(t *testing.T, y int, m time.Month, d int) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func price(t *testing.T, y int, m time.Month, d int, close float64, currency string) market.HistoricalPrice {
-	t.Helper()
-	c, _ := decimal.NewFromFloat64(close)
-	return market.HistoricalPrice{
-		Date:     day(t, y, m, d),
-		Close:    c,
-		Currency: currency,
-	}
-}
-
 func prices(t *testing.T, base time.Time, values []float64, currency string) []market.HistoricalPrice {
 	t.Helper()
 	prices := make([]market.HistoricalPrice, len(values))

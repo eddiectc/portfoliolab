@@ -27,7 +27,6 @@ type mockPosRepoForPerf struct {
 	mu        sync.RWMutex
 	positions []position.Position
 	openErr   error
-	closedErr error
 }
 
 func newMockPosRepoForPerf() *mockPosRepoForPerf {
@@ -165,23 +164,6 @@ func (m *mockAccountListerForPerf) GetAccountsByPortfolio(_ context.Context, por
 	result := make([]position.AccountRef, len(accounts))
 	copy(result, accounts)
 	return result, nil
-}
-
-type mockFxProviderForPerf struct {
-	rates map[string]map[string]*market.FxRate
-}
-
-func (m *mockFxProviderForPerf) GetRateForDate(_ context.Context, from, to string, _ time.Time) (*market.FxRate, bool) {
-	if rates, ok := m.rates[from]; ok {
-		if rate, ok := rates[to]; ok {
-			return rate, true
-		}
-	}
-	return nil, false
-}
-
-func (m *mockFxProviderForPerf) GetCurrentRate(_ context.Context, from, to string) (*market.FxRate, bool) {
-	return m.GetRateForDate(context.Background(), from, to, time.Time{})
 }
 
 type mockMarketFetcherForPerf struct {
@@ -372,8 +354,6 @@ func perfHistPrice(date time.Time, closeVal int64, currency string) market.Histo
 	}
 }
 
-func ptrInt64(v int64) *int64 { return &v }
-
 // newPerfService creates a position.Service wired with mock deps for handler tests.
 func newPerfService(accountIDs []int64, portfolioIDs []int64) (*position.Service, *mockTxnRepoForPerf, *mockAccountListerForPerf, *mockMarketFetcherForPerf, *mockMarketDataRepoForPerf, position.MarketDataService) {
 	txnRepo := newMockTxnRepoForPerf()
@@ -455,7 +435,7 @@ func TestPerfHandlePerformance_EmptyState(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if !result.ReturnMetrics.HasInsufficientData {
 		t.Error("expected HasInsufficientData=true for empty state")
 	}
@@ -481,7 +461,7 @@ func TestPerfHandlePerformance_MismatchedCurrencies(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISMATCHED_CURRENCIES" {
 		t.Errorf("expected MISMATCHED_CURRENCIES, got %q", errResp.Code)
 	}
@@ -533,11 +513,8 @@ func TestPerfHandleRefresh_Success(t *testing.T) {
 	}
 
 	var result position.RefreshResult
-	json.NewDecoder(w.Body).Decode(&result)
-	// Even with no transactions, refresh returns empty result
-	if result.SymbolsRefreshed == nil && result.FxPairsRefreshed == nil {
-		// Both nil is fine for empty portfolio
-	}
+	_ = json.NewDecoder(w.Body).Decode(&result)
+	// Even with no transactions, refresh returns an empty result (nil slices).
 }
 
 func TestPerfHandleRefresh_WithPositions(t *testing.T) {
@@ -568,7 +545,7 @@ func TestPerfHandleRefresh_WithPositions(t *testing.T) {
 	}
 
 	var result position.RefreshResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	// Result structure should be valid JSON
 	if result.FailedSymbols == nil {
 		result.FailedSymbols = []string{}
@@ -695,7 +672,7 @@ func TestPerfErrorResponseFormat(t *testing.T) {
 	handler.HandlePerformance(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "MISMATCHED_CURRENCIES" {
 		t.Errorf("expected MISMATCHED_CURRENCIES, got %q", errResp.Code)
 	}
@@ -724,7 +701,7 @@ func TestPerfHandlePerformance_NoBenchmark(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "" {
 		t.Errorf("expected empty benchmark ticker, got %q", result.BenchmarkTicker)
 	}
@@ -756,7 +733,7 @@ func TestPerfHandlePerformance_InvalidBenchmark(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_BENCHMARK" {
 		t.Errorf("expected INVALID_BENCHMARK, got %q", errResp.Code)
 	}
@@ -782,7 +759,7 @@ func TestPerfHandlePerformance_ValidBenchmarkNoData(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
 	}
@@ -819,7 +796,7 @@ func TestPerfHandlePerformance_ValidBenchmarkWithData(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
 	}
@@ -863,7 +840,7 @@ func TestPerfHandlePerformance_BenchmarkWithPeriod(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
 	}
@@ -889,7 +866,7 @@ func TestPerfParseFilters_Benchmark(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^IXIC" {
 		t.Errorf("expected benchmark ticker ^IXIC, got %q", result.BenchmarkTicker)
 	}
@@ -915,7 +892,7 @@ func TestPerfParseFilters_Mode_Nav(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	// Mode is passed through filters to the service; verify request succeeds
 	if result.BaseCurrency != "USD" {
 		t.Errorf("expected base currency 'USD', got %q", result.BaseCurrency)
@@ -960,7 +937,7 @@ func TestPerfParseFilters_Mode_WithBenchmarkAndPeriod(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "^GSPC" {
 		t.Errorf("expected benchmark ticker ^GSPC, got %q", result.BenchmarkTicker)
 	}
@@ -1194,7 +1171,7 @@ func TestPerfHandlePerformance_FieldsMetricsOnly(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.EquityCurve != nil {
 		t.Error("equity curve should be nil when not requested")
 	}
@@ -1225,7 +1202,7 @@ func TestPerfHandlePerformance_FieldsEquityCurveOnly(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if len(result.EquityCurve) < 1 {
 		t.Error("equity curve should have points")
 	}
@@ -1252,7 +1229,7 @@ func TestPerfHandlePerformance_FieldsMultiple(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.EquityCurve != nil {
 		t.Error("equity curve should be nil")
 	}
@@ -1303,7 +1280,7 @@ func TestHandlePerformance_InvalidBenchmark(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_BENCHMARK" {
 		t.Errorf("expected INVALID_BENCHMARK, got %q", errResp.Code)
 	}
@@ -1328,7 +1305,7 @@ func TestHandlePerformance_NoBenchmark(t *testing.T) {
 	}
 
 	var result performance.PerformanceResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.BenchmarkTicker != "" {
 		t.Errorf("expected empty benchmark ticker, got %q", result.BenchmarkTicker)
 	}
@@ -1352,7 +1329,7 @@ func TestHandlePerformance_NoValidator_RejectsBenchmark(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_BENCHMARK" {
 		t.Errorf("expected INVALID_BENCHMARK, got %q", errResp.Code)
 	}

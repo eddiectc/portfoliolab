@@ -71,7 +71,7 @@ func setupTransactionDB(t *testing.T) *sql.DB {
 		t.Fatalf("create tables: %v", err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
 	// Seed a portfolio and account for FK
 	_, err = db.Exec(`INSERT INTO portfolios (name, currency) VALUES ('Test', 'USD')`)
@@ -190,7 +190,7 @@ func TestTransactionRepository_Update(t *testing.T) {
 
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn)
+	_ = repo.Create(context.Background(), txn)
 
 	// Update price and quantity
 	txn.Price = decimal.MustNew(16000, 2) // 160.00
@@ -220,7 +220,7 @@ func TestTransactionRepository_Delete(t *testing.T) {
 
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn)
+	_ = repo.Create(context.Background(), txn)
 
 	err := repo.Delete(context.Background(), txn.ID)
 	if err != nil {
@@ -294,7 +294,7 @@ func TestTransactionRepository_List_NoFilters(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-		repo.Create(context.Background(), txn)
+		_ = repo.Create(context.Background(), txn)
 	}
 
 	items, err := repo.List(context.Background(), transaction.ListFilters{}, 10, 0)
@@ -313,7 +313,7 @@ func TestTransactionRepository_List_Pagination(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-		repo.Create(context.Background(), txn)
+		_ = repo.Create(context.Background(), txn)
 	}
 
 	items, err := repo.List(context.Background(), transaction.ListFilters{}, 2, 0)
@@ -348,13 +348,13 @@ func TestTransactionRepository_List_ByAccount(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 			decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-		repo.Create(context.Background(), txn)
+		_ = repo.Create(context.Background(), txn)
 	}
 	// Transactions on account 2
 	for i := 0; i < 2; i++ {
 		txn := newTestTransaction(0, 2, "2025-01-15T00:00:00Z", "buy", "MSFT", "USD",
 			decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
-		repo.Create(context.Background(), txn)
+		_ = repo.Create(context.Background(), txn)
 	}
 
 	accountID := int64(1)
@@ -378,11 +378,11 @@ func TestTransactionRepository_List_BySymbol(t *testing.T) {
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn1)
+	_ = repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-16T00:00:00Z", "buy", "MSFT", "USD",
 		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn2)
+	_ = repo.Create(context.Background(), txn2)
 
 	symbol := "AAPL"
 	items, err := repo.List(context.Background(), transaction.ListFilters{Symbol: &symbol}, 10, 0)
@@ -403,11 +403,11 @@ func TestTransactionRepository_List_ByType(t *testing.T) {
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn1)
+	_ = repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-16T00:00:00Z", "sell", "AAPL", "USD",
 		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn2)
+	_ = repo.Create(context.Background(), txn2)
 
 	txType := "sell"
 	items, err := repo.List(context.Background(), transaction.ListFilters{Type: &txType}, 10, 0)
@@ -426,17 +426,17 @@ func TestTransactionRepository_List_ByDateRange(t *testing.T) {
 	// Jan 10
 	txn1 := newTestTransaction(0, 1, "2025-01-10T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn1)
+	_ = repo.Create(context.Background(), txn1)
 
 	// Jan 20
 	txn2 := newTestTransaction(0, 1, "2025-01-20T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn2)
+	_ = repo.Create(context.Background(), txn2)
 
 	// Feb 1
 	txn3 := newTestTransaction(0, 1, "2025-02-01T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn3)
+	_ = repo.Create(context.Background(), txn3)
 
 	from := mustParseTime("2025-01-15T00:00:00Z")
 	to := mustParseTime("2025-01-31T00:00:00Z")
@@ -455,11 +455,11 @@ func TestTransactionRepository_List_AccountAndSymbol(t *testing.T) {
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn1)
+	_ = repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-16T00:00:00Z", "buy", "MSFT", "USD",
 		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn2)
+	_ = repo.Create(context.Background(), txn2)
 
 	accountID := int64(1)
 	symbol := "AAPL"
@@ -480,15 +480,15 @@ func TestTransactionRepository_List_AllFilters(t *testing.T) {
 
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn1)
+	_ = repo.Create(context.Background(), txn1)
 
 	txn2 := newTestTransaction(0, 1, "2025-01-20T00:00:00Z", "sell", "AAPL", "USD",
 		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn2)
+	_ = repo.Create(context.Background(), txn2)
 
 	txn3 := newTestTransaction(0, 1, "2025-01-25T00:00:00Z", "buy", "MSFT", "USD",
 		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn3)
+	_ = repo.Create(context.Background(), txn3)
 
 	accountID := int64(1)
 	symbol := "AAPL"
@@ -732,17 +732,17 @@ func TestTransactionRepository_ListWithAccount_AllFilters(t *testing.T) {
 	// Account 1, AAPL, buy, Jan 15
 	txn1 := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.MustNew(-150000, 2))
-	repo.Create(context.Background(), txn1)
+	_ = repo.Create(context.Background(), txn1)
 
 	// Account 1, AAPL, sell, Jan 20
 	txn2 := newTestTransaction(0, 1, "2025-01-20T00:00:00Z", "sell", "AAPL", "USD",
 		decimal.MustNew(5, 0), decimal.MustNew(16000, 2), decimal.MustNew(80000, 2))
-	repo.Create(context.Background(), txn2)
+	_ = repo.Create(context.Background(), txn2)
 
 	// Account 2, MSFT, buy, Jan 25
 	txn3 := newTestTransaction(0, 2, "2025-01-25T00:00:00Z", "buy", "MSFT", "USD",
 		decimal.MustNew(5, 0), decimal.MustNew(30000, 2), decimal.MustNew(-150000, 2))
-	repo.Create(context.Background(), txn3)
+	_ = repo.Create(context.Background(), txn3)
 
 	accountID := int64(1)
 	symbol := "AAPL"
@@ -790,7 +790,7 @@ func TestTransactionRepository_ListWithAccount_ZeroLimit(t *testing.T) {
 
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn)
+	_ = repo.Create(context.Background(), txn)
 
 	// LIMIT 0 → empty result (real SQL behavior)
 	items, err := repo.ListWithAccount(context.Background(), transaction.ListFilters{}, 0, 0)
@@ -814,7 +814,7 @@ func TestTransactionRepository_ExternalReferenceExists_Found(t *testing.T) {
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	txn.ExternalSystem = &extSys
 	txn.ExternalReference = &extRef
-	repo.Create(context.Background(), txn)
+	_ = repo.Create(context.Background(), txn)
 
 	if !repo.ExternalReferenceExists(context.Background(), "IBKR", "TXN-12345") {
 		t.Error("expected ExternalReferenceExists to return true")
@@ -840,7 +840,7 @@ func TestTransactionRepository_ExternalReferenceExists_DifferentSystem(t *testin
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
 	txn.ExternalSystem = &extSys
 	txn.ExternalReference = &extRef
-	repo.Create(context.Background(), txn)
+	_ = repo.Create(context.Background(), txn)
 
 	// Same reference but different system should not match
 	if repo.ExternalReferenceExists(context.Background(), "DEGIRO", "TXN-12345") {
@@ -864,7 +864,7 @@ func TestTransactionRepository_ExternalReferenceExists_WithoutExternalFields(t *
 	// Create a transaction without external fields
 	txn := newTestTransaction(0, 1, "2025-01-15T00:00:00Z", "buy", "AAPL", "USD",
 		decimal.MustNew(10, 0), decimal.MustNew(15000, 2), decimal.Zero)
-	repo.Create(context.Background(), txn)
+	_ = repo.Create(context.Background(), txn)
 
 	// Should not match a transaction without external fields
 	if repo.ExternalReferenceExists(context.Background(), "IBKR", "TXN-12345") {
@@ -980,7 +980,7 @@ func TestTransactionRepository_BatchCreate_RollbackOnDuplicate(t *testing.T) {
 		ExternalSystem: &extSys, ExternalReference: &ref1,
 		CreatedAt: now, UpdatedAt: now,
 	}
-	repo.Create(context.Background(), preTxn)
+	_ = repo.Create(context.Background(), preTxn)
 
 	// BatchCreate two new transactions; the second has a duplicate external ref.
 	// The entire batch should be rolled back.

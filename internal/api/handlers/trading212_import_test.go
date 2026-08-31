@@ -66,9 +66,9 @@ func buildMultipartCSVForm(csvContent, accountID string) (body *bytes.Buffer, co
 	body = &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("csv_file", "report.csv")
-	part.Write([]byte(csvContent))
-	writer.WriteField("account_id", accountID)
-	writer.Close()
+	_, _ = part.Write([]byte(csvContent))
+	_ = writer.WriteField("account_id", accountID)
+	_ = writer.Close()
 	return body, writer.FormDataContentType()
 }
 
@@ -106,7 +106,7 @@ func TestTrading212HandlePreview_Success(t *testing.T) {
 	}
 
 	var resp brokerimport.PreviewResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.ImportableCount != 1 {
 		t.Errorf("expected 1 importable, got %d", resp.ImportableCount)
 	}
@@ -129,7 +129,7 @@ func TestTrading212HandlePreview_InvalidCSV(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_CSV" {
 		t.Errorf("expected INVALID_CSV, got %q", errResp.Code)
 	}
@@ -176,8 +176,8 @@ func TestTrading212HandlePreview_MissingCSVFile(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("account_id", "1")
-	writer.Close()
+	_ = writer.WriteField("account_id", "1")
+	_ = writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions/import/trading212/preview", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -214,7 +214,7 @@ func TestTrading212HandleConfirm_Success(t *testing.T) {
 	}
 
 	var resp brokerimport.ImportResult
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.CreatedCount != 5 {
 		t.Errorf("expected 5 created, got %d", resp.CreatedCount)
 	}
@@ -245,7 +245,7 @@ func TestTrading212HandleConfirm_AllDuplicates(t *testing.T) {
 	}
 
 	var resp brokerimport.ImportResult
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.CreatedCount != 0 {
 		t.Errorf("expected 0 created, got %d", resp.CreatedCount)
 	}
@@ -310,7 +310,7 @@ func TestTrading212HandleCreateSymbol_Success(t *testing.T) {
 	}
 
 	var resp symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.InternalSymbol != "QGRP" {
 		t.Errorf("expected 'QGRP', got %q", resp.InternalSymbol)
 	}
@@ -419,7 +419,7 @@ func TestTrading212HandleAddBrokerSymbol_SymbolNotFound(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "SYMBOL_NOT_FOUND" {
 		t.Errorf("expected SYMBOL_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -443,7 +443,7 @@ func TestTrading212HandleAddBrokerSymbol_BrokerSymbolExists(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "BROKER_SYMBOL_EXISTS" {
 		t.Errorf("expected BROKER_SYMBOL_EXISTS, got %q", errResp.Code)
 	}
@@ -555,7 +555,7 @@ func TestTrading212ErrorResponseFormat(t *testing.T) {
 			}
 
 			var errResp APIError
-			json.NewDecoder(w.Body).Decode(&errResp)
+			_ = json.NewDecoder(w.Body).Decode(&errResp)
 			if errResp.Code != tt.wantErrCode {
 				t.Errorf("expected error code %q, got %q", tt.wantErrCode, errResp.Code)
 			}

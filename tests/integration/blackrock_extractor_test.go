@@ -831,7 +831,7 @@ func TestBlackRock_BackgroundRefresh_DualPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query stale symbols: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var staleSymbols []struct {
 		InternalSymbol string
@@ -863,7 +863,7 @@ func TestBlackRock_BackgroundRefresh_DualPath(t *testing.T) {
 
 	// 2. Service layer uses data_source_url to route through dispatcher
 	reg := extractor.NewRegistry()
-	reg.Register(blackrock.NewExtractor())
+	_ = reg.Register(blackrock.NewExtractor())
 
 	extracted, err := reg.FindByURL(sourceURL)
 	if err != nil {
@@ -998,7 +998,7 @@ func TestBlackRock_BackgroundRefresh_ExtractionFailurePreservesPreviousData(t *t
 func TestBlackRock_Dispatcher_UnregisteredProvider(t *testing.T) {
 	reg := extractor.NewRegistry()
 	// Register only WisdomTree — BlackRock is NOT registered
-	reg.Register(wisdomtree.NewExtractor())
+	_ = reg.Register(wisdomtree.NewExtractor())
 	dispatcher := extractor.NewDispatcher(reg)
 
 	// Dispatch to an iShares URL — should fail with explicit error

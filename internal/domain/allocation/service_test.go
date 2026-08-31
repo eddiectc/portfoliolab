@@ -67,7 +67,7 @@ func (m *mockPositionSource) EnrichWithMarketData(_ context.Context, positions [
 		return []position.PositionWithMarket{}
 	}
 	// If enriched is set, return it (simulating enrichment).
-	if m.enriched != nil && len(m.enriched) > 0 {
+	if len(m.enriched) > 0 {
 		return m.enriched
 	}
 	// Default: return positions with no market data.

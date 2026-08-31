@@ -190,7 +190,7 @@ func TestSymbolHandleCreate_Success(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.InternalSymbol != "AAPL" {
 		t.Errorf("expected internal symbol 'AAPL', got %q", sm.InternalSymbol)
 	}
@@ -214,7 +214,7 @@ func TestSymbolHandleCreate_WithBrokerSymbols(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if len(sm.BrokerSymbols) != 1 {
 		t.Errorf("expected 1 broker symbol, got %d", len(sm.BrokerSymbols))
 	}
@@ -263,7 +263,7 @@ func TestSymbolHandleCreate_WithBenchmark_ReturnsTrue(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if !sm.IsBenchmark {
 		t.Error("expected is_benchmark to be true")
 	}
@@ -284,7 +284,7 @@ func TestSymbolHandleCreate_WithoutBenchmark_ReturnsFalse(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.IsBenchmark {
 		t.Error("expected is_benchmark to be false by default")
 	}
@@ -331,7 +331,7 @@ func TestSymbolHandleList(t *testing.T) {
 	}
 
 	var mappings []symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&mappings)
+	_ = json.NewDecoder(w.Body).Decode(&mappings)
 	if len(mappings) != 3 {
 		t.Errorf("expected 3 mappings, got %d", len(mappings))
 	}
@@ -350,7 +350,7 @@ func TestSymbolHandleList_Empty(t *testing.T) {
 	}
 
 	var mappings []symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&mappings)
+	_ = json.NewDecoder(w.Body).Decode(&mappings)
 	if mappings == nil {
 		t.Error("expected empty array, got nil")
 	}
@@ -372,7 +372,7 @@ func TestSymbolHandleList_Pagination(t *testing.T) {
 	handler.HandleList(w, req)
 
 	var mappings []symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&mappings)
+	_ = json.NewDecoder(w.Body).Decode(&mappings)
 	if len(mappings) != 2 {
 		t.Errorf("expected 2 mappings with limit=2, got %d", len(mappings))
 	}
@@ -399,7 +399,7 @@ func TestSymbolHandleGet_Success(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.InternalSymbol != "AAPL" {
 		t.Errorf("expected 'AAPL', got %q", sm.InternalSymbol)
 	}
@@ -462,7 +462,7 @@ func TestSymbolHandleUpdate_Success(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.MarketDataSymbol != "AAPL.LON" {
 		t.Errorf("expected market data symbol 'AAPL.LON', got %q", sm.MarketDataSymbol)
 	}
@@ -489,7 +489,7 @@ func TestSymbolHandleUpdate_InternalSymbol(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.InternalSymbol != "AAPL" {
 		t.Errorf("expected internal symbol 'AAPL', got %q", sm.InternalSymbol)
 	}
@@ -539,7 +539,7 @@ func TestSymbolHandleUpdate_EnableBenchmark(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if !sm.IsBenchmark {
 		t.Error("expected is_benchmark to be true after enabling")
 	}
@@ -566,7 +566,7 @@ func TestSymbolHandleUpdate_DisableBenchmark(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.IsBenchmark {
 		t.Error("expected is_benchmark to be false after disabling")
 	}
@@ -593,7 +593,7 @@ func TestSymbolHandleUpdate_DataSourceURL(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.DataSourceURL != "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt" {
 		t.Errorf("expected data_source_url to be set, got %q", sm.DataSourceURL)
 	}
@@ -625,7 +625,7 @@ func TestSymbolHandleUpdate_DataSourceURL_Clear(t *testing.T) {
 	}
 
 	var sm symbolmapping.SymbolMapping
-	json.NewDecoder(w.Body).Decode(&sm)
+	_ = json.NewDecoder(w.Body).Decode(&sm)
 	if sm.DataSourceURL != "" {
 		t.Errorf("expected empty data_source_url, got %q", sm.DataSourceURL)
 	}
@@ -852,7 +852,7 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "SYMBOL_NOT_FOUND" {
 		t.Errorf("expected error code SYMBOL_NOT_FOUND, got %q", errResp.Code)
 	}
@@ -867,7 +867,7 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_SYMBOL" {
 		t.Errorf("expected error code INVALID_SYMBOL, got %q", errResp.Code)
 	}
@@ -879,7 +879,7 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INTERNAL_SYMBOL_EXISTS" {
 		t.Errorf("expected error code INTERNAL_SYMBOL_EXISTS, got %q", errResp.Code)
 	}
@@ -890,7 +890,7 @@ func TestSymbolErrorResponseFormat(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "SYMBOL_IN_USE" {
 		t.Errorf("expected error code SYMBOL_IN_USE, got %q", errResp.Code)
 	}
@@ -914,7 +914,7 @@ func TestHandlePreview_MissingSymbol(t *testing.T) {
 	}
 
 	var errResp map[string]string
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp["code"] != "MISSING_SYMBOL" {
 		t.Errorf("expected error code MISSING_SYMBOL, got %q", errResp["code"])
 	}
@@ -937,7 +937,7 @@ func TestHandlePreview_NoFetcher(t *testing.T) {
 	}
 
 	var errResp map[string]string
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp["code"] != "PREVIEW_FAILED" {
 		t.Errorf("expected error code PREVIEW_FAILED, got %q", errResp["code"])
 	}
@@ -1005,7 +1005,7 @@ func TestHandlePreview_SymbolsMatch(t *testing.T) {
 	}
 
 	var resp PreviewResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Symbol != "AAPL" {
 		t.Errorf("expected symbol AAPL, got %q", resp.Symbol)
 	}
@@ -1036,7 +1036,7 @@ func TestHandlePreview_AutoCorrectedSymbol(t *testing.T) {
 	}
 
 	var resp PreviewResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Symbol != "AAPL" {
 		t.Errorf("expected symbol AAPL, got %q", resp.Symbol)
 	}
@@ -1069,7 +1069,7 @@ func TestHandlePreview_CaseInsensitiveMatch(t *testing.T) {
 	}
 
 	var resp PreviewResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.CorrectedSymbol != "" {
 		t.Errorf("expected empty corrected_symbol for case-insensitive match, got %q", resp.CorrectedSymbol)
 	}
@@ -1094,7 +1094,7 @@ func TestHandlePreview_FetchError(t *testing.T) {
 	}
 
 	var errResp map[string]string
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp["code"] != "PREVIEW_FAILED" {
 		t.Errorf("expected error code PREVIEW_FAILED, got %q", errResp["code"])
 	}
@@ -1164,7 +1164,7 @@ func TestHandleGet_WithDetails(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.InternalSymbol != "AAPL" {
 		t.Errorf("expected internal symbol 'AAPL', got %q", resp.InternalSymbol)
 	}
@@ -1202,7 +1202,7 @@ func TestHandleGet_NoCachedDetails(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.InternalSymbol != "AAPL" {
 		t.Errorf("expected internal symbol 'AAPL', got %q", resp.InternalSymbol)
 	}
@@ -1231,7 +1231,7 @@ func TestHandleGet_NoDetailsService(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.InternalSymbol != "AAPL" {
 		t.Errorf("expected internal symbol 'AAPL', got %q", resp.InternalSymbol)
 	}
@@ -1289,7 +1289,7 @@ func TestHandleGet_WithETFDetalis(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1355,7 +1355,7 @@ func TestHandleGet_GeographicAllocations_SortedDescending(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1407,7 +1407,7 @@ func TestHandleGet_GeographicAllocations_SingleElementStock(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1453,7 +1453,7 @@ func TestHandleGet_GeographicAllocations_Missing(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1489,7 +1489,7 @@ func TestSymbolHandleGet_WithDataSourceURL(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.DataSourceURL != "https://www.wisdomtree.eu/en-gb/etfs/thematic/wmgt" {
 		t.Errorf("expected data_source_url in response, got %q", resp.DataSourceURL)
 	}
@@ -1520,7 +1520,7 @@ func TestSymbolHandleGet_DataSourceURL_Empty(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.DataSourceURL != "" {
 		t.Errorf("expected empty data_source_url, got %q", resp.DataSourceURL)
 	}
@@ -1556,7 +1556,7 @@ func TestHandleGet_WithExtractorAsOfDate(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1598,7 +1598,7 @@ func TestHandleGet_WithoutExtractorAsOfDate(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1642,7 +1642,7 @@ func TestHandleGet_WithMarketCapBreakdown(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1695,7 +1695,7 @@ func TestHandleGet_WithThemeBreakdown(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}
@@ -1741,7 +1741,7 @@ func TestHandleGet_WithoutMarketCapAndThemes(t *testing.T) {
 	}
 
 	var resp SymbolGetResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.SymbolDetails == nil {
 		t.Fatal("expected non-nil symbol_details")
 	}

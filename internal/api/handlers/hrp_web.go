@@ -293,14 +293,14 @@ func (h *HrpWebHandler) HandleSaveAsModelPortfolio(w http.ResponseWriter, r *htt
 
 // hrpErrorMessage maps a computation error to a user-facing message.
 func hrpErrorMessage(err error) string {
-	switch {
-	case err == hierarchicalriskparity.ErrInsufficientSymbols:
+	switch err {
+	case hierarchicalriskparity.ErrInsufficientSymbols:
 		return "At least 2 symbols are required for HRP computation."
-	case err == hierarchicalriskparity.ErrTooManySymbols:
+	case hierarchicalriskparity.ErrTooManySymbols:
 		return "Too many symbols. Maximum 20 symbols supported."
-	case err == hierarchicalriskparity.ErrInsufficientData:
+	case hierarchicalriskparity.ErrInsufficientData:
 		return "Insufficient price data for the selected period. Try a shorter period or different symbols."
-	case err == hierarchicalriskparity.ErrNumericalFailure:
+	case hierarchicalriskparity.ErrNumericalFailure:
 		return "The computation failed due to a numerical error. Try different symbols or a shorter period."
 	default:
 		return "An unexpected error occurred while computing the hierarchical risk parity."

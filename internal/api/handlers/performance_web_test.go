@@ -13,7 +13,6 @@ import (
 	"github.com/govalues/decimal"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
@@ -523,38 +522,6 @@ func TestSerializeBenchmarkChartData(t *testing.T) {
 }
 
 // --- Handler integration tests for benchmark ---
-
-// mockMarketDataServiceForWeb implements position.MarketDataService for web handler tests.
-type mockMarketDataServiceForWeb struct {
-	historical map[string][]market.HistoricalPrice
-}
-
-func (m *mockMarketDataServiceForWeb) GetQuotes(_ context.Context, _ []string) map[string]*market.MarketData {
-	return nil
-}
-func (m *mockMarketDataServiceForWeb) GetHistoricalPrices(_ context.Context, symbol string, _, _ time.Time) ([]market.HistoricalPrice, error) {
-	if prices, ok := m.historical[symbol]; ok {
-		result := make([]market.HistoricalPrice, len(prices))
-		copy(result, prices)
-		return result, nil
-	}
-	return nil, nil
-}
-func (m *mockMarketDataServiceForWeb) GetLatestPriceDatePerSymbol(_ context.Context, _ []string) map[string]*time.Time {
-	return nil
-}
-func (m *mockMarketDataServiceForWeb) RefreshQuotes(_ context.Context, _ []string) marketservice.RefreshResult {
-	return marketservice.RefreshResult{}
-}
-func (m *mockMarketDataServiceForWeb) GetCurrentFxRate(_ context.Context, _, _ string) (*market.FxRate, error) {
-	return nil, nil
-}
-func (m *mockMarketDataServiceForWeb) GetHistoricalFxRate(_ context.Context, _, _ string, _ time.Time) (*market.FxRate, error) {
-	return nil, nil
-}
-func (m *mockMarketDataServiceForWeb) RefreshFxRates(_ context.Context, _ []marketservice.FxPair) marketservice.FxRefreshResult {
-	return marketservice.FxRefreshResult{}
-}
 
 // mockBenchmarkLister implements benchmarkSymbolLister for tests.
 type mockBenchmarkLister struct {

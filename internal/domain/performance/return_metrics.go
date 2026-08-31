@@ -190,7 +190,7 @@ func computeTWR(
 	// Geometrically link sub-period return ratios.
 	// Each ratio is expressed as a decimal multiplier (e.g., 1.15 for 15% gain).
 	// We use float64 for the product to avoid precision issues with many sub-periods.
-	var product float64 = 1.0
+	product := 1.0
 
 	// --- First sub-period ---
 	// If the first breakpoint has value=0 (initial deposit with no prior

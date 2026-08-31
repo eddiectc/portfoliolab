@@ -727,8 +727,8 @@ func TestGetLotDetails_WithConsumptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if details.Lot.LotID != "LOT-TEST" {
-		t.Errorf("expected lot LOT-TEST, got %s", details.Lot.LotID)
+	if details.LotID != "LOT-TEST" {
+		t.Errorf("expected lot LOT-TEST, got %s", details.LotID)
 	}
 	if len(details.Consumptions) != 1 {
 		t.Errorf("expected 1 consumption, got %d", len(details.Consumptions))
@@ -1174,15 +1174,15 @@ func TestGetClosedPositionsSummary_SumsAllPositions(t *testing.T) {
 	rpnl1 := decimal.MustNew(20000, 2) // 200.00
 	rpnl2 := decimal.MustNew(-5000, 2) // -50.00
 	rpnl3 := decimal.MustNew(30000, 2) // 300.00
-	repo.CreatePosition(ctx, &Position{
+	_ = repo.CreatePosition(ctx, &Position{
 		AccountID: 1, Symbol: "AAPL", Currency: "USD", IsClosed: true,
 		RealizedPnlBase: &rpnl1,
 	})
-	repo.CreatePosition(ctx, &Position{
+	_ = repo.CreatePosition(ctx, &Position{
 		AccountID: 1, Symbol: "MSFT", Currency: "USD", IsClosed: true,
 		RealizedPnlBase: &rpnl2,
 	})
-	repo.CreatePosition(ctx, &Position{
+	_ = repo.CreatePosition(ctx, &Position{
 		AccountID: 1, Symbol: "GOOG", Currency: "USD", IsClosed: true,
 		RealizedPnlBase: &rpnl3,
 	})
@@ -1212,7 +1212,7 @@ func TestGetClosedPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) 
 	// Create 50 closed positions, each with RealizedPnlBase = 100.00
 	for i := 0; i < 50; i++ {
 		rpnl := decimal.MustNew(10000, 2)
-		repo.CreatePosition(ctx, &Position{
+		_ = repo.CreatePosition(ctx, &Position{
 			AccountID: 1, Symbol: fmt.Sprintf("SYM%02d", i), Currency: "USD", IsClosed: true,
 			RealizedPnlBase: &rpnl,
 		})
@@ -1249,13 +1249,13 @@ func TestGetClosedPositionsSummary_FilterByAccount(t *testing.T) {
 
 	// Account 1: 200.00
 	rpnl1 := decimal.MustNew(20000, 2)
-	repo.CreatePosition(ctx, &Position{
+	_ = repo.CreatePosition(ctx, &Position{
 		AccountID: 1, Symbol: "AAPL", Currency: "USD", IsClosed: true,
 		RealizedPnlBase: &rpnl1,
 	})
 	// Account 2: 300.00
 	rpnl2 := decimal.MustNew(30000, 2)
-	repo.CreatePosition(ctx, &Position{
+	_ = repo.CreatePosition(ctx, &Position{
 		AccountID: 2, Symbol: "MSFT", Currency: "USD", IsClosed: true,
 		RealizedPnlBase: &rpnl2,
 	})
@@ -1287,11 +1287,11 @@ func TestGetOpenPositionsSummary_SumsAllPositions(t *testing.T) {
 	// CostBasis is negative (cash outflow), so total cost = Abs(CostBasis).
 	cb1 := decimal.MustNew(-1000000, 2) // -10000.00
 	cb2 := decimal.MustNew(-2000000, 2) // -20000.00
-	repo.CreatePosition(ctx, &Position{
+	_ = repo.CreatePosition(ctx, &Position{
 		AccountID: 1, Symbol: "AAPL", Currency: "USD", IsClosed: false,
 		Quantity: decimal.MustNew(10000, 2), CostBasis: cb1,
 	})
-	repo.CreatePosition(ctx, &Position{
+	_ = repo.CreatePosition(ctx, &Position{
 		AccountID: 1, Symbol: "MSFT", Currency: "USD", IsClosed: false,
 		Quantity: decimal.MustNew(10000, 2), CostBasis: cb2,
 	})
@@ -1337,7 +1337,7 @@ func TestGetOpenPositionsSummary_PaginationDoesNotAffectSummary(t *testing.T) {
 	// Create 25 open positions, each with cost basis -1000.00
 	for i := 0; i < 25; i++ {
 		cb := decimal.MustNew(-100000, 2)
-		repo.CreatePosition(ctx, &Position{
+		_ = repo.CreatePosition(ctx, &Position{
 			AccountID: 1, Symbol: fmt.Sprintf("SYM%02d", i), Currency: "USD", IsClosed: false,
 			Quantity: decimal.MustNew(10000, 2), CostBasis: cb,
 		})

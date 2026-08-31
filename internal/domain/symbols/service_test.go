@@ -301,7 +301,7 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenURLSet(t *testing.T) {
 			},
 		},
 	}
-	reg.Register(mockExt)
+	_ = reg.Register(mockExt)
 	dispatcher := extractor.NewDispatcher(reg)
 
 	// Set up data source URL repo
@@ -379,7 +379,7 @@ func TestService_FetchAndStore_UsesYahoo_WhenNoURL(t *testing.T) {
 		name:   "wisdomtree",
 		result: &extractor.ExtractResult{},
 	}
-	reg.Register(mockExt)
+	_ = reg.Register(mockExt)
 	dispatcher := extractor.NewDispatcher(reg)
 
 	urlRepo := newMockDataSourceURLRepo()
@@ -421,7 +421,7 @@ func TestService_FetchAndStore_RoutesToExtractor_WhenDispatcherSet(t *testing.T)
 			FundInfo: &extractor.FundInfo{Name: "Extractor Fund"},
 		},
 	}
-	reg.Register(mockExt)
+	_ = reg.Register(mockExt)
 	dispatcher := extractor.NewDispatcher(reg)
 
 	urlRepo := newMockDataSourceURLRepo()
@@ -456,7 +456,7 @@ func TestService_FetchAndStore_ExtractorError_NotPersisted(t *testing.T) {
 		name: "wisdomtree",
 		err:  fmt.Errorf("page not found"),
 	}
-	reg.Register(mockExt)
+	_ = reg.Register(mockExt)
 	dispatcher := extractor.NewDispatcher(reg)
 
 	urlRepo := newMockDataSourceURLRepo()
@@ -501,7 +501,7 @@ func TestService_FetchAndStore_NAVHistoryStored(t *testing.T) {
 			},
 		},
 	}
-	reg.Register(mockExt)
+	_ = reg.Register(mockExt)
 	dispatcher := extractor.NewDispatcher(reg)
 
 	urlRepo := newMockDataSourceURLRepo()
@@ -561,7 +561,7 @@ func TestService_FetchAndStore_NAVHistoryNotStored_WhenNoMarketDataRepo(t *testi
 			},
 		},
 	}
-	reg.Register(mockExt)
+	_ = reg.Register(mockExt)
 	dispatcher := extractor.NewDispatcher(reg)
 
 	urlRepo := newMockDataSourceURLRepo()
@@ -626,7 +626,7 @@ func TestService_FetchAndStore_NAVHistoryStoreFails(t *testing.T) {
 			},
 		},
 	}
-	reg.Register(mockExt)
+	_ = reg.Register(mockExt)
 	dispatcher := extractor.NewDispatcher(reg)
 
 	urlRepo := newMockDataSourceURLRepo()

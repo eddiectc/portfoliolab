@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -64,17 +63,8 @@ func setupSymbolDetailsDB(t *testing.T) *sql.DB {
 		t.Fatalf("create tables: %v", err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
-}
-
-func mustMarshalJSON(t *testing.T, v interface{}) string {
-	t.Helper()
-	b, err := json.Marshal(v)
-	if err != nil {
-		t.Fatalf("marshal JSON: %v", err)
-	}
-	return string(b)
 }
 
 func TestSymbolDetailsRepository_UpsertAndGet(t *testing.T) {
@@ -208,7 +198,7 @@ func TestSymbolDetailsRepository_UpsertOverwrites(t *testing.T) {
 		Exchange:       "NMS",
 		FetchedAt:      now,
 	}
-	repo.Upsert(context.Background(), details)
+	_ = repo.Upsert(context.Background(), details)
 
 	// Upsert again with different data
 	updated := &symbol.SymbolDetails{
@@ -267,7 +257,7 @@ func TestSymbolDetailsRepository_ListStale(t *testing.T) {
 		ShortName:      "Apple Inc.",
 		FetchedAt:      now.Add(-8 * 24 * time.Hour),
 	}
-	repo.Upsert(ctx, stale)
+	_ = repo.Upsert(ctx, stale)
 
 	// Insert fresh details (2 days ago)
 	fresh := &symbol.SymbolDetails{
@@ -275,7 +265,7 @@ func TestSymbolDetailsRepository_ListStale(t *testing.T) {
 		ShortName:      "WisdomTree Megatrends",
 		FetchedAt:      now.Add(-2 * 24 * time.Hour),
 	}
-	repo.Upsert(ctx, fresh)
+	_ = repo.Upsert(ctx, fresh)
 
 	// List stale (older than 7 days)
 	threshold := now.Add(-7 * 24 * time.Hour)
@@ -310,7 +300,7 @@ func TestSymbolDetailsRepository_ListStale_None(t *testing.T) {
 		ShortName:      "Apple Inc.",
 		FetchedAt:      now,
 	}
-	repo.Upsert(ctx, details)
+	_ = repo.Upsert(ctx, details)
 
 	// Threshold after fetched_at — nothing should be stale
 	// (fetched_at < threshold: items fetched BEFORE the cutoff are stale)
@@ -378,7 +368,7 @@ func TestSymbolDetailsRepository_ListStale_NoMatchingMapping(t *testing.T) {
 		ShortName:      "No Mapping Symbol",
 		FetchedAt:      now.Add(-30 * 24 * time.Hour),
 	}
-	repo.Upsert(ctx, details)
+	_ = repo.Upsert(ctx, details)
 
 	// List stale — should return empty because query starts from symbol_mappings
 	// (no mapping for NO_MAPPING means it won't appear)
@@ -410,7 +400,7 @@ func TestSymbolDetailsRepository_ListStale_IncludesMissing(t *testing.T) {
 		ShortName:      "Apple Inc.",
 		FetchedAt:      now.Add(-8 * 24 * time.Hour),
 	}
-	repo.Upsert(ctx, stale)
+	_ = repo.Upsert(ctx, stale)
 
 	// WMGG.L has fresh details (2 days ago)
 	fresh := &symbol.SymbolDetails{
@@ -418,7 +408,7 @@ func TestSymbolDetailsRepository_ListStale_IncludesMissing(t *testing.T) {
 		ShortName:      "WisdomTree Megatrends",
 		FetchedAt:      now.Add(-2 * 24 * time.Hour),
 	}
-	repo.Upsert(ctx, fresh)
+	_ = repo.Upsert(ctx, fresh)
 
 	// MSFT has a mapping but NO details row
 

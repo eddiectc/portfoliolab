@@ -31,7 +31,7 @@ func setupTx(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64, 
 		t.Fatalf("create portfolio: expected 201, got %d", w.Code)
 	}
 	var p portfolio.Portfolio
-	json.NewDecoder(w.Body).Decode(&p)
+	_ = json.NewDecoder(w.Body).Decode(&p)
 	portfolioID = p.ID
 
 	// Create account
@@ -44,7 +44,7 @@ func setupTx(t *testing.T) (db *sql.DB, router http.Handler, portfolioID int64, 
 		t.Fatalf("create account: expected 201, got %d", w.Code)
 	}
 	var a account.Account
-	json.NewDecoder(w.Body).Decode(&a)
+	_ = json.NewDecoder(w.Body).Decode(&a)
 	accountID = a.ID
 
 	// Create symbol mapping for AAPL
@@ -74,7 +74,7 @@ func TestTransaction_CreateAndGet(t *testing.T) {
 	}
 
 	var tx transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&tx)
+	_ = json.NewDecoder(w.Body).Decode(&tx)
 	if tx.Symbol != "AAPL" {
 		t.Errorf("expected symbol 'AAPL', got %q", tx.Symbol)
 	}
@@ -95,7 +95,7 @@ func TestTransaction_CreateAndGet(t *testing.T) {
 	}
 
 	var got transaction.Transaction
-	json.NewDecoder(w2.Body).Decode(&got)
+	_ = json.NewDecoder(w2.Body).Decode(&got)
 	if got.Symbol != "AAPL" {
 		t.Errorf("expected 'AAPL', got %q", got.Symbol)
 	}
@@ -129,7 +129,7 @@ func TestTransaction_CreateSell(t *testing.T) {
 	}
 
 	var tx transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&tx)
+	_ = json.NewDecoder(w.Body).Decode(&tx)
 	if tx.Type != "sell" {
 		t.Errorf("expected type 'sell', got %q", tx.Type)
 	}
@@ -152,7 +152,7 @@ func TestTransaction_CreateCashDeposit(t *testing.T) {
 	}
 
 	var tx transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&tx)
+	_ = json.NewDecoder(w.Body).Decode(&tx)
 	if tx.Symbol != "$CASH-USD" {
 		t.Errorf("expected symbol '$CASH-USD', got %q", tx.Symbol)
 	}
@@ -173,7 +173,7 @@ func TestTransaction_ListEmpty(t *testing.T) {
 	}
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 0 {
 		t.Errorf("expected 0 transactions, got %d", len(items))
 	}
@@ -205,7 +205,7 @@ func TestTransaction_CreateListDelete(t *testing.T) {
 	}
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 transactions, got %d", len(items))
 	}
@@ -224,7 +224,7 @@ func TestTransaction_CreateListDelete(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var remaining []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&remaining)
+	_ = json.NewDecoder(w.Body).Decode(&remaining)
 	if len(remaining) != 1 {
 		t.Errorf("expected 1 transaction after delete, got %d", len(remaining))
 	}
@@ -244,7 +244,7 @@ func TestTransaction_Update(t *testing.T) {
 	}
 
 	var original transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&original)
+	_ = json.NewDecoder(w.Body).Decode(&original)
 	originalUpdatedAt := original.UpdatedAt
 
 	// Update type
@@ -258,7 +258,7 @@ func TestTransaction_Update(t *testing.T) {
 	}
 
 	var updated transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&updated)
+	_ = json.NewDecoder(w.Body).Decode(&updated)
 	if updated.Type != "sell" {
 		t.Errorf("expected type 'sell', got %q", updated.Type)
 	}
@@ -281,7 +281,7 @@ func TestTransaction_UpdateNoChanges(t *testing.T) {
 	}
 
 	var original transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&original)
+	_ = json.NewDecoder(w.Body).Decode(&original)
 
 	// Fetch current state (to get the DB-stored updated_at)
 	getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/transactions/%d", original.ID), nil)
@@ -289,7 +289,7 @@ func TestTransaction_UpdateNoChanges(t *testing.T) {
 	router.ServeHTTP(w2, getReq)
 
 	var current transaction.Transaction
-	json.NewDecoder(w2.Body).Decode(&current)
+	_ = json.NewDecoder(w2.Body).Decode(&current)
 	dbUpdatedAt := current.UpdatedAt
 
 	// No-op update
@@ -303,7 +303,7 @@ func TestTransaction_UpdateNoChanges(t *testing.T) {
 	}
 
 	var updated transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&updated)
+	_ = json.NewDecoder(w.Body).Decode(&updated)
 	if !updated.UpdatedAt.Equal(dbUpdatedAt) {
 		t.Errorf("expected updated_at to remain unchanged for no-op update: got %v, want %v", updated.UpdatedAt, dbUpdatedAt)
 	}
@@ -323,7 +323,7 @@ func TestTransaction_FilterByAccount(t *testing.T) {
 		t.Fatalf("create account 2: expected 201, got %d", w.Code)
 	}
 	var a2 account.Account
-	json.NewDecoder(w.Body).Decode(&a2)
+	_ = json.NewDecoder(w.Body).Decode(&a2)
 
 	// Create on account 1
 	body := fmt.Sprintf(`{"account_id":%d,"date":"2025-01-15","type":"buy","symbol":"AAPL","quantity":10,"price":150,"currency":"USD","net_cash":-1500}`, accountID)
@@ -351,7 +351,7 @@ func TestTransaction_FilterByAccount(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 transaction for account %d, got %d", accountID, len(items))
 	}
@@ -396,7 +396,7 @@ func TestTransaction_FilterBySymbol(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 AAPL transaction, got %d", len(items))
 	}
@@ -427,7 +427,7 @@ func TestTransaction_FilterByDateRange(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 transaction in date range, got %d", len(items))
 	}
@@ -455,7 +455,7 @@ func TestTransaction_Pagination(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 transactions with limit=2, got %d", len(items))
 	}
@@ -488,7 +488,7 @@ func TestTransaction_CascadeDeleteAccount(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 0 {
 		t.Errorf("expected 0 transactions after account delete, got %d", len(items))
 	}
@@ -521,7 +521,7 @@ func TestTransaction_CascadeDeletePortfolio(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var items []transaction.Transaction
-	json.NewDecoder(w.Body).Decode(&items)
+	_ = json.NewDecoder(w.Body).Decode(&items)
 	if len(items) != 0 {
 		t.Errorf("expected 0 transactions after portfolio delete, got %d", len(items))
 	}
@@ -604,7 +604,7 @@ func TestTransaction_ValidationErrors(t *testing.T) {
 			}
 
 			var resp map[string]string
-			json.NewDecoder(w.Body).Decode(&resp)
+			_ = json.NewDecoder(w.Body).Decode(&resp)
 			if resp["code"] != tt.wantCode {
 				t.Errorf("expected error code %q, got %q", tt.wantCode, resp["code"])
 			}

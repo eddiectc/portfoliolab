@@ -864,7 +864,7 @@ func TestService_Update_DataSourceURL(t *testing.T) {
 			if sm.DataSourceURL != tt.wantURL {
 				t.Errorf("expected data_source_url %q, got %q", tt.wantURL, sm.DataSourceURL)
 			}
-			if tt.wantUpdatedAt && sm.UpdatedAt == originalTime {
+			if tt.wantUpdatedAt && sm.UpdatedAt.Equal(originalTime) {
 				t.Error("expected updated_at to change")
 			}
 			if !tt.wantUpdatedAt && sm.UpdatedAt != originalTime {

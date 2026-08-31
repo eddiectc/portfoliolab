@@ -92,13 +92,8 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 	clipFrom, clipTo, limitedSymbols, missingSymbols := clipPeriod(input.Weights, input.PricesBySym, input.DateFrom, input.DateTo)
 
 	// Detect if the effective period is shorter than requested.
-	periodClipped := false
-	if !input.DateFrom.IsZero() && clipFrom.After(input.DateFrom) {
-		periodClipped = true
-	}
-	if !input.DateTo.IsZero() && clipTo.Before(input.DateTo) {
-		periodClipped = true
-	}
+	periodClipped := (!input.DateFrom.IsZero() && clipFrom.After(input.DateFrom)) ||
+		(!input.DateTo.IsZero() && clipTo.Before(input.DateTo))
 
 	var warnings []string
 	if periodClipped {

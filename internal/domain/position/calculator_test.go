@@ -9,11 +9,6 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
-// makeTxnWithID builds a transaction.Transaction with an explicit ID for test fixtures.
-func makeTxnWithID(lotID string, txType, symbol, currency string, date string, qty, price, netCash decimal.Decimal) transaction.Transaction {
-	return makeTxn(lotID, txType, symbol, currency, date, qty, price, netCash)
-}
-
 func TestCalculatePositions_FullFlowWithOpenAndCashPosition(t *testing.T) {
 	// Deposits + buys + sells → open position + cash position.
 	ctx := context.Background()

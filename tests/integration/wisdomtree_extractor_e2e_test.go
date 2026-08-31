@@ -80,7 +80,7 @@ func newWisdomTreeTestService(t *testing.T, db *sql.DB) *symbols.Service {
 	wtExtractor.SetClient(mockWisdomTreeClient(t))
 
 	reg := extractor.NewRegistry()
-	reg.Register(wtExtractor)
+	_ = reg.Register(wtExtractor)
 
 	svc := symbols.NewService(data.NewSymbolDetailsRepository(db), fakeYahooFetcher{})
 	svc.WithExtractorDispatcher(extractor.NewDispatcher(reg))

@@ -54,8 +54,8 @@ func TestHrpError_Error(t *testing.T) {
 
 func TestHrpErrorImplementsError(t *testing.T) {
 	var err error = ErrInsufficientSymbols
-	if err == nil {
-		t.Error("HrpError does not implement error interface")
+	if err.Error() == "" {
+		t.Error("HrpError.Error() should return the error message")
 	}
 }
 
@@ -185,7 +185,7 @@ func TestHrpAllocationZeroValueOmitEmpty(t *testing.T) {
 	if decoded.Method != "ward" {
 		t.Errorf("Method = %q, want %q", decoded.Method, "ward")
 	}
-	if decoded.Weights != nil && len(decoded.Weights) != 0 {
+	if len(decoded.Weights) != 0 {
 		t.Errorf("Weights = %v, want nil or empty", decoded.Weights)
 	}
 	if decoded.Dendrogram != nil {

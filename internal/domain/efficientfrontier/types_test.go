@@ -57,8 +57,8 @@ func TestFrontierError_Error(t *testing.T) {
 
 func TestFrontierErrorImplementsError(t *testing.T) {
 	var err error = ErrInsufficientSymbols
-	if err == nil {
-		t.Error("FrontierError does not implement error interface")
+	if err.Error() == "" {
+		t.Error("FrontierError.Error() should return the error message")
 	}
 }
 

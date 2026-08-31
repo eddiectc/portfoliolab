@@ -69,7 +69,7 @@ type computeHrpResponse struct {
 
 // HandleSaveHrpAsModelPortfolio handles POST /api/hrp/save.
 func (h *HrpHandler) HandleSaveHrpAsModelPortfolio(w http.ResponseWriter, r *http.Request) {
-	h.OptimizationCommon.HandleSaveAsModelPortfolio(w, r, "/hrp", "")
+	h.HandleSaveAsModelPortfolio(w, r, "/hrp", "")
 }
 
 // HandleComputeHrp handles POST /api/hrp/compute.
@@ -129,14 +129,14 @@ func (h *HrpHandler) HandleComputeHrp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HrpHandler) handleComputeError(w http.ResponseWriter, err error) {
-	switch {
-	case err == hierarchicalriskparity.ErrInsufficientSymbols:
+	switch err {
+	case hierarchicalriskparity.ErrInsufficientSymbols:
 		writeJSONError(w, http.StatusBadRequest, "INSUFFICIENT_SYMBOLS", err.Error())
-	case err == hierarchicalriskparity.ErrTooManySymbols:
+	case hierarchicalriskparity.ErrTooManySymbols:
 		writeJSONError(w, http.StatusBadRequest, "TOO_MANY_SYMBOLS", err.Error())
-	case err == hierarchicalriskparity.ErrInsufficientData:
+	case hierarchicalriskparity.ErrInsufficientData:
 		writeJSONError(w, http.StatusBadRequest, "INSUFFICIENT_DATA", err.Error())
-	case err == hierarchicalriskparity.ErrNumericalFailure:
+	case hierarchicalriskparity.ErrNumericalFailure:
 		writeJSONError(w, http.StatusBadRequest, "NUMERICAL_FAILURE", err.Error())
 	default:
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute HRP")

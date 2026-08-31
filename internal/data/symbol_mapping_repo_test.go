@@ -48,7 +48,7 @@ func setupSymbolMappingDB(t *testing.T) *sql.DB {
 		t.Fatalf("create tables: %v", err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
@@ -132,7 +132,7 @@ func TestSymbolMappingRepository_GetByInternalSymbol(t *testing.T) {
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	repo.Create(context.Background(), sm)
+	_ = repo.Create(context.Background(), sm)
 
 	got, err := repo.GetByInternalSymbol(context.Background(), "MSFT")
 	if err != nil {
@@ -165,7 +165,7 @@ func TestSymbolMappingRepository_GetAll(t *testing.T) {
 			CreatedAt:        now,
 			UpdatedAt:        now,
 		}
-		repo.Create(context.Background(), sm)
+		_ = repo.Create(context.Background(), sm)
 	}
 
 	mappings, err := repo.GetAll(context.Background(), 10, 0)
@@ -189,7 +189,7 @@ func TestSymbolMappingRepository_GetAll_Pagination(t *testing.T) {
 			CreatedAt:        now,
 			UpdatedAt:        now,
 		}
-		repo.Create(context.Background(), sm)
+		_ = repo.Create(context.Background(), sm)
 	}
 
 	mappings, err := repo.GetAll(context.Background(), 2, 0)
@@ -221,7 +221,7 @@ func TestSymbolMappingRepository_Update(t *testing.T) {
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	repo.Create(context.Background(), sm)
+	_ = repo.Create(context.Background(), sm)
 
 	sm.InternalSymbol = "NEW"
 	sm.MarketDataSymbol = "NEW"
@@ -255,7 +255,7 @@ func TestSymbolMappingRepository_Delete(t *testing.T) {
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	repo.Create(context.Background(), sm)
+	_ = repo.Create(context.Background(), sm)
 
 	err := repo.Delete(context.Background(), sm.ID)
 	if err != nil {
@@ -289,7 +289,7 @@ func TestSymbolMappingRepository_AddBrokerSymbol(t *testing.T) {
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	repo.Create(context.Background(), sm)
+	_ = repo.Create(context.Background(), sm)
 
 	err := repo.AddBrokerSymbol(context.Background(), sm.ID, "InteractiveBrokers", "AAPL.US")
 	if err != nil {
@@ -323,8 +323,8 @@ func TestSymbolMappingRepository_GetBrokerSymbolByBroker(t *testing.T) {
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	repo.Create(context.Background(), sm)
-	repo.AddBrokerSymbol(context.Background(), sm.ID, "IB", "AAPL.US")
+	_ = repo.Create(context.Background(), sm)
+	_ = repo.AddBrokerSymbol(context.Background(), sm.ID, "IB", "AAPL.US")
 
 	bs, err := repo.GetBrokerSymbolByBroker(context.Background(), "IB", "AAPL.US")
 	if err != nil {
@@ -356,8 +356,8 @@ func TestSymbolMappingRepository_CascadeDelete(t *testing.T) {
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	repo.Create(context.Background(), sm)
-	repo.AddBrokerSymbol(context.Background(), sm.ID, "IB", "AAPL.US")
+	_ = repo.Create(context.Background(), sm)
+	_ = repo.AddBrokerSymbol(context.Background(), sm.ID, "IB", "AAPL.US")
 
 	// Delete the symbol mapping — broker symbols should cascade-delete
 	err := repo.Delete(context.Background(), sm.ID)

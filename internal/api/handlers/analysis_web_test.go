@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"strings"
@@ -20,16 +19,6 @@ func TestRegisterRoutes_AnalysisWeb(t *testing.T) {
 	handler := &AnalysisWebHandler{}
 	handler.RegisterRoutes(r)
 	// Verify it doesn't panic
-}
-
-// mockAnalysisServiceForWeb implements analysisService for web handler tests.
-type mockAnalysisServiceForWeb struct {
-	result *analysis.AnalysisResult
-	err    error
-}
-
-func (m *mockAnalysisServiceForWeb) ComputeAnalysis(_ context.Context, _ analysis.AnalysisFilters) (*analysis.AnalysisResult, error) {
-	return m.result, m.err
 }
 
 // Test that the analysis page template renders without panic (empty state).

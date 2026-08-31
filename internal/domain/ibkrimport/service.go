@@ -155,9 +155,7 @@ func (s *Service) Preview(ctx context.Context, xmlData []byte, accountID int64) 
 		}
 		// For FX trades, entry contains two entries
 		if typ == "fx" {
-			for _, e := range entry.fxEntries {
-				importable = append(importable, e)
-			}
+			importable = append(importable, entry.fxEntries...)
 		} else {
 			importable = append(importable, entry.single)
 		}

@@ -267,7 +267,7 @@ func TestAccountHandleCreatePage_ValidSubmission(t *testing.T) {
 
 	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
-	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
+	_, _ = portfolioSvc.Create(context.TODO(), portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
@@ -297,7 +297,7 @@ func TestAccountHandleCreatePage_EmptyName(t *testing.T) {
 
 	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
-	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
+	_, _ = portfolioSvc.Create(context.TODO(), portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
@@ -327,9 +327,9 @@ func TestAccountHandleCreatePage_DuplicateName(t *testing.T) {
 
 	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
-	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
+	_, _ = portfolioSvc.Create(context.TODO(), portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Existing", PortfolioID: 2})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Existing", PortfolioID: 2})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
@@ -359,9 +359,9 @@ func TestAccountHandleDetailPage_RendersCompletePage(t *testing.T) {
 
 	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
-	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
+	_, _ = portfolioSvc.Create(context.TODO(), portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Fidelity", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Fidelity", PortfolioID: 1})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
@@ -415,9 +415,9 @@ func TestAccountHandleEditPage_RendersCompleteForm(t *testing.T) {
 
 	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
-	portfolioSvc.Create(nil, portfolio.CreateRequest{Name: "Main", Currency: "USD"})
+	_, _ = portfolioSvc.Create(context.TODO(), portfolio.CreateRequest{Name: "Main", Currency: "USD"})
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Vanguard", PortfolioID: 2})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Vanguard", PortfolioID: 2})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)
@@ -463,7 +463,7 @@ func TestAccountHandleDeletePage_Success(t *testing.T) {
 	portfolioRepo := newMockPortfolioRepoForAccount()
 	portfolioSvc := portfolio.NewService(portfolioRepo)
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "ToDelete", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "ToDelete", PortfolioID: 1})
 
 	renderer := newTestRenderer(t)
 	handler := NewAccountWebHandler(accountSvc, portfolioSvc, renderer)

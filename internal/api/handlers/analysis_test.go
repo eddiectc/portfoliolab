@@ -247,7 +247,7 @@ func TestAnalysisHandleAnalysis_InternalError(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INTERNAL_ERROR" {
 		t.Errorf("expected INTERNAL_ERROR, got %q", errResp.Code)
 	}
@@ -277,7 +277,7 @@ func TestAnalysisHandleAnalysis_EmptyState(t *testing.T) {
 	}
 
 	var result analysis.AnalysisResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if result.Message == "" {
 		t.Error("expected non-empty message for empty state")
 	}
@@ -309,7 +309,7 @@ func TestAnalysisHandleAnalysis_Warnings(t *testing.T) {
 	}
 
 	var result analysis.AnalysisResult
-	json.NewDecoder(w.Body).Decode(&result)
+	_ = json.NewDecoder(w.Body).Decode(&result)
 	if len(result.Warnings) != 1 {
 		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
 	}
@@ -332,7 +332,7 @@ func TestAnalysisHandleAnalysis_InvalidSection(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_SECTION" {
 		t.Errorf("expected INVALID_SECTION, got %q", errResp.Code)
 	}
@@ -382,7 +382,7 @@ func TestAnalysisHandleAnalysis_InvalidPeriod(t *testing.T) {
 	}
 
 	var errResp APIError
-	json.NewDecoder(w.Body).Decode(&errResp)
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
 	if errResp.Code != "INVALID_PERIOD" {
 		t.Errorf("expected INVALID_PERIOD, got %q", errResp.Code)
 	}

@@ -11,11 +11,7 @@ import (
 
 // Yahoo Finance endpoint URLs. Package-level vars (not consts) so they can be
 // overridden in tests with a mock server.
-var (
-	yahooCookieURL    = "https://fc.yahoo.com"
-	yahooCrumbURL     = "https://query2.finance.yahoo.com/v1/test/getcrumb"
-	yahooQuoteSummary = "https://query2.finance.yahoo.com/v10/finance/quoteSummary"
-)
+var yahooQuoteSummary = "https://query2.finance.yahoo.com/v10/finance/quoteSummary"
 
 // SymbolDetailsFetcher fetches rich symbol metadata (holdings, sectors, fund
 // profile) from a market data provider.
@@ -156,7 +152,7 @@ func (f *YahooFinanceFetcher) FetchSymbolDetails(_ context.Context, marketDataSy
 	}
 
 	if quoteResp.QuoteSummary.Error != nil {
-		return nil, fmt.Errorf("Yahoo Finance error for %s: %s — %s",
+		return nil, fmt.Errorf("yahoo finance error for %s: %s — %s",
 			marketDataSymbol, quoteResp.QuoteSummary.Error.Code,
 			quoteResp.QuoteSummary.Error.Description)
 	}

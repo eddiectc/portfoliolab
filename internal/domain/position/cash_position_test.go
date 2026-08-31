@@ -87,9 +87,10 @@ func TestComputeCashPositions_MultipleCurrencies(t *testing.T) {
 	// Positions are sorted by symbol, so $CASH-GBP comes first.
 	var usdPos, gbpPos Position
 	for _, p := range positions {
-		if p.Symbol == "$CASH-USD" {
+		switch p.Symbol {
+		case "$CASH-USD":
 			usdPos = p
-		} else if p.Symbol == "$CASH-GBP" {
+		case "$CASH-GBP":
 			gbpPos = p
 		}
 	}

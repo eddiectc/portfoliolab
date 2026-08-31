@@ -47,46 +47,6 @@ func makeLongSeries(pattern []float64) []float64 {
 	return result
 }
 
-// ptrF returns a pointer to a float64.
-func ptrF(f float64) *float64 {
-	return &f
-}
-
-// matrixEq checks two *float64 matrices element-wise within epsilon.
-func matrixEq(t *testing.T, got [][]*float64, want [][]float64, eps float64) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Errorf("matrix rows = %d, want %d", len(got), len(want))
-		return
-	}
-	for i := range got {
-		if len(got[i]) != len(want[i]) {
-			t.Errorf("matrix[%d] cols = %d, want %d", i, len(got[i]), len(want[i]))
-			return
-		}
-		for j := range got[i] {
-			gotVal := 0.0
-			if got[i][j] != nil {
-				gotVal = *got[i][j]
-			}
-			wantVal := want[i][j]
-			wantNil := math.IsNaN(wantVal) // use NaN sentinel for nil expectation
-
-			if wantNil {
-				if got[i][j] != nil {
-					t.Errorf("matrix[%d][%d] = %.4f, want nil", i, j, gotVal)
-				}
-			} else {
-				if got[i][j] == nil {
-					t.Errorf("matrix[%d][%d] = nil, want %.4f", i, j, wantVal)
-				} else if math.Abs(*got[i][j]-wantVal) > eps {
-					t.Errorf("matrix[%d][%d] = %.4f, want %.4f", i, j, *got[i][j], wantVal)
-				}
-			}
-		}
-	}
-}
-
 // --- ComputeIntraPortfolioCorrelation ---
 
 func TestComputeIntraPortfolioCorrelation_TwoSymbols(t *testing.T) {
@@ -254,7 +214,7 @@ func TestComputeIntraPortfolioCorrelation_ShortData_NilCells(t *testing.T) {
 
 	// With only 5 data points and a 1Y period (252 days expected),
 	// the cells should be nil due to insufficient overlap.
-	if result.Matrix != nil && len(result.Matrix) == 2 {
+	if len(result.Matrix) == 2 {
 		if result.Matrix[0][1] != nil {
 			t.Logf("Matrix[0][1] = %.4f (may be non-nil if overlap threshold is met)", *result.Matrix[0][1])
 		}
@@ -363,7 +323,7 @@ func TestComputeIntraPortfolioCorrelation_Symmetric(t *testing.T) {
 
 	result := ComputeIntraPortfolioCorrelation(input)
 
-	if result.Matrix == nil || len(result.Matrix) < 2 {
+	if len(result.Matrix) < 2 {
 		t.Fatal("Matrix is nil or too small")
 	}
 

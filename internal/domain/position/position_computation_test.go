@@ -9,12 +9,6 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
-// decPtr returns a pointer to a decimal.Decimal.
-func decPtr(value int64, scale int) *decimal.Decimal {
-	d := decimal.MustNew(value, scale)
-	return &d
-}
-
 func TestComputePositions_SimpleBuy(t *testing.T) {
 	// Single buy → one open position.
 	buyLots := []LotGroup{
@@ -355,10 +349,11 @@ func TestComputePositions_MixedSymbols(t *testing.T) {
 	var aaplPos, msftPos Position
 	foundAAPL, foundMSFT := false, false
 	for _, p := range open {
-		if p.Symbol == "AAPL" {
+		switch p.Symbol {
+		case "AAPL":
 			aaplPos = p
 			foundAAPL = true
-		} else if p.Symbol == "MSFT" {
+		case "MSFT":
 			msftPos = p
 			foundMSFT = true
 		}

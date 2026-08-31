@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -37,9 +38,9 @@ func buildTrading212MultipartForm(csvContent, accountID string) (body *bytes.Buf
 	body = &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("csv_file", "report.csv")
-	part.Write([]byte(csvContent))
-	writer.WriteField("account_id", accountID)
-	writer.Close()
+	_, _ = part.Write([]byte(csvContent))
+	_ = writer.WriteField("account_id", accountID)
+	_ = writer.Close()
 	return body, writer.FormDataContentType()
 }
 
@@ -50,7 +51,7 @@ func TestTrading212WebHandleImportPage_RendersUploadPage(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
 
 	r := httptest.NewRequest(http.MethodGet, "/transactions/import/trading212", nil)
 	w := httptest.NewRecorder()
@@ -106,7 +107,7 @@ func TestTrading212WebHandleImportPost_ValidCSV(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
 
 	preview := &brokerimport.PreviewResponse{
 		Importable: []brokerimport.PreviewTransaction{
@@ -153,11 +154,11 @@ func TestTrading212WebHandleImportPost_UnifiedTableAndSymbols(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
 
 	// Pre-populate existing symbols in the symbol repo
-	symbolRepo.Create(nil, &symbolmapping.SymbolMapping{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
-	symbolRepo.Create(nil, &symbolmapping.SymbolMapping{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT"})
+	_ = symbolRepo.Create(context.TODO(), &symbolmapping.SymbolMapping{InternalSymbol: "AAPL", MarketDataSymbol: "AAPL"})
+	_ = symbolRepo.Create(context.TODO(), &symbolmapping.SymbolMapping{InternalSymbol: "MSFT", MarketDataSymbol: "MSFT"})
 
 	// Multiple skipped with same/different broker symbols + one without broker symbol
 	preview := &brokerimport.PreviewResponse{
@@ -229,7 +230,7 @@ func TestTrading212WebHandleImportPost_InvalidCSV(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
 
 	importSvc.WithPreview(nil, trading212import.ErrInvalidCSV)
 
@@ -258,7 +259,7 @@ func TestTrading212WebHandleImportPost_AccountNotFound(t *testing.T) {
 	accountSvc := account.NewService(accountRepo, &mockPortfolioCheckerForWeb{})
 	handler.accountSvc = accountSvc
 
-	accountSvc.Create(nil, account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
+	_, _ = accountSvc.Create(context.TODO(), account.CreateRequest{Name: "Trading 212 ISA", PortfolioID: 1})
 
 	importSvc.WithPreview(nil, trading212import.ErrAccountNotFound)
 
@@ -313,9 +314,9 @@ func TestTrading212WebHandleConfirmPost_Success(t *testing.T) {
 	// Build form with base64-encoded CSV data
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("account_id", "1")
-	writer.WriteField("csv_data", "dGVzdC1jc3YtZGF0YQ==") // base64 of "test-csv-data"
-	writer.Close()
+	_ = writer.WriteField("account_id", "1")
+	_ = writer.WriteField("csv_data", "dGVzdC1jc3YtZGF0YQ==") // base64 of "test-csv-data"
+	_ = writer.Close()
 
 	r := httptest.NewRequest(http.MethodPost, "/transactions/import/trading212/confirm", body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())
@@ -338,8 +339,8 @@ func TestTrading212WebHandleConfirmPost_MissingCSVData(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("account_id", "1")
-	writer.Close()
+	_ = writer.WriteField("account_id", "1")
+	_ = writer.Close()
 
 	r := httptest.NewRequest(http.MethodPost, "/transactions/import/trading212/confirm", body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())
@@ -357,8 +358,8 @@ func TestTrading212WebHandleConfirmPost_MissingAccountID(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("csv_data", "dGVzdC1jc3YtZGF0YQ==")
-	writer.Close()
+	_ = writer.WriteField("csv_data", "dGVzdC1jc3YtZGF0YQ==")
+	_ = writer.Close()
 
 	r := httptest.NewRequest(http.MethodPost, "/transactions/import/trading212/confirm", body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())
