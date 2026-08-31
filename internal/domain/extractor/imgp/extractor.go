@@ -76,10 +76,22 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("extract PDF text: %w", err)
 	}
 
-	// 6. Parse required sections — Fund Facts
-	profile, err := ParseFundFacts(pdfText)
+	// 6. Parse required sections — Fund Facts.
+	// US share class factsheets use month-first dates and omit ISIN, share
+	// class and ongoing charges.
+	profile, err := ParseFundFacts(pdfText, dateLayoutFor(sourceURL))
 	if err != nil {
 		return nil, fmt.Errorf("parse fund facts: %w", err)
+	}
+
+	// US share class factsheets list CUSIP instead of ISIN; back-fill the
+	// ISIN from the fund page's structured data (already resolved into
+	// fundInfo.Symbol, with the URL slug as fallback).
+	if profile.Isin == "" {
+		profile.Isin = fundInfo.Symbol
+	}
+	if profile.Isin == "" {
+		return nil, fmt.Errorf("ISIN not found in factsheet or fund page for %s", sourceURL)
 	}
 
 	// 7. Parse required sections — Reference Date
@@ -128,18 +140,34 @@ func (e *Extractor) SetClient(c *Client) {
 	e.client = c
 }
 
-// parseFundInfoFromHTML extracts the fund symbol (ISIN from URL path) and fund name
-// (from the page title tag) from the HTML fund page.
+// dateLayoutFor returns the factsheet date layout for the fund page region.
+// US share class factsheets use month-first dates (05/07/2019 = 7 May 2019);
+// EU factsheets use day-first (07/03/2025 = 7 March 2025).
+func dateLayoutFor(sourceURL string) DateLayout {
+	if u, err := url.Parse(sourceURL); err == nil && strings.HasPrefix(u.Path, "/us/") {
+		return DateLayoutMonthFirst
+	}
+	return DateLayoutDayFirst
+}
+
+// parseFundInfoFromHTML extracts the fund symbol (ISIN) and fund name from the
+// HTML fund page. The page embeds a `const fund = {...}` JSON object with the
+// structured identity (ISIN, fund name) on both the EU and US page variants;
+// the URL path and <title> are the fallbacks.
 func parseFundInfoFromHTML(sourceURL, html string) *extractor.FundInfo {
-	info := &extractor.FundInfo{}
+	symbol, name := "", ""
+	if f := parseFundPageJSON(html); f != nil {
+		symbol, name = f.Isin, f.SubFundName
+	}
+	if symbol == "" {
+		// /fund/LU2951555585 or /us/fund/US53700T8273-<slug>
+		symbol = extractISINFromURL(sourceURL)
+	}
+	if name == "" {
+		name = extractFundNameFromTitle(html)
+	}
 
-	// Extract ISIN from URL path: /fund/LU2951555585
-	info.Symbol = extractISINFromURL(sourceURL)
-
-	// Extract fund name from <title> tag
-	info.Name = extractFundNameFromTitle(html)
-
-	return info
+	return &extractor.FundInfo{Symbol: symbol, Name: name}
 }
 
 // extractISINFromURL extracts the ISIN from the fund page URL path.
@@ -155,13 +183,35 @@ func extractISINFromURL(sourceURL string) string {
 		return ""
 	}
 
-	// Path is typically /fund/{ISIN}
+	// Path is typically /fund/{ISIN} (EU) or /us/fund/{ISIN}-{slug} (US).
 	filename := filepath.Base(parsed.Path)
-	// ISIN is 2 letters + 10 digits (12 chars total)
-	if len(filename) == 12 {
+	if isISINLike(filename) {
 		return filename
 	}
-	return filename
+	if idx := strings.IndexByte(filename, '-'); idx > 0 && isISINLike(filename[:idx]) {
+		return filename[:idx]
+	}
+	return ""
+}
+
+// isISINLike reports whether s looks like an ISIN: a two-letter country
+// prefix plus a 10-character body of digits and letters (e.g. LU2951555585,
+// US53700T8273). Check digits are not validated.
+func isISINLike(s string) bool {
+	if len(s) != 12 {
+		return false
+	}
+	for i := 0; i < 2; i++ {
+		if s[i] < 'A' || s[i] > 'Z' {
+			return false
+		}
+	}
+	for i := 2; i < 12; i++ {
+		if !((s[i] >= '0' && s[i] <= '9') || (s[i] >= 'A' && s[i] <= 'Z')) {
+			return false
+		}
+	}
+	return true
 }
 
 // extractFundNameFromTitle extracts the fund name from the HTML <title> tag.
@@ -187,8 +237,8 @@ func extractFundNameFromTitle(html string) string {
 
 	title := strings.TrimSpace(html[titleStart : titleStart+titleEnd])
 
-	// Remove the " | iMGP" or " - iMGP" suffix
-	for _, sep := range []string{" | iMGP", " - iMGP", " | IMGP", " - IMGP"} {
+	// Remove the site suffix (" | iMGP", " | iM Global Partner", ...).
+	for _, sep := range []string{" | iMGP", " - iMGP", " | IMGP", " - IMGP", " | iM Global Partner", " - iM Global Partner"} {
 		if idx := strings.LastIndex(title, sep); idx >= 0 {
 			title = strings.TrimSpace(title[:idx])
 			break

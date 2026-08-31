@@ -37,9 +37,50 @@ integration test `TestIMGPSymbolDetails_FullStackRoundTrip` already used a fract
 `extractPercent` itself is unchanged (shared by both fields). Parser unit test updated to
 expect 0.0055 (epsilon compare — 0.55/100 is not exactly representable in float64).
 
+## 2026-08-31 — US share class pages (revision)
+iMGP now also hosts US-listed fund share classes (e.g. `DBMF`, IMGP DBi Managed Futures
+Strategy ETF) under `https://www.imgp.com/us/fund/{ISIN}-{slug}` pages. The old extractor
+failed on them with `parse fund facts: parse ISIN: ISIN not found` — the US factsheet PDF
+lists the CUSIP instead of the ISIN, omits the share class name and ongoing charges, labels
+the fee "Gross Expense Ratio", and uses month-first dates (`05/07/2019` = 7 May 2019). The
+page itself embeds a `const fund = {...}` JSON object with the structured identity (`isin`,
+`sub_fund_name`, `cusip_code`, `management_fee_us`) — present on both the EU and US page
+variants.
+
+Decisions:
+- **Fund identity comes from the page JSON, not the URL** (`parseFundPageJSON` in `client.go`;
+  `parseFundInfoFromHTML` in `extractor.go` uses it first, URL path / `<title>` as fallbacks).
+  This also fixes fund names with the `| iM Global Partner EN/US` title suffix. The URL-based
+  `extractISINFromURL` now handles the `/us/fund/{ISIN}-{slug}` layout via `isISINLike`
+  (letters allowed in the 10-char body — the EU regex was digits-only and could never match
+  `US53700T8273`).
+- **Date layout is selected from the URL region**: `/us/` prefix → month-first, otherwise
+  day-first (`dateLayoutFor`, `DateLayout` type). US inception `05/07/2019` parses as
+  7 May 2019; EU dates unchanged. A US fund with a day-first layout would yield an impossible
+  month > 12 → explicit error, per the no-silent-fallback convention.
+- **ISIN is optional in the PDF**: `ParseFundFacts` no longer requires it in the factsheet
+  (US lists CUSIP instead). The extractor back-fills `profile.Isin` from the resolved
+  `fundInfo.Symbol`; if both sources lack an ISIN, extraction fails explicitly.
+- **Fee label fallback**: `extractPercentAny(section, "Management Fees", "Gross Expense Ratio")`
+  — the US label matches before the EU one, so a factsheet containing both would report the
+  gross ratio. Still a fraction (`/100`) per the 2026-08-29 convention.
+- **Volatility label fallback**: `Fund Volatility` (EU) → `Volatility` (US).
+- **Share class / ongoing charges** are optional (US factsheets omit both) — no longer
+  required fields in `ParseFundFacts`.
+- **Sample fixture**: `samples/DBMF_FACTSHEETS_EN.pdf` (real US factsheet, Jul 2026) +
+  `testdata/dbmf_factsheet.txt` (extracted text) + `testdata/us_fund_page_snippet.html`
+  (synthetic `const fund` JSON snippet — the real page embeds a 2 MB blob). Full-flow test:
+  `TestExtractor_Extract_US` (`extractor_test.go`) — mock client serving the page HTML plus the
+  real sample PDF bytes, asserts identity, back-filled ISIN, month-first inception, fee fraction
+  and risk measures. Skipped when the sample PDF is absent.
+- **Documented empties (US factsheet vs EU)**: no ISIN (CUSIP 56170L828 instead), no share
+  class name, no ongoing charges, no currency suffix on `Fund Size` ("3.9 Bn" — regex already
+  tolerated this). Verified against the real PDF.
+
+Deviations from plan (revision): none — implemented directly after user-reported failure.
+
 ## Future Improvements
 - None yet.
 
 ## Known Issues
-- Pre-existing: `internal/domain/symbols/service_test.go` has compilation errors (decimal.Decimal type mismatches, wrong argument count) — not caused by this feature.
-- Pre-existing: `internal/domain/extractor/wisdomtree/parsers_test.go` has unused imports — not caused by this feature.
+- (Resolved 2026-08-31: both pre-existing test-compilation issues listed here — `symbols/service_test.go` and `wisdomtree/parsers_test.go` — no longer reproduce; full `go test ./...` is green.)

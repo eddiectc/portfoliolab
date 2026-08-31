@@ -146,3 +146,27 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 - **PDF URL extraction**: The HTML page structure may change, breaking the PDF link extraction. Mitigation: try multiple selectors (href patterns, data attributes); explicit error logged.
 - **Cloudflare/bot detection**: iMGP may block non-browser requests. Mitigation: CycleTLS with browser fingerprint; rate limiting; explicit error if blocked.
 - **Multiple fund types**: Equity funds may have traditional holdings instead of derivatives allocation. Mitigation: parsers handle whatever sections are present; optional sections return nil.
+
+## Revision 2026-08-31: US share class pages
+
+External change: iMGP hosts US-listed share classes under `/us/fund/{ISIN}-{slug}` with a
+different factsheet layout (month-first dates, CUSIP instead of ISIN, "Gross Expense Ratio"
+fee label, no share class / ongoing charges). The page embeds a `const fund = {...}` JSON
+identity blob on both variants. Spec revised in place (Story 1 AC, Data Concepts, Edge
+Cases); see NOTES.md 2026-08-31.
+
+### Task R1: Parse fund identity from the page JSON [PRIORITY: HIGH]
+- [x] `parseFundPageJSON` (`client.go`) — decode the `const fund = {...}` blob (`isin`, `sub_fund_name`)
+- [x] `parseFundInfoFromHTML` uses JSON first, URL/title fallbacks; `extractISINFromURL` handles `/us/fund/{ISIN}-{slug}` via `isISINLike` (letters allowed)
+- [x] Tests: `TestParseFundPageJSON`, `TestExtractISINFromURL` (EU + US), `TestParseFundInfoFromHTML` fallback chain
+
+### Task R2: US factsheet parsing in `ParseFundFacts` [PRIORITY: HIGH]
+- [x] `DateLayout` + `parseDate` month-first layouts; `dateLayoutFor(sourceURL)` in the extractor
+- [x] ISIN, share class, ongoing charges optional; fee = "Management Fees" or "Gross Expense Ratio" (`extractPercentAny`)
+- [x] Volatility label fallback `Fund Volatility` → `Volatility`
+- [x] ISIN back-fill from resolved `fundInfo.Symbol`; explicit error if absent from both sources
+- [x] Sample fixture `samples/DBMF_FACTSHEETS_EN.pdf` + `testdata/dbmf_factsheet.txt` + `testdata/us_fund_page_snippet.html`
+- [x] Tests: `TestParseFundFacts_US`, `TestParseRiskMeasures_US`, `TestParseReferenceDate_US`, `TestExtractor_Extract_US` (full flow through `Extract` with the real sample PDF bytes, skipped when the sample is absent)
+- [x] Full suite: `go build ./... && go test ./...` green
+
+**Verification:** DBMF factsheet (Jul 2026) extracts end-to-end: AUM 3.9 Bn, inception 7 May 2019 (month-first), ISIN US53700T8273 back-filled from page, gross expense ratio 0.85% → 0.0085 fraction, volatility 12.39% (5Y). EU flow unchanged (all pre-existing tests pass).
