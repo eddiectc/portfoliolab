@@ -19,10 +19,10 @@ Yahoo Finance data for iM Global Partner (iMGP) funds is often incomplete or ins
 
 **Acceptance Criteria:**
 
-- Given a symbol has its `data_source_url` set to an iMGP factsheet URL (e.g. `https://www.imgp.com/fund/LU2951555585`),
+- Given a symbol has its `data_source_url` set to an iMGP fund page URL (e.g. `https://www.imgp.com/fund/LU2951555585` or the US variant `https://www.imgp.com/us/fund/US53700T8273-imgp-dbi-managed-futures-strategy-etf`),
   When the extractor runs,
   Then it extracts the following data:
-  - **Fund Facts** (AUM, inception date, ISIN, share class name, management fees, ongoing charges) — stored as structured data replacing the existing fund profile.
+  - **Fund Facts** (AUM, inception date, ISIN, share class name, fee) — stored as structured data replacing the existing fund profile. The fee is "Management Fees" on EU share class factsheets and "Gross Expense Ratio" on US share class factsheets (both stored as the annual expense ratio fraction).
   - **Risk Measures** (volatility, Sharpe ratio, information ratio, beta, correlation, tracking error) — stored as fund characteristics.
   - **Portfolio Composition** — replaces "Top Holdings" and "Sector Weightings" for funds where this data is the primary portfolio breakdown. Three tiers:
   - **Asset Class Allocation** (equities, bonds, gold, oil, cash & others) — exposure relative to AUM; values can be negative (short positions) and do not sum to 100%.
@@ -94,9 +94,16 @@ Yahoo Finance data for iM Global Partner (iMGP) funds is often incomplete or ins
 
 The user sets the `data_source_url` on a symbol to the iMGP factsheet page URL (e.g. `https://www.imgp.com/fund/LU2951555585`). The ISIN is embedded in the URL path. The dispatcher's `FindByURL` matches the URL against the iMGP extractor's `URLMatcher`. This reuses the existing mechanism from f021 — no new configuration UI or storage is needed. Market data (quotes, prices) continues to use Yahoo Finance.
 
-### ISIN in the URL
+### Fund identity (page variants)
 
-The ISIN is embedded in the factsheet URL path (e.g. `https://www.imgp.com/fund/LU2951555585`). The extractor extracts the ISIN from the URL to identify the fund. Multiple share classes of the same fund have different ISINs and different URLs.
+iMGP has two fund page variants with different URL layouts and factsheet layouts:
+
+- **EU share classes** — `https://www.imgp.com/fund/{ISIN}` (e.g. `.../fund/LU2951555585`). Day-first dates, the factsheet PDF includes the ISIN, share class name and ongoing charges.
+- **US share classes** — `https://www.imgp.com/us/fund/{ISIN}-{slug}` (e.g. `.../us/fund/US53700T8273-imgp-dbi-managed-futures-strategy-etf`). Month-first dates; the factsheet PDF lists the CUSIP instead of the ISIN and omits the share class name and ongoing charges.
+
+Fund identity (ISIN + fund name) comes from the structured `const fund = {...}` JSON embedded in the page HTML (present on both variants). The URL path is the fallback: `{ISIN}` directly for EU, `{ISIN}-{slug}` prefix for US. When the factsheet PDF omits the ISIN (US variant), the extractor back-fills it from the resolved fund identity. If no ISIN can be found in either source, the extraction fails with an explicit error.
+
+Multiple share classes of the same fund have different ISINs and different URLs.
 
 ### Data Mapping
 
@@ -140,6 +147,7 @@ Factsheets are published monthly. The same URL is reused for each month's editio
 - **Cloudflare/bot detection**: If the request is blocked, the error is explicit and existing cached data is preserved.
 - **Multiple share classes**: A single fund may have multiple share classes (e.g. A, I, C shares), each with a different ISIN and factsheet URL. Each is configured as a separate symbol with its own `data_source_url`.
 - **PDF language variants**: iMGP factsheets are published in multiple languages. The `data_source_url` determines which language edition is fetched (e.g. the URL path or query parameter selects English). The extractor parses whatever language the URL resolves to.
+- **US share class pages**: US pages use a different URL layout (`/us/fund/{ISIN}-{slug}`) and their factsheets use month-first dates (e.g. `05/07/2019` = 7 May 2019), list the CUSIP instead of the ISIN, label the fee "Gross Expense Ratio", and omit the share class name and ongoing charges. The extractor selects the date layout from the URL region, accepts either fee label, and back-fills the ISIN from the page's structured data. Sample factsheet: `features/f024_imgp-scraper/samples/DBMF_FACTSHEETS_EN.pdf`.
 - **Corrupted or incomplete PDF download**: If the downloaded PDF is truncated or corrupted, the parsing fails with an explicit error and the symbol is marked as failed.
 
 ## Non-Goals

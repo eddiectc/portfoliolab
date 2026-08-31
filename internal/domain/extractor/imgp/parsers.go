@@ -33,10 +33,24 @@ func ExtractPDFText(pdfBytes []byte) (string, error) {
 	return strings.Join(pages, "\n"), nil
 }
 
+// DateLayout selects how numeric factsheet dates are interpreted.
+type DateLayout int
+
+const (
+	// DateLayoutDayFirst — EU factsheets: "07/03/2025" = 7 March 2025.
+	DateLayoutDayFirst DateLayout = iota
+	// DateLayoutMonthFirst — US share class factsheets: "05/07/2019" = 7 May 2019.
+	DateLayoutMonthFirst
+)
+
 // ParseFundFacts extracts fund facts from the PDF text.
-// Required: Fund Size, Inception Date, ISIN, Management Fees.
+// Required: Fund Size, Inception Date, and a fee figure (Management Fees on EU
+// factsheets, Gross Expense Ratio on US share class factsheets).
+// Optional in the PDF: ISIN (US factsheets list CUSIP instead), Share Class and
+// Ongoing Charges (US factsheets omit both) — the extractor back-fills ISIN
+// from the fund page.
 // Returns nil, nil for FundInfo (fund identity comes from the HTML page, not PDF).
-func ParseFundFacts(pdfText string) (*extractor.FundProfile, error) {
+func ParseFundFacts(pdfText string, layout DateLayout) (*extractor.FundProfile, error) {
 	profile := &extractor.FundProfile{}
 
 	// Fund Facts section is a dense paragraph embedded in the text (not a standalone line).
@@ -55,41 +69,37 @@ func ParseFundFacts(pdfText string) (*extractor.FundProfile, error) {
 	profile.TotalNetAssets = aum
 
 	// Inception Date: "Inception Date of theShare Class 07/03/2025"
-	inception, err := extractInceptionDate(factsSection)
+	inception, err := extractInceptionDate(factsSection, layout)
 	if err != nil {
 		return nil, fmt.Errorf("parse inception date: %w", err)
 	}
 	profile.InceptionDate = inception
 
-	// ISIN: "ISIN LU2951555585"
-	isin, err := extractISIN(factsSection)
-	if err != nil {
-		return nil, fmt.Errorf("parse ISIN: %w", err)
+	// ISIN: "ISIN LU2951555585" — EU share class factsheets only. US share
+	// class factsheets list CUSIP instead; when absent here the extractor
+	// back-fills profile.Isin from the fund page.
+	if isin, err := extractISIN(factsSection); err == nil {
+		profile.Isin = isin
 	}
-	profile.Isin = isin
 
-	// Share Class: "Share Class R USD UCITS ETF"
-	shareClass, err := extractShareClass(factsSection)
-	if err != nil {
-		return nil, fmt.Errorf("parse share class: %w", err)
+	// Share Class: "Share Class R USD UCITS ETF" — EU factsheets only.
+	if shareClass, err := extractShareClass(factsSection); err == nil {
+		profile.ShareClassName = shareClass
 	}
-	profile.ShareClassName = shareClass
 
-	// Management Fees: "Management Fees 0.55%"
+	// Fee: "Management Fees 0.55%" (EU) or "Gross Expense Ratio 0.85%" (US).
 	// Convention: AnnualExpenseRatio is a fraction (0.0055 for 0.55%),
 	// matching vanguard/wisdomtree and the web display (value * 100).
-	mgmtFees, err := extractPercent(factsSection, "Management Fees")
+	mgmtFees, err := extractPercentAny(factsSection, "Management Fees", "Gross Expense Ratio")
 	if err != nil {
 		return nil, fmt.Errorf("parse management fees: %w", err)
 	}
 	profile.AnnualExpenseRatio = mgmtFees / 100
 
-	// Ongoing Charges: "Ongoing Charges 0.75%"
-	ongoingCharges, err := extractPercent(factsSection, "Ongoing Charges")
-	if err != nil {
-		return nil, fmt.Errorf("parse ongoing charges: %w", err)
+	// Ongoing Charges: "Ongoing Charges 0.75%" — EU factsheets only.
+	if ongoingCharges, err := extractPercent(factsSection, "Ongoing Charges"); err == nil {
+		profile.OngoingCharges = ongoingCharges
 	}
-	profile.OngoingCharges = ongoingCharges
 
 	return profile, nil
 }
@@ -105,8 +115,11 @@ func ParseRiskMeasures(pdfText string) (*extractor.RiskMeasures, error) {
 	// Pattern: "Fund Volatility \n(1Y)\n 9.16% Sharpe Ratio \n(1Y)\n 2.52"
 	// Values may be absent (e.g. for new funds)
 
-	// Volatility: "Fund Volatility \n(1Y)\n 9.16%"
+	// Volatility: "Fund Volatility \n(1Y)\n 9.16%" (EU) or "Volatility \n(5Y)\n 12.39%" (US)
 	volatility, err := extractRiskMeasure(pdfText, "Fund Volatility")
+	if err != nil {
+		volatility, err = extractRiskMeasure(pdfText, "Volatility")
+	}
 	if err == nil {
 		risk.Volatility = volatility
 		risk.FieldsPresent |= extractor.RiskFieldVolatility
@@ -294,7 +307,9 @@ func ParseReferenceDate(pdfText string) (time.Time, error) {
 	}
 
 	dateStr := strings.TrimSpace(match[1])
-	return parseDate(dateStr)
+	// Header dates are spelled out ("April 30, 2026") in both EU and US
+	// factsheets, so the numeric layout is irrelevant here.
+	return parseDate(dateStr, DateLayoutDayFirst)
 }
 
 // --- Helper functions ---
@@ -380,9 +395,10 @@ func findNextSectionEnd(remaining, currentHeader string) int {
 	return len(remaining)
 }
 
-// extractFundSize parses "439.2 Mn USD" into a float64 in millions.
+// extractFundSize parses "439.2 Mn USD" into a float64 (trailing currency is
+// optional — US share class factsheets write "Fund Size 3.9 Bn" without it).
 func extractFundSize(section string) (float64, error) {
-	re := regexp.MustCompile(`Fund Size\s+([\d,.]+)\s*(Mn|Bn|Million|Billion)\s*\w+`)
+	re := regexp.MustCompile(`Fund Size\s+([\d,.]+)\s*(Mn|Bn|Million|Billion)(?:\s+[A-Za-z]{2,10})?`)
 	match := re.FindStringSubmatch(section)
 	if match == nil {
 		return 0, fmt.Errorf("fund size not found")
@@ -405,19 +421,20 @@ func extractFundSize(section string) (float64, error) {
 }
 
 // extractInceptionDate parses "Inception Date of theShare Class 07/03/2025".
-func extractInceptionDate(section string) (time.Time, error) {
+func extractInceptionDate(section string, layout DateLayout) (time.Time, error) {
 	re := regexp.MustCompile(`Inception Date[^0-9]*([\d]{1,2}[/\-][\d]{1,2}[/\-][\d]{2,4})`)
 	match := re.FindStringSubmatch(section)
 	if match == nil {
 		return time.Time{}, fmt.Errorf("inception date not found")
 	}
 
-	return parseDate(match[1])
+	return parseDate(match[1], layout)
 }
 
-// extractISIN parses "ISIN LU2951555585".
+// extractISIN parses "ISIN LU2951555585". The ISIN body may contain letters
+// (e.g. US53700T8273), not only digits.
 func extractISIN(section string) (string, error) {
-	re := regexp.MustCompile(`ISIN\s+([A-Z]{2}\d{10})`)
+	re := regexp.MustCompile(`ISIN\s+([A-Z]{2}[0-9A-Z]{10})`)
 	match := re.FindStringSubmatch(section)
 	if len(match) < 2 {
 		return "", fmt.Errorf("ISIN not found")
@@ -434,6 +451,19 @@ func extractShareClass(section string) (string, error) {
 		return "", fmt.Errorf("share class not found")
 	}
 	return strings.TrimSpace(match[1]), nil
+}
+
+// extractPercentAny returns the percentage value after the first matching label.
+func extractPercentAny(section string, labels ...string) (float64, error) {
+	var firstErr error
+	for _, label := range labels {
+		if value, err := extractPercent(section, label); err == nil {
+			return value, nil
+		} else if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return 0, firstErr
 }
 
 // extractPercent extracts a percentage value after a given label.
@@ -669,21 +699,34 @@ func extractRegionLabelsAndPercentages(section string) ([]string, []float64) {
 }
 
 // parseDate tries multiple date formats common on iMGP factsheets.
-func parseDate(dateStr string) (time.Time, error) {
+func parseDate(dateStr string, layout DateLayout) (time.Time, error) {
 	dateStr = strings.TrimSpace(dateStr)
 
-	formats := []string{
-		"02/01/2006",      // "07/03/2025"
-		"2/1/2006",        // "7/3/2025"
-		"02/01/06",        // "07/03/25"
-		"2/1/06",          // "7/3/25"
+	var formats []string
+	if layout == DateLayoutMonthFirst {
+		formats = []string{
+			"01/02/2006", // "05/07/2019"
+			"1/2/2006",   // "5/7/2019"
+			"01/02/06",   // "05/07/19"
+			"1/2/06",     // "5/7/19"
+		}
+	} else {
+		formats = []string{
+			"02/01/2006", // "07/03/2025"
+			"2/1/2006",   // "7/3/2025"
+			"02/01/06",   // "07/03/25"
+			"2/1/06",     // "7/3/25"
+		}
+	}
+	// Non-numeric formats are shared by both layouts.
+	formats = append(formats,
 		"January 2, 2006", // "April 30, 2026"
 		"Jan 2, 2006",     // "Apr 30, 2026"
 		"2 January 2006",  // "30 April 2026"
 		"02 January 2006", // "30 April 2026"
 		"2006-01-02",      // "2026-04-30"
-		"02-01-2006",      // "30-04-2026"
-	}
+		"02-01-2006",      // "30-04-2026",
+	)
 
 	for _, format := range formats {
 		if t, err := time.Parse(format, dateStr); err == nil {

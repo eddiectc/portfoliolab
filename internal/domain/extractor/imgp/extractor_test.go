@@ -3,6 +3,7 @@ package imgp
 import (
 	"context"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -108,6 +109,74 @@ func TestExtractor_Extract_Success(t *testing.T) {
 	}
 	if mock.pdfCalls != 1 {
 		t.Errorf("expected 1 PDF fetch, got %d", mock.pdfCalls)
+	}
+}
+
+// --- Extract success (US share class) ---
+// US factsheets use month-first dates, CUSIP instead of ISIN, and
+// "Gross Expense Ratio" instead of "Management Fees".
+func TestExtractor_Extract_US(t *testing.T) {
+	mock := newMockClient()
+	mock.setupPageFetch(sampleUSHTML(), nil)
+
+	pdfBytes, err := loadSamplePDFNamed(t, "DBMF_FACTSHEETS_EN.pdf")
+	if err != nil {
+		t.Skipf("sample PDF not available: %v", err)
+	}
+	mock.setupPDFFetch(pdfBytes, nil)
+
+	e := NewExtractor()
+	e.SetClient(mock.Client)
+
+	result, err := e.Extract(context.Background(), "https://www.imgp.com/us/fund/US53700T8273-imgp-dbi-managed-futures-strategy-etf")
+	if err != nil {
+		t.Fatalf("Extract failed: %v", err)
+	}
+
+	// Fund identity comes from the page's structured JSON.
+	if result.FundInfo == nil {
+		t.Fatal("FundInfo is nil")
+	}
+	if result.FundInfo.Symbol != "US53700T8273" {
+		t.Errorf("FundInfo.Symbol = %q, want %q", result.FundInfo.Symbol, "US53700T8273")
+	}
+	if result.FundInfo.Name != "iMGP DBi Managed Futures Strategy ETF" {
+		t.Errorf("FundInfo.Name = %q, want %q", result.FundInfo.Name, "iMGP DBi Managed Futures Strategy ETF")
+	}
+
+	if result.FundProfile == nil {
+		t.Fatal("FundProfile is nil")
+	}
+	// The US factsheet lists CUSIP, not ISIN — the ISIN is back-filled from
+	// the fund page.
+	if result.FundProfile.Isin != "US53700T8273" {
+		t.Errorf("FundProfile.Isin = %q, want %q (back-filled)", result.FundProfile.Isin, "US53700T8273")
+	}
+	// 05/07/2019 is month-first on US factsheets: 7 May 2019, not 5 July.
+	wantInception := time.Date(2019, 5, 7, 0, 0, 0, 0, time.UTC)
+	if !result.FundProfile.InceptionDate.Equal(wantInception) {
+		t.Errorf("InceptionDate = %v, want %v", result.FundProfile.InceptionDate, wantInception)
+	}
+	// Gross Expense Ratio 0.85% stored as fraction.
+	if math.Abs(result.FundProfile.AnnualExpenseRatio-0.0085) > 1e-12 {
+		t.Errorf("AnnualExpenseRatio = %v, want 0.0085", result.FundProfile.AnnualExpenseRatio)
+	}
+	if result.FundProfile.ShareClassName != "" {
+		t.Errorf("ShareClassName = %q, want empty (US factsheets omit it)", result.FundProfile.ShareClassName)
+	}
+	if result.FundProfile.TotalNetAssets != 3_900_000_000 {
+		t.Errorf("TotalNetAssets = %.0f, want 3900000000", result.FundProfile.TotalNetAssets)
+	}
+
+	if result.RiskMeasures == nil {
+		t.Error("RiskMeasures is nil (US factsheet has a risk measures section)")
+	} else {
+		if math.Abs(result.RiskMeasures.Volatility-12.39) > 1e-9 {
+			t.Errorf("Volatility = %v, want 12.39", result.RiskMeasures.Volatility)
+		}
+		if math.Abs(result.RiskMeasures.SharpeRatio-0.35) > 1e-9 {
+			t.Errorf("SharpeRatio = %v, want 0.35", result.RiskMeasures.SharpeRatio)
+		}
 	}
 }
 
@@ -285,6 +354,20 @@ func TestParseFundInfoFromHTML(t *testing.T) {
 			wantSymbol: "LU1234567890",
 			wantName:   "",
 		},
+		{
+			name:       "page JSON takes precedence over URL and title",
+			sourceURL:  "https://www.imgp.com/fund/LU1234567890",
+			html:       `<html><head><title>Wrong Name | iMGP</title></head><body>const fund = {"sub_fund_name": "Real Fund Name", "isin": "LU9999999999"};</body></html>`,
+			wantSymbol: "LU9999999999",
+			wantName:   "Real Fund Name",
+		},
+		{
+			name:       "US slug URL and title fallback",
+			sourceURL:  "https://www.imgp.com/us/fund/US53700T8273-imgp-dbi-managed-futures-strategy-etf",
+			html:       `<html><head><title>iMGP DBi Managed Futures Strategy ETF | iM Global Partner US</title></head></html>`,
+			wantSymbol: "US53700T8273",
+			wantName:   "iMGP DBi Managed Futures Strategy ETF",
+		},
 	}
 
 	for _, tt := range tests {
@@ -311,6 +394,8 @@ func TestExtractISINFromURL(t *testing.T) {
 		{"standard path", "https://www.imgp.com/fund/LU2951555585", "LU2951555585"},
 		{"with query params", "https://www.imgp.com/fund/IE00BXYZ1234?lang=en", "IE00BXYZ1234"},
 		{"without www", "https://imgp.com/fund/LU1234567890", "LU1234567890"},
+		{"US slug", "https://www.imgp.com/us/fund/US53700T8273-imgp-dbi-managed-futures-strategy-etf", "US53700T8273"},
+		{"slug without ISIN", "https://www.imgp.com/fund/some-fund-name", ""},
 		{"invalid URL", "not a url", ""},
 	}
 
@@ -398,8 +483,74 @@ func sampleHTMLWithFactsheetLink() string {
 </body></html>`
 }
 
-// loadSamplePDF reads the sample PDF from the feature samples directory.
+// sampleUSHTML returns a US fund page with the `const fund` JSON object and
+// a factsheet link.
+func sampleUSHTML() string {
+	return `<html><head><title>iMGP DBi Managed Futures Strategy ETF | iM Global Partner US</title></head>
+<body>
+<script>const fund = {"sub_fund_name": "iMGP DBi Managed Futures Strategy ETF", "share_class_name": "ETF USD", "isin": "US53700T8273", "cusip_code": "56170L828", "management_fee_us": 0.85};</script>
+<a href="https://www.imgp.com/uploads/factsheets/DBMF_FACTSHEETS_EN.pdf" target="_blank">Factsheet</a>
+</body></html>`
+}
+
+// loadSamplePDF reads the EU sample PDF from the feature samples directory.
 func loadSamplePDF(t *testing.T) ([]byte, error) {
 	t.Helper()
-	return os.ReadFile(filepath.Join("..", "..", "..", "..", "features", "f024_imgp-scraper", "samples", "LU2951555585_FACTSHEETS_EN.pdf"))
+	return loadSamplePDFNamed(t, "LU2951555585_FACTSHEETS_EN.pdf")
+}
+
+// loadSamplePDFNamed reads a named sample PDF from the feature samples directory.
+func loadSamplePDFNamed(t *testing.T, filename string) ([]byte, error) {
+	t.Helper()
+	return os.ReadFile(filepath.Join("..", "..", "..", "..", "features", "f024_imgp-scraper", "samples", filename))
+}
+
+// --- parseFundPageJSON ---
+
+func TestParseFundPageJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		html     string
+		wantIsin string
+		wantName string
+		wantNil  bool
+	}{
+		{
+			name:     "valid JSON",
+			html:     `<body>const fund = {"sub_fund_name": "A Fund", "isin": "LU1234567890"};</body>`,
+			wantIsin: "LU1234567890",
+			wantName: "A Fund",
+		},
+		{
+			name:    "missing marker",
+			html:    `<body>no fund json here</body>`,
+			wantNil: true,
+		},
+		{
+			name:    "invalid JSON after marker",
+			html:    `<body>const fund = {not json};</body>`,
+			wantNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := parseFundPageJSON(tt.html)
+			if tt.wantNil {
+				if f != nil {
+					t.Fatalf("expected nil, got %+v", f)
+				}
+				return
+			}
+			if f == nil {
+				t.Fatal("expected non-nil, got nil")
+			}
+			if f.Isin != tt.wantIsin {
+				t.Errorf("Isin = %q, want %q", f.Isin, tt.wantIsin)
+			}
+			if f.SubFundName != tt.wantName {
+				t.Errorf("SubFundName = %q, want %q", f.SubFundName, tt.wantName)
+			}
+		})
+	}
 }

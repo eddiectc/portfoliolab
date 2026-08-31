@@ -25,7 +25,7 @@ func loadFixture(t *testing.T, name string) string {
 func TestParseFundFacts(t *testing.T) {
 	pdfText := loadFixture(t, "lu2951555585_factsheet.txt")
 
-	profile, err := ParseFundFacts(pdfText)
+	profile, err := ParseFundFacts(pdfText, DateLayoutDayFirst)
 	if err != nil {
 		t.Fatalf("ParseFundFacts: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestParseFundFacts(t *testing.T) {
 }
 
 func TestParseFundFacts_MissingSection(t *testing.T) {
-	_, err := ParseFundFacts("some random text without fund facts")
+	_, err := ParseFundFacts("some random text without fund facts", DateLayoutDayFirst)
 	if err == nil {
 		t.Error("expected error for missing fund facts section")
 	}
@@ -547,11 +547,18 @@ func TestParseDate(t *testing.T) {
 		{"DD-MM-YYYY", "30-04-2026", "2026-04-30"},
 		{"YYYY-MM-DD", "2026-04-30", "2026-04-30"},
 		{"DD/MM/YY", "07/03/25", "2025-03-07"},
+		{"MM/DD/YYYY month-first", "05/07/2019", "2019-05-07"},
+		{"M/D/YYYY month-first", "5/7/2019", "2019-05-07"},
+		{"MM/DD/YY month-first", "05/07/19", "2019-05-07"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseDate(tt.input)
+			layout := DateLayoutDayFirst
+			if strings.Contains(tt.name, "month-first") {
+				layout = DateLayoutMonthFirst
+			}
+			got, err := parseDate(tt.input, layout)
 			if err != nil {
 				t.Fatalf("parseDate(%q): %v", tt.input, err)
 			}
@@ -563,9 +570,42 @@ func TestParseDate(t *testing.T) {
 }
 
 func TestParseDate_Invalid(t *testing.T) {
-	_, err := parseDate("not a date")
+	_, err := parseDate("not a date", DateLayoutDayFirst)
 	if err == nil {
 		t.Error("expected error for invalid date")
+	}
+}
+
+// The layout, not the digit values, decides the interpretation of an
+// ambiguous numeric date: "07/03/2025" is 7 March day-first but 3 July
+// month-first.
+func TestParseDate_MonthFirstDisambiguation(t *testing.T) {
+	// 07/03/2025 interpreted month-first = 3 July 2025.
+	got, err := parseDate("07/03/2025", DateLayoutMonthFirst)
+	if err != nil {
+		t.Fatalf("parseDate: %v", err)
+	}
+	if got.Format("2006-01-02") != "2025-07-03" {
+		t.Errorf("month-first 07/03/2025 = %s, want 2025-07-03", got.Format("2006-01-02"))
+	}
+}
+
+// --- extractPercentAny ---
+
+func TestExtractPercentAny(t *testing.T) {
+	// EU style: Management Fees present, Gross Expense Ratio absent.
+	section := "Management Fees 0.55% Ongoing Charges 0.75%"
+	if got, err := extractPercentAny(section, "Management Fees", "Gross Expense Ratio"); err != nil || got != 0.55 {
+		t.Errorf("EU: got %.4f, %v; want 0.55, nil", got, err)
+	}
+	// US style: only Gross Expense Ratio present.
+	usSection := "Gross Expense Ratio 0.85% Share Currency USD"
+	if got, err := extractPercentAny(usSection, "Management Fees", "Gross Expense Ratio"); err != nil || got != 0.85 {
+		t.Errorf("US: got %.4f, %v; want 0.85, nil", got, err)
+	}
+	// Neither present: error.
+	if _, err := extractPercentAny("nothing here", "Management Fees", "Gross Expense Ratio"); err == nil {
+		t.Error("expected error when no label matches")
 	}
 }
 
@@ -581,6 +621,7 @@ func TestExtractFundSize(t *testing.T) {
 		{"millions", "Fund Size 439.2 Mn USD", 439_200_000, false},
 		{"billions", "Fund Size 1.5 Bn USD", 1_500_000_000, false},
 		{"million spelled", "Fund Size 500 Million EUR", 500_000_000, false},
+		{"billions no currency", "Fund Size 3.9 Bn Inception", 3_900_000_000, false},
 		{"missing", "Fund Size not available", 0, true},
 	}
 
@@ -609,6 +650,7 @@ func TestExtractISIN(t *testing.T) {
 	}{
 		{"standard", "ISIN LU2951555585", "LU2951555585", false},
 		{"with surrounding text", "foo ISIN US1234567890 bar", "US1234567890", false},
+		{"letters in body", "ISIN US53700T8273", "US53700T8273", false},
 		{"missing", "no ISIN here", "", true},
 	}
 
@@ -667,11 +709,16 @@ func TestExtractInceptionDate(t *testing.T) {
 		{"with extra spacing", "Inception Date  of the Share Class 15/12/2023", "2023-12-15"},
 		{"dash separator", "Inception Date 15-12-2023", "2023-12-15"},
 		{"two-digit year", "Inception Date 07/03/25", "2025-03-07"},
+		{"month-first US", "Inception Date of the Share Class 05/07/2019", "2019-05-07"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := extractInceptionDate(tt.input)
+			layout := DateLayoutDayFirst
+			if tt.name == "month-first US" {
+				layout = DateLayoutMonthFirst
+			}
+			got, err := extractInceptionDate(tt.input, layout)
 			if err != nil {
 				t.Fatalf("extractInceptionDate(%q): %v", tt.input, err)
 			}
@@ -683,7 +730,7 @@ func TestExtractInceptionDate(t *testing.T) {
 }
 
 func TestExtractInceptionDate_Missing(t *testing.T) {
-	_, err := extractInceptionDate("no inception date here")
+	_, err := extractInceptionDate("no inception date here", DateLayoutDayFirst)
 	if err == nil {
 		t.Error("expected error for missing inception date")
 	}
@@ -728,7 +775,7 @@ func TestFullExtractionFromFixture(t *testing.T) {
 	pdfText := loadFixture(t, "lu2951555585_factsheet.txt")
 
 	// Parse all sections
-	profile, err := ParseFundFacts(pdfText)
+	profile, err := ParseFundFacts(pdfText, DateLayoutDayFirst)
 	if err != nil {
 		t.Errorf("ParseFundFacts: %v", err)
 	}
@@ -789,4 +836,98 @@ func TestFullExtractionFromFixture(t *testing.T) {
 	t.Logf("AssetClassAllocation: %d entries", len(result.AssetClassAllocation))
 	t.Logf("EquityDerivativesByRegion: %d entries", len(result.EquityDerivativesByRegion))
 	t.Logf("CurrencyDerivativesAllocation: %d entries", len(result.CurrencyDerivativesAllocation))
+}
+
+// --- US share class factsheet (DBMF) ---
+// US factsheets differ from EU ones: month-first dates, CUSIP instead of ISIN,
+// no Share Class field, "Gross Expense Ratio" instead of "Management Fees",
+// no Ongoing Charges, and "Fund Size X Bn" without a trailing currency.
+
+func TestParseFundFacts_US(t *testing.T) {
+	pdfText := loadFixture(t, "dbmf_factsheet.txt")
+
+	profile, err := ParseFundFacts(pdfText, DateLayoutMonthFirst)
+	if err != nil {
+		t.Fatalf("ParseFundFacts: %v", err)
+	}
+
+	// Fund Size: 3.9 Bn (no trailing currency on US factsheets)
+	if profile.TotalNetAssets != 3_900_000_000 {
+		t.Errorf("TotalNetAssets = %.0f, want 3900000000", profile.TotalNetAssets)
+	}
+
+	// Inception Date: 05/07/2019 month-first = 7 May 2019
+	expectedInception, _ := time.Parse("2006-01-02", "2019-05-07")
+	if !profile.InceptionDate.Equal(expectedInception) {
+		t.Errorf("InceptionDate = %v, want %v", profile.InceptionDate, expectedInception)
+	}
+
+	// US factsheets list CUSIP, not ISIN; the extractor back-fills the ISIN
+	// from the fund page.
+	if profile.Isin != "" {
+		t.Errorf("Isin = %q, want empty (back-filled by extractor)", profile.Isin)
+	}
+
+	// No Share Class field on US factsheets.
+	if profile.ShareClassName != "" {
+		t.Errorf("ShareClassName = %q, want empty", profile.ShareClassName)
+	}
+
+	// Gross Expense Ratio 0.85% (stored as fraction: 0.85% -> 0.0085)
+	if math.Abs(profile.AnnualExpenseRatio-0.0085) > 1e-12 {
+		t.Errorf("AnnualExpenseRatio = %v, want 0.0085 (fraction for 0.85%%)", profile.AnnualExpenseRatio)
+	}
+
+	// No Ongoing Charges on US factsheets.
+	if profile.OngoingCharges != 0 {
+		t.Errorf("OngoingCharges = %.2f, want 0", profile.OngoingCharges)
+	}
+}
+
+func TestParseRiskMeasures_US(t *testing.T) {
+	pdfText := loadFixture(t, "dbmf_factsheet.txt")
+
+	risk, err := ParseRiskMeasures(pdfText)
+	if err != nil {
+		t.Fatalf("ParseRiskMeasures: %v", err)
+	}
+	if risk == nil {
+		t.Fatal("expected non-nil risk measures")
+	}
+
+	// US factsheets publish 5-year risk measures; the first column is the fund.
+	if math.Abs(risk.Volatility-12.39) > 1e-9 {
+		t.Errorf("Volatility = %v, want 12.39", risk.Volatility)
+	}
+	if math.Abs(risk.SharpeRatio-0.35) > 1e-9 {
+		t.Errorf("SharpeRatio = %v, want 0.35", risk.SharpeRatio)
+	}
+	if math.Abs(risk.InfoRatio-0.46) > 1e-9 {
+		t.Errorf("InfoRatio = %v, want 0.46", risk.InfoRatio)
+	}
+	if math.Abs(risk.Beta-1.07) > 1e-9 {
+		t.Errorf("Beta = %v, want 1.07", risk.Beta)
+	}
+	if math.Abs(risk.Correlation-0.84) > 1e-9 {
+		t.Errorf("Correlation = %v, want 0.84", risk.Correlation)
+	}
+	if math.Abs(risk.TrackingError-6.77) > 1e-9 {
+		t.Errorf("TrackingError = %v, want 6.77", risk.TrackingError)
+	}
+	if !risk.AllFieldsPresent() {
+		t.Error("AllFieldsPresent should be true for the US factsheet")
+	}
+}
+
+func TestParseReferenceDate_US(t *testing.T) {
+	pdfText := loadFixture(t, "dbmf_factsheet.txt")
+
+	got, err := ParseReferenceDate(pdfText)
+	if err != nil {
+		t.Fatalf("ParseReferenceDate: %v", err)
+	}
+	// Header reads "Fact Sheet – June 30, 2026"
+	if got.Format("2006-01-02") != "2026-06-30" {
+		t.Errorf("AsOfDate = %s, want 2026-06-30", got.Format("2006-01-02"))
+	}
 }

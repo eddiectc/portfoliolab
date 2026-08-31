@@ -15,7 +15,7 @@ func TestParseFundFacts_Real(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipped in short mode")
 	}
-	profile, err := ParseFundFacts(realPDFText)
+	profile, err := ParseFundFacts(realPDFText, DateLayoutDayFirst)
 	if err != nil {
 		t.Fatalf("ParseFundFacts failed: %v", err)
 	}

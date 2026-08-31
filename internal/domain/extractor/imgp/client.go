@@ -2,8 +2,10 @@ package imgp
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -142,6 +144,33 @@ func (c *Client) SetMinDelay(d time.Duration) {
 // the wait sequence without burning wall-clock time.
 func (c *Client) SetThrottle(fn func(time.Duration)) {
 	c.throttle = fn
+}
+
+// fundPageJSON is the subset of the `const fund = {...}` JSON object embedded
+// in iMGP fund pages that the extractor needs for fund identity.
+type fundPageJSON struct {
+	SubFundName     string   `json:"sub_fund_name"`
+	Isin            string   `json:"isin"`
+	CusipCode       string   `json:"cusip_code"`
+	ShareClassName  string   `json:"share_class_name"`
+	ManagementFeeUS *float64 `json:"management_fee_us"`
+}
+
+// parseFundPageJSON extracts the structured fund identity embedded in the fund
+// page as `const fund = {...}`. Both the EU (/fund/ISIN) and US (/us/fund/
+// slug) page variants carry the same object. Returns nil if absent or invalid.
+func parseFundPageJSON(html string) *fundPageJSON {
+	marker := "const fund = "
+	idx := strings.Index(html, marker)
+	if idx < 0 {
+		return nil
+	}
+	dec := json.NewDecoder(strings.NewReader(html[idx+len(marker):]))
+	var f fundPageJSON
+	if err := dec.Decode(&f); err != nil {
+		return nil
+	}
+	return &f
 }
 
 // wait enforces the minimum delay between requests.
