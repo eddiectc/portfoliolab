@@ -22,11 +22,11 @@ func CalculatePositions(_ context.Context, accountID int64, transactions []trans
 	// Step 1: Group transactions into buy and sell lots.
 	buyLots, sellLots := GroupTransactionsIntoLots(transactions)
 
-	// Step 2: Match sell lots against buy lots using FIFO.
-	consumptions, _ := MatchSellLotsAgainstBuys(buyLots, sellLots)
+	// Step 2: Match sell lots against buy lots using date-aware FIFO.
+	consumptions, remaining := MatchSellLotsAgainstBuys(buyLots, sellLots)
 
-	// Step 3: Compute open and closed positions from the matched lots.
-	openPositions, closedPositions := ComputePositions(buyLots, sellLots)
+	// Step 3: Compute open and closed positions from the match result.
+	openPositions, closedPositions := ComputePositions(buyLots, sellLots, consumptions, remaining)
 
 	// Step 4: Compute cash positions from cash-affecting transactions.
 	cashPositions := ComputeCashPositions(transactions)

@@ -71,12 +71,38 @@ func TestCalculatePositions_FullFlowWithOpenAndCashPosition(t *testing.T) {
 		t.Errorf("expected realized P&L 0 (open position), got %q", aaplPos.RealizedPnL.String())
 	}
 
-	// No closed positions.
-	if len(result.ClosedPositions) != 0 {
-		t.Errorf("expected 0 closed positions, got %d", len(result.ClosedPositions))
+	// One closed position: the 3 shares sold by S1 (per-sell-lot rows).
+	if len(result.ClosedPositions) != 1 {
+		t.Fatalf("expected 1 closed position, got %d", len(result.ClosedPositions))
+	}
+	closedPos := result.ClosedPositions[0]
+	if !closedPos.Quantity.Equal(dec(3, 0)) {
+		t.Errorf("expected closed quantity 3, got %q", closedPos.Quantity.String())
+	}
+	// Cost basis = 3/10 of -1500 = -450; proceeds 510 → P&L +60
+	if !closedPos.CostBasis.Equal(dec(-45000, 2)) {
+		t.Errorf("expected closed cost basis -450.00, got %q", closedPos.CostBasis.String())
+	}
+	if !closedPos.RealizedPnL.Equal(dec(6000, 2)) {
+		t.Errorf("expected closed realized P&L 60.00, got %q", closedPos.RealizedPnL.String())
+	}
+	if closedPos.AvgClosePrice == nil || !closedPos.AvgClosePrice.Equal(dec(17000, 2)) {
+		t.Errorf("expected closed avg close price 170.00, got %v", closedPos.AvgClosePrice)
+	}
+	if closedPos.CloseDate == nil || !closedPos.CloseDate.Equal(mustTime("2025-03-20")) {
+		t.Errorf("expected close date 2025-03-20, got %v", closedPos.CloseDate)
+	}
+
+	// Open position cost basis: the remaining 7 shares, FIFO from B1: -1050.
+	if !aaplPos.CostBasis.Equal(dec(-105000, 2)) {
+		t.Errorf("expected open cost basis -1050.00, got %q", aaplPos.CostBasis.String())
+	}
+	if !aaplPos.AvgOpenPrice.Equal(dec(15000, 2)) {
+		t.Errorf("expected open avg open price 150.00, got %q", aaplPos.AvgOpenPrice.String())
 	}
 
 	// Cash position: deposit 10000 - buy 1500 + sell 510 = 9010
+	// (no double counting — proceeds flow into cash exactly once).
 	if len(result.CashPositions) != 1 {
 		t.Fatalf("expected 1 cash position, got %d", len(result.CashPositions))
 	}
@@ -134,32 +160,62 @@ func TestCalculatePositions_FullFlowClosedPosition(t *testing.T) {
 		t.Errorf("expected 0 open positions, got %d", len(result.OpenPositions))
 	}
 
-	// 1 closed position.
-	if len(result.ClosedPositions) != 1 {
-		t.Fatalf("expected 1 closed position, got %d", len(result.ClosedPositions))
+	// 2 closed positions — one per sell lot (R1: sell-based rows).
+	if len(result.ClosedPositions) != 2 {
+		t.Fatalf("expected 2 closed positions, got %d", len(result.ClosedPositions))
 	}
 
-	closedPos := result.ClosedPositions[0]
-	if closedPos.Symbol != "TSLA" {
-		t.Errorf("expected symbol TSLA, got %q", closedPos.Symbol)
+	// S1: 40 shares sold @ $250.
+	s1 := result.ClosedPositions[0]
+	if s1.Symbol != "TSLA" {
+		t.Errorf("expected symbol TSLA, got %q", s1.Symbol)
 	}
-	if closedPos.AccountID != 3 {
-		t.Errorf("expected AccountID 3, got %d", closedPos.AccountID)
+	if s1.AccountID != 3 {
+		t.Errorf("expected AccountID 3, got %d", s1.AccountID)
 	}
-	// Closed position shows total quantity held during the cycle.
-	if !closedPos.Quantity.Equal(dec(100, 0)) {
-		t.Errorf("expected quantity 100, got %q", closedPos.Quantity.String())
+	if !s1.Quantity.Equal(dec(40, 0)) {
+		t.Errorf("expected S1 quantity 40, got %q", s1.Quantity.String())
 	}
-	if !closedPos.IsClosed {
-		t.Error("expected position to be closed")
+	if !s1.IsClosed {
+		t.Error("expected S1 to be closed")
 	}
-	if closedPos.CloseDate == nil {
-		t.Error("expected close date to be set")
+	// S1 cost basis = 40/100 of -20,000 = -8,000; proceeds 10,000 → P&L +2,000
+	if !s1.CostBasis.Equal(dec(-800000, 2)) {
+		t.Errorf("expected S1 cost basis -8000.00, got %q", s1.CostBasis.String())
+	}
+	if !s1.RealizedPnL.Equal(dec(200000, 2)) {
+		t.Errorf("expected S1 realized P&L 2000.00, got %q", s1.RealizedPnL.String())
+	}
+	if s1.AvgClosePrice == nil || !s1.AvgClosePrice.Equal(dec(25000, 2)) {
+		t.Errorf("expected S1 avg close price 250.00, got %v", s1.AvgClosePrice)
+	}
+	if s1.CloseDate == nil || !s1.CloseDate.Equal(mustTime("2025-03-20")) {
+		t.Errorf("expected S1 close date 2025-03-20, got %v", s1.CloseDate)
 	}
 
-	// Realized P&L: sell inflow $23,200 + buy outflow -$20,000 = $3,200
-	if !closedPos.RealizedPnL.Equal(dec(320000, 2)) {
-		t.Errorf("expected realized P&L 3200.00, got %q", closedPos.RealizedPnL.String())
+	// S2: 60 shares sold @ $220.
+	s2 := result.ClosedPositions[1]
+	if !s2.Quantity.Equal(dec(60, 0)) {
+		t.Errorf("expected S2 quantity 60, got %q", s2.Quantity.String())
+	}
+	// S2 cost basis = 60/100 of -20,000 = -12,000; proceeds 13,200 → P&L +1,200
+	if !s2.CostBasis.Equal(dec(-1200000, 2)) {
+		t.Errorf("expected S2 cost basis -12000.00, got %q", s2.CostBasis.String())
+	}
+	if !s2.RealizedPnL.Equal(dec(120000, 2)) {
+		t.Errorf("expected S2 realized P&L 1200.00, got %q", s2.RealizedPnL.String())
+	}
+	if s2.AvgClosePrice == nil || !s2.AvgClosePrice.Equal(dec(22000, 2)) {
+		t.Errorf("expected S2 avg close price 220.00, got %v", s2.AvgClosePrice)
+	}
+
+	// Total realized P&L: sell inflow $23,200 + buy outflow -$20,000 = $3,200
+	totalPnL, err := s1.RealizedPnL.Add(s2.RealizedPnL)
+	if err != nil {
+		t.Fatalf("decimal add: %v", err)
+	}
+	if !totalPnL.Equal(dec(320000, 2)) {
+		t.Errorf("expected total realized P&L 3200.00, got %q", totalPnL.String())
 	}
 }
 
@@ -534,9 +590,14 @@ func TestCalculatePositions_ShortPosition(t *testing.T) {
 	}
 
 	pos := result.OpenPositions[0]
-	// Short position: quantity is abs of remaining (70).
-	if !pos.Quantity.Equal(dec(70, 0)) {
-		t.Errorf("expected quantity 70, got %q", pos.Quantity.String())
+	// Short position: signed negative quantity (70 shares owed).
+	if !pos.Quantity.Equal(dec(-70, 0)) {
+		t.Errorf("expected quantity -70 (short), got %q", pos.Quantity.String())
+	}
+	// A short sell (no buy before the sell date) matches no buy lot →
+	// no closed position row.
+	if len(result.ClosedPositions) != 0 {
+		t.Errorf("expected 0 closed positions, got %d", len(result.ClosedPositions))
 	}
 }
 
