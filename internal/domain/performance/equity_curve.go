@@ -76,7 +76,7 @@ func ComputeEquityCurve(
 	}
 
 	// Walk transactions chronologically, capturing state at each date.
-	snapshots, finalState := WalkTxns(txns)
+	snapshots, _ := WalkTxns(txns)
 
 	if logger != nil {
 		logger.Debug("performance: walk complete", "snapshots", len(snapshots))
@@ -121,12 +121,7 @@ func ComputeEquityCurve(
 	)
 
 	// Interpolate for non-transaction days, extending through dateTo.
-	lastSnap := finalState
-	points = InterpolateDaily(
-		points, dateTo, lastSnap.positions, lastSnap.positionCurrency,
-		lastSnap.cashBalance, lastSnap.netDeposit, pricesBySymbol, baseCurrency,
-		marketProvider, ctx,
-	)
+	points = InterpolateDaily(points, snapshots, dateTo, pricesBySymbol, baseCurrency, marketProvider, ctx)
 
 	if logger != nil {
 		logger.Debug("performance: interpolation complete", "points", len(points))

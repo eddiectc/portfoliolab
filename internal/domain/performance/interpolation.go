@@ -50,17 +50,18 @@ func lookupPrice(ff map[string]*priceLookupFF, symbol, dateKey string) (market.H
 	return market.HistoricalPrice{}, false
 }
 
-// interpolateDaily fills in non-transaction days by carrying forward the
-// last known portfolio value and net deposit. Extends through dateTo using
-// cached historical prices for the current positions, so the curve reflects
-// actual price changes after the last transaction.
+// InterpolateDaily fills in non-transaction days by revaluing the
+// point-in-time portfolio state (positions + cash from the last snapshot on
+// or before each date) at that date's cached prices and FX rates, so the
+// curve reflects daily market value movement between transactions. points
+// must correspond 1:1 with snapshots (one point per snapshot date, in
+// order). Extends through dateTo. Non-trading days fall out of the same
+// mechanism: with no price that day, forward-fill carries the last trading
+// day's value.
 func InterpolateDaily(
 	points []EquityCurvePoint,
+	snapshots []dateSnapshot,
 	dateTo time.Time,
-	positions map[string]decimal.Decimal,
-	positionCurrency map[string]string,
-	cashBalance map[string]decimal.Decimal,
-	netDeposit map[string]decimal.Decimal,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
 	marketProvider MarketDataProvider,
@@ -81,48 +82,47 @@ func InterpolateDaily(
 	priceLookup := buildPriceLookup(pricesBySymbol)
 	ff := buildPriceLookupFF(priceLookup)
 
-	// Build FX forward-fill lookup for the extended date range.
-	fxPairs := collectFxPairsForInterpolation(positionCurrency, cashBalance, netDeposit, baseCurrency)
+	// Build FX forward-fill lookup for the extended date range. Pairs are
+	// collected across all snapshots (not just the final state) because a
+	// position or cash balance in a foreign currency may be gone by the end
+	// but still needs conversion on intermediate dates.
+	fxPairs := collectFxPairs(snapshots, baseCurrency)
 	fxLookup := buildFxLookupForInterpolation(ctx, marketProvider, fxPairs, points, dateTo)
 
 	dateFrom := points[0].Date
-	lastPointDate := points[len(points)-1].Date
 
 	var result []EquityCurvePoint
 	var lastPoint *EquityCurvePoint
-	var lastNetDeposit decimal.Decimal
+	snapIdx := -1
 
 	for d := dateFrom; !d.After(dateTo); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
 		if p, ok := pointMap[key]; ok {
+			snapIdx++
 			lastPoint = &p
-			lastNetDeposit = p.NetDeposit
 			result = append(result, p)
-		} else if lastPoint != nil && !d.After(lastPointDate) {
-			// Between transaction dates: carry forward last known value.
-			result = append(result, EquityCurvePoint{
-				Date:           d,
-				PortfolioValue: lastPoint.PortfolioValue,
-				NetDeposit:     lastNetDeposit,
-				NavPerUnit:     lastPoint.NavPerUnit,
-				Units:          lastPoint.Units,
-			})
-		} else if lastPoint != nil {
-			// Beyond last transaction: compute portfolio value from
-			// current positions + cash + cached historical prices.
-			// Net deposit is reconverted at this date's FX rate so that
-			// profit = portfolio_value − net_deposit uses the same FX
-			// convention for both sides (valuation-date FX).
-			portfolioValue := computePortfolioValue(positions, positionCurrency, cashBalance, ff, fxLookup, baseCurrency, d)
-			netDepBase := computeNetDeposit(netDeposit, fxLookup, baseCurrency, d)
-			result = append(result, EquityCurvePoint{
-				Date:           d,
-				PortfolioValue: portfolioValue,
-				NetDeposit:     netDepBase,
-				NavPerUnit:     lastPoint.NavPerUnit,
-				Units:          lastPoint.Units,
-			})
+			continue
 		}
+		if snapIdx < 0 || snapIdx >= len(snapshots) {
+			continue
+		}
+		// Non-transaction day: revalue the point-in-time state (the last
+		// snapshot on or before this date) at this date's prices and FX
+		// rates. Forward-filled prices carry non-trading days forward from
+		// the last trading day. Net deposit is reconverted at this date's
+		// FX rate so that
+		// profit = portfolio_value − net_deposit uses the same FX
+		// convention for both sides (valuation-date FX).
+		snap := snapshots[snapIdx]
+		portfolioValue := computePortfolioValue(snap.positions, snap.positionCurrency, snap.cashBalance, ff, fxLookup, baseCurrency, d)
+		netDepBase := computeNetDeposit(snap.netDeposit, fxLookup, baseCurrency, d)
+		result = append(result, EquityCurvePoint{
+			Date:           d,
+			PortfolioValue: portfolioValue,
+			NetDeposit:     netDepBase,
+			NavPerUnit:     lastPoint.NavPerUnit,
+			Units:          lastPoint.Units,
+		})
 	}
 
 	return result
