@@ -1788,3 +1788,59 @@ func TestRecalculateAccount_SchedulesAfterRecalcError_NoSchedule(t *testing.T) {
 		t.Errorf("expected 0 symbol fetches after recalc error, got %d", len(scheduler.GetSymbolFetches()))
 	}
 }
+
+// --- sortPositions tests ---
+
+func TestSortPositions_CloseDateTieBreak(t *testing.T) {
+	// Same symbol, same open date — two sell lots closed on different
+	// dates. The earlier close date must sort first.
+	closed := []Position{
+		{ID: 1, Symbol: "VWRP.L", OpenDate: mustTime("2024-07-01"), CloseDate: ptrTime(mustTime("2025-07-15")), IsClosed: true},
+		{ID: 2, Symbol: "VWRP.L", OpenDate: mustTime("2024-07-01"), CloseDate: ptrTime(mustTime("2025-02-01")), IsClosed: true},
+		{ID: 3, Symbol: "VWRP.L", OpenDate: mustTime("2024-07-01"), CloseDate: ptrTime(mustTime("2025-05-10")), IsClosed: true},
+	}
+
+	sortPositions(closed)
+
+	wantIDs := []int64{2, 3, 1} // close date ASC: 2025-02-01, 2025-05-10, 2025-07-15
+	for i, p := range closed {
+		if p.ID != wantIDs[i] {
+			t.Errorf("position %d: expected ID %d, got ID %d", i, wantIDs[i], p.ID)
+		}
+	}
+}
+
+func TestSortPositions_SymbolAndOpenDateStillPrimary(t *testing.T) {
+	// Close date must not override symbol or open-date ordering.
+	closed := []Position{
+		{ID: 1, Symbol: "BAA", OpenDate: mustTime("2024-01-01"), CloseDate: ptrTime(mustTime("2024-06-01"))},
+		{ID: 2, Symbol: "AAA", OpenDate: mustTime("2024-03-01"), CloseDate: ptrTime(mustTime("2024-01-01"))},
+		{ID: 3, Symbol: "AAA", OpenDate: mustTime("2024-02-01"), CloseDate: ptrTime(mustTime("2024-12-01"))},
+	}
+
+	sortPositions(closed)
+
+	// Expected order: AAA 2024-02-01 (ID 3), AAA 2024-03-01 (ID 2), BAA (ID 1).
+	wantIDs := []int64{3, 2, 1}
+	for i, p := range closed {
+		if p.ID != wantIDs[i] {
+			t.Errorf("position %d: expected ID %d, got ID %d", i, wantIDs[i], p.ID)
+		}
+	}
+}
+
+func TestSortPositions_OpenPositionsUnaffectedByNilCloseDate(t *testing.T) {
+	open := []Position{
+		{ID: 1, Symbol: "BBB", OpenDate: mustTime("2024-01-01")},
+		{ID: 2, Symbol: "AAA", OpenDate: mustTime("2024-05-01")},
+	}
+
+	sortPositions(open)
+
+	wantIDs := []int64{2, 1}
+	for i, p := range open {
+		if p.ID != wantIDs[i] {
+			t.Errorf("position %d: expected ID %d, got ID %d", i, wantIDs[i], p.ID)
+		}
+	}
+}

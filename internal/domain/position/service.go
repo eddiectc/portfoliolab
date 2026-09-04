@@ -554,16 +554,38 @@ func (s *Service) getPositions(ctx context.Context, accountIDs []int64, limit, o
 	return all, nil
 }
 
-// sortPositions sorts positions by symbol ASC, then open_date ASC.
+// sortPositions sorts positions by symbol ASC, then open_date ASC, then
+// close_date ASC (closed rows; open rows have no close date, a stable no-op).
 func sortPositions(positions []Position) {
 	for i := 0; i < len(positions); i++ {
 		for j := i + 1; j < len(positions); j++ {
-			if positions[j].Symbol < positions[i].Symbol ||
-				(positions[j].Symbol == positions[i].Symbol && positions[j].OpenDate.Before(positions[i].OpenDate)) {
+			if positionBefore(positions[j], positions[i]) {
 				positions[i], positions[j] = positions[j], positions[i]
 			}
 		}
 	}
+}
+
+// positionBefore reports whether a sorts before b: symbol ASC, open_date
+// ASC, close_date ASC.
+func positionBefore(a, b Position) bool {
+	if a.Symbol != b.Symbol {
+		return a.Symbol < b.Symbol
+	}
+	if !a.OpenDate.Equal(b.OpenDate) {
+		return a.OpenDate.Before(b.OpenDate)
+	}
+	return closeDateBefore(a.CloseDate, b.CloseDate)
+}
+
+// closeDateBefore compares close dates for sorting; a nil close date
+// compares as equal (open positions all lack close dates, so this is a
+// no-op for open lists).
+func closeDateBefore(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Before(*b)
 }
 
 // resolveAccountIDs resolves ListFilters to a list of account IDs.
