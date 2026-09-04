@@ -263,8 +263,8 @@ func TestRouterSeedsSampleDataByDefault(t *testing.T) {
 	if n := countRows(t, db, "transactions"); n != 10 {
 		t.Errorf("transactions = %d, want 10", n)
 	}
-	if n := countRows(t, db, "positions"); n != 6 {
-		t.Errorf("positions = %d, want 6 (recalculated during seed)", n)
+	if n := countRows(t, db, "positions"); n != 7 {
+		t.Errorf("positions = %d, want 7 (4 open symbols + 1 closed VWRP.L partial sale + 2 cash, recalculated during seed)", n)
 	}
 
 	// Second construction on the now-populated DB: skip, no duplicates.
@@ -444,15 +444,25 @@ func TestSeedServiceFullPathWithRecalculation(t *testing.T) {
 	checkCash("$CASH-GBP", "567.20")
 	checkCash("$CASH-USD", "18084.30")
 
-	// Realized P&L: the rebalance sell is a partial sale, so the open
-	// VWRP.L position carries realized_pnl 0 by design (realized P&L only
-	// applies to fully closed positions — see position_computation.go).
+	// Realized P&L (R1): the rebalance sell is a partial sale. The open
+	// VWRP.L position carries realized_pnl 0 — the P&L lives on the closed
+	// row for the 18 matched shares (+712.80).
 	var realized string
 	if err := db.QueryRow(`SELECT realized_pnl FROM positions WHERE symbol = 'VWRP.L' AND is_closed = 0`).Scan(&realized); err != nil {
 		t.Fatalf("realized pnl: %v", err)
 	}
 	if realized != "0" {
-		t.Errorf("VWRP.L realized_pnl = %s, want 0 (partial sale, position still open)", realized)
+		t.Errorf("VWRP.L open realized_pnl = %s, want 0 (P&L is on the closed row)", realized)
+	}
+	var closedQty, closedPnl string
+	if err := db.QueryRow(`SELECT quantity, realized_pnl FROM positions WHERE symbol = 'VWRP.L' AND is_closed = 1`).Scan(&closedQty, &closedPnl); err != nil {
+		t.Fatalf("closed VWRP.L position: %v", err)
+	}
+	if closedQty != "18" {
+		t.Errorf("closed VWRP.L quantity = %s, want 18", closedQty)
+	}
+	if closedPnl != "712.80" {
+		t.Errorf("closed VWRP.L realized_pnl = %s, want 712.80", closedPnl)
 	}
 
 	// Idempotency: a second SeedDemo on the now-populated deployment skips
@@ -469,15 +479,15 @@ func TestSeedServiceFullPathWithRecalculation(t *testing.T) {
 	if n := countRows(t, db, "symbol_mappings"); n != 4 {
 		t.Errorf("symbol_mappings after second SeedDemo = %d, want 4 (no duplicates)", n)
 	}
-	if n := countRows(t, db, "positions"); n != 6 {
-		t.Errorf("positions after second SeedDemo = %d, want 6 (4 open symbols + 2 cash, unchanged)", n)
+	if n := countRows(t, db, "positions"); n != 7 {
+		t.Errorf("positions after second SeedDemo = %d, want 7 (4 open symbols + 1 closed VWRP.L partial sale + 2 cash, unchanged)", n)
 	}
 	if n := countRows(t, db, "symbol_details"); n != 0 {
 		t.Errorf("symbol_details after second SeedDemo = %d, want 0 (D9)", n)
 	}
 }
 
-func TestSeedServiceFreshSeedLeavesNoDetailsOrClosedPositions(t *testing.T) {
+func TestSeedServiceFreshSeedLeavesNoSymbolDetails(t *testing.T) {
 	db := setupTestDB(t)
 	if err := newSeedService(t, db).SeedDemo(context.Background()); err != nil {
 		t.Fatalf("SeedDemo() error = %v", err)
@@ -486,13 +496,14 @@ func TestSeedServiceFreshSeedLeavesNoDetailsOrClosedPositions(t *testing.T) {
 	if n := countRows(t, db, "symbol_details"); n != 0 {
 		t.Errorf("symbol_details rows = %d, want 0 (D9)", n)
 	}
-	// The rebalance sell is a partial sale, so nothing is fully closed.
+	// R1: the rebalance sell is a partial sale → exactly one closed row
+	// (the 18 matched VWRP.L shares), no open row for fully-closed symbols.
 	var closed int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM positions WHERE is_closed = 1`).Scan(&closed); err != nil {
 		t.Fatalf("count closed positions: %v", err)
 	}
-	if closed != 0 {
-		t.Errorf("closed positions = %d, want 0", closed)
+	if closed != 1 {
+		t.Errorf("closed positions = %d, want 1 (VWRP.L partial sale)", closed)
 	}
 	// 6 open positions: 4 symbols + 2 cash.
 	var open int
