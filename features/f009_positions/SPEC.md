@@ -3,7 +3,7 @@
 ## Description
 Users need to see their current investment positions — what they own, at what cost, and how it's performing. A **position** is the current holding of a symbol in an account, computed from all buy/sell/cash transactions. Positions are automatically recalculated when transactions change, and can also be recalculated manually on demand.
 
-Each position breaks down into **lots** — groups of related transactions. Both buy and sell transactions are grouped into lots. Users can optionally assign a lot ID when creating any transaction to group related buys or sells together (e.g., dollar-cost averaging buys into one lot, or grouping related sells). When no lot ID is specified, each buy or sell gets its own auto-generated lot. During recalculation, sell lots are matched against buy lots using **FIFO** (first-in, first-out) to determine realized P&L.
+Each position breaks down into **lots** — groups of related transactions. Both buy and sell transactions are grouped into lots. Users can optionally assign a lot ID when creating any transaction to group related buys or sells together (e.g., dollar-cost averaging buys into one lot, or grouping related sells). When no lot ID is specified, each buy or sell gets its own auto-generated lot. During recalculation, sell lots are matched against buy lots using **FIFO** (first-in, first-out) to determine realized P&L. Each sell lot that matched one or more buy lots produces a **closed position** for the matched shares (its realized P&L comes from the FIFO-matched cost basis); the **open position** carries the remaining (unconsumed) shares. Sale proceeds always flow into the cash position — whether the position stays open or closes fully.
 
 Positions include market data (current prices), P&L in both transaction currency and portfolio base currency, and support drill-down from position → lots → transactions. Cash is tracked as a position using the existing `$CASH-{currency}` symbol convention.
 
@@ -13,7 +13,7 @@ Positions include market data (current prices), P&L in both transaction currency
 As an investor, I want to see my open positions (current holdings) with key metrics (quantity, cost basis, market value, P&L) so that I can assess what I own at a glance.
 
 ### US-1b: View Closed Positions
-As an investor, I want to see my closed positions (fully sold) with realized P&L so that I can review my trade history and performance.
+As an investor, I want to see my closed positions (shares I have sold) with realized P&L so that I can review my trade history and performance.
 
 ### US-2: Filter Positions by Portfolio and/or Account
 As an investor with multiple portfolios and accounts, I want to filter positions by portfolio and/or account so that I can focus on specific parts of my investment activity.
@@ -42,10 +42,21 @@ As an investor, I want to browse my open and closed positions through a web inte
 **Given** account ID 3 has transactions: buy 10 AAPL @ $150, buy 5 AAPL @ $160, sell 3 AAPL @ $170
 **When** I view positions for account ID 3
 **Then** I see one open position for AAPL with quantity 12
-**And** the average cost basis reflects the FIFO-weighted cost of remaining shares
-**And** the position includes realized P&L (stored) and market value, unrealized P&L (computed from current market price at read time)
+**And** the cost basis is the FIFO cost of the 12 remaining (unconsumed) shares (7 @ $150 + 5 @ $160 = $1,850)
+**And** the position includes market value and unrealized P&L (computed from current market price at read time)
 **And** the position shows the open date as the date of the first transaction
 **And** the position includes P&L percentage
+**And** the sold 3 shares appear as a closed position (quantity 3) in the closed positions view
+
+### Scenario: Partial sale creates a closed position and a reduced open position
+**Given** account ID 3 has transactions: buy 666 VWRP.L @ £105.00 (2024-07-01), sell 18 VWRP.L @ £144.60 (2025-07-15)
+**When** I view positions for account ID 3
+**Then** I see one open VWRP.L position with quantity 648
+**And** the open position shows cost basis £68,040.00 (648 × £105.00), average open price £105.00, and open date 2024-07-01
+**And** I see one closed VWRP.L position with quantity 18 (the matched shares)
+**And** the closed position shows average open price £105.00, average close price £144.60, cost basis £1,890.00, and realized P&L £712.80
+**And** the closed position shows open date 2024-07-01 and close date 2025-07-15
+**And** the sale proceeds are reflected in the cash position
 
 ### Scenario: View open positions filtered by portfolio
 **Given** portfolio ID 1 has accounts 3 and 5
@@ -78,8 +89,9 @@ As an investor, I want to browse my open and closed positions through a web inte
 **Given** account ID 3 previously held 100 TSLA shares that were fully sold in two sells (40 + 60)
 **And** account ID 3 currently has open AAPL positions
 **When** I view closed positions for account ID 3
-**Then** the TSLA closed position is shown with quantity 100 (the total quantity that was held), open date, and close date
-**And** the realized P&L reflects the total gain/loss from the trade
+**Then** I see two closed TSLA positions — one per sell lot (quantities 40 and 60)
+**And** each closed position shows its own cost basis (FIFO cost of the matched shares), realized P&L, open date, and close date
+**And** the sum of the closed quantities (100) equals the total quantity held during that cycle
 **And** the open AAPL position is NOT shown in this view
 
 ### Scenario: View closed positions filtered by portfolio
@@ -91,7 +103,7 @@ As an investor, I want to browse my open and closed positions through a web inte
 **And** open positions from those accounts are not shown
 
 ### Scenario: View closed positions when none exist
-**Given** account ID 3 has only open positions (no fully sold positions)
+**Given** account ID 3 has only buy transactions (no sells)
 **When** I view closed positions for account ID 3
 **Then** I see an empty closed positions list
 
@@ -117,12 +129,10 @@ As an investor, I want to browse my open and closed positions through a web inte
 **And** I can further drill into each lot to see its transactions
 
 ### Scenario: Drill down from closed position to lots
-**Given** account ID 3 has a closed TSLA position that had 2 buy lots and 3 sell lots (all buy lots fully consumed)
-**When** I drill into the TSLA position from the closed positions view
-**Then** I see all 5 lots (2 buy lots and 3 sell lots)
-**And** each buy lot shows its original quantity, cost basis, open date, and close date
-**And** each sell lot shows its quantity, sell price, date, and which buy lot(s) it consumed from
-**And** I see the realized P&L for each lot
+**Given** account ID 3 has a closed TSLA position row for a sell lot that consumed shares from 2 buy lots (40 + 20)
+**When** I drill into the TSLA closed position from the closed positions view
+**Then** I see the sell lot (quantity 60, sell price, date) and the 2 buy lots it consumed from, with the quantity taken from each
+**And** I see the realized P&L for the closed position
 **And** I can further drill into each lot to see its transactions
 
 ### Scenario: Drill down from buy lot to transactions
@@ -218,15 +228,15 @@ As an investor, I want to browse my open and closed positions through a web inte
 **And** FX rate GBP/USD was 1.27 on the buy date and 1.28 on the sell date
 **And** current FX rate GBP/USD is 1.29
 **When** I view the open VOD.L position for account ID 5
-**Then** the realized P&L in GBP is shown (£2.50)
-**And** the realized P&L in USD uses the sell-date FX rate (£2.50 × 1.28 = $3.20)
+**Then** the open position shows quantity 50 with cost basis of the remaining shares (£37.50)
 **And** the unrealized P&L in GBP is shown
 **And** the unrealized P&L in USD uses the current FX rate
 **And** the market value in GBP is shown
 **And** the market value in USD uses the current FX rate
 **And** the cost basis in USD uses the current FX rate
-**And** the P&L percentage is shown for both realized and unrealized P&L
+**And** the P&L percentage is shown for the unrealized P&L
 **And** a summary panel shows aggregated base-currency totals: Cost Basis (USD), Mkt Value (USD), Unrealized P&L (USD), Unrealized P&L %
+**And** the realized P&L (£2.50) is shown on the closed VOD.L position (quantity 50), with the realized P&L in USD using the sell-date FX rate (£2.50 × 1.28 = $3.20)
 
 ### Scenario: View P&L in transaction currency and base currency (closed position)
 **Given** portfolio ID 1 has base currency USD
@@ -240,10 +250,10 @@ As an investor, I want to browse my open and closed positions through a web inte
 **And** the FX rate used for conversion is shown
 **And** no unrealized P&L is shown (position is closed)
 
-### Scenario: FX rate unavailable for historical conversion (open position)
+### Scenario: FX rate unavailable for historical conversion (partial sale)
 **Given** a sell transaction occurred on a date where no FX rate is available for the currency pair
 **And** the position is still open
-**When** I view the position with P&L converted to base currency
+**When** I view the closed position row for that sell with P&L converted to base currency
 **Then** the realized P&L in transaction currency is shown normally
 **And** the realized P&L in base currency falls back to the current spot rate
 **And** an indicator shows that the conversion used a fallback rate
@@ -273,10 +283,10 @@ As an investor, I want to browse my open and closed positions through a web inte
 
 ### Scenario: Auto-recalculate on transaction delete (closes a position)
 **Given** account ID 3 has an open AAPL position with 10 shares
-**And** the only remaining AAPL transaction is a buy of 10 shares
+**And** the only remaining AAPL transaction is a buy of 10 shares (no sells)
 **When** I delete that buy transaction
 **Then** the AAPL position is automatically recalculated
-**And** the position quantity becomes 0 and is moved to closed positions
+**And** the AAPL position is removed from the open positions view (no shares and no sales remain)
 **And** the cash position is also updated
 
 ### Scenario: Manual recalculate for an account (open and closed)
@@ -305,6 +315,7 @@ As an investor, I want to browse my open and closed positions through a web inte
 **And** L1 has 70 shares remaining
 **And** L2 is untouched (50 shares)
 **And** the realized P&L uses L1's cost basis ($150)
+**And** the sell lot's closed position shows quantity 30, cost basis $4,500 (30 × $150), and realized P&L $600
 
 ### Scenario: FIFO lot matching consuming entire buy lot
 **Given** account ID 3 has two AAPL buy lots: L1 (100 shares @ $150, opened Jan) and L2 (50 shares @ $160, opened Feb)
@@ -313,6 +324,7 @@ As an investor, I want to browse my open and closed positions through a web inte
 **And** the sell lot consumes all 100 shares from buy lot L1 (L1 fully consumed, close date set)
 **And** the sell lot consumes 20 shares from buy lot L2 (30 remaining)
 **And** the realized P&L is calculated proportionally from L1 and L2 cost bases
+**And** the sell lot's closed position shows quantity 120, cost basis $18,200 (100 × $150 + 20 × $160), and realized P&L $2,200
 
 ### Scenario: Deposit and withdrawal affect cash position
 **Given** account ID 3 has a `$CASH-USD` position with balance $10,000
@@ -350,16 +362,18 @@ As an investor, I want to browse my open and closed positions through a web inte
 
 ## Edge Cases
 - Account with no transactions (empty open and closed positions lists)
-- Position transitions from open to closed when current quantity reaches 0 (moves between views; closed quantity = total quantity held)
+- Each sell creates a closed position row for the matched shares; the open position keeps the remaining shares and disappears from the open view when quantity reaches 0. The sum of closed-row quantities for a fully closed cycle equals the total quantity held
 - Position transitions from closed to open when new buys are added after full close (reopens as a new open position)
 - Multiple open-to-close cycles for the same symbol in an account create separate closed position entries (e.g., buy 100, sell 100, buy 50, sell 50 → two closed positions with quantities 100 and 50)
+- Multiple partial sells of the same cycle — each sell lot produces its own closed position row (e.g., buy 100, sell 30, sell 70 → two closed rows of 30 and 70, same open date, different close dates)
+- A short sell (sell with no prior buy) matches no buy lots — no closed position row is created for it; the short quantity appears only as a negative open position
+- A buy lot partially consumed by sells — the lot keeps its remaining shares, which contribute to the open position's cost basis at the lot's cost
 - Cash position is always open (never appears in closed positions view)
 - Cash positions show no P&L (neither realized nor unrealized)
 - Short positions — negative quantity from short selling
 - Multi-currency account — positions in different currencies, each with own P&L currency and base currency conversion
 - FX rate unavailable for historical date — falls back to current spot rate with indicator
 - Market data unavailable for a symbol — position shown without market value/unrealized P&L
-- Lot with partial sells — lot remains open with reduced quantity
 - Cash position with negative balance (overdraft — withdrawals exceed deposits)
 - Dividend transaction on a symbol where the user has no open position (cash still affected)
 - Creating a buy with a lot_id that belongs to a different symbol (rejected)
@@ -378,8 +392,10 @@ As an investor, I want to browse my open and closed positions through a web inte
 - **Lot type:** lots are typed as buy or sell based on the transaction type(s) they contain; a lot cannot mix buy and sell transactions
 - **FIFO matching:** sell lots are matched against open buy lots in chronological order (oldest buy lot first); a single sell lot can consume from multiple buy lots
 - **Position scope:** positions are computed per account per symbol; filtering by portfolio aggregates across all accounts in that portfolio
-- **Open positions view:** positions with non-zero current quantity (including cash); sorted by symbol ascending, then open date ascending
-- **Closed positions view:** positions that are fully closed (current quantity = 0, close date set, excluding cash); the displayed quantity is the total quantity held during that open-to-close cycle; each open-to-close cycle creates a separate closed position entry; sorted by symbol ascending, then open date ascending
+- **Closed row FX:** closed position rows convert to base currency using the FX rate on the sell (close) date, consistent with the general P&L-in-base-currency constraint
+- **Open positions view:** positions with non-zero current quantity (including cash); the cost basis is the FIFO cost of the remaining (unconsumed) shares only — realized P&L from sells is not carried on open rows; sorted by symbol ascending, then open date ascending
+- **Closed positions view:** a closed position row is created for each sell lot whose FIFO matching consumed one or more shares from buy lots (excluding cash). The displayed quantity is the matched (consumed) quantity; cost basis is the FIFO cost of the consumed shares; average open price is the consumed cost per share; average close price is the sell lot's net sell price per share; realized P&L is the matched sell proceeds minus the FIFO cost; the open date is the open date of the oldest consumed buy lot; the close date is the sell lot's date. The sum of closed-row quantities for a fully closed cycle equals the total quantity held. Sorted by symbol ascending, then open date ascending, then close date ascending
+- **Realized P&L accounting:** sale proceeds always flow into the cash position (whether the position stays open or closes fully); a sale's realized P&L appears only on its closed position row, never on the open position; the performance page's Realized P&L total is the sum of all closed position rows (including partial sells)
 - **Cash position:** tracked using a cash symbol per currency (e.g., `$CASH-USD`); cash balance is the running net cash from all transactions in that currency for the account; market value equals balance; no P&L on cash positions (neither realized nor unrealized); cash position is always open (never appears in closed positions view)
 - **P&L in base currency:** realized P&L uses the FX rate on the transaction date; unrealized P&L uses the current spot FX rate; if historical rate unavailable, falls back to current spot with indicator
 - **P&L percentage:** shown for both open and closed positions; computed as P&L / |CostBasis| × 100; displayed with 2 decimal places

@@ -1,5 +1,25 @@
 # Notes: Positions
 
+## Revision R1: Sell-Based Closed Positions (2026-05-12)
+
+**Trigger:** user scenario — buy 666 VWRP.L @ 105.00 (2024-07-01), sell 18 @ 144.60 (2025-07-15). Expected: open position 648 **and** a closed position of 18. Actual (pre-revision): only the open 648 — the spec's closed view covered fully-closed cycles only, so partial sells produced no closed row.
+
+**Decisions (confirmed by user 2026-05-12):**
+1. **Row per sell lot** — each sell lot with ≥1 FIFO consumption produces exactly one closed position row (matched qty, FIFO cost, own close date). Same-cycle partial sells are NOT merged (buy 100, sell 30 + 70 → two rows).
+2. **Sort tie-break** — closed rows with same symbol + open date sort by close date ascending.
+3. **Performance Realized P&L changes** — the performance page's Realized P&L (sum of closed rows) will now include partial-sale gains. Previously those gains sat in the equity curve (via cash) but not the breakdown, so the breakdown didn't reconcile; this closes that gap. Accepted as intended.
+
+**Spec changes (in place, no v1/ archive — semantic refinement of a completed feature, per the convention's "PLAN.md gains a new phase section; revision event logged in NOTES.md" path):**
+- Description + US-1b: closed = "shares sold via matched sell lots", not "fully sold"
+- New scenario: Partial sale creates a closed position and a reduced open position (the VWRP 666/18 numbers)
+- Updated: single-account open scenario (cost basis = FIFO cost of remaining shares only; sold shares appear in closed view), closed-for-account (TSLA 40+60 → two rows), "no closed" (empty = no sells), closed drill-down (row = one sell lot + consumed buy lots), P&L-in-two-currencies (open position scenario — realized £2.50 moves to the closed row), both FIFO scenarios (closed row numbers added), delete-closes-position scenario (fixed incorrect "moved to closed positions" text — deleting the last buy with no sells removes the position entirely)
+- Edge cases: zero-crossing bullet rewritten; added multiple-partial-sells, short-sell-no-row, partial-buy-lot-consumption bullets
+- Constraints: "Closed positions view" rewritten (row per sell lot, matched qty, FIFO cost, oldest-consumed-buy open date, close-date tie-break), "Open positions view" (cost basis = unconsumed FIFO cost only), new "Realized P&L accounting" + "Closed row FX" constraints
+
+**Also fixes (collateral):** open position cost basis previously included the cost of ALL cycle buys (e.g., −69,930 for the VWRP scenario) while quantity was remaining-only (648) — avg open price was wrong by coincidence of same-lot price. Now cost basis = unconsumed shares only (−68,040), consistent with quantity and avg open price.
+
+**Workflow state:** spec revised → awaiting user review → plan (new phase section) → implement → retro (append section).
+
 ## Phase 5b Implementation Review Fixes (2026-05-09)
 
 ### Code Conventions Fixes
