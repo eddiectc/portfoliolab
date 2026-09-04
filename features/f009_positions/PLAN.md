@@ -631,19 +631,24 @@ asserted end-to-end at the calculator level.
 
 **Corresponds to:** full-path verification per SPEC scenarios
 
-- [ ] Integration test (tests/integration): account with the VWRP scenario →
+- [x] Integration test (tests/integration): account with the VWRP scenario →
       `RecalculateAccount` → assert `positions` table contains open row
       (648 / −68,040.00) and closed row (18 / +712.80 / 2024-07-01 → 2025-07-15);
       assert cash position unchanged (proceeds +2,602.80 flow to cash exactly
       as before — nothing double counted)
-- [ ] Web integration: GET /positions/closed renders 200 and includes the
+- [x] Web integration: GET /positions/closed renders 200 and includes the
       partial-sell row; GET /positions/open shows the reduced open position
-- [ ] Regression sweep: `go test ./...`; audit tests asserting the old model
+- [x] Regression sweep: `go test ./...`; audit tests asserting the old model
       (grep `IsClosed`, `GetClosedPositions`, partial-sell fixtures in
       performance_test.go / equity_curve tests) and update expectations
-- [ ] Note the expected performance-page shift: Realized P&L total rises for
-      accounts with partial sells (intended, per spec)
-- [ ] Delete `internal/domain/position/tmp_scenario_test.go` (temporary scenario file)
+      → old-model expectations found in seed_test.go (sample data contains the
+      VWRP partial sale): position counts 6→7, closed count 0→1, realized-P&L
+      comment; test renamed to TestSeedServiceFreshSeedLeavesNoSymbolDetails.
+      No old-model expectations in performance/equity-curve tests.
+- [x] Note the expected performance-page shift: Realized P&L total rises for
+      accounts with partial sells (intended, per spec) — documented in the
+      seed_test.go R1 comments; NOTES.md retro entry in R1-5
+- [x] Delete `internal/domain/position/tmp_scenario_test.go` (temporary scenario file)
 
 **Verification:** `go test ./...` green; VWRP numbers visible through API + web.
 
