@@ -103,7 +103,7 @@ func TestWalkTxns_DepositSharesDateWithBuy(t *testing.T) {
 // --- Tests for InterpolateDaily ---
 
 func TestInterpolateDaily_NoPoints(t *testing.T) {
-	result := InterpolateDaily(nil, testTime(2024, 1, 20), nil, nil, nil, nil, nil, "USD", nil, context.Background())
+	result := InterpolateDaily(nil, nil, testTime(2024, 1, 20), nil, "USD", nil, context.Background())
 	if result != nil {
 		t.Error("expected nil, got non-nil")
 	}
@@ -113,7 +113,7 @@ func TestInterpolateDaily_SinglePoint(t *testing.T) {
 	points := []EquityCurvePoint{
 		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustParse("1000.00"), NetDeposit: decimal.MustParse("1000.00")},
 	}
-	result := InterpolateDaily(points, testTime(2024, 1, 15), nil, nil, nil, nil, nil, "USD", nil, context.Background())
+	result := InterpolateDaily(points, []dateSnapshot{{date: testTime(2024, 1, 15)}}, testTime(2024, 1, 15), nil, "USD", nil, context.Background())
 	if len(result) != 1 {
 		t.Errorf("expected 1 point, got %d", len(result))
 	}
@@ -128,14 +128,135 @@ func TestInterpolateDaily_FillsGaps(t *testing.T) {
 	positions := map[string]decimal.Decimal{"AAPL": decimal.MustParse("10.00")}
 	positionCurrency := map[string]string{"AAPL": "USD"}
 	cashBalance := map[string]decimal.Decimal{"USD": decimal.MustParse("500.00")}
+	netDeposit := map[string]decimal.Decimal{"USD": decimal.MustParse("1000.00")}
 	points := []EquityCurvePoint{
 		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustParse("1500.00"), NetDeposit: decimal.MustParse("1000.00")},
 		{Date: testTime(2024, 1, 17), PortfolioValue: decimal.MustParse("1550.00"), NetDeposit: decimal.MustParse("1000.00")},
 	}
-	result := InterpolateDaily(points, testTime(2024, 1, 17), positions, positionCurrency, cashBalance, nil, prices, "USD", nil, context.Background())
+	snapshots := []dateSnapshot{{
+		date:             testTime(2024, 1, 15),
+		positions:        positions,
+		positionCurrency: positionCurrency,
+		cashBalance:      cashBalance,
+		netDeposit:       netDeposit,
+	}}
+	result := InterpolateDaily(points, snapshots, testTime(2024, 1, 17), prices, "USD", nil, context.Background())
 	// Should have 3 points (15th, 16th, 17th)
 	if len(result) < 3 {
 		t.Errorf("expected at least 3 points, got %d", len(result))
+	}
+}
+
+// --- Spec regression: daily mark-to-market between transactions (f010) ---
+//
+// f010 SPEC: "The portfolio value line reflects the sum of all open position
+// market values plus cash balances" and "the data points are daily
+// granularity for all periods". Carry-forward is specified for non-trading
+// days only; every trading day between transactions must be revalued at
+// that day's price, not carried flat from the last transaction date.
+
+func TestInterpolateDaily_MarkToMarketBetweenTransactions(t *testing.T) {
+	prices := map[string][]market.HistoricalPrice{
+		"AAPL": {
+			{Date: testTime(2024, 1, 15), Close: decimal.MustParse("100.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 16), Close: decimal.MustParse("102.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 17), Close: decimal.MustParse("104.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 18), Close: decimal.MustParse("106.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 19), Close: decimal.MustParse("108.00"), Currency: "USD"},
+			// Jan 20-21 is a weekend - no prices.
+			{Date: testTime(2024, 1, 22), Close: decimal.MustParse("110.00"), Currency: "USD"},
+		},
+	}
+	positions := map[string]decimal.Decimal{"AAPL": decimal.MustParse("10.00")}
+	positionCurrency := map[string]string{"AAPL": "USD"}
+	cashBalance := map[string]decimal.Decimal{"USD": decimal.MustParse("500.00")}
+	netDeposit := map[string]decimal.Decimal{"USD": decimal.MustParse("2000.00")}
+	points := []EquityCurvePoint{
+		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustParse("1500.00"), NetDeposit: decimal.MustParse("2000.00")},
+		{Date: testTime(2024, 1, 22), PortfolioValue: decimal.MustParse("1600.00"), NetDeposit: decimal.MustParse("2000.00")},
+	}
+
+	snap1 := dateSnapshot{date: testTime(2024, 1, 15), positions: positions, positionCurrency: positionCurrency, cashBalance: cashBalance, netDeposit: netDeposit}
+	snap2 := snap1
+	snap2.date = testTime(2024, 1, 22)
+	result := InterpolateDaily(points, []dateSnapshot{snap1, snap2}, testTime(2024, 1, 22), prices, "USD", nil, context.Background())
+	if len(result) != 8 {
+		t.Fatalf("expected 8 daily points, got %d", len(result))
+	}
+
+	wantByDate := map[string]string{
+		"2024-01-15": "1500.00", // trade date: 10 x 100.00 + 500.00
+		"2024-01-16": "1520.00", // 10 x 102.00 + 500.00
+		"2024-01-17": "1540.00", // 10 x 104.00 + 500.00
+		"2024-01-18": "1560.00", // 10 x 106.00 + 500.00
+		"2024-01-19": "1580.00", // 10 x 108.00 + 500.00
+		"2024-01-20": "1580.00", // Saturday: carry forward from Friday
+		"2024-01-21": "1580.00", // Sunday: carry forward from Friday
+		"2024-01-22": "1600.00", // trade date: 10 x 110.00 + 500.00
+	}
+	for _, p := range result {
+		key := p.Date.Format("2006-01-02")
+		want, ok := wantByDate[key]
+		if !ok {
+			t.Errorf("unexpected date %s", key)
+			continue
+		}
+		if p.PortfolioValue.Cmp(decimal.MustParse(want)) != 0 {
+			t.Errorf("portfolio value for %s: got %s, want %s (mark-to-market at that day's price)", key, p.PortfolioValue.String(), want)
+		}
+	}
+}
+
+func TestComputeEquityCurve_MarkToMarketBetweenTransactions(t *testing.T) {
+	// Full path (WalkTxns -> buildCurvePoints -> InterpolateDaily):
+	// buy 10 AAPL on Jan 15, sell 1 on Jan 22. Trading days in between
+	// must reflect the point-in-time holdings (10 shares + $1000 cash)
+	// valued at that day's price.
+	txns := []transaction.Transaction{
+		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 2000),
+		eqTxn(2, testTime(2024, 1, 15), "buy", "AAPL", "USD", 10, 100, -1000),
+		eqTxn(3, testTime(2024, 1, 22), "sell", "AAPL", "USD", -1, 110, 110),
+	}
+	prices := map[string][]market.HistoricalPrice{
+		"AAPL": {
+			{Date: testTime(2024, 1, 15), Close: decimal.MustParse("100.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 16), Close: decimal.MustParse("102.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 17), Close: decimal.MustParse("104.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 18), Close: decimal.MustParse("106.00"), Currency: "USD"},
+			{Date: testTime(2024, 1, 19), Close: decimal.MustParse("108.00"), Currency: "USD"},
+			// Jan 20-21 is a weekend - no prices.
+			{Date: testTime(2024, 1, 22), Close: decimal.MustParse("110.00"), Currency: "USD"},
+		},
+	}
+
+	result, err := ComputeEquityCurve(context.Background(), txns, prices, "USD", testTime(2024, 1, 15), testTime(2024, 1, 22), nil, nil)
+	if err != nil {
+		t.Fatalf("ComputeEquityCurve returned error: %v", err)
+	}
+	if len(result.EquityCurve) != 8 {
+		t.Fatalf("expected 8 daily points, got %d", len(result.EquityCurve))
+	}
+
+	wantByDate := map[string]string{
+		"2024-01-15": "2000.00", // trade date: 10 x 100.00 + 1000.00
+		"2024-01-16": "2020.00", // 10 x 102.00 + 1000.00
+		"2024-01-17": "2040.00", // 10 x 104.00 + 1000.00
+		"2024-01-18": "2060.00", // 10 x 106.00 + 1000.00
+		"2024-01-19": "2080.00", // 10 x 108.00 + 1000.00
+		"2024-01-20": "2080.00", // Saturday: carry forward from Friday
+		"2024-01-21": "2080.00", // Sunday: carry forward from Friday
+		"2024-01-22": "2100.00", // trade date: 9 x 110.00 + 1110.00
+	}
+	for _, p := range result.EquityCurve {
+		key := p.Date.Format("2006-01-02")
+		want, ok := wantByDate[key]
+		if !ok {
+			t.Errorf("unexpected date %s", key)
+			continue
+		}
+		if p.PortfolioValue.Cmp(decimal.MustParse(want)) != 0 {
+			t.Errorf("portfolio value for %s: got %s, want %s (mark-to-market at that day's price)", key, p.PortfolioValue.String(), want)
+		}
 	}
 }
 
