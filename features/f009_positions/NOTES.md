@@ -18,7 +18,21 @@
 
 **Also fixes (collateral):** open position cost basis previously included the cost of ALL cycle buys (e.g., −69,930 for the VWRP scenario) while quantity was remaining-only (648) — avg open price was wrong by coincidence of same-lot price. Now cost basis = unconsumed shares only (−68,040), consistent with quantity and avg open price.
 
-**Workflow state:** spec revised → awaiting user review → plan (new phase section) → implement → retro (append section).
+**Workflow state:** spec revised (2026-05-12) → user review (accepted) → plan (R1 phase section, 5 tasks) → implemented (R1-1…R1-5, 2026-09-04) → retro appended (below). All R1 tasks checked off in PLAN.md.
+
+## R1 Retrospective (2026-09-04)
+
+**Shipped:** commits c956141 (R1-1 date-aware FIFO), fcf6569 (R1-2 sell-lot closed rows + remaining-cost open positions), bfa2cdd (R1-3 close-date tie-break), 0ed571c (R1-4 integration tests + seed expectations), this docs commit (R1-5).
+
+**Bugs fixed (collateral, per plan “Behavior changes” 5–6):**
+- **Direction-change multi-open-row bug:** the old cycle walk could emit multiple open rows for the same account+symbol when a symbol flipped long→short→long (each zero-crossing cycle produced its own open row). The new net running-quantity walk guarantees exactly one open row per account+symbol when net qty ≠ 0.
+- **Misleading long-shaped closed row for short round-trips:** a sell-before-cover round-trip previously produced a closed row shaped like a long trade (cover price shown as “open”, short price as “close”). With date-aware FIFO matching, a short sale consumes no buy lots → no closed row; that P&L lives only in the cash balance.
+
+**Intended behavior changes:**
+- Partial sells now produce closed rows (the point of the revision); open position cost basis now excludes sold shares (VWRP: −69,930 → −68,040).
+- Performance-page Realized P&L rises for accounts with partial sells (reads the closed-position summary; previously missing gains now count — closes the equity-curve/breakdown reconciliation gap). The seed sample data contains the VWRP partial sale, so seed tests moved 6→7 positions and 0→1 closed row (TestSeedServiceFreshSeedLeavesNoDetailsOrClosedPositions renamed to …LeavesNoSymbolDetails).
+
+**Deviations/notes:** see “R1-2 Implementation Notes” (roundMoney 2 dp at each proportional multiplication; lot-type sign normalization; pre-existing missing symbol filter in the matcher). Integration tests live in tests/integration/position_r1_test.go (VWRP partial sale end-to-end incl. web pages; full close; two partial sells).
 
 ## Phase 5b Implementation Review Fixes (2026-05-09)
 

@@ -654,9 +654,9 @@ asserted end-to-end at the calculator level.
 
 ### Task R1-5: Documentation [PRIORITY: LOW]
 
-- [ ] API.md: closed-position list behavior — one row per matched sell lot;
+- [x] API.md: closed-position list behavior — one row per matched sell lot;
       open-date semantics (oldest consumed buy lot); partial sells included
-- [ ] NOTES.md: check off R1 tasks; retro entry (fixes: direction-change
+- [x] NOTES.md: check off R1 tasks; retro entry (fixes: direction-change
       multi-open-row bug, misleading long-shaped closed row for short
       round-trips; intended change: performance-page realized P&L)
 

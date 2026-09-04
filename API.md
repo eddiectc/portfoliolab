@@ -273,6 +273,20 @@ GET /api/positions/closed?account_id=&portfolio_id=&account_ids=&limit=&offset=
 
 **Query params:** Same as open positions.
 
+**Behavior:**
+
+- One row per FIFO-matched sell lot — a partial sell produces a closed row
+  for the matched shares alongside the reduced open position. Same-cycle
+  partial sells are not merged (buy 100, sell 30 + sell 70 → two rows).
+- `open_date` = date of the oldest buy lot consumed by that sell lot;
+  `close_date` = the sell lot's date. `realized_pnl`/`realized_pnl_base` are
+  the P&L of that sale only; the row's `cost_basis` is the FIFO cost of the
+  matched shares.
+- A full close spanning several sell lots yields one row per sell lot (the
+  rows' P&L sums to the legacy single-row total).
+- Sorted by symbol ascending, then open date ascending, then close date
+  ascending.
+
 **Response:** `200 OK` — `Position[]`
 
 ### Closed Positions Summary
