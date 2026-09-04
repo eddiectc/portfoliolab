@@ -12,6 +12,14 @@ func absDecimal(d decimal.Decimal) decimal.Decimal {
 	return d.Abs()
 }
 
+// roundMoney rounds a monetary value to currency precision (2 decimal
+// places). Proportional cost attributions (cost × quantity ratio) can
+// produce repeating decimals; money is stored and displayed at 2 places,
+// so each attribution is rounded at the point of computation.
+func roundMoney(d decimal.Decimal) decimal.Decimal {
+	return d.Round(2)
+}
+
 // sortedLotGroups returns a copy of lots sorted chronologically by open date,
 // with lot ID as a deterministic tie-breaker for same-date lots.
 func sortedLotGroups(lots []LotGroup) []LotGroup {
@@ -30,11 +38,12 @@ func sortedLotGroups(lots []LotGroup) []LotGroup {
 // (first-in, first-out) ordering. Sell lots are processed chronologically,
 // consuming from the oldest buy lot first.
 //
-// Matching is date-aware: a sell lot can only consume buy lots that were
-// opened on or before the sell lot's date (a share not yet bought cannot be
-// sold). Same-day buys count as available — within the same day, buys are
-// treated as preceding sells. A sell lot with no available buy lots (a
-// short sell) produces no consumptions.
+// Matching is per-symbol and date-aware: a sell lot can only consume buy
+// lots of the same symbol that were opened on or before the sell lot's
+// date (a share not yet bought cannot be sold). Same-day buys count as
+// available — within the same day, buys are treated as preceding sells. A
+// sell lot with no available buy lots (a short sell) produces no
+// consumptions.
 //
 // For each consumption, realized P&L is computed as:
 //
@@ -75,6 +84,11 @@ func MatchSellLotsAgainstBuys(buyLots, sellLots []LotGroup) ([]LotConsumption, m
 				break
 			}
 
+			// Per-symbol: a sell lot only consumes buy lots of its own symbol.
+			if buyLot.Symbol != sellLot.Symbol {
+				continue
+			}
+
 			// Date-aware FIFO: only shares bought on or before the sell date
 			// can be consumed. Later buy lots are not yet available.
 			if buyLot.OpenDate.After(sellLot.OpenDate) {
@@ -101,6 +115,7 @@ func MatchSellLotsAgainstBuys(buyLots, sellLots []LotGroup) ([]LotConsumption, m
 			if err != nil {
 				panic(fmt.Sprintf("decimal overflow computing cost basis consumed: %v", err))
 			}
+			costBasisConsumed = roundMoney(costBasisConsumed)
 
 			// Proportional sell proceeds for this consumption chunk.
 			sellRatio, err := consumeQty.Quo(sellQty)
@@ -111,6 +126,7 @@ func MatchSellLotsAgainstBuys(buyLots, sellLots []LotGroup) ([]LotConsumption, m
 			if err != nil {
 				panic(fmt.Sprintf("decimal overflow computing sell proceeds portion: %v", err))
 			}
+			sellProceedsPortion = roundMoney(sellProceedsPortion)
 
 			// Realized P&L = sell inflow (positive) + buy outflow (negative).
 			realizedPnL, err := sellProceedsPortion.Add(costBasisConsumed)

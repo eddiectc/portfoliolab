@@ -578,10 +578,10 @@ behavior change for chronological data.
 consumptions (one per sell lot) and open rows from the net remaining quantity
 with FIFO cost. Replaces the cycle-walk model in `computePositionsForLots`.
 
-- [ ] `ComputePositions` signature: add `consumptions []LotConsumption` and
+- [x] `ComputePositions` signature: add `consumptions []LotConsumption` and
       `remaining map[string]decimal.Decimal` parameters; `CalculatePositions`
       (calculator_integration.go) passes its existing matching results through
-- [ ] Closed rows — group consumptions by `SellLotID` (one row per sell lot):
+- [x] Closed rows — group consumptions by `SellLotID` (one row per sell lot):
       - Quantity = Σ QuantityConsumed for that sell lot
       - CostBasis = Σ CostBasisConsumed (negative)
       - RealizedPnL = Σ consumption RealizedPnL; RealizedPnlPct = P&L / |CostBasis| × 100
@@ -590,7 +590,7 @@ with FIFO cost. Replaces the cycle-walk model in `computePositionsForLots`.
         equals the per-consumption proportional price)
       - OpenDate = earliest OpenDate among the buy lots consumed by this sell lot
       - CloseDate = sell lot's date; Currency/AccountID from the sell lot; IsClosed = true
-- [ ] Open row — one per symbol when net running quantity ≠ 0:
+- [x] Open row — one per symbol when net running quantity ≠ 0:
       - Quantity = signed net (positive long, negative short)
       - CostBasis (net > 0): walk buy lots chronologically, take
         `min(remaining[buyLotID], needed)` shares each, sum proportional cost;
@@ -599,10 +599,10 @@ with FIFO cost. Replaces the cycle-walk model in `computePositionsForLots`.
       - OpenDate: net > 0 → oldest buy lot with remaining > 0; net < 0 → first
         lot after the last point where running quantity was zero
       - RealizedPnL = 0, no close date
-- [ ] Remove: zero-crossing cycle closed rows, "P&L only if fully closed" gate,
+- [x] Remove: zero-crossing cycle closed rows, "P&L only if fully closed" gate,
       direction-change cycle splits (source of the multi-open-row bug)
-- [ ] Cash positions: untouched
-- [ ] Unit tests (position_computation_test.go):
+- [x] Cash positions: untouched
+- [x] Unit tests (position_computation_test.go):
       - VWRP scenario: buy 666 @ 105.00 (2024-07-01), sell 18 @ 144.60 (2025-07-15)
         → open (648, cost −68,040.00, avg 105.00) + closed (18, cost −1,890.00,
         P&L +712.80, +37.72%, avg open 105.00, avg close 144.60, dates 2024-07-01/2025-07-15)
