@@ -53,3 +53,4 @@ Example: `f021_wisdomtree-scraper` (WisdomTree site relaunch 2026-08-30, v1 impl
 | f027 | Overlap Enhancement | done | f020, f015, f017 |
 | f028 | Efficient Frontier | done | f003, f011, f019, f001 |
 | f029 | Hierarchical Risk Parity | done | f003, f011, f019, f001 |
+| f030 | Seed Data for New Deployment | spec | f001, f002, f003, f004, f011, f014, f015, f018, f019 |
