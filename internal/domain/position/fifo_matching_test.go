@@ -350,3 +350,110 @@ func TestMatchSellLotsAgainstBuys_EmptySellLots(t *testing.T) {
 		t.Errorf("expected remaining 10 for LOT-B1, got %v", rem)
 	}
 }
+
+func TestMatchSellLotsAgainstBuys_SellBeforeBuy_NoConsumption(t *testing.T) {
+	// Sell happens before any buy — no shares were held, so nothing matches.
+	// The later buy cannot retroactively consume the earlier sell.
+	buyLots := []LotGroup{
+		makeLotGroup("LOT-B1", "buy", "AAPL", "2025-02-10",
+			dec(10, 0), dec(-80000, 2), decimal.Zero), // 10 @ $80
+	}
+	sellLots := []LotGroup{
+		makeLotGroup("LOT-S1", "sell", "AAPL", "2025-01-10",
+			dec(-5, 0), decimal.Zero, dec(50000, 2)), // 5 @ $100 (short sell)
+	}
+
+	consumptions, remaining := MatchSellLotsAgainstBuys(buyLots, sellLots)
+
+	if len(consumptions) != 0 {
+		t.Fatalf("expected 0 consumptions (sell before buy), got %d", len(consumptions))
+	}
+	// Buy lot is untouched — it is a real open position.
+	if rem, ok := remaining["LOT-B1"]; !ok || !rem.Equal(dec(10, 0)) {
+		t.Errorf("expected remaining 10 for LOT-B1, got %v", rem)
+	}
+}
+
+func TestMatchSellLotsAgainstBuys_FIFOOnlyAmongAvailableLots(t *testing.T) {
+	// Two buy lots (Jan and Mar); a Feb sell must consume only the Jan lot.
+	// The Mar lot is not yet available at the sell date and must be skipped.
+	buyLots := []LotGroup{
+		makeLotGroup("LOT-B1", "buy", "AAPL", "2025-01-10",
+			dec(10, 0), dec(-100000, 2), decimal.Zero), // 10 @ $100
+		makeLotGroup("LOT-B2", "buy", "AAPL", "2025-03-01",
+			dec(10, 0), dec(-120000, 2), decimal.Zero), // 10 @ $120
+	}
+	sellLots := []LotGroup{
+		makeLotGroup("LOT-S1", "sell", "AAPL", "2025-02-01",
+			dec(-6, 0), decimal.Zero, dec(78000, 2)), // 6 @ $130
+	}
+
+	consumptions, remaining := MatchSellLotsAgainstBuys(buyLots, sellLots)
+
+	if len(consumptions) != 1 {
+		t.Fatalf("expected 1 consumption, got %d", len(consumptions))
+	}
+	// Must be from the Jan lot, not the Mar lot.
+	if consumptions[0].BuyLotID != "LOT-B1" {
+		t.Errorf("expected consumption from LOT-B1 (Jan lot), got %q", consumptions[0].BuyLotID)
+	}
+	if !consumptions[0].QuantityConsumed.Equal(dec(6, 0)) {
+		t.Errorf("expected consumed 6, got %q", consumptions[0].QuantityConsumed.String())
+	}
+	// Jan lot: 10 - 6 = 4 remaining; Mar lot untouched.
+	if rem, ok := remaining["LOT-B1"]; !ok || !rem.Equal(dec(4, 0)) {
+		t.Errorf("expected remaining 4 for LOT-B1, got %v", rem)
+	}
+	if rem, ok := remaining["LOT-B2"]; !ok || !rem.Equal(dec(10, 0)) {
+		t.Errorf("expected remaining 10 for LOT-B2 (not yet available), got %v", rem)
+	}
+}
+
+func TestMatchSellLotsAgainstBuys_SameDayBuyAvailable(t *testing.T) {
+	// Same-day buys count as available: a sell on the buy date consumes it.
+	buyLots := []LotGroup{
+		makeLotGroup("LOT-B1", "buy", "AAPL", "2025-05-05",
+			dec(10, 0), dec(-100000, 2), decimal.Zero), // 10 @ $100
+	}
+	sellLots := []LotGroup{
+		makeLotGroup("LOT-S1", "sell", "AAPL", "2025-05-05",
+			dec(-4, 0), decimal.Zero, dec(44000, 2)), // 4 @ $110
+	}
+
+	consumptions, remaining := MatchSellLotsAgainstBuys(buyLots, sellLots)
+
+	if len(consumptions) != 1 {
+		t.Fatalf("expected 1 consumption (same-day), got %d", len(consumptions))
+	}
+	if consumptions[0].BuyLotID != "LOT-B1" {
+		t.Errorf("expected consumption from LOT-B1, got %q", consumptions[0].BuyLotID)
+	}
+	if !remaining["LOT-B1"].Equal(dec(6, 0)) {
+		t.Errorf("expected remaining 6 for LOT-B1, got %v", remaining["LOT-B1"])
+	}
+}
+
+func TestMatchSellLotsAgainstBuys_UnsortedInput(t *testing.T) {
+	// Matching must be chronological regardless of input slice order.
+	// The Feb sell must still match the Jan buy (not the Mar buy) even when
+	// the March lot appears first in the input.
+	buyLots := []LotGroup{
+		makeLotGroup("LOT-B2", "buy", "AAPL", "2025-03-01",
+			dec(10, 0), dec(-120000, 2), decimal.Zero), // 10 @ $120
+		makeLotGroup("LOT-B1", "buy", "AAPL", "2025-01-10",
+			dec(10, 0), dec(-100000, 2), decimal.Zero), // 10 @ $100
+	}
+	sellLots := []LotGroup{
+		makeLotGroup("LOT-S1", "sell", "AAPL", "2025-02-01",
+			dec(-6, 0), decimal.Zero, dec(78000, 2)), // 6 @ $130
+	}
+
+	consumptions, _ := MatchSellLotsAgainstBuys(buyLots, sellLots)
+
+	if len(consumptions) != 1 {
+		t.Fatalf("expected 1 consumption, got %d", len(consumptions))
+	}
+	if consumptions[0].BuyLotID != "LOT-B1" {
+		t.Errorf("expected consumption from LOT-B1 (Jan lot), got %q", consumptions[0].BuyLotID)
+	}
+}

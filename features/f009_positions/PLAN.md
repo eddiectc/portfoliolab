@@ -522,9 +522,145 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 
 **Verification:** Position pages show base-currency values with dynamic headers; P&L% computed correctly; summary panel aggregates totals; all tests pass.
 
+## Phase R1: Sell-based closed positions (revision — spec commit 29500f8)
+
+**Context:** Revision R1 changes the closed-position model: every sell lot with
+FIFO-matched consumption produces a closed position row (matched shares only),
+and open positions keep only the remaining shares with their FIFO cost basis.
+Previously closed rows were whole-cycle (full buy quantity, full cost basis,
+P&L only when fully closed), so partial sells were invisible on the closed page.
+
+**No schema change needed** — `positions` has no unique constraint on
+(account_id, symbol) and `Recalculate` is delete-all + insert, so any number of
+closed rows per symbol is already representable.
+
+**Behavior changes** (flagged in spec/NOTES):
+1. Partial sells now produce closed rows (the point of the revision).
+2. Open position quantity/cost basis shrink by the amount sold.
+3. A full close spanning multiple sell lots now yields one row per sell lot
+   (same total P&L, own dates/prices per sale).
+4. Performance page Realized P&L increases for accounts with partial sells
+   (it reads the closed-position summary; previously missing gains now count).
+5. Short open positions show signed negative quantity (was `.Abs()` — market
+   value looked like an asset, not a liability). A short round-trip (sell
+   before covering buy) no longer yields a closed row — previously it yielded
+   one shaped like a long trade (cover price shown as "open", short price as
+   "close"); its P&L now lives only in the cash balance.
+6. Latent bug fixed: direction changes (long→short→long) previously could
+   produce multiple open rows for the same account+symbol; now exactly one
+   open row per account+symbol when net qty ≠ 0.
+
+### Task R1-1: Date-aware FIFO matching [PRIORITY: HIGH]
+
+**Corresponds to:** edge case "A short sell (sell with no prior buy) matches no buy lots — no closed position row is created for it; the short quantity appears only as a negative open position"
+
+**Description:** `MatchSellLotsAgainstBuys` currently ignores dates — a sell lot
+before any buy still consumes a later buy lot (a short sale matched against
+shares not yet held), which would create closed rows with impossible open
+dates. Make matching date-aware.
+
+- [x] In `fifo_matching.go`: a sell lot consumes only buy lots with
+      `OpenDate <= sellLot.OpenDate` (same-day buys count as available —
+      convention: buys precede sells within the same day)
+- [x] Return signature unchanged: `([]LotConsumption, map[buyLotID]remainingQty)`
+- [x] Unit tests: sell before any buy → zero consumptions, full buy remaining;
+      same-day sell consumes same-day buy; well-ordered data unchanged (regression)
+- [x] Note: persisted `lot_consumptions` become date-correct after next recalc
+
+**Verification:** `go test ./internal/domain/position/ -run FIFO` passes; no
+behavior change for chronological data.
+
+### Task R1-2: Sell-lot closed rows + remaining-cost open positions [PRIORITY: HIGH]
+
+**Corresponds to:** scenario "Partial sale creates a closed position and a reduced open position"; edge cases "Each sell creates a closed position row for the matched shares; the open position keeps the remaining shares…", "Multiple partial sells of the same cycle — each sell lot produces its own closed position row", "A buy lot partially consumed by sells — the lot keeps its remaining shares, which contribute to the open position's cost basis at the lot's cost", "Position transitions from closed to open when new buys are added after full close"
+
+**Description:** Rewrite position computation to derive closed rows from FIFO
+consumptions (one per sell lot) and open rows from the net remaining quantity
+with FIFO cost. Replaces the cycle-walk model in `computePositionsForLots`.
+
+- [ ] `ComputePositions` signature: add `consumptions []LotConsumption` and
+      `remaining map[string]decimal.Decimal` parameters; `CalculatePositions`
+      (calculator_integration.go) passes its existing matching results through
+- [ ] Closed rows — group consumptions by `SellLotID` (one row per sell lot):
+      - Quantity = Σ QuantityConsumed for that sell lot
+      - CostBasis = Σ CostBasisConsumed (negative)
+      - RealizedPnL = Σ consumption RealizedPnL; RealizedPnlPct = P&L / |CostBasis| × 100
+      - AvgOpenPrice = |CostBasis| / Quantity (cost per matched share)
+      - AvgClosePrice = sellLot.SellProceeds / |sellLot.Quantity| (net sale price per share —
+        equals the per-consumption proportional price)
+      - OpenDate = earliest OpenDate among the buy lots consumed by this sell lot
+      - CloseDate = sell lot's date; Currency/AccountID from the sell lot; IsClosed = true
+- [ ] Open row — one per symbol when net running quantity ≠ 0:
+      - Quantity = signed net (positive long, negative short)
+      - CostBasis (net > 0): walk buy lots chronologically, take
+        `min(remaining[buyLotID], needed)` shares each, sum proportional cost;
+        (net < 0): zero
+      - AvgOpenPrice = |CostBasis| / Quantity (long); zero for short
+      - OpenDate: net > 0 → oldest buy lot with remaining > 0; net < 0 → first
+        lot after the last point where running quantity was zero
+      - RealizedPnL = 0, no close date
+- [ ] Remove: zero-crossing cycle closed rows, "P&L only if fully closed" gate,
+      direction-change cycle splits (source of the multi-open-row bug)
+- [ ] Cash positions: untouched
+- [ ] Unit tests (position_computation_test.go):
+      - VWRP scenario: buy 666 @ 105.00 (2024-07-01), sell 18 @ 144.60 (2025-07-15)
+        → open (648, cost −68,040.00, avg 105.00) + closed (18, cost −1,890.00,
+        P&L +712.80, +37.72%, avg open 105.00, avg close 144.60, dates 2024-07-01/2025-07-15)
+      - Full close via two sells (100 bought, 40 + 60 sold) → two closed rows;
+        total P&L equals the old single-row P&L
+      - Sale spanning two buy lots → one row per sell lot, OpenDate = oldest buy consumed
+      - Full close + reopen → new open row dated at the re-opening buy
+      - Sell-only (short) → negative open row, zero closed rows
+      - Update existing tests that pin the old model (partial sell → open only;
+        full-cycle closed row shape)
+
+**Verification:** `go test ./internal/domain/position/` passes; VWRP scenario
+asserted end-to-end at the calculator level.
+
+### Task R1-3: Close-date sort tie-break [PRIORITY: LOW]
+
+**Corresponds to:** constraint "Closed positions view: … Sorted by symbol ascending, then open date ascending, then close date ascending"
+
+- [ ] `sortPositions` in service.go: after symbol ASC, open_date ASC, add
+      close_date ASC (closed rows; open rows have no close date — stable no-op)
+- [ ] Unit test for the tie-break
+
+**Verification:** `go test ./internal/domain/position/ -run Service` passes.
+
+### Task R1-4: Integration tests + regression sweep [PRIORITY: HIGH]
+
+**Corresponds to:** full-path verification per SPEC scenarios
+
+- [ ] Integration test (tests/integration): account with the VWRP scenario →
+      `RecalculateAccount` → assert `positions` table contains open row
+      (648 / −68,040.00) and closed row (18 / +712.80 / 2024-07-01 → 2025-07-15);
+      assert cash position unchanged (proceeds +2,602.80 flow to cash exactly
+      as before — nothing double counted)
+- [ ] Web integration: GET /positions/closed renders 200 and includes the
+      partial-sell row; GET /positions/open shows the reduced open position
+- [ ] Regression sweep: `go test ./...`; audit tests asserting the old model
+      (grep `IsClosed`, `GetClosedPositions`, partial-sell fixtures in
+      performance_test.go / equity_curve tests) and update expectations
+- [ ] Note the expected performance-page shift: Realized P&L total rises for
+      accounts with partial sells (intended, per spec)
+- [ ] Delete `internal/domain/position/tmp_scenario_test.go` (temporary scenario file)
+
+**Verification:** `go test ./...` green; VWRP numbers visible through API + web.
+
+### Task R1-5: Documentation [PRIORITY: LOW]
+
+- [ ] API.md: closed-position list behavior — one row per matched sell lot;
+      open-date semantics (oldest consumed buy lot); partial sells included
+- [ ] NOTES.md: check off R1 tasks; retro entry (fixes: direction-change
+      multi-open-row bug, misleading long-shaped closed row for short
+      round-trips; intended change: performance-page realized P&L)
+
+**Verification:** docs match implemented behavior.
+
 ## Technical Decisions
 
 | Decision | Choice | Reason |
+|---|---|---|
 |---|---|---|
 | Position storage | Pre-computed and stored in DB | Spec says "positions store quantity, cost basis, realized P&L, and dates"; fast reads; recalc on write |
 | Lot storage | Separate `lots` and `lot_consumptions` tables | Lots are independently queryable (drill-down); consumptions need many-to-many mapping |
@@ -542,6 +678,10 @@ Tasks 1-2 are foundations. Task 3 adds lot_id to transactions (needed by calcula
 | Summary panel scope | All positions (not just current page) | Summary must reflect total portfolio state regardless of pagination; uses unbounded fetch (10k limit) |
 | `sign` template function | Returns "positive"/"negative"/"" for decimal strings | Avoids complex conditional logic in templates; handles zero edge cases |
 | Web rendering regression tests | Integration tests hit actual web pages and verify 200 OK | Catches template errors (undefined fields, nil pointers) before they reach production |
+| **R1: Closed row granularity** | One row per FIFO-matched sell lot | Each sale keeps its own dates/prices/P&L; matches "separate cycles → separate rows"; FIFO data already gives this |
+| **R1: Open position source of truth** | Net running quantity + FIFO remaining map | Net qty is economically correct (handles short round-trips); remaining map attributes the right cost to held shares |
+| **R1: FIFO date-awareness** | Sell consumes only buys with OpenDate ≤ sell date | True FIFO availability; prevents short sales matching later buys (impossible open dates, wrong economics) |
+| **R1: Closed-row sort** | symbol ASC, open_date ASC, close_date ASC | Deterministic order for rows sharing symbol+open date (multiple sell lots) |
 | Router options pattern | Functional options (`RouterOption`) for configurable templates dir | Allows integration tests to specify templates path relative to package location |
 
 ## Risks
