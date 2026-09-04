@@ -621,9 +621,9 @@ asserted end-to-end at the calculator level.
 
 **Corresponds to:** constraint "Closed positions view: … Sorted by symbol ascending, then open date ascending, then close date ascending"
 
-- [ ] `sortPositions` in service.go: after symbol ASC, open_date ASC, add
+- [x] `sortPositions` in service.go: after symbol ASC, open_date ASC, add
       close_date ASC (closed rows; open rows have no close date — stable no-op)
-- [ ] Unit test for the tie-break
+- [x] Unit test for the tie-break
 
 **Verification:** `go test ./internal/domain/position/ -run Service` passes.
 
