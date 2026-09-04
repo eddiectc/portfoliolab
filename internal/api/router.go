@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log/slog"
@@ -33,6 +34,7 @@ import (
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"codeberg.org/eddiectc/portfoliolab/internal/domain/seed"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/trading212import"
@@ -54,9 +56,10 @@ type MarketDataFetcher interface {
 type RouterOption func(*routerConfig)
 
 type routerConfig struct {
-	templatesDir  string
-	extractorCfg  config.ExtractorConfig
-	marketFetcher MarketDataFetcher
+	templatesDir   string
+	extractorCfg   config.ExtractorConfig
+	marketFetcher  MarketDataFetcher
+	seedSampleData bool
 }
 
 // WithTemplatesDir sets the templates directory for the router.
@@ -81,11 +84,21 @@ func WithMarketDataFetcher(f MarketDataFetcher) RouterOption {
 	}
 }
 
+// WithoutSampleSeed disables the startup sample-data seed. Production
+// enables the seed by default; tests opt out so they start from an empty
+// database.
+func WithoutSampleSeed() RouterOption {
+	return func(c *routerConfig) {
+		c.seedSampleData = false
+	}
+}
+
 // Router builds and returns the application HTTP router and the MarketCache
 // instance for lifecycle management (Start/Stop) in main.go.
 func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler, *marketcache.MarketCache) {
 	cfg := &routerConfig{
-		templatesDir: "templates",
+		templatesDir:   "templates",
+		seedSampleData: true,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -379,6 +392,17 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 				return
 			}
 		})
+	}
+
+	// Seed sample data on first startup (no-op when any portfolio already
+	// exists). Runs before main.go starts the market cache workers, so the
+	// recalculated positions are in place before the first refresh pass.
+	// A failure is logged and non-fatal — the next startup retries.
+	if cfg.seedSampleData {
+		seedSvc := seed.NewService(data.NewSeedStore(db), positionSvc, logger)
+		if err := seedSvc.SeedDemo(context.Background()); err != nil {
+			logger.Error("sample data seed failed; will retry on next startup", "error", err)
+		}
 	}
 
 	return r, marketCache

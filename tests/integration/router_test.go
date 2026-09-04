@@ -46,6 +46,7 @@ func newTestRouter(t *testing.T, db *sql.DB) http.Handler {
 	t.Helper()
 	router, _ := api.Router(db, testLogger(),
 		api.WithTemplatesDir("../../templates"),
-		api.WithMarketDataFetcher(stubMarketFetcher{}))
+		api.WithMarketDataFetcher(stubMarketFetcher{}),
+		api.WithoutSampleSeed())
 	return router
 }

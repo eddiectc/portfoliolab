@@ -524,10 +524,18 @@ func (s *Service) resolveLotID(ctx context.Context, lotID *string, accountID int
 	return lotID, nil
 }
 
+// GenerateLotID creates a new unique lot ID in the format LOT-<ulid>.
+// ULID is lexicographically sortable by creation time. Exported so the
+// startup seed (f030) assigns lot IDs with the same format as normal
+// transaction writes.
+func GenerateLotID() string {
+	return "LOT-" + ulid.Make().String()
+}
+
 // generateLotID creates a new unique lot ID in the format LOT-<ulid>.
 // ULID is lexicographically sortable by creation time.
 func generateLotID() string {
-	return "LOT-" + ulid.Make().String()
+	return GenerateLotID()
 }
 
 // mapValidationError maps a validator error to the appropriate service error.
