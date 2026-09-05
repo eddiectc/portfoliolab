@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -93,6 +95,125 @@ func TestLoad_MissingFile(t *testing.T) {
 	_, err := Load("/nonexistent/path/config.yaml")
 	if err == nil {
 		t.Error("expected error for missing config file, got nil")
+	}
+}
+
+func writeTestConfig(t *testing.T, tmpDir string, content string) string {
+	t.Helper()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write test config: %v", err)
+	}
+	return configPath
+}
+
+func TestLoad_EnvOverridesFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := `
+server:
+  port: 9090
+  host: "127.0.0.1"
+database:
+  path: "` + tmpDir + `/test.db"
+log:
+  level: "debug"
+`
+	configPath := writeTestConfig(t, tmpDir, content)
+
+	t.Setenv(EnvHost, "10.0.0.5")
+	t.Setenv(EnvPort, "7070")
+	t.Setenv(EnvDBPath, tmpDir+"/env.db")
+	t.Setenv(EnvLogLevel, "warn")
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.Server.Port != 7070 {
+		t.Errorf("expected env port 7070, got %d", cfg.Server.Port)
+	}
+	if cfg.Server.Host != "10.0.0.5" {
+		t.Errorf("expected env host 10.0.0.5, got %s", cfg.Server.Host)
+	}
+	if cfg.Database.Path != tmpDir+"/env.db" {
+		t.Errorf("expected env db path %s, got %s", tmpDir+"/env.db", cfg.Database.Path)
+	}
+	if cfg.Log.Level != "warn" {
+		t.Errorf("expected env log level warn, got %s", cfg.Log.Level)
+	}
+}
+
+func TestLoad_EnvFillsUnsetValues(t *testing.T) {
+	tmpDir := t.TempDir()
+	// File only sets the port; env only sets the host.
+	configPath := writeTestConfig(t, tmpDir, "\nserver:\n  port: 3000\n")
+
+	t.Setenv(EnvHost, "10.0.0.9")
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.Server.Port != 3000 {
+		t.Errorf("expected file port 3000, got %d", cfg.Server.Port)
+	}
+	if cfg.Server.Host != "10.0.0.9" {
+		t.Errorf("expected env host 10.0.0.9, got %s", cfg.Server.Host)
+	}
+	// Untouched values keep their defaults
+	if cfg.Database.Path != "data/portfoliolab.db" {
+		t.Errorf("expected default db path, got %s", cfg.Database.Path)
+	}
+	if cfg.Log.Level != "info" {
+		t.Errorf("expected default log level info, got %s", cfg.Log.Level)
+	}
+}
+
+func TestLoad_EnvInvalidPort(t *testing.T) {
+	t.Setenv(EnvPort, "not-a-number")
+
+	_, err := Load(filepath.Join(t.TempDir(), "config.yaml"))
+	if err == nil {
+		t.Fatal("expected error for invalid PORTFOLIOLAB_PORT, got nil")
+	}
+	if !strings.Contains(err.Error(), EnvPort) {
+		t.Errorf("expected error to mention %s, got %v", EnvPort, err)
+	}
+}
+
+func TestLoad_MissingFile_EnvOverridesApplied(t *testing.T) {
+	t.Setenv(EnvPort, "9090")
+
+	cfg, err := Load("/nonexistent/path/config.yaml")
+	if err == nil {
+		t.Fatal("expected error for missing config file, got nil")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected os.ErrNotExist, got %v", err)
+	}
+
+	if cfg.Server.Port != 9090 {
+		t.Errorf("expected env port 9090, got %d", cfg.Server.Port)
+	}
+	if cfg.Server.Host != "0.0.0.0" {
+		t.Errorf("expected default host, got %s", cfg.Server.Host)
+	}
+}
+
+func TestLoad_EnvEmptyValueIgnored(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := writeTestConfig(t, tmpDir, "\nserver:\n  port: 3000\n")
+
+	t.Setenv(EnvPort, "")
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Server.Port != 3000 {
+		t.Errorf("expected file port 3000 (empty env ignored), got %d", cfg.Server.Port)
 	}
 }
 

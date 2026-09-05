@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -64,14 +65,36 @@ func Defaults() Config {
 	}
 }
 
+// Environment variable names for config overrides. Environment variables
+// take precedence over values from the config file; an empty value is
+// treated as unset.
+const (
+	EnvHost     = "PORTFOLIOLAB_HOST"
+	EnvPort     = "PORTFOLIOLAB_PORT"
+	EnvDBPath   = "PORTFOLIOLAB_DB_PATH"
+	EnvLogLevel = "PORTFOLIOLAB_LOG_LEVEL"
+)
+
 // Load reads and parses the config file at the given path.
 // It returns a Config with defaults merged — only explicitly set
-// values in the file override defaults.
+// values in the file override defaults. Environment variables
+// (PORTFOLIOLAB_HOST, PORTFOLIOLAB_PORT, PORTFOLIOLAB_DB_PATH,
+// PORTFOLIOLAB_LOG_LEVEL) take precedence over the file.
+//
+// If the file does not exist, the returned Config is the defaults with
+// environment overrides applied and the error wraps os.ErrNotExist
+// (check with errors.Is — os.IsNotExist does not follow the error chain).
 func Load(path string) (Config, error) {
 	cfg := Defaults()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if envErr := applyEnvOverrides(&cfg); envErr != nil {
+			return cfg, envErr
+		}
+		if valErr := cfg.Validate(); valErr != nil {
+			return cfg, fmt.Errorf("validate config: %w", valErr)
+		}
 		return cfg, fmt.Errorf("read config file %s: %w", path, err)
 	}
 
@@ -79,11 +102,37 @@ func Load(path string) (Config, error) {
 		return cfg, fmt.Errorf("parse config file %s: %w", path, err)
 	}
 
+	if err := applyEnvOverrides(&cfg); err != nil {
+		return cfg, err
+	}
+
 	if err := cfg.Validate(); err != nil {
 		return cfg, fmt.Errorf("validate config: %w", err)
 	}
 
 	return cfg, nil
+}
+
+// applyEnvOverrides overrides cfg fields from PORTFOLIOLAB_* environment
+// variables. An empty environment variable is treated as unset.
+func applyEnvOverrides(cfg *Config) error {
+	if v := os.Getenv(EnvHost); v != "" {
+		cfg.Server.Host = v
+	}
+	if v := os.Getenv(EnvPort); v != "" {
+		port, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("%s must be an integer, got %q", EnvPort, v)
+		}
+		cfg.Server.Port = port
+	}
+	if v := os.Getenv(EnvDBPath); v != "" {
+		cfg.Database.Path = v
+	}
+	if v := os.Getenv(EnvLogLevel); v != "" {
+		cfg.Log.Level = v
+	}
+	return nil
 }
 
 // Validate checks that the config values are reasonable.
