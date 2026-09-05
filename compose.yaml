@@ -1,0 +1,26 @@
+# Portfoliolab — one-command start.
+#
+# Works with either engine:
+#   docker compose up -d
+#   podman compose up -d
+#
+# The image is pulled from GHCR — no local build required.
+# Data persists in the named volume "portfoliolab-data".
+services:
+  portfoliolab:
+    image: ghcr.io/eddiectc/portfoliolab:latest
+    container_name: portfoliolab
+    ports:
+      - "8080:8080"
+    # Optional environment variable overrides (defaults shown):
+    #   environment:
+    #     PORTFOLIOLAB_HOST: "0.0.0.0"
+    #     PORTFOLIOLAB_PORT: "8080"
+    #     PORTFOLIOLAB_DB_PATH: "data/portfoliolab.db"
+    #     PORTFOLIOLAB_LOG_LEVEL: "info"
+    volumes:
+      - portfoliolab-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  portfoliolab-data:

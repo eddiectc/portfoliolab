@@ -1,0 +1,33 @@
+# Version control & agent state
+.git/
+.pi/
+
+# Local binaries & build artifacts
+bin/
+portfoliolab
+portfoliolab.exe
+server
+coverage.out
+coverage.html
+
+# Local data & databases — never ship them
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Local config (user-specific; the image runs fine without it)
+config/config.yaml
+
+# Project docs & feature specs — not needed in the image
+docs/
+features/
+*.md
+
+# Index files & OS cruft
+.ctags
+.ctags.d/
+.DS_Store
+Thumbs.db
+*.tmp
