@@ -18,7 +18,7 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -33,9 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
@@ -47,9 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -57,14 +57,16 @@ jobs:
       - name: Compute tags
         id: tags
         run: |
-          TAGS="${IMAGE_NAME}:latest
-          ${IMAGE_NAME}:${GITHUB_SHA}"
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            TAGS="${TAGS}
-          ${IMAGE_NAME}:${GITHUB_REF_NAME}"
-          fi
-          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE_NAME}:latest"
+            echo "${IMAGE_NAME}:${GITHUB_SHA}"
+            if [ "${{ github.ref_type }}" = "tag" ]; then
+              echo "${IMAGE_NAME}:${GITHUB_REF_NAME}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
