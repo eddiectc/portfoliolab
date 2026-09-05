@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -30,10 +31,10 @@ func main() {
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
-		// Use default config if file doesn't exist (allow running without config)
-		if os.IsNotExist(err) {
+		// Allow running without a config file. Load returns the defaults
+		// with environment overrides applied in this case.
+		if errors.Is(err, os.ErrNotExist) {
 			slog.Warn("config file not found, using defaults", "path", cfgPath)
-			cfg = config.Defaults()
 		} else {
 			slog.Error("failed to load config", "error", err)
 			os.Exit(1)

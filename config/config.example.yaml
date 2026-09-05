@@ -1,5 +1,11 @@
 # Arch Portfolio Lab Configuration
 # Copy to config/config.yaml and adjust as needed
+#
+# Environment variables override values from this file:
+#   PORTFOLIOLAB_HOST      (default "0.0.0.0")
+#   PORTFOLIOLAB_PORT      (default 8080)
+#   PORTFOLIOLAB_DB_PATH   (default "data/portfoliolab.db")
+#   PORTFOLIOLAB_LOG_LEVEL (default "info")
 
 server:
   port: 8080
