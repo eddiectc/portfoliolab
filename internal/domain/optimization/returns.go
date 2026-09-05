@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sort"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // ErrInsufficientData is returned when price data is too short for computation.

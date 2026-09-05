@@ -12,10 +12,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/web"
+	"github.com/eddiectc/portfoliolab/internal/domain/allocation"
+	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/web"
 )
 
 func TestRegisterRoutes_AllocationWeb(t *testing.T) {

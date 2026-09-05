@@ -1,8 +1,8 @@
 package comparison
 
 import (
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/correlation"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/domain/correlation"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // IntraPortfolioCorrelationInput holds the data needed to compute the

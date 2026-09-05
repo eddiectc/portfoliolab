@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 // e2eFixture is the captured data for one fund. The page body is the

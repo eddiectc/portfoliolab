@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 	"github.com/govalues/decimal"
 )
 

@@ -1,8 +1,8 @@
 package analysis
 
 import (
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/correlation"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/domain/correlation"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // ComputeCorrelation computes the pairwise Pearson correlation matrix from

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/data/queries"
+	"github.com/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
 

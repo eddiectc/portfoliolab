@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
+	"github.com/eddiectc/portfoliolab/internal/domain/allocation"
 )
 
 // allocationService defines the methods the handler needs from the allocation service.

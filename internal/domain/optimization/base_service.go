@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/util"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/util"
 	"github.com/govalues/decimal"
 )
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 func loadFixture(t *testing.T, name string) string {

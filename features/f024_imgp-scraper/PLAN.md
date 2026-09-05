@@ -120,7 +120,7 @@ Tasks 1–3 can be developed in parallel with Task 5. Task 4 depends on 1–3. T
 **Corresponds to:** Story 2 (dispatcher registration)
 **Description:** Register the iMGP extractor with the dispatcher and verify end-to-end flow.
 
-- [x] Add `import "codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/imgp"` to `internal/api/router.go`
+- [x] Add `import "github.com/eddiectc/portfoliolab/internal/domain/extractor/imgp"` to `internal/api/router.go`
 - [x] Add `extractorReg.Register(imgp.NewExtractor())` after existing registrations
 - [x] Verify `go build ./...` succeeds
 - [x] Run existing extractor tests to ensure no regression

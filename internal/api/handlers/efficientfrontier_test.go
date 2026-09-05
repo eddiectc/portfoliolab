@@ -12,8 +12,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/efficientfrontier"
+	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
 )
 
 // testEfficientFrontierService is a minimal in-memory mock service for handler tests.

@@ -3,7 +3,7 @@ package position
 import (
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 	"github.com/govalues/decimal"
 )
 

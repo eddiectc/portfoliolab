@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 	"github.com/govalues/decimal"
 )
 

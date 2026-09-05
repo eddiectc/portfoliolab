@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/trading212import"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/domain/trading212import"
 )
 
 // Trading212ImportHandler handles HTTP requests for Trading 212 CSV import.

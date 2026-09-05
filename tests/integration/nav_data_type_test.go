@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/data"
+	"github.com/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
 

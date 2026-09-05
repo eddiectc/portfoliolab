@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/position"
 )
 
 // portfolioLister abstracts portfolio listing for base currency resolution.

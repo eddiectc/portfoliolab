@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
+	"github.com/eddiectc/portfoliolab/internal/domain/marketcache"
 )
 
 // marketDataDiscoverer implements marketcache.SymbolDiscoverer.

@@ -10,7 +10,7 @@ import (
 	"github.com/govalues/decimal"
 	"github.com/oklog/ulid/v2"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // ---- Service errors ----

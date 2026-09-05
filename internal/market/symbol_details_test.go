@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 	"github.com/wnjoon/go-yfinance/pkg/client"
 )
 

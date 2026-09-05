@@ -13,12 +13,12 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
-	"codeberg.org/eddiectc/portfoliolab/internal/data"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/seed"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/api"
+	"github.com/eddiectc/portfoliolab/internal/data"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/eddiectc/portfoliolab/internal/domain/seed"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // seedWithLotIDs mimics seed.Service.SeedDemo's lot ID assignment so the

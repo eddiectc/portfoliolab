@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/data/queries"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
 // ErrNotFound indicates the requested row does not exist.

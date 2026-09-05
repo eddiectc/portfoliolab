@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
 	"github.com/govalues/decimal"
 )
 

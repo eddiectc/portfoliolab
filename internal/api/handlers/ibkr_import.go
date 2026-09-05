@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/brokerimport"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/domain/brokerimport"
+	"github.com/eddiectc/portfoliolab/internal/domain/ibkrimport"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
 )
 
 // ImportService defines the import operations needed by the HTTP handler.

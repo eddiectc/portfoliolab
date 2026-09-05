@@ -11,11 +11,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
-	"codeberg.org/eddiectc/portfoliolab/internal/web"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbols"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/web"
 )
 
 // displayHolding is a template-friendly holding with pre-formatted percentage.

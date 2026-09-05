@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 // FundDetailResponse represents the structure of the /funddetail API response.

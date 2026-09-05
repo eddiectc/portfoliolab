@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/data/queries"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
 )
 
 // SymbolMappingRepository provides data access for symbol mappings,

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // makePriceSeries creates a price series with daily changes.

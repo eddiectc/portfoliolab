@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
 )
 
 // SymbolService defines the symbol operations needed by the HTTP handler.

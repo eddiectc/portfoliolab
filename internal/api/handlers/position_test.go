@@ -13,9 +13,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // --- Mocks (mirroring service_test.go patterns) ---

@@ -8,11 +8,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/brokerimport"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/ibkrimport"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
-	"codeberg.org/eddiectc/portfoliolab/internal/web"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/domain/brokerimport"
+	"github.com/eddiectc/portfoliolab/internal/domain/ibkrimport"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/web"
 )
 
 // ImportWebHandler handles server-rendered IBKR Flex XML import pages.

@@ -3,8 +3,8 @@ package seed
 import (
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 
 	"github.com/govalues/decimal"
 )

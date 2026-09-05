@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
+	"github.com/eddiectc/portfoliolab/internal/domain/analysis"
 )
 
 // validSectionNames lists the accepted section values for error messages.

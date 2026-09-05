@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // LinkageMethod identifies a hierarchical clustering linkage criterion.

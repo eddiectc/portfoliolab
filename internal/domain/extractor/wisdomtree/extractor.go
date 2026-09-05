@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 // Name is the identifier for the WisdomTree extractor.

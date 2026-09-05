@@ -13,9 +13,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // mockTxRepoForWeb is a minimal in-memory transaction repository for web handler tests.

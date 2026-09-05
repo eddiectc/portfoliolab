@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
 )
 
 // setupHrp creates the DB, router, and pre-seeds symbol mappings

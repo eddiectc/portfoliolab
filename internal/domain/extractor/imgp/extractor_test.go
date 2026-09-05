@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 // --- Extractor Name and Match ---

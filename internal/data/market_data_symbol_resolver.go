@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
+	"github.com/eddiectc/portfoliolab/internal/data/queries"
 )
 
 // MarketDataSymbolResolverImpl maps an internal symbol to its market data provider

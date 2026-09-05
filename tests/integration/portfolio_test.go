@@ -13,9 +13,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/assets"
-	"codeberg.org/eddiectc/portfoliolab/internal/data"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/assets"
+	"github.com/eddiectc/portfoliolab/internal/data"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {

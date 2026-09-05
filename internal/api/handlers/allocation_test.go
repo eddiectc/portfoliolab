@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
+	"github.com/eddiectc/portfoliolab/internal/domain/allocation"
 )
 
 // targetEntry is the JSON request body format for POST /api/allocation/target.

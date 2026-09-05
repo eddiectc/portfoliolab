@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
+	"github.com/eddiectc/portfoliolab/internal/domain/optimization"
 )
 
 // --- Service ---

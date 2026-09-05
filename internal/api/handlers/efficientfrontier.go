@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/efficientfrontier"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
+	"github.com/eddiectc/portfoliolab/internal/domain/efficientfrontier"
+	"github.com/eddiectc/portfoliolab/internal/domain/optimization"
 )
 
 // validFrontierPeriods is the set of accepted period values.

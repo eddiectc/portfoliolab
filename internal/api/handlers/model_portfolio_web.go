@@ -10,9 +10,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
-	"codeberg.org/eddiectc/portfoliolab/internal/web"
+	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbolmapping"
+	"github.com/eddiectc/portfoliolab/internal/web"
 )
 
 // modelPortfolioFormPageData is the shared data struct for the model portfolio form template.

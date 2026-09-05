@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/analysis"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/web"
+	"github.com/eddiectc/portfoliolab/internal/domain/analysis"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/web"
 )
 
 // AnalysisWebHandler handles server-rendered analysis pages.

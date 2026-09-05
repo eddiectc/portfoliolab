@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // ErrNotFound indicates no cached symbol details exist for the requested symbol.

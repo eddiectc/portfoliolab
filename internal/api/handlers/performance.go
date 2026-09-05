@@ -13,10 +13,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/comparison"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/domain/comparison"
+	"github.com/eddiectc/portfoliolab/internal/domain/performance"
+	"github.com/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // benchmarkValidator checks if a market data symbol is a user-defined benchmark.

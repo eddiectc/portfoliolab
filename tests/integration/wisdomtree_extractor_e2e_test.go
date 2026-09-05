@@ -15,11 +15,11 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbols"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/data"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
+	"github.com/eddiectc/portfoliolab/internal/domain/symbols"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 //go:embed testdata/page_qgrw_wtclassid.txt

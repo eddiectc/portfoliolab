@@ -12,7 +12,7 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
 )
 
 // comparisonResult is the JSON-decoded shape of a ComparisonResult.

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
 )
 
 func TestComputeMaxDrawdown(t *testing.T) {

@@ -3,7 +3,7 @@ package data
 import (
 	"context"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
 // PortfolioCurrencyCheckerImpl returns the base currency of a portfolio.

@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
 )
 
 // AccountHandler handles HTTP requests for account CRUD operations.

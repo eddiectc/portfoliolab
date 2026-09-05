@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/position"
+	"github.com/eddiectc/portfoliolab/internal/data/queries"
+	"github.com/eddiectc/portfoliolab/internal/domain/position"
 )
 
 // AccountListerImpl lists accounts for position queries.

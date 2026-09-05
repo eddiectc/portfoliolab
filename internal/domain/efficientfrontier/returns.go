@@ -3,7 +3,7 @@ package efficientfrontier
 import (
 	"sort"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // ComputeReturns computes daily returns from a series of historical close prices.
