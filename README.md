@@ -7,6 +7,12 @@ created: 2026-05-02
 
 A self-hosted investment portfolio management platform for personal investors to track stocks and ETFs across multiple accounts and currencies.
 
+## Screenshots
+
+| Open Positions | Performance |
+|---|---|
+| ![Open positions](docs/images/open_positions.png) | ![Performance](docs/images/performance.png) |
+
 ## Documentation
 
 - [Project Overview](docs/PROJECT.md) — goals, non-goals, constraints, doc index
