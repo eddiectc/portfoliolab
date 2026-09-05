@@ -9,13 +9,9 @@ A self-hosted investment portfolio management platform for personal investors to
 
 ## Screenshots
 
-**Open positions**
-
-![Open positions](docs/images/open_positions.png)
-
-**Performance**
-
-[![Performance](docs/images/performance_thumb.png)](docs/images/performance.png)
+| Open Positions | Performance |
+|---|---|
+| ![Open positions](docs/images/open_positions.png) | [![Performance](docs/images/performance_thumb.png)](docs/images/performance.png) |
 
 ## Documentation
 
