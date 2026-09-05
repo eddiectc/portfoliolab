@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/assets"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
@@ -251,35 +250,9 @@ func TestRegisterRoutes(t *testing.T) {
 
 // --- Template rendering tests ---
 
-// findTemplatesDir walks up from the current directory to find the templates/ dir.
-// This works regardless of whether tests run from the package dir or module root.
-func findTemplatesDir() string {
-	cwd, _ := os.Getwd()
-	dir := cwd
-	for i := 0; i < 10; i++ {
-		if _, err := os.Stat(dir + "/templates"); err == nil {
-			// Return the relative path from CWD to the found templates directory
-			rel, _ := filepath.Rel(cwd, dir+"/templates")
-			return rel
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	// Fallback: try relative paths from common test working directories
-	for _, candidate := range []string{"../../../templates", "../../templates", "../templates", "templates"} {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-	}
-	return "templates" // best effort
-}
-
 func newTestRenderer(t *testing.T) *web.Renderer {
 	t.Helper()
-	renderer, err := web.NewRenderer(findTemplatesDir())
+	renderer, err := web.NewRenderer(assets.Templates, assets.Static)
 	if err != nil {
 		t.Fatalf("failed to create renderer: %v", err)
 	}

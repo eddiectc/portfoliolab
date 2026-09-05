@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/govalues/decimal"
 
+	"codeberg.org/eddiectc/portfoliolab/internal/assets"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/symbolmapping"
 	"codeberg.org/eddiectc/portfoliolab/internal/web"
@@ -205,7 +206,7 @@ func (r *testModelPortfolioRepoForWeb) Delete(_ context.Context, id int64) error
 
 func newTestMPRenderer(t *testing.T) *web.Renderer {
 	t.Helper()
-	renderer, err := web.NewRenderer(findTemplatesDir())
+	renderer, err := web.NewRenderer(assets.Templates, assets.Static)
 	if err != nil {
 		t.Fatalf("failed to create renderer: %v", err)
 	}

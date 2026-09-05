@@ -16,8 +16,10 @@
   - `data/` — data access / repositories
   - `market/` — go-yfinance integration and benchmark data
   - `web/` — HTML rendering and static assets
-- `templates/` — Go HTML templates
-- `migrations/` — SQL migration files (SQLite-compatible, managed by goose)
+  - `assets/` — runtime assets embedded into the binary via `go:embed`:
+    - `assets/migrations/` — SQL migration files (SQLite-compatible, managed by goose)
+    - `assets/templates/` — Go HTML templates
+    - `assets/static/` — static files (css, js)
 - `tests/` — test files and fixtures
 
 ## Naming
@@ -138,10 +140,10 @@ go test -short ./...
 sqlc generate
 
 # Run database migrations (goose)
-goose sqlite3 data/portfoliolab.db up
+goose -dir internal/assets/migrations sqlite3 data/portfoliolab.db up
 
 # Rollback last migration
-goose sqlite3 data/portfoliolab.db down
+goose -dir internal/assets/migrations sqlite3 data/portfoliolab.db down
 
 # Format code
 goimports -w .

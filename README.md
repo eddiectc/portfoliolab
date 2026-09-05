@@ -86,7 +86,7 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 
 ### Key Design Decisions
 
-1. **Single Go binary** — Simple deployment, no build pipeline complexity
+1. **Single Go binary** — Migrations, templates and static assets are embedded via `go:embed`; deployment is just the binary
 2. **API-first** — All web pages consume the same API; enables future mobile app
 3. **Server-rendered pages** — No SPA complexity; pages are fast and simple
 4. **No auth in the app** — Rely on infrastructure (reverse proxy) for security
