@@ -13,9 +13,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/blackrock"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor/blackrock"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
 )
 
 func TestBlackRock_ExtractorDispatch_Routing(t *testing.T) {

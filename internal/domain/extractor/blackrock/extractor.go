@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 // Name is the identifier for the BlackRock/iShares extractor.

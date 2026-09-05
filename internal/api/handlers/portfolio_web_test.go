@@ -11,10 +11,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/assets"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/web"
+	"github.com/eddiectc/portfoliolab/internal/assets"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/web"
 )
 
 // testPortfolioRepoForWeb is a minimal in-memory mock repo for portfolio web handler tests.

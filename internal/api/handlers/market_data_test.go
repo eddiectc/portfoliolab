@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
+	"github.com/eddiectc/portfoliolab/internal/domain/marketcache"
 )
 
 // mockMarketCache simulates MarketCache for handler tests.

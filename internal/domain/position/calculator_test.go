@@ -6,7 +6,7 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 func TestCalculatePositions_FullFlowWithOpenAndCashPosition(t *testing.T) {

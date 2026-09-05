@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // ErrPortfolioExists indicates that the deployment already has portfolios, so

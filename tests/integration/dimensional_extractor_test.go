@@ -12,8 +12,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/dimensional"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor/dimensional"
 )
 
 func TestDimensional_ExtractorDispatch_Routing(t *testing.T) {

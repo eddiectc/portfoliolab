@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/data/queries"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/data/queries"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
 )
 
 // AccountRepository provides data access for accounts,

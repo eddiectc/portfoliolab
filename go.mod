@@ -1,4 +1,4 @@
-module codeberg.org/eddiectc/portfoliolab
+module github.com/eddiectc/portfoliolab
 
 go 1.26.2
 

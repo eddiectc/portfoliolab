@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
+	"github.com/eddiectc/portfoliolab/internal/domain/optimization"
 )
 
 // ComputeHrp runs the full Hierarchical Risk Parity pipeline: validate inputs,

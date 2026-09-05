@@ -4,8 +4,8 @@ import (
 	"math"
 	"sort"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // alignReturnsBySymbol aligns daily returns across all symbols by date.

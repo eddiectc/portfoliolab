@@ -9,11 +9,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/hierarchicalriskparity"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/optimization"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/web"
+	"github.com/eddiectc/portfoliolab/internal/domain/hierarchicalriskparity"
+	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/optimization"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/web"
 )
 
 // hrpPeriods lists the accepted period values.

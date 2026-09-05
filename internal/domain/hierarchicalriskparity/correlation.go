@@ -1,7 +1,7 @@
 package hierarchicalriskparity
 
 import (
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
 )
 
 // ComputeCorrelationMatrix computes the N×N Pearson correlation matrix from

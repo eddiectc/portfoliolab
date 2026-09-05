@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/brokerimport"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/brokerimport"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 	"github.com/govalues/decimal"
 )
 

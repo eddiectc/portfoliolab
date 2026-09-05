@@ -3,7 +3,7 @@ package wisdomtree
 import (
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
 )
 
 func TestParseHoldingsFromAPI(t *testing.T) {

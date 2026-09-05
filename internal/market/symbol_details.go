@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // Yahoo Finance endpoint URLs. Package-level vars (not consts) so they can be

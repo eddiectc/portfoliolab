@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketcache"
+	"github.com/eddiectc/portfoliolab/internal/domain/marketcache"
 )
 
 // marketCacheStatus exposes the subset of MarketCache needed by the handler.

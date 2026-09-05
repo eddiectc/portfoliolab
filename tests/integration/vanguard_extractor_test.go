@@ -12,9 +12,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/vanguard"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor/vanguard"
+	"github.com/eddiectc/portfoliolab/internal/domain/extractor/wisdomtree"
 )
 
 func TestVanguard_ExtractorDispatch_Routing(t *testing.T) {

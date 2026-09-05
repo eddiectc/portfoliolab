@@ -9,9 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
 )
 
 // setupTx creates a portfolio, account, and symbol mapping for transaction tests.

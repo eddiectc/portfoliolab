@@ -15,9 +15,9 @@ import (
 	"strconv"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/util"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/util"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
+	"github.com/eddiectc/portfoliolab/internal/domain/performance"
 	"github.com/govalues/decimal"
 )
 

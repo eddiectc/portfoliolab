@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // setupSymbolDetailsDB creates an in-memory SQLite database with the symbol

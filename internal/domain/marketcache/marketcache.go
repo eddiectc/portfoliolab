@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 // MarketCacheScheduler defines the scheduling interface for background

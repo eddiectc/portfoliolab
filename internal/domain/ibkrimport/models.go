@@ -1,6 +1,6 @@
 package ibkrimport
 
-import "codeberg.org/eddiectc/portfoliolab/internal/domain/brokerimport"
+import "github.com/eddiectc/portfoliolab/internal/domain/brokerimport"
 
 // Type aliases for backward compatibility within the package.
 // The actual type definitions live in internal/domain/brokerimport/types.go

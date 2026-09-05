@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/modelportfolio"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/performance"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/domain/allocation"
+	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/performance"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 	"github.com/govalues/decimal"
 )
 

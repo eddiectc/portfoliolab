@@ -9,9 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/allocation"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/domain/allocation"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
 // setupAlloc creates a portfolio, account, and symbol mappings for allocation tests.

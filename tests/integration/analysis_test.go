@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/portfolio"
+	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
 )
 
 // setupAnalysis creates a portfolio, account, and symbol mappings for analysis tests.

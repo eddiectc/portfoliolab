@@ -3,7 +3,7 @@ package position
 import (
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
 

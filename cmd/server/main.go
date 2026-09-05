@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/api"
-	"codeberg.org/eddiectc/portfoliolab/internal/assets"
-	"codeberg.org/eddiectc/portfoliolab/internal/config"
-	"codeberg.org/eddiectc/portfoliolab/internal/data"
+	"github.com/eddiectc/portfoliolab/internal/api"
+	"github.com/eddiectc/portfoliolab/internal/assets"
+	"github.com/eddiectc/portfoliolab/internal/config"
+	"github.com/eddiectc/portfoliolab/internal/data"
 )
 
 func main() {

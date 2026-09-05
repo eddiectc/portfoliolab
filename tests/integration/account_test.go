@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
+	"github.com/eddiectc/portfoliolab/internal/domain/account"
 )
 
 func TestAccount_CreateAndGet(t *testing.T) {

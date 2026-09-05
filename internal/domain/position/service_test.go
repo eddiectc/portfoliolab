@@ -11,9 +11,9 @@ import (
 
 	"github.com/govalues/decimal"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/marketservice"
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/transaction"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/domain/marketservice"
+	"github.com/eddiectc/portfoliolab/internal/domain/transaction"
+	"github.com/eddiectc/portfoliolab/internal/market"
 )
 
 // ctx is a test context.

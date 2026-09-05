@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/seed"
+	"github.com/eddiectc/portfoliolab/internal/domain/seed"
 )
 
 // SeedStore writes the f030 sample dataset. The whole write runs in one

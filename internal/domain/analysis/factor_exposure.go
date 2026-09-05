@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
-	"codeberg.org/eddiectc/portfoliolab/internal/market"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/market"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 const (

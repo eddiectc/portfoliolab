@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/eddiectc/portfoliolab/internal/domain/stats"
-	"codeberg.org/eddiectc/portfoliolab/internal/types/symbol"
+	"github.com/eddiectc/portfoliolab/internal/domain/stats"
+	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 	"github.com/govalues/decimal"
 )
 
