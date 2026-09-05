@@ -4,15 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"io/fs"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/api/handlers"
 	"codeberg.org/eddiectc/portfoliolab/internal/api/middleware"
+	"codeberg.org/eddiectc/portfoliolab/internal/assets"
 	"codeberg.org/eddiectc/portfoliolab/internal/config"
 	"codeberg.org/eddiectc/portfoliolab/internal/data"
 	"codeberg.org/eddiectc/portfoliolab/internal/domain/account"
@@ -56,16 +57,26 @@ type MarketDataFetcher interface {
 type RouterOption func(*routerConfig)
 
 type routerConfig struct {
-	templatesDir   string
+	templatesFS    fs.FS
+	staticFS       fs.FS
 	extractorCfg   config.ExtractorConfig
 	marketFetcher  MarketDataFetcher
 	seedSampleData bool
 }
 
-// WithTemplatesDir sets the templates directory for the router.
-func WithTemplatesDir(dir string) RouterOption {
+// WithTemplatesFS sets the templates FS for the router (defaults to the
+// embedded templates).
+func WithTemplatesFS(fsys fs.FS) RouterOption {
 	return func(c *routerConfig) {
-		c.templatesDir = dir
+		c.templatesFS = fsys
+	}
+}
+
+// WithStaticFS sets the static assets FS for the router (defaults to the
+// embedded static files).
+func WithStaticFS(fsys fs.FS) RouterOption {
+	return func(c *routerConfig) {
+		c.staticFS = fsys
 	}
 }
 
@@ -97,7 +108,8 @@ func WithoutSampleSeed() RouterOption {
 // instance for lifecycle management (Start/Stop) in main.go.
 func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler, *marketcache.MarketCache) {
 	cfg := &routerConfig{
-		templatesDir:   "templates",
+		templatesFS:    assets.Templates,
+		staticFS:       assets.Static,
 		seedSampleData: true,
 	}
 	for _, opt := range opts {
@@ -141,8 +153,8 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	mustRegister(vgExtractor)
 	extractorDispatcher := extractor.NewDispatcher(extractorReg)
 
-	// Static files
-	r.Mount("/static", web.StaticHandler("internal/web/static"))
+	// Static files (embedded in the binary)
+	r.Mount("/static", web.StaticHandler(cfg.staticFS))
 
 	// Portfolio CRUD (API)
 	portfolioRepo := data.NewPortfolioRepository(db)
@@ -246,14 +258,10 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	modelPortfolioHandler := handlers.NewModelPortfolioHandler(modelPortfolioSvc)
 	modelPortfolioHandler.RegisterRoutes(r)
 
-	// Portfolio web pages
-	renderer, err := web.NewRenderer(cfg.templatesDir)
+	// Portfolio web pages (templates are embedded in the binary)
+	renderer, err := web.NewRenderer(cfg.templatesFS, cfg.staticFS)
 	if err != nil {
-		logger.Warn("failed to load templates, web pages unavailable", "error", err)
-		// Fall back: check if templates dir exists relative to cwd
-		if _, statErr := os.Stat(cfg.templatesDir); statErr != nil {
-			logger.Warn("templates directory not found", "path", cfg.templatesDir)
-		}
+		logger.Error("failed to load embedded templates, web pages unavailable", "error", err)
 	} else {
 		portfolioWebHandler := handlers.NewPortfolioWebHandler(portfolioSvc, accountSvc, renderer)
 		portfolioWebHandler.RegisterRoutes(r)

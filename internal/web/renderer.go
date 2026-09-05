@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -20,32 +20,33 @@ import (
 type Renderer struct {
 	mu        sync.Mutex
 	templates map[string]*template.Template
-	baseDir   string
 	cssHash   string // short hash of style.css for cache busting
 }
 
-// NewRenderer creates a new Renderer and parses all templates from the given directory.
-func NewRenderer(baseDir string) (*Renderer, error) {
+// NewRenderer creates a new Renderer and parses all templates from the given
+// FS (e.g. the embedded assets.Templates). staticFS provides static assets
+// (css/js) for cache-busting hashes.
+func NewRenderer(templatesFS, staticFS fs.FS) (*Renderer, error) {
 	r := &Renderer{
 		templates: make(map[string]*template.Template),
-		baseDir:   baseDir,
 	}
 
-	if err := r.parseTemplates(); err != nil {
+	if err := r.parseTemplates(templatesFS); err != nil {
 		return nil, err
 	}
 
 	// Compute a short hash of the CSS file for cache busting.
-	if hash, err := computeCSSHash(filepath.Join(baseDir, "static", "css", "style.css")); err == nil {
+	if hash, err := computeCSSHash(staticFS); err == nil {
 		r.cssHash = hash
 	}
 
 	return r, nil
 }
 
-// computeCSSHash reads the CSS file and returns a short hex hash (first 8 chars).
-func computeCSSHash(path string) (string, error) {
-	data, err := os.ReadFile(path)
+// computeCSSHash reads the CSS file from the static FS and returns a short
+// hex hash (first 8 chars).
+func computeCSSHash(staticFS fs.FS) (string, error) {
+	data, err := fs.ReadFile(staticFS, "css/style.css")
 	if err != nil {
 		return "", err
 	}
@@ -53,9 +54,9 @@ func computeCSSHash(path string) (string, error) {
 	return fmt.Sprintf("%x", hash)[:8], nil
 }
 
-// parseTemplates walks the templates directory and parses each page template
+// parseTemplates walks the templates FS and parses each page template
 // with the shared base and partials.
-func (r *Renderer) parseTemplates() error {
+func (r *Renderer) parseTemplates(fsys fs.FS) error {
 	funcMap := template.FuncMap{
 		"formatMoney": func(v interface{}) string {
 			// Format a decimal value as money: thousands separator, 2dp, no currency symbol.
@@ -335,24 +336,24 @@ func (r *Renderer) parseTemplates() error {
 		},
 	}
 
-	// Collect layout files (base + partials) and page files separately
+	// Collect layout files (base + partials) and page files separately.
+	// FS paths are slash-separated and relative to the FS root.
 	var layoutFiles []string
 	var pageFiles []string
 
-	err := filepath.Walk(r.baseDir, func(path string, info os.FileInfo, err error) error {
+	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
 		if !strings.HasSuffix(path, ".html") {
 			return nil
 		}
 
-		rel, _ := filepath.Rel(r.baseDir, path)
 		// Layout files: base.html and anything in partials/
-		if rel == "base.html" || strings.HasPrefix(rel, "partials"+string(filepath.Separator)) {
+		if path == "base.html" || strings.HasPrefix(path, "partials/") {
 			layoutFiles = append(layoutFiles, path)
 		} else {
 			pageFiles = append(pageFiles, path)
@@ -366,7 +367,7 @@ func (r *Renderer) parseTemplates() error {
 	// Parse layout templates (base + partials)
 	var layout *template.Template
 	if len(layoutFiles) > 0 {
-		layout, err = template.New("").Funcs(funcMap).ParseFiles(layoutFiles...)
+		layout, err = template.New("").Funcs(funcMap).ParseFS(fsys, layoutFiles...)
 		if err != nil {
 			return err
 		}
@@ -377,8 +378,10 @@ func (r *Renderer) parseTemplates() error {
 		name := r.templateName(pageFile)
 
 		// Parse layout + this page file together
-		files := append(layoutFiles, pageFile)
-		t, err := template.New("").Funcs(funcMap).ParseFiles(files...)
+		files := make([]string, 0, len(layoutFiles)+1)
+		files = append(files, layoutFiles...)
+		files = append(files, pageFile)
+		t, err := template.New("").Funcs(funcMap).ParseFS(fsys, files...)
 		if err != nil {
 			return err
 		}
@@ -391,16 +394,14 @@ func (r *Renderer) parseTemplates() error {
 		r.templates["base"] = layout
 	}
 
-	slog.Info("templates loaded", "count", len(r.templates), "dir", r.baseDir)
+	slog.Info("templates loaded", "count", len(r.templates))
 	return nil
 }
 
-// templateName extracts the template name from a file path.
-// e.g., "templates/portfolio/list.html" -> "portfolio/list"
+// templateName extracts the template name from an FS path.
+// e.g., "portfolio/list.html" -> "portfolio/list"
 func (r *Renderer) templateName(path string) string {
-	rel, _ := filepath.Rel(r.baseDir, path)
-	rel = filepath.ToSlash(rel)
-	return strings.TrimSuffix(rel, ".html")
+	return strings.TrimSuffix(filepath.ToSlash(path), ".html")
 }
 
 // Render executes the named page template with the given data.
@@ -416,9 +417,12 @@ func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) 
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Execute by the base filename - e.g., "list.html"
-	baseName := filepath.Base(name) + ".html"
-	return t.ExecuteTemplate(w, baseName, data)
+	// ParseFS names each file template by its base name, e.g., "list.html"
+	if err := t.ExecuteTemplate(w, filepath.Base(name)+".html", data); err != nil {
+		slog.Error("template execution failed", "template", name, "error", err)
+		return err
+	}
+	return nil
 }
 
 // AllocationCompareEntry holds a single row in a sorted allocation comparison
@@ -445,10 +449,9 @@ type PageData struct {
 	CSSHash string // short hash of style.css for cache busting
 }
 
-// StaticHandler returns an HTTP handler that serves static files from the given directory.
-func StaticHandler(staticDir string) http.Handler {
-	fs := http.Dir(staticDir)
-	return http.StripPrefix("/static/", http.FileServer(fs))
+// StaticHandler returns an HTTP handler that serves static files from the given FS.
+func StaticHandler(staticFS fs.FS) http.Handler {
+	return http.StripPrefix("/static/", http.FileServer(http.FS(staticFS)))
 }
 
 // formatDecimal parses a decimal string and formats it with the given number of

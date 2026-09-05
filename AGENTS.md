@@ -33,10 +33,10 @@ go test -short ./...
 sqlc generate
 
 # Run database migrations (goose)
-goose sqlite3 data/portfoliolab.db up
+goose -dir internal/assets/migrations sqlite3 data/portfoliolab.db up
 
 # Rollback last migration
-goose sqlite3 data/portfoliolab.db down
+goose -dir internal/assets/migrations sqlite3 data/portfoliolab.db down
 
 # Format code
 goimports -w .

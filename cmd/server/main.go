@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"codeberg.org/eddiectc/portfoliolab/internal/api"
+	"codeberg.org/eddiectc/portfoliolab/internal/assets"
 	"codeberg.org/eddiectc/portfoliolab/internal/config"
 	"codeberg.org/eddiectc/portfoliolab/internal/data"
 )
@@ -55,8 +56,8 @@ func main() {
 		}
 	}()
 
-	// Run migrations
-	if err := data.MigrateUp(db, "migrations", logger); err != nil {
+	// Run migrations (embedded in the binary)
+	if err := data.MigrateUp(db, assets.Migrations, logger); err != nil {
 		logger.Error("failed to run migrations", "error", err)
 		os.Exit(1)
 	}

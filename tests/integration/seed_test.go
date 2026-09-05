@@ -250,7 +250,6 @@ func TestRouterSeedsSampleDataByDefault(t *testing.T) {
 	// with a stubbed market fetcher so no network call is made. The seed runs
 	// synchronously before Router returns, i.e. before market cache Start.
 	_, _ = api.Router(db, testLogger(),
-		api.WithTemplatesDir("../../templates"),
 		api.WithMarketDataFetcher(stubMarketFetcher{}))
 
 	var name, currency string
@@ -269,7 +268,6 @@ func TestRouterSeedsSampleDataByDefault(t *testing.T) {
 
 	// Second construction on the now-populated DB: skip, no duplicates.
 	_, _ = api.Router(db, testLogger(),
-		api.WithTemplatesDir("../../templates"),
 		api.WithMarketDataFetcher(stubMarketFetcher{}))
 	if n := countRows(t, db, "portfolios"); n != 1 {
 		t.Errorf("portfolios after second Router = %d, want 1", n)
