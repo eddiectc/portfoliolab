@@ -26,31 +26,48 @@ A self-hosted investment portfolio management platform for personal investors to
 
 Personal investors lack a simple, self-hosted tool to aggregate and analyze their investment portfolios across multiple brokers and currencies. Existing solutions are either cloud-based (privacy concerns), overly complex, or focused on institutional use cases. Arch Portfolio Lab fills this gap with a lightweight, privacy-first platform that provides deep P&L analytics without relying on third-party services.
 
-## Feature List
+## Features
 
-### Must Have (v1)
+Every feature is tracked in [features/](features/) with a spec, plan, and notes. Feature IDs in parentheses link back to `features/<id>_<name>/`.
+
+### Tracking & Import
 
 - [x] **Web Interface** — Server-rendered HTML (Go templates), responsive, with tables, charts, and heatmaps
-- [x] **Portfolio Management** — Create, read, update, delete portfolios (logical groupings of accounts)
-- [x] **Account Management** — CRUD for brokerage accounts (e.g., "IBKR Main", "Trading 212 ISA")
-- [x] **Transaction CRUD** — Manual entry of buys, sells, dividends, fees, and corporate actions
+- [x] **Portfolio & Account Management** — CRUD for portfolios (named groupings of accounts with a base currency) and brokerage accounts (e.g., "IBKR Main", "Trading 212 ISA") (f001, f002)
 - [x] **Multi-Currency Support** — Accounts and transactions in different currencies; exchange rate tracking and conversion
-- [ ] **CSV Import** — Generic CSV import with column mapping for transaction data
-- [x] **Broker Import — IBKR Flex Report** — Parse IBKR XML flex reports and extract positions/transactions
-- [x] **Broker Import — Trading 212** — Parse Trading 212 CSV export and extract positions/transactions
-- [x] **Position Aggregation** — Real-time calculation of outstanding (open) positions across all accounts
-- [x] **Closed Positions** — History of fully closed positions with realized P&L
-- [x] **Cash Balance Tracking** — Per-account cash balance derived from transactions
-- [x] **Portfolio Performance** — Equity curve (portfolio value vs net deposits), time-weighted return (TWR), annualized TWR, money-weighted return (MWR/IRR), simple return (profit/net deposit), annualized simple return, annualized volatility, drawdown analysis (max/current/duration), yearly performance, period selector, multi-currency FX conversion (using yfinance for prices)
-- [x] **Historical P&L** — Time-series of portfolio value, daily returns, cumulative returns
-- [x] **Detailed P&L Analysis** — Drawdown analysis, benchmark comparison (S&P 500, NASDAQ, custom), sector/currency breakdown, win rate, avg hold period
-- [x] **Portfolio Comparison** — Side-by-side comparison of any two portfolios (model vs model, model vs real, real vs real) with performance (TWR, CAGR, money-weighted return), risk (Sharpe, Sortino, volatility), drawdown, return distribution, holdings overlap, and cross-portfolio correlation/beta/alpha
+- [x] **Transaction Entry** — Manual entry of buys, sells, deposits, withdrawals, dividends, fees, and transfers with filtering and pagination; unknown symbols can be created inline with a live market data preview (f004–f006)
+- [x] **Broker Import** — IBKR Flex Report (XML) and Trading 212 (CSV) with symbol mapping, duplicate detection, and a preview before confirming (f007, f008)
+- [x] **Positions** — Open positions across accounts with cost basis and unrealized P&L, closed positions with FIFO lot matching for realized P&L, and per-account cash balance (f009)
 
-### Nice to Have (v2)
+### Performance & Analysis
 
+- [x] **Portfolio Performance** — Equity curve on a unitized NAV (cash-flow independent), time-weighted return (TWR), money-weighted return (MWR/IRR), simple return, annualized volatility, drawdown analysis (max/current/duration), yearly performance, period selector (f010, f013)
+- [x] **Benchmark Comparison** — Overlay the S&P 500, NASDAQ, or any user-marked symbol on the performance chart; MWR side-by-side; monthly return heatmap (f012, f014)
+- [x] **Portfolio Analysis** — ETF overlap, correlation matrix, sector & geographic allocation via ETF look-through, stress testing, factor exposure (f017)
+- [x] **Allocation** — Current vs target weights per symbol, drift and rebalancing suggestions, per-account drill-down, cash included (f018)
+- [x] **Model Portfolios** — Named allocation blueprints (symbols + % weights) that can be applied as a real portfolio's target allocation (f019)
+- [x] **Portfolio Comparison** — Any two portfolios (model vs model, model vs real, real vs real) side-by-side: performance, risk, drawdown, return distribution, holdings/sector/country overlap with drift, cross-portfolio correlation, beta, alpha (f020, f027)
+- [x] **Portfolio Optimization** — Efficient frontier (max Sharpe, min variance, etc.) and Hierarchical Risk Parity over a chosen set of assets, with results savable as a new model portfolio (f028, f029)
+
+### Fund & Market Data
+
+- [x] **Symbol Details** — Cached metadata per symbol: name, exchange, live price; for ETFs, top holdings, sector weightings, geographic allocation, and fund profile (f015, f016)
+- [x] **Provider Data Extractors** — Richer fund data fetched directly from the fund provider (full holdings, NAV history, country/sector breakdowns, fund characteristics) for WisdomTree, DWS, Dimensional, iMGP (factsheet PDFs), Vanguard, and BlackRock/iShares (f021–f026)
+- [x] **Historical Price Caching** — Daily stock and FX prices fetched and cached in the background so pages render instantly; manual refresh and status (f011)
+
+### Supporting (minor)
+
+- **Symbol Map** — Normalizes broker tickers to market-data symbols (Yahoo Finance by default) (f003)
+- **Unitization** — Portfolio unitized like a fund (units and NAV per unit) so deposits/withdrawals don't distort performance (f013)
+- **Benchmark Selection** — Any symbol can be marked as a benchmark, with automatic historical price caching and background refresh (f014)
+- **Seed Data** — A recognizable sample portfolio on first startup so a fresh deployment is immediately demoable (f030, in progress)
+
+### Planned (not yet implemented)
+
+- [ ] **Generic CSV Import** — Column-mapping CSV import for transaction data (broker-specific imports already covered above)
 - [ ] **Mobile App** — Leverage the API layer for a native mobile frontend
 - [ ] **Additional Broker Imports** — Schwab, Fidelity, eToro, etc.
-- [ ] **Tax Lot Tracking** — FIFO, LIFO, specific lot identification for tax reporting
+- [ ] **Tax Lot Tracking** — LIFO and specific-lot identification for tax reporting (FIFO matching already powers realized P&L)
 - [ ] **Watchlist** — Track symbols not yet in the portfolio
 - [ ] **Notifications** — Price alerts, portfolio milestones
 - [ ] **Data Export** — Export portfolio data and reports
@@ -165,7 +182,7 @@ Personal investors lack a simple, self-hosted tool to aggregate and analyze thei
 
 ## Definition of Done
 
-- [ ] All must-have features implemented
+- [ ] All feature specs implemented (see [features/](features/))
 - [ ] Unit tests passing at 80%+ coverage on domain layer
 - [ ] Integration tests passing for all API endpoints
 - [ ] Import parsers tested against real broker file samples
