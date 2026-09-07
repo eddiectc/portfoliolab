@@ -5,7 +5,9 @@ created: 2026-05-02
 
 # Arch Portfolio Lab
 
-A self-hosted investment portfolio management platform for personal investors to track stocks and ETFs across multiple accounts and currencies.
+A self-hosted, privacy-first investment portfolio management platform for personal investors: track stocks and ETFs across multiple accounts and currencies, with deep P&L analytics — no cloud, no third-party services.
+
+Built spec-driven with AI coding agents — every feature ships with a portable, implementation-agnostic spec you can hand to your own AI agent to re-implement or customize (see [Development](#development-spec-driven-ai-agent-workflow)).
 
 ## Screenshots
 
@@ -13,18 +15,19 @@ A self-hosted investment portfolio management platform for personal investors to
 |---|---|
 | ![Open positions](docs/images/open_positions.png) | [![Performance](docs/images/performance_thumb.png)](docs/images/performance.png) |
 
-## Documentation
+## Quickstart
 
-- [Project Overview](docs/PROJECT.md) — goals, non-goals, constraints, doc index
-- [Coding Conventions](docs/CONVENTIONS.md) — style, naming, testing, domain, DB, API, web, security
-- [FX Conventions](docs/FX_CONVENTIONS.md) — foreign exchange rate conventions
-- [API Reference](API.md) — REST API endpoints, request/response schemas
-- [Deployment](docs/DEPLOYMENT.md) — run as binary or container (Docker / Podman), published images on GHCR
-- [Features](features/) — feature specs, plans, notes, retrospectives (features are revised in place when external dependencies change; superseded versions archived in `vN/` subfolders)
+Run it in one command with Docker or Podman (Compose v2) — no local build required:
 
-## Problem Statement
+```bash
+docker compose up -d        # or: podman compose up -d
+```
 
-Personal investors lack a simple, self-hosted tool to aggregate and analyze their investment portfolios across multiple brokers and currencies. Existing solutions are either cloud-based (privacy concerns), overly complex, or focused on institutional use cases. Arch Portfolio Lab fills this gap with a lightweight, privacy-first platform that provides deep P&L analytics without relying on third-party services.
+- Open **http://localhost:8080** — a recognizable "Sample" portfolio is seeded on first startup so the app demos itself; delete it from the UI to start clean.
+- Data persists in the `portfoliolab-data` volume (single SQLite file).
+- The app is single-user with **no built-in auth** — keep it on localhost or put a reverse proxy (e.g., Caddy with basic auth) in front.
+
+Binary install, pinned image tags, env-var configuration, backups, and updates: [Deployment](docs/DEPLOYMENT.md).
 
 ## Features
 
@@ -60,7 +63,7 @@ Every feature is tracked in [features/](features/) with a spec, plan, and notes.
 - **Symbol Map** — Normalizes broker tickers to market-data symbols (Yahoo Finance by default) (f003)
 - **Unitization** — Portfolio unitized like a fund (units and NAV per unit) so deposits/withdrawals don't distort performance (f013)
 - **Benchmark Selection** — Any symbol can be marked as a benchmark, with automatic historical price caching and background refresh (f014)
-- **Seed Data** — A recognizable sample portfolio on first startup so a fresh deployment is immediately demoable (f030, in progress)
+- **Seed Data** — A recognizable sample portfolio on first startup so a fresh deployment is immediately demoable (f030)
 
 ### Planned (not yet implemented)
 
@@ -77,6 +80,25 @@ Every feature is tracked in [features/](features/) with a spec, plan, and notes.
 - **Trading execution** — This is a tracking tool, not a trading platform
 - **Multi-user/multi-tenant** — Single-user personal tool
 - **Authentication** — Self-hosted; rely on reverse proxy (e.g., Caddy with basic auth) for access control
+
+## Development: Spec-Driven, AI-Agent Workflow
+
+This repository is a working example of building real software **with AI coding agents, in a disciplined way**:
+
+- **The specs are the source of truth.** Every feature lives in [`features/<id>_<name>/`](features/) as a BDD `SPEC.md` (user stories + scenarios, written implementation-agnostic), a `PLAN.md` (small, testable tasks), and `NOTES.md` / `RETRO.md` (decisions, deviations, lessons). A spec + plan is enough for a person *or an AI agent* to re-implement the feature from scratch.
+- **Want a tool like this, customized to you?** You don't need to maintain this codebase. Take the specs you care about — or the whole `features/` directory — point your AI coding agent at them, and ask it to implement or adapt them to your own brokers, currencies, and analytics. The specs are the portable asset; the Go code is one implementation of them.
+- **The workflow** is the [pi-agile-workflow](https://github.com/eddiectc/agentic_workflows/tree/main/pi-agile-workflow) skill set: an agile workflow designed for AI agents — `/write-spec` → human review → `/review-spec` → `/plan-impl` → human review → implement task-by-task with tests alongside → `/retro`. Humans stay in the loop at spec and plan review; the agent does the execution, one independently testable task at a time.
+
+All 30 features above were built this way end-to-end — including in-place revisions when external dependencies change (see [features/README.md](features/README.md)).
+
+## Documentation
+
+- [Project Overview](docs/PROJECT.md) — problem statement, goals, non-goals, constraints, doc index
+- [Coding Conventions](docs/CONVENTIONS.md) — style, naming, testing, domain, DB, API, web, security
+- [FX Conventions](docs/FX_CONVENTIONS.md) — foreign exchange rate conventions
+- [API Reference](API.md) — REST API endpoints, request/response schemas
+- [Deployment](docs/DEPLOYMENT.md) — run as binary or container (Docker / Podman), published images on GHCR
+- [Features](features/) — feature specs, plans, notes, retrospectives (revised in place; superseded versions archived in `vN/` subfolders)
 
 ## High-Level Architecture
 
