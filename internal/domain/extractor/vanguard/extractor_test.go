@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -296,6 +298,98 @@ func TestExtractor_Extract(t *testing.T) {
 	// Verify AsOfDate
 	if result.AsOfDate.IsZero() {
 		t.Error("AsOfDate is zero")
+	}
+}
+
+// TestExtractor_Extract_VariableKeysMatchQueries guards against a class of
+// production bug where the variables map sent to the GraphQL API contains a
+// key that does not match the variable name declared in the query (e.g.
+// "portIDs" vs "$portIds"). GraphQL variable names are case-sensitive:
+// for a nullable declaration the server silently treats the missing
+// variable as null (the holdings query returned zero funds without error),
+// while for a non-null declaration ([String!]!) it rejects the request
+// with HTTP 500 — which made every extraction fail at the sectors phase.
+func TestExtractor_Extract_VariableKeysMatchQueries(t *testing.T) {
+	restResponse := map[string]interface{}{
+		"name":          "Test Fund",
+		"ticker":        "TEST",
+		"portId":        "9999",
+		"inceptionDate": "2020-01-01",
+		"isin":          "IE00TESTTEST",
+	}
+	restBytes, _ := json.Marshal(restResponse)
+
+	// Valid-but-empty response accepted by every parser.
+	emptyData, _ := json.Marshal(map[string]interface{}{
+		"data": map[string]interface{}{
+			"funds": []interface{}{
+				map[string]interface{}{
+					"sectorDiversification": []interface{}{},
+					"marketAllocation":      []interface{}{},
+					"pricingDetails":        map[string]interface{}{"navPrices": map[string]interface{}{"items": []interface{}{}}},
+				},
+			},
+			"polarisAnalyticsHistory": []interface{}{
+				map[string]interface{}{
+					"portId":  "9999",
+					"monthly": map[string]interface{}{"analytics": map[string]interface{}{"fund": map[string]interface{}{"items": []interface{}{map[string]interface{}{"codes": map[string]interface{}{}}}}}},
+				},
+			},
+			"borHoldings": []interface{}{},
+		},
+	})
+
+	e := NewExtractor()
+	e.client = newTestClient()
+	e.client.SetRestFetch(func(slug string) ([]byte, error) {
+		return restBytes, nil
+	})
+
+	type gqlCall struct {
+		operation string
+		variables map[string]interface{}
+		query     string
+	}
+	var calls []gqlCall
+	e.client.SetGraphqlFetch(func(operationName string, variables map[string]interface{}, query string) ([]byte, error) {
+		calls = append(calls, gqlCall{operationName, variables, query})
+		return emptyData, nil
+	})
+
+	_, err := e.Extract(context.Background(), "https://www.vanguardinvestor.co.uk/investments/test-fund")
+	if err != nil {
+		t.Fatalf("Extract failed: %v", err)
+	}
+	if len(calls) == 0 {
+		t.Fatal("expected GraphQL calls to be captured")
+	}
+
+	// Declared variables appear in the operation signature as `$name: Type`.
+	// Usages in the query body (e.g. `portIds: $portIds`) never have a
+	// colon directly after the name, so this pattern matches declarations only.
+	declaredVars := regexp.MustCompile(`\$(\w+)\s*:\s*([^\s,)]+)`)
+	for _, c := range calls {
+		declared := map[string]string{}
+		for _, m := range declaredVars.FindAllStringSubmatch(c.query, -1) {
+			declared[m[1]] = m[2]
+		}
+
+		// Every provided key must be a declared variable (catches typos and
+		// case mismatches like "portIDs" vs "$portIds").
+		for key := range c.variables {
+			if _, ok := declared[key]; !ok {
+				t.Errorf("%s: variables map contains key %q which is not declared in the query", c.operation, key)
+			}
+		}
+
+		// Every non-null declared variable must be provided.
+		for name, typ := range declared {
+			if strings.HasSuffix(typ, "!") {
+				if _, provided := c.variables[name]; !provided {
+					t.Errorf("%s: required variable $%s (%s) not provided in variables map", c.operation, name, typ)
+				}
+			}
+		}
 	}
 }
 
