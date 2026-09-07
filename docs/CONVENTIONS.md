@@ -50,6 +50,19 @@
 - **Exception**: Display-only metadata (allocations, weights, characteristics, valuations) may use `float64` — these are presentation values that map to existing `symbol` types and are not used in P&L calculations
 - Decimal is stored as `TEXT` in SQLite; repo layer handles `decimal.Decimal` ↔ string conversion
 - Document all rounding rules and edge cases in code comments
+- The transaction domain's `calculator.go` is the P&L core — test it exhaustively
+
+#### govalues/decimal API Reference
+
+| Operation | Function | Notes |
+|---|---|---|
+| Create from integer + scale | `decimal.MustNew(value, scale)` | value is integer shifted by 10^scale; e.g. `MustNew(15000, 2)` = 150.00 |
+| Create from string | `decimal.MustParse(s)` | panics on error; use `decimal.Parse(s)` for error-returning version |
+| Check positive | `d.IsPos()` | not `IsPositive()` |
+| Compare | `a.Equal(b)` | not string equality; `String()` preserves scale ("150.00" ≠ "150") |
+| Serialize | `d.String()` | preserves scale (e.g. "150.00") |
+| Deserialize | `decimal.MustParse(s)` | parses back to Decimal |
+| JSON | native | implements `json.Marshaler`/`json.Unmarshaler` automatically |
 - **Trade suggestions need price resolution for unheld symbols** — when computing rebalancing or trade suggestions, symbols in the target allocation may not yet be held. The interface (e.g., `PositionSource`) must expose a price lookup method (e.g., `GetMarketPrice`) independent of position enrichment.
 - **Presence indicator for optional numeric fields** — when a struct contains optional `float64` fields that can be genuinely zero, add a presence indicator so consumers can distinguish "field = 0" from "field absent in source". Use a bitmask type (e.g., `type RiskFieldsMask uint8` with `1 << iota` constants) and provide `HasField(mask) bool` and `AllFieldsPresent() bool` helpers. Duplicate the mask type in both the `extractor` and `symbol` packages, following the existing type duplication pattern. See `RiskMeasures` / `RiskFieldsMask` in `extractor/extractor.go` and `symbol/symbol_details.go` for the reference implementation.
 
@@ -102,6 +115,33 @@ The API is the **single source of truth** for all business logic and data comput
 - Parse broker files into an intermediate format first, then validate before persisting
 - Log parsing errors with line numbers for debugging
 - Never silently skip malformed rows — report and let the user review
+
+## Cross-Layer Consistency Audits
+
+A change that widens what a field can contain, or what a shared type carries, is not done until every read path is verified. These audits exist because silently-dropped data passes every unit test.
+
+### New filterable values
+
+When storing data with a new filterable value (a new `data_type`, `source`, or status):
+
+1. **SQL queries** — every `SELECT` that filters on the field must include the new value (e.g., `data_type IN ('stock', 'fx')` not `data_type = 'stock'`)
+2. **Repository methods** — confirm the repo returns the new data type to callers
+3. **Service layer** — verify consumers handle the new data type (no silent drops)
+4. **Tests** — add a test case with the new value exercising the full path (repo → service → output)
+
+### New fields on shared types
+
+When adding a field to a shared type (e.g., `extractor.FundProfile`, `symbol.FundProfile`), every mapping layer must be audited — adding the field to the type definition is not enough; it must flow through all layers:
+
+1. **Type definition** — field added to both `extractor` and `symbol` package types
+2. **Parser** — field populated from source data
+3. **Service mapping** (`extractResultToSymbolDetails`) — field mapped from `ExtractResult` to `SymbolDetails`
+4. **Repository serialization** — field serialized in `toSQLNullJSON` and deserialized in `toSymbolDetail()`
+5. **Web display** — field included in `toDisplayDetails()` and rendered in template
+6. **Tests** — repo round-trip test covers the new field; integration test exercises the full path
+7. **Persistence gates** — the service layer may gate a section's persistence on presence masks (e.g., `symbols/service.go` persists `EquityValuation` only if `HasCharacteristic(PriceToEarnings)`). Check every presence mask the parser sets against these gates, and the integration test must assert the section is present *in the DB* (e.g., `equity_valuation` non-null) — a parser passing its own unit tests is not enough (f021: `FieldsPresent` never set → all characteristics silently dropped)
+
+**Rule of thumb**: after adding a field to a shared type, grep for every other field in the same struct and verify the new field appears in the same locations (mapping functions, serialization, display). If it doesn't, it will be silently dropped. Similarly, after a provider parser populates a shared struct, trace every presence gate between the parser and the DB and pin each gate's input with an integration assertion.
 
 ## Security
 - No authentication in the app — assume reverse proxy handles access control
