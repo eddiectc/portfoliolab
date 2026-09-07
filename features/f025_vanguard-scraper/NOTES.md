@@ -97,3 +97,16 @@ See **RESEARCH.md** for full API endpoint details, query specifications, and tec
 ## Post-Completion Fix (2026-05-31)
 
 - **EquityValuation conditional mapping**: `extractResultToSymbolDetails` was creating `EquityValuation` unconditionally whenever `Characteristics != nil`, even for pure bond funds where all equity fields are zero. This resulted in an empty `{"PriceToEarnings":0,...}` object in the API response for bond funds, inconsistent with `BondCharacteristics` which was already conditional (nil for equity funds). Fixed: `EquityValuation` is now gated on `HasCharacteristic(CharacteristicPriceToEarnings)`, symmetric to the `BondCharacteristics` gate on `HasCharacteristic(CharacteristicAverageCoupon)`. Updated 3 unit tests to set `FieldsPresent` bitmask and expect `nil` `EquityValuation` for bond funds.
+
+## Post-Completion Fix (2026-07-01) — GraphQL variable name case mismatch (production bug)
+
+**Symptom**: Every Vanguard extraction failed with `fetch sectors: GraphQL error (HTTP 500): ... The variable '$portIds' of type '[String!]!' was provided but is not declared by the operation 'getSectorDiversification'`.
+
+**Root cause**: All 5 GraphQL queries declare `$portIds`, but every variables map in `Extract()` (and `fetchAllHoldings`) used the key `"portIDs"` (capital D). GraphQL variable names are case-sensitive, so the declared variable was never received. Two distinct failure modes from one typo:
+
+- 4 queries declare `[String!]!` (non-null) → server rejects with HTTP 500 → the first such call (sectors) fails and the whole extraction is atomically rejected. This is what made every extraction fail.
+- The holdings query declares `[String!]` (nullable) → the server silently treats the missing variable as null and returns **zero funds with no error**. Without the sectors 500, a fund with holdings would have silently extracted with empty data.
+
+**Fix**: Renamed the 5 map keys to `"portIds"` (exact case match with the declarations). Verified against the live Vanguard API before and after the fix (portId 9679 = VWRP): buggy key → sectors 500 / holdings 0 funds; fixed key → all 5 queries return data.
+
+**Regression test**: `TestExtractor_Extract_VariableKeysMatchQueries` — captures every `(operationName, variables, query)` tuple from a full `Extract()` run and asserts (1) every provided variable key is declared in the query, and (2) every non-null declared variable is provided. Verified the test fails against the old `"portIDs"` key and passes against the fixed code. This guards the whole class of declaration/key mismatch bug (typo or case).

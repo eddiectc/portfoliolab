@@ -97,7 +97,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 
 	// Sector allocation
 	sectorData, err := e.client.FetchGraphQL("getSectorDiversification", map[string]interface{}{
-		"portIDs": portIDs,
+		"portIds": portIDs,
 	}, sectorQuery)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 (sectors): %w", err)
@@ -109,7 +109,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 
 	// Country allocation
 	countryData, err := e.client.FetchGraphQL("MarketAllocationGqlQuery", map[string]interface{}{
-		"portIDs": portIDs,
+		"portIds": portIDs,
 	}, countryQuery)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 (countries): %w", err)
@@ -121,7 +121,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 
 	// Fund characteristics
 	charData, err := e.client.FetchGraphQL("FundCharacteristicsQuery", map[string]interface{}{
-		"portIDs": portIDs,
+		"portIds": portIDs,
 	}, characteristicsQuery)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 (characteristics): %w", err)
@@ -135,7 +135,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	startDate := time.Now().AddDate(0, 0, -e.navHistoryDays).Format("2006-01-02")
 	endDate := time.Now().Format("2006-01-02")
 	navData, err := e.client.FetchGraphQL("PriceDetailsQuery", map[string]interface{}{
-		"portIDs":   portIDs,
+		"portIds":   portIDs,
 		"startDate": startDate,
 		"endDate":   endDate,
 		"limit":     float64(0),
@@ -174,7 +174,7 @@ func (e *Extractor) fetchAllHoldings(ctx context.Context, portIDs []string) ([]e
 		}
 
 		variables := map[string]interface{}{
-			"portIDs":       portIDs,
+			"portIds":       portIDs,
 			"securityTypes": allSecurityTypes,
 			"lastItemKey":   lastItemKey,
 		}
