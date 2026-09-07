@@ -98,6 +98,7 @@ All 30 features above were built this way end-to-end — including in-place revi
 
 - [Project Overview](docs/PROJECT.md) — problem statement, goals, non-goals, constraints, doc index
 - [Coding Conventions](docs/CONVENTIONS.md) — style, naming, testing, domain, DB, API, web, security
+- [AI Agent Entry Point](AGENTS.md) — routes AI coding agents to the same shared docs everyone else uses
 - [FX Conventions](docs/FX_CONVENTIONS.md) — foreign exchange rate conventions
 - [API Reference](API.md) — REST API endpoints, request/response schemas
 - [Deployment](docs/DEPLOYMENT.md) — run as binary or container (Docker / Podman), published images on GHCR

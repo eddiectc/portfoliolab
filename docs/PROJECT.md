@@ -37,5 +37,5 @@ See [README.md](../README.md) for the full tech stack table.
 | [FX_CONVENTIONS.md](FX_CONVENTIONS.md) | Foreign exchange rate conventions across multi-currency portfolios |
 | [API.md](../API.md) | REST API reference (endpoints, request/response schemas) |
 | [DoD.md](../DoD.md) | Definition of Done checklist (per-feature) |
-| [AGENTS.md](../AGENTS.md) | Agentic coding instructions (agent-specific workflow and practices) |
+| [AGENTS.md](../AGENTS.md) | AI agent entry point — routes to the shared docs (conventions, workflow, API, DoD) |
 | [features/](../features/) | Feature specs, plans, notes, retrospectives |
