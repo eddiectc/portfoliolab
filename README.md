@@ -17,9 +17,12 @@ Built spec-driven with AI coding agents — every feature ships with a portable,
 
 ## Quickstart
 
-Run it in one command with Docker or Podman (Compose v2) — no local build required:
+No local build required — the published image is pulled from GHCR. Grab the
+[compose file](compose.yaml) from the repo root and run it with Docker or Podman (Compose v2):
 
 ```bash
+git clone https://github.com/eddiectc/portfoliolab.git
+cd portfoliolab
 docker compose up -d        # or: podman compose up -d
 ```
 
