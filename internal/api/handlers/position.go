@@ -162,7 +162,7 @@ func (h *PositionHandler) HandleGetLot(w http.ResponseWriter, r *http.Request) {
 // Accepts optional query params: account_id, portfolio_id.
 // If neither is provided, recalculates all accounts.
 func (h *PositionHandler) HandleRecalculate(w http.ResponseWriter, r *http.Request) {
-	_, scope, err := h.doRecalculate(r)
+	scope, err := h.doRecalculate(r)
 	if err != nil {
 		if parseErr(err) {
 			writeJSONError(w, http.StatusBadRequest, "INVALID_ID", err.Error())
@@ -180,39 +180,38 @@ func parseErr(err error) bool {
 }
 
 // doRecalculate executes the recalculation based on query params.
-// Returns (id int64, scope string, error). The web handler can call this
+// Returns (scope string, error). The web handler can call this
 // to reuse the same logic with flash messages instead of JSON responses.
-// id is the account_id or portfolio_id if specified, 0 otherwise.
-func (h *PositionHandler) doRecalculate(r *http.Request) (int64, string, error) {
+func (h *PositionHandler) doRecalculate(r *http.Request) (string, error) {
 	query := r.URL.Query()
 
 	if v := query.Get("account_id"); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return 0, "", errors.New("invalid account_id")
+			return "", errors.New("invalid account_id")
 		}
 		if err := h.service.RecalculateAccount(r.Context(), id); err != nil {
-			return 0, "", err
+			return "", err
 		}
-		return id, "account " + v, nil
+		return "account " + v, nil
 	}
 
 	if v := query.Get("portfolio_id"); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return 0, "", errors.New("invalid portfolio_id")
+			return "", errors.New("invalid portfolio_id")
 		}
 		if err := h.service.RecalculatePortfolio(r.Context(), id); err != nil {
-			return 0, "", err
+			return "", err
 		}
-		return id, "portfolio " + v, nil
+		return "portfolio " + v, nil
 	}
 
 	// No filter → recalculate all.
 	if err := h.service.RecalculateAll(r.Context()); err != nil {
-		return 0, "", err
+		return "", err
 	}
-	return 0, "all accounts", nil
+	return "all accounts", nil
 }
 
 func (h *PositionHandler) handleLotError(w http.ResponseWriter, err error) {

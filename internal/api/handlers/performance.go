@@ -116,7 +116,7 @@ func (h *PerformanceHandler) HandleRefresh(w http.ResponseWriter, r *http.Reques
 
 	result, err := h.positionSvc.RefreshMarketData(r.Context(), filters)
 	if err != nil {
-		h.handleRefreshError(w, err)
+		h.handleRefreshError(w)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *PerformanceHandler) handlePerformanceError(w http.ResponseWriter, err e
 	writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 }
 
-func (h *PerformanceHandler) handleRefreshError(w http.ResponseWriter, err error) {
+func (h *PerformanceHandler) handleRefreshError(w http.ResponseWriter) {
 	writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 }
 

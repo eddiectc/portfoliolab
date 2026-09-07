@@ -127,8 +127,7 @@ func (s *Service) ComputeEquityCurve(ctx context.Context, filters performance.Pe
 
 	// Aggregate dividends, interest, fees, taxes from transactions.
 	result.ReturnMetrics.Dividends, result.ReturnMetrics.Interest,
-		result.ReturnMetrics.Fees, result.ReturnMetrics.Taxes =
-		aggregateCashFlowTransactions(allTxns, baseCurrency, s)
+		result.ReturnMetrics.Fees, result.ReturnMetrics.Taxes = aggregateCashFlowTransactions(allTxns, baseCurrency, s)
 
 	return result, nil
 }

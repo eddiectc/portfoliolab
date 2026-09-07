@@ -189,7 +189,7 @@ func (s *Service) RecalculateAccount(ctx context.Context, accountID int64) error
 	}
 
 	// Schedule background market data fetches for open positions.
-	s.scheduleCacheFetches(ctx, result, txns, accountID, baseCurrency)
+	s.scheduleCacheFetches(ctx, result, txns, baseCurrency)
 
 	return nil
 }
@@ -197,7 +197,7 @@ func (s *Service) RecalculateAccount(ctx context.Context, accountID int64) error
 // scheduleCacheFetches schedules background fetches for symbols and FX pairs
 // found in the open positions and cash transactions of the account. It skips
 // cash symbols and uses the earliest relevant date as the fetch start date.
-func (s *Service) scheduleCacheFetches(ctx context.Context, result *CalculateResult, txns []transaction.Transaction, accountID int64, baseCurrency string) {
+func (s *Service) scheduleCacheFetches(ctx context.Context, result *CalculateResult, txns []transaction.Transaction, baseCurrency string) {
 	if s.cacheScheduler == nil {
 		return
 	}
@@ -300,10 +300,10 @@ func (s *Service) getBaseCurrencyForAccount(accounts []AccountRef, accountID int
 func (s *Service) convertPnlToBase(ctx context.Context, result *CalculateResult, baseCurrency string) {
 	// Process each slice separately to avoid append copy issues.
 	for i := range result.OpenPositions {
-		s.convertPositionPnl(&result.OpenPositions[i], baseCurrency, ctx, false)
+		s.convertPositionPnl(ctx, &result.OpenPositions[i], baseCurrency, false)
 	}
 	for i := range result.ClosedPositions {
-		s.convertPositionPnl(&result.ClosedPositions[i], baseCurrency, ctx, true)
+		s.convertPositionPnl(ctx, &result.ClosedPositions[i], baseCurrency, true)
 	}
 	// Cash positions are skipped — already in cash currency.
 }
@@ -317,7 +317,7 @@ func (s *Service) convertPnlToBase(ctx context.Context, result *CalculateResult,
 // answers "what is this worth in base currency today?" and keeps the
 // position summaries consistent with the equity curve's last point.
 // See docs/FX_CONVENTIONS.md for the full rationale.
-func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx context.Context, _isClosed bool) {
+func (s *Service) convertPositionPnl(ctx context.Context, p *Position, baseCurrency string, _isClosed bool) {
 	// Skip cash positions.
 	if isCashPosition(p.Symbol) {
 		return
@@ -363,8 +363,8 @@ func (s *Service) convertPositionPnl(p *Position, baseCurrency string, ctx conte
 // If no FX rate is available, returns (Zero, nil, true) — the caller should
 // treat this as a missing value, not a zero P&L.
 func ConvertPnlToBase(pnl decimal.Decimal, positionCurrency, baseCurrency string,
-	rate *market.FxRate, isFallback bool) (decimal.Decimal, *decimal.Decimal, bool) {
-
+	rate *market.FxRate, isFallback bool,
+) (decimal.Decimal, *decimal.Decimal, bool) {
 	// Same currency — no conversion needed.
 	if positionCurrency == baseCurrency {
 		return pnl, nil, false
@@ -655,7 +655,7 @@ type OpenPositionSummary struct {
 
 // GetClosedPositionsSummary computes the summary from ALL closed positions
 // (not limited by pagination), respecting the given filters.
-func (s *Service) GetClosedPositionsSummary(ctx context.Context, filters ListFilters, baseCurrency string) (ClosedPositionSummary, error) {
+func (s *Service) GetClosedPositionsSummary(ctx context.Context, filters ListFilters, _ string) (ClosedPositionSummary, error) {
 	accountIDs, err := s.resolveAccountIDs(ctx, filters)
 	if err != nil {
 		return ClosedPositionSummary{}, err

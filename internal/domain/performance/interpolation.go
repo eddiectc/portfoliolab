@@ -59,13 +59,13 @@ func lookupPrice(ff map[string]*priceLookupFF, symbol, dateKey string) (market.H
 // mechanism: with no price that day, forward-fill carries the last trading
 // day's value.
 func InterpolateDaily(
+	ctx context.Context,
 	points []EquityCurvePoint,
 	snapshots []dateSnapshot,
 	dateTo time.Time,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
 	marketProvider MarketDataProvider,
-	ctx context.Context,
 ) []EquityCurvePoint {
 	if len(points) == 0 {
 		return points
@@ -113,7 +113,7 @@ func InterpolateDaily(
 		// FX rate so that
 		// profit = portfolio_value − net_deposit uses the same FX
 		// convention for both sides (valuation-date FX).
-		snap := snapshots[snapIdx]
+		snap := snapshots[snapIdx] //nolint:gosec // snapIdx bounds-checked above
 		portfolioValue := computePortfolioValue(snap.positions, snap.positionCurrency, snap.cashBalance, ff, fxLookup, baseCurrency, d)
 		netDepBase := computeNetDeposit(snap.netDeposit, fxLookup, baseCurrency, d)
 		result = append(result, EquityCurvePoint{

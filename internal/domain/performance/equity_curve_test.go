@@ -10,14 +10,14 @@ import (
 	"github.com/govalues/decimal"
 )
 
-// --- Tests for WalkTxns ---
+// --- Tests for walkTxns ---
 
 func TestWalkTxns_HappyPath(t *testing.T) {
 	txns := []transaction.Transaction{
 		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 		eqTxn(2, testTime(2024, 1, 16), "buy", "AAPL", "USD", 10, 1500000, 0),
 	}
-	snaps, final := WalkTxns(txns)
+	snaps, final := walkTxns(txns)
 	if len(snaps) != 2 {
 		t.Fatalf("expected 2 snapshots, got %d", len(snaps))
 	}
@@ -32,7 +32,7 @@ func TestWalkTxns_NegativeSellQuantity(t *testing.T) {
 		eqTxn(2, testTime(2024, 1, 16), "buy", "AAPL", "USD", 10, 1500000, 0),
 		eqTxn(3, testTime(2024, 1, 17), "sell", "AAPL", "USD", -5, -800000, 0),
 	}
-	snaps, _ := WalkTxns(txns)
+	snaps, _ := walkTxns(txns)
 	lastSnap := snaps[len(snaps)-1]
 	qty := lastSnap.positions["AAPL"]
 	want := decimal.MustNew(5, 0)
@@ -46,7 +46,7 @@ func TestWalkTxns_MultipleTxnsSameDate(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 		eqTxn(2, testTime(2024, 1, 15), "buy", "AAPL", "USD", 10, 1500000, 0),
 	}
-	snaps, _ := WalkTxns(txns)
+	snaps, _ := walkTxns(txns)
 	if len(snaps) != 1 {
 		t.Fatalf("expected 1 snapshot, got %d", len(snaps))
 	}
@@ -57,7 +57,7 @@ func TestWalkTxns_NegativeNetDeposit(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 		eqTxn(2, testTime(2024, 1, 16), "withdrawal", "$CASH-USD", "USD", 0, 0, -1500000),
 	}
-	snaps, _ := WalkTxns(txns)
+	snaps, _ := walkTxns(txns)
 	lastSnap := snaps[len(snaps)-1]
 	nd := lastSnap.netDeposit["USD"]
 	want := decimal.MustNew(-500000, 0)
@@ -71,7 +71,7 @@ func TestWalkTxns_CapturesPreCashFlow(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 15), "buy", "AAPL", "USD", 10, 1500000, 0),
 		eqTxn(2, testTime(2024, 1, 16), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 	}
-	snaps, _ := WalkTxns(txns)
+	snaps, _ := walkTxns(txns)
 	// Snapshot on deposit date should have pre-cash-flow snapshot
 	snap1 := snaps[1]
 	if len(snap1.preCashFlowSnapshots) != 1 {
@@ -88,7 +88,7 @@ func TestWalkTxns_DepositSharesDateWithBuy(t *testing.T) {
 		eqTxn(1, testTime(2024, 1, 15), "buy", "AAPL", "USD", 10, 1500000, 0),
 		eqTxn(2, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 	}
-	snaps, _ := WalkTxns(txns)
+	snaps, _ := walkTxns(txns)
 	snap := snaps[0]
 	if len(snap.preCashFlowSnapshots) != 1 {
 		t.Fatalf("expected 1 pre-cash-flow snapshot, got %d", len(snap.preCashFlowSnapshots))
@@ -103,7 +103,7 @@ func TestWalkTxns_DepositSharesDateWithBuy(t *testing.T) {
 // --- Tests for InterpolateDaily ---
 
 func TestInterpolateDaily_NoPoints(t *testing.T) {
-	result := InterpolateDaily(nil, nil, testTime(2024, 1, 20), nil, "USD", nil, context.Background())
+	result := InterpolateDaily(context.Background(), nil, nil, testTime(2024, 1, 20), nil, "USD", nil)
 	if result != nil {
 		t.Error("expected nil, got non-nil")
 	}
@@ -113,7 +113,7 @@ func TestInterpolateDaily_SinglePoint(t *testing.T) {
 	points := []EquityCurvePoint{
 		{Date: testTime(2024, 1, 15), PortfolioValue: decimal.MustParse("1000.00"), NetDeposit: decimal.MustParse("1000.00")},
 	}
-	result := InterpolateDaily(points, []dateSnapshot{{date: testTime(2024, 1, 15)}}, testTime(2024, 1, 15), nil, "USD", nil, context.Background())
+	result := InterpolateDaily(context.Background(), points, []dateSnapshot{{date: testTime(2024, 1, 15)}}, testTime(2024, 1, 15), nil, "USD", nil)
 	if len(result) != 1 {
 		t.Errorf("expected 1 point, got %d", len(result))
 	}
@@ -140,7 +140,7 @@ func TestInterpolateDaily_FillsGaps(t *testing.T) {
 		cashBalance:      cashBalance,
 		netDeposit:       netDeposit,
 	}}
-	result := InterpolateDaily(points, snapshots, testTime(2024, 1, 17), prices, "USD", nil, context.Background())
+	result := InterpolateDaily(context.Background(), points, snapshots, testTime(2024, 1, 17), prices, "USD", nil)
 	// Should have 3 points (15th, 16th, 17th)
 	if len(result) < 3 {
 		t.Errorf("expected at least 3 points, got %d", len(result))
@@ -179,7 +179,7 @@ func TestInterpolateDaily_MarkToMarketBetweenTransactions(t *testing.T) {
 	snap1 := dateSnapshot{date: testTime(2024, 1, 15), positions: positions, positionCurrency: positionCurrency, cashBalance: cashBalance, netDeposit: netDeposit}
 	snap2 := snap1
 	snap2.date = testTime(2024, 1, 22)
-	result := InterpolateDaily(points, []dateSnapshot{snap1, snap2}, testTime(2024, 1, 22), prices, "USD", nil, context.Background())
+	result := InterpolateDaily(context.Background(), points, []dateSnapshot{snap1, snap2}, testTime(2024, 1, 22), prices, "USD", nil)
 	if len(result) != 8 {
 		t.Fatalf("expected 8 daily points, got %d", len(result))
 	}
@@ -208,7 +208,7 @@ func TestInterpolateDaily_MarkToMarketBetweenTransactions(t *testing.T) {
 }
 
 func TestComputeEquityCurve_MarkToMarketBetweenTransactions(t *testing.T) {
-	// Full path (WalkTxns -> buildCurvePoints -> InterpolateDaily):
+	// Full path (walkTxns -> buildCurvePoints -> InterpolateDaily):
 	// buy 10 AAPL on Jan 15, sell 1 on Jan 22. Trading days in between
 	// must reflect the point-in-time holdings (10 shares + $1000 cash)
 	// valued at that day's price.
@@ -342,7 +342,7 @@ func TestComputeTWR_DepositOnSameDateAsBuy(t *testing.T) {
 		eqTxn(2, testTime(2024, 1, 15), "deposit", "$CASH-USD", "USD", 0, 0, 1000000),
 	}
 	// Just verify it doesn't panic
-	_, _ = WalkTxns(txns)
+	_, _ = walkTxns(txns)
 }
 
 // --- Helpers ---

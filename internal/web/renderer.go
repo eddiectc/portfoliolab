@@ -170,13 +170,14 @@ func (r *Renderer) parseTemplates(fsys fs.FS) error {
 			if _, err := fmt.Sscanf(s, "%f", &val); err != nil {
 				return "heat-neutral"
 			}
-			if val >= 1.0 {
+			switch {
+			case val >= 1.0:
 				return "heat-positive-strong"
-			} else if val > 0 {
+			case val > 0:
 				return "heat-positive"
-			} else if val <= -1.0 {
+			case val <= -1.0:
 				return "heat-negative-strong"
-			} else if val < 0 {
+			case val < 0:
 				return "heat-negative"
 			}
 			return "heat-neutral"
@@ -193,13 +194,14 @@ func (r *Renderer) parseTemplates(fsys fs.FS) error {
 			}
 			// Negate so the same thresholds apply but inverted.
 			val = -val
-			if val >= 1.0 {
+			switch {
+			case val >= 1.0:
 				return "heat-positive-strong"
-			} else if val > 0 {
+			case val > 0:
 				return "heat-positive"
-			} else if val <= -1.0 {
+			case val <= -1.0:
 				return "heat-negative-strong"
-			} else if val < 0 {
+			case val < 0:
 				return "heat-negative"
 			}
 			return "heat-neutral"
@@ -216,13 +218,14 @@ func (r *Renderer) parseTemplates(fsys fs.FS) error {
 			if _, err := fmt.Sscanf(s, "%f", &val); err != nil {
 				return "heat-even"
 			}
-			if val >= 1.0 {
+			switch {
+			case val >= 1.0:
 				return "heat-outperform-strong"
-			} else if val > 0 {
+			case val > 0:
 				return "heat-outperform"
-			} else if val <= -1.0 {
+			case val <= -1.0:
 				return "heat-underperform-strong"
-			} else if val < 0 {
+			case val < 0:
 				return "heat-underperform"
 			}
 			return "heat-even"
@@ -233,14 +236,14 @@ func (r *Renderer) parseTemplates(fsys fs.FS) error {
 			// Expects the filter to implement FilterEncoder.
 			if enc, ok := filter.(FilterEncoder); ok {
 				if params := enc.QueryParams(); params != "" {
-					return template.HTMLAttr(params)
+					return template.HTMLAttr(params) //nolint:gosec // built from internal filter state
 				}
 			}
 			return ""
 		},
 		"safeJS": func(s string) template.JS {
 			// Marks a string as safe JavaScript (e.g. pre-serialized JSON).
-			return template.JS(s)
+			return template.JS(s) //nolint:gosec // caller marks trusted pre-serialized values
 		},
 		"weightPct": func(v interface{}) string {
 			// Convert a decimal.Decimal fraction (0.0-1.0) to a percentage string (2dp).

@@ -1,8 +1,8 @@
 {{/* optimization_copy_from_js — shared copy-from functions for optimization pages.
-   $.ApiBase is the API path prefix (e.g. "/api/efficient-frontier" or "/api/hrp"). */}}
+   $.APIBase is the API path prefix (e.g. "/api/efficient-frontier" or "/api/hrp"). */}}
 {{define "optimization_copy_from_js"}}
 <script>
-var _copyApiBase = "{{.ApiBase}}";
+var _copyApiBase = "{{.APIBase}}";
 
 function toggleCopySource() {
     var type = document.getElementById('copy-source-type').value;

@@ -1,7 +1,6 @@
 package wisdomtree
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -101,7 +100,7 @@ func TestClient_FundHoldings_URLAndParse(t *testing.T) {
 		return loadFixture(t, "holdings_qgrw.json"), nil
 	})
 
-	records, err := client.FundHoldings(context.Background(), 49567173)
+	records, err := client.fundHoldings(49567173)
 	if err != nil {
 		t.Fatalf("FundHoldings() error: %v", err)
 	}
@@ -162,7 +161,7 @@ func TestClient_FundHistory_URLAndParse(t *testing.T) {
 		return loadFixture(t, "fund_history_qgrw.json"), nil
 	})
 
-	points, err := client.FundHistory(context.Background(), 49567173)
+	points, err := client.fundHistory(49567173)
 	if err != nil {
 		t.Fatalf("FundHistory() error: %v", err)
 	}
@@ -226,7 +225,7 @@ func TestClient_FundHoldings_AllFixtures(t *testing.T) {
 				return loadFixture(t, f.file), nil
 			})
 
-			records, err := client.FundHoldings(context.Background(), f.id)
+			records, err := client.fundHoldings(f.id)
 			if err != nil {
 				t.Fatalf("FundHoldings() error: %v", err)
 			}
@@ -278,7 +277,7 @@ func TestClient_FundHistory_AllFixtures(t *testing.T) {
 				return loadFixture(t, f.file), nil
 			})
 
-			points, err := client.FundHistory(context.Background(), f.id)
+			points, err := client.fundHistory(f.id)
 			if err != nil {
 				t.Fatalf("FundHistory() error: %v", err)
 			}
@@ -305,7 +304,7 @@ func TestClient_FundHoldings_Errors(t *testing.T) {
 		client.SetFetchFunc(func(string) (string, error) {
 			return "", errors.New("network down")
 		})
-		_, err := client.FundHoldings(context.Background(), 123)
+		_, err := client.fundHoldings(123)
 		if err == nil || !strings.Contains(err.Error(), "network down") {
 			t.Fatalf("err = %v, want wrap of 'network down'", err)
 		}
@@ -316,12 +315,11 @@ func TestClient_FundHoldings_Errors(t *testing.T) {
 		client.SetFetchFunc(func(string) (string, error) {
 			return "<html>404 page</html>", nil
 		})
-		_, err := client.FundHoldings(context.Background(), 123)
+		_, err := client.fundHoldings(123)
 		if err == nil || !strings.Contains(err.Error(), "unmarshal fund-holdings") {
 			t.Fatalf("err = %v, want 'unmarshal fund-holdings'", err)
 		}
 	})
-
 }
 
 func TestClient_FundHistory_Errors(t *testing.T) {
@@ -330,7 +328,7 @@ func TestClient_FundHistory_Errors(t *testing.T) {
 		client.SetFetchFunc(func(string) (string, error) {
 			return "", errors.New("network down")
 		})
-		_, err := client.FundHistory(context.Background(), 123)
+		_, err := client.fundHistory(123)
 		if err == nil || !strings.Contains(err.Error(), "network down") {
 			t.Fatalf("err = %v, want wrap of 'network down'", err)
 		}
@@ -341,7 +339,7 @@ func TestClient_FundHistory_Errors(t *testing.T) {
 		client.SetFetchFunc(func(string) (string, error) {
 			return "not json", nil
 		})
-		_, err := client.FundHistory(context.Background(), 123)
+		_, err := client.fundHistory(123)
 		if err == nil || !strings.Contains(err.Error(), "unmarshal fund-history") {
 			t.Fatalf("err = %v, want 'unmarshal fund-history'", err)
 		}
@@ -362,14 +360,13 @@ func TestClient_RateLimitingShared(t *testing.T) {
 		return "[]", nil
 	})
 
-	ctx := context.Background()
 	if _, err := client.Fetch("https://www.wisdomtree.com/us/funds/ezm/"); err != nil {
 		t.Fatalf("Fetch() error: %v", err)
 	}
-	if _, err := client.FundHoldings(ctx, 1); err != nil {
+	if _, err := client.fundHoldings(1); err != nil {
 		t.Fatalf("FundHoldings() error: %v", err)
 	}
-	if _, err := client.FundHistory(ctx, 1); err != nil {
+	if _, err := client.fundHistory(1); err != nil {
 		t.Fatalf("FundHistory() error: %v", err)
 	}
 

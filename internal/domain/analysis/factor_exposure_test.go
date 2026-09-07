@@ -192,7 +192,7 @@ func TestComputeFactorExposure_MissingValuationData(t *testing.T) {
 			{Symbol: "X", Name: "X", Percent: 5},
 		}),
 		// ETF with no EquityValuation
-		PositionWithDetails{
+		{
 			Symbol:          "ETF2",
 			PortfolioWeight: 30,
 			SymbolDetails: &symbol.SymbolDetails{
@@ -447,7 +447,7 @@ func TestComputeFactorExposure_SizeTiltDominant(t *testing.T) {
 func TestComputeFactorExposure_NoHoldingsData(t *testing.T) {
 	// ETF with no top holdings — falls back to position weight for HHI.
 	positions := []PositionWithDetails{
-		PositionWithDetails{
+		{
 			Symbol:          "NOHOLDINGS",
 			PortfolioWeight: 100,
 			SymbolDetails: &symbol.SymbolDetails{
@@ -882,9 +882,15 @@ func TestComputeFactorExposure_MomentumHappyPath(t *testing.T) {
 	// MSFT: similar but ~5% gain.
 	prices := makePriceMap([]priceEntry{
 		// AAPL: 12 months of daily prices, rising from 100 to 110.
-		{"AAPL", -365, 100}, {"AAPL", -183, 103}, {"AAPL", -92, 106}, {"AAPL", 0, 110},
+		{"AAPL", -365, 100},
+		{"AAPL", -183, 103},
+		{"AAPL", -92, 106},
+		{"AAPL", 0, 110},
 		// MSFT: rising from 100 to 105.
-		{"MSFT", -365, 100}, {"MSFT", -183, 101.5}, {"MSFT", -92, 103}, {"MSFT", 0, 105},
+		{"MSFT", -365, 100},
+		{"MSFT", -183, 101.5},
+		{"MSFT", -92, 103},
+		{"MSFT", 0, 105},
 	})
 
 	result := ComputeFactorExposure(positions, prices)
@@ -936,10 +942,17 @@ func TestComputeFactorExposure_VolatilityHappyPath(t *testing.T) {
 
 	// Prices with low daily variance (~0.3% daily → ~5% annualized).
 	prices := makePriceMap([]priceEntry{
-		{"STABLE", -60, 100}, {"STABLE", -59, 100.3}, {"STABLE", -58, 100.1},
-		{"STABLE", -57, 100.4}, {"STABLE", -56, 100.2}, {"STABLE", -55, 100.5},
-		{"STABLE", -54, 100.3}, {"STABLE", -53, 100.1}, {"STABLE", -52, 100.4},
-		{"STABLE", -51, 100.2}, {"STABLE", -50, 100.3},
+		{"STABLE", -60, 100},
+		{"STABLE", -59, 100.3},
+		{"STABLE", -58, 100.1},
+		{"STABLE", -57, 100.4},
+		{"STABLE", -56, 100.2},
+		{"STABLE", -55, 100.5},
+		{"STABLE", -54, 100.3},
+		{"STABLE", -53, 100.1},
+		{"STABLE", -52, 100.4},
+		{"STABLE", -51, 100.2},
+		{"STABLE", -50, 100.3},
 	})
 
 	result := ComputeFactorExposure(positions, prices)
@@ -956,10 +969,17 @@ func TestComputeFactorExposure_VolatilityHigh(t *testing.T) {
 
 	// Prices oscillating wildly (~2% daily → ~32% annualized).
 	prices := makePriceMap([]priceEntry{
-		{"VOLATILE", -60, 100}, {"VOLATILE", -59, 102}, {"VOLATILE", -58, 98},
-		{"VOLATILE", -57, 101}, {"VOLATILE", -56, 97}, {"VOLATILE", -55, 103},
-		{"VOLATILE", -54, 96}, {"VOLATILE", -53, 104}, {"VOLATILE", -52, 95},
-		{"VOLATILE", -51, 105}, {"VOLATILE", -50, 94},
+		{"VOLATILE", -60, 100},
+		{"VOLATILE", -59, 102},
+		{"VOLATILE", -58, 98},
+		{"VOLATILE", -57, 101},
+		{"VOLATILE", -56, 97},
+		{"VOLATILE", -55, 103},
+		{"VOLATILE", -54, 96},
+		{"VOLATILE", -53, 104},
+		{"VOLATILE", -52, 95},
+		{"VOLATILE", -51, 105},
+		{"VOLATILE", -50, 94},
 	})
 
 	result := ComputeFactorExposure(positions, prices)
@@ -1075,5 +1095,65 @@ func TestRemapQualityTilt(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("remapQualityTilt(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+// --- Test helpers ---
+
+// getETFWithValuation returns a PositionWithDetails configured as an ETF
+// with the given valuation data, net assets, and top holdings, for testing.
+func getETFWithValuation(sym string, portfolioWeight float64, pe, pb float64, netAssets float64, holdings []symbol.TopHolding) PositionWithDetails {
+	return PositionWithDetails{
+		Symbol:          sym,
+		PortfolioWeight: portfolioWeight,
+		SymbolDetails: &symbol.SymbolDetails{
+			QuoteType: "ETF",
+			EquityValuation: &symbol.EquityValuation{
+				PriceToEarnings: pe,
+				PriceToBook:     pb,
+			},
+			FundProfile: &symbol.FundProfile{
+				TotalNetAssets: netAssets,
+			},
+			TopHoldings: holdings,
+		},
+	}
+}
+
+// getETFWithFullData returns a PositionWithDetails configured as an ETF
+// with valuation, quality (P/CF, P/Sales), cost (expense ratio, turnover),
+// size, and holdings data, for testing.
+func getETFWithFullData(sym string, portfolioWeight float64, pe, pb, pcf, ps float64, netAssets float64, expenseRatio, turnover float64, holdings []symbol.TopHolding) PositionWithDetails {
+	return PositionWithDetails{
+		Symbol:          sym,
+		PortfolioWeight: portfolioWeight,
+		SymbolDetails: &symbol.SymbolDetails{
+			QuoteType: "ETF",
+			EquityValuation: &symbol.EquityValuation{
+				PriceToEarnings: pe,
+				PriceToBook:     pb,
+				PriceToCashflow: pcf,
+				PriceToSales:    ps,
+			},
+			FundProfile: &symbol.FundProfile{
+				TotalNetAssets:         netAssets,
+				AnnualExpenseRatio:     expenseRatio,
+				AnnualHoldingsTurnover: turnover,
+			},
+			TopHoldings: holdings,
+		},
+	}
+}
+
+// getStockWithNoValuation returns a PositionWithDetails configured as an
+// individual stock without valuation data (stocks don't have EquityValuation
+// in the cached symbol details), for testing.
+func getStockWithNoValuation(sym string, portfolioWeight float64) PositionWithDetails {
+	return PositionWithDetails{
+		Symbol:          sym,
+		PortfolioWeight: portfolioWeight,
+		SymbolDetails: &symbol.SymbolDetails{
+			QuoteType: "EQUITY",
+		},
 	}
 }

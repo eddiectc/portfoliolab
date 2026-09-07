@@ -30,7 +30,7 @@ func cleanWALFiles(path string) {
 func Open(path string, logger *slog.Logger) (*sql.DB, error) {
 	// Ensure the database directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory %s: %w", dir, err)
 	}
 

@@ -54,7 +54,8 @@ func ComputeCrossPortfolioOverlap(input CrossPortfolioOverlapInput) *OverlapResu
 	topA, warningsA := expandToTopHoldingsWithWarnings(input.PortfolioA, 10)
 	topB, warningsB := expandToTopHoldingsWithWarnings(input.PortfolioB, 10)
 
-	warnings := append(warningsA, warningsB...)
+	warnings := warningsA
+	warnings = append(warnings, warningsB...)
 
 	// Determine the lowest common key level across both portfolios.
 	level := minKeyLevel(input.PortfolioA, input.PortfolioB)
@@ -63,8 +64,7 @@ func ComputeCrossPortfolioOverlap(input CrossPortfolioOverlapInput) *OverlapResu
 	expandedA := expandETFHoldings(input.PortfolioA, level)
 	expandedB := expandETFHoldings(input.PortfolioB, level)
 
-	overlapPct, matchWarnings := computeWeightedOverlap(expandedA, expandedB)
-	warnings = append(warnings, matchWarnings...)
+	overlapPct := computeWeightedOverlap(expandedA, expandedB)
 
 	// Sector/country allocation for each portfolio.
 	sectorA := ComputeSectorAllocationForHoldings(input.PortfolioA)
@@ -412,9 +412,9 @@ func expandETFHoldingsDisplay(holdings []PortfolioHolding) map[string]*holdingIn
 //	overlap = Σ min(w_A,i, w_B,i) for all shared holdings i
 //
 // Weights are fractions (0.0-1.0). Result is expressed as a percentage.
-func computeWeightedOverlap(a, b map[string]*holdingInfo) (decimal.Decimal, []string) {
+func computeWeightedOverlap(a, b map[string]*holdingInfo) decimal.Decimal {
 	if len(a) == 0 || len(b) == 0 {
-		return decimal.Zero, nil
+		return decimal.Zero
 	}
 
 	// Sum of min(weights) for shared holdings.
@@ -433,5 +433,5 @@ func computeWeightedOverlap(a, b map[string]*holdingInfo) (decimal.Decimal, []st
 	overlapF, _ := overlap.Float64()
 	pctRounded := stats.RoundTo2(overlapF * 100.0)
 	pct, _ := decimal.NewFromFloat64(pctRounded)
-	return pct, nil
+	return pct
 }

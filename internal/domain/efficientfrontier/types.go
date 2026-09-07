@@ -136,7 +136,7 @@ var ErrSingularMatrix = &FrontierError{
 // during frontier computation.
 type portfolioEval struct {
 	weights        []float64
-	return_        float64
+	ret            float64
 	volatility     float64
 	sharpe         float64
 	sortino        float64

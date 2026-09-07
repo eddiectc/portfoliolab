@@ -89,6 +89,7 @@ type TransactionFilter struct {
 // QueryParams serializes non-empty filter fields into a URL query fragment
 // like "&account_id=1&symbol=AAPL". Returns "" if all fields are empty.
 // Implements web.FilterEncoder for type-safe query preservation in templates.
+//
 // Deprecated: use PaginationQuery instead, which properly URL-encodes values.
 func (f TransactionFilter) QueryParams() string {
 	var parts []string
@@ -343,7 +344,7 @@ func (h *TransactionWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.
 		data.ExternalRef = externalRef
 
 		// Set field-level errors
-		data.FieldErrors = mapFieldErrors(err, req)
+		data.FieldErrors = mapFieldErrors(err)
 
 		if renderErr := h.renderer.Render(w, "transaction/form", data); renderErr != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -591,16 +592,7 @@ func (h *TransactionWebHandler) HandleEditPost(w http.ResponseWriter, r *http.Re
 		data.ExternalRef = externalRef
 
 		// Set field-level errors
-		data.FieldErrors = mapFieldErrors(err, transaction.CreateRequest{
-			Date:     date,
-			Type:     txType,
-			Symbol:   symbol,
-			Quantity: quantity,
-			Price:    price,
-			Currency: currency,
-			NetCash:  netCash,
-			LotID:    strPtr(lotID),
-		})
+		data.FieldErrors = mapFieldErrors(err)
 
 		if renderErr := h.renderer.Render(w, "transaction/form", data); renderErr != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -700,7 +692,7 @@ func transactionUserFriendlyError(err error) string {
 }
 
 // mapFieldErrors maps a service error to per-field validation errors.
-func mapFieldErrors(err error, req transaction.CreateRequest) map[string]string {
+func mapFieldErrors(err error) map[string]string {
 	if err == nil {
 		return nil
 	}
@@ -738,9 +730,4 @@ func mapFieldErrors(err error, req transaction.CreateRequest) map[string]string 
 		fieldErrors["lot_id"] = "Invalid lot ID"
 	}
 	return fieldErrors
-}
-
-// strPtr returns a pointer to a string.
-func strPtr(s string) *string {
-	return &s
 }

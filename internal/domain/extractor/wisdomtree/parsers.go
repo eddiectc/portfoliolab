@@ -3,7 +3,7 @@ package wisdomtree
 // Parsers for the new WisdomTree site (2026 relaunch). Data sources:
 //
 //   - fund holdings and NAV/AUM history come from the undocumented JSON API
-//     (client.go: FundHoldings / FundHistory, RESEARCH.md §5)
+//     (client.go: fundHoldings / fundHistory, RESEARCH.md §5)
 //   - overview, fees, country allocation, market capitalisation, fund
 //     characteristics, sector and theme breakdowns come from the React
 //     Flight payload embedded in the fund page (flight.go)

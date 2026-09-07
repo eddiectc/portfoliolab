@@ -19,7 +19,8 @@ func dec(f float64) decimal.Decimal {
 func makeMultiSeries(entries []struct {
 	sym    string
 	prices []float64
-}) map[string][]market.HistoricalPrice {
+},
+) map[string][]market.HistoricalPrice {
 	now := time.Now()
 	result := make(map[string][]market.HistoricalPrice)
 	for _, e := range entries {
@@ -62,13 +63,14 @@ func matrixEq(t *testing.T, got [][]*float64, want [][]float64, eps float64) {
 		for j := range got[i] {
 			wantVal := want[i][j]
 			gotPtr := got[i][j]
-			if wantVal == -999 {
+			switch {
+			case wantVal == -999:
 				if gotPtr != nil {
 					t.Errorf("matrix[%d][%d] = %v, want nil", i, j, *gotPtr)
 				}
-			} else if gotPtr == nil {
+			case gotPtr == nil:
 				t.Errorf("matrix[%d][%d] = nil, want %.6f", i, j, wantVal)
-			} else if mathAbs(*gotPtr-wantVal) > eps {
+			case mathAbs(*gotPtr-wantVal) > eps:
 				t.Errorf("matrix[%d][%d] = %.6f, want %.6f", i, j, *gotPtr, wantVal)
 			}
 		}

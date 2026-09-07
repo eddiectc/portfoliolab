@@ -145,6 +145,7 @@ func (m *mockExtractor) Extract(_ context.Context, _ string) (*extractor.Extract
 	}
 	return m.result, nil
 }
+
 func (m *mockExtractor) Match(rawURL string) bool {
 	return true // match any URL for simplicity
 }

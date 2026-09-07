@@ -677,15 +677,15 @@ func TestComparisonHandleComparison_EmptyState(t *testing.T) {
 
 func TestParseComparisonRequest_AllParams(t *testing.T) {
 	query := map[string][]string{
-		"portfolio_a_id":   []string{"1"},
-		"portfolio_a_type": []string{"model"},
-		"portfolio_b_id":   []string{"2"},
-		"portfolio_b_type": []string{"model"},
-		"period":           []string{"3Y"},
-		"date_from":        []string{"2024-01-01"},
-		"date_to":          []string{"2024-12-31"},
-		"base_currency":    []string{"EUR"},
-		"starting_value":   []string{"50000"},
+		"portfolio_a_id":   {"1"},
+		"portfolio_a_type": {"model"},
+		"portfolio_b_id":   {"2"},
+		"portfolio_b_type": {"model"},
+		"period":           {"3Y"},
+		"date_from":        {"2024-01-01"},
+		"date_to":          {"2024-12-31"},
+		"base_currency":    {"EUR"},
+		"starting_value":   {"50000"},
 	}
 	req, err := parseComparisonRequest(url.Values(query))
 	if err != nil {
@@ -724,10 +724,10 @@ func TestParseComparisonRequest_AllParams(t *testing.T) {
 
 func TestParseComparisonRequest_MinimalParams(t *testing.T) {
 	query := map[string][]string{
-		"portfolio_a_id":   []string{"1"},
-		"portfolio_a_type": []string{"model"},
-		"portfolio_b_id":   []string{"2"},
-		"portfolio_b_type": []string{"real"},
+		"portfolio_a_id":   {"1"},
+		"portfolio_a_type": {"model"},
+		"portfolio_b_id":   {"2"},
+		"portfolio_b_type": {"real"},
 	}
 	req, err := parseComparisonRequest(url.Values(query))
 	if err != nil {

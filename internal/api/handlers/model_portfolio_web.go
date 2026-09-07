@@ -33,7 +33,7 @@ type modelPortfolioEntryForm struct {
 }
 
 // newModelPortfolioFormPageData creates a modelPortfolioFormPageData with common defaults.
-func newModelPortfolioFormPageData(pd web.PageData, symbols []symbolmapping.SymbolMapping, entries []modelPortfolioEntryForm, action, submitText, cancelHref string) *modelPortfolioFormPageData {
+func newModelPortfolioFormPageData(pd web.PageData, symbols []symbolmapping.SymbolMapping, entries []modelPortfolioEntryForm, action, submitText string) *modelPortfolioFormPageData {
 	if entries == nil {
 		entries = []modelPortfolioEntryForm{}
 	}
@@ -43,7 +43,7 @@ func newModelPortfolioFormPageData(pd web.PageData, symbols []symbolmapping.Symb
 		Symbols:    symbols,
 		Action:     action,
 		SubmitText: submitText,
-		CancelHref: cancelHref,
+		CancelHref: "/model-portfolios",
 	}
 }
 
@@ -117,7 +117,7 @@ func (h *ModelPortfolioWebHandler) HandleNewPage(w http.ResponseWriter, r *http.
 
 	data := newModelPortfolioFormPageData(web.PageData{
 		Title: "New Model Portfolio",
-	}, symbols, []modelPortfolioEntryForm{}, "/model-portfolios", "Create Model Portfolio", "/model-portfolios")
+	}, symbols, []modelPortfolioEntryForm{}, "/model-portfolios", "Create Model Portfolio")
 
 	if err := h.renderer.Render(w, "model_portfolio/form", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -202,7 +202,7 @@ func (h *ModelPortfolioWebHandler) HandleCreatePage(w http.ResponseWriter, r *ht
 		data := newModelPortfolioFormPageData(web.PageData{
 			Title: "New Model Portfolio",
 			Error: modelPortfolioUserFriendlyError(err),
-		}, symbols, formEntries, "/model-portfolios", "Create Model Portfolio", "/model-portfolios")
+		}, symbols, formEntries, "/model-portfolios", "Create Model Portfolio")
 		data.Name = name
 
 		if renderErr := h.renderer.Render(w, "model_portfolio/form", data); renderErr != nil {
@@ -247,11 +247,9 @@ func (h *ModelPortfolioWebHandler) HandleEditPage(w http.ResponseWriter, r *http
 	}
 
 	editAction := "/model-portfolios/" + strconv.FormatInt(id, 10) + "/edit"
-	cancelHref := "/model-portfolios"
-
 	data := newModelPortfolioFormPageData(web.PageData{
 		Title: "Edit Model Portfolio",
-	}, symbols, formEntries, editAction, "Save Changes", cancelHref)
+	}, symbols, formEntries, editAction, "Save Changes")
 	data.Name = mp.Name
 
 	if err := h.renderer.Render(w, "model_portfolio/form", data); err != nil {
@@ -288,12 +286,10 @@ func (h *ModelPortfolioWebHandler) HandleEditPost(w http.ResponseWriter, r *http
 	if err != nil {
 		formEntries := parseEntriesForm(r)
 		editAction := "/model-portfolios/" + strconv.FormatInt(id, 10) + "/edit"
-		cancelHref := "/model-portfolios"
-
 		data := newModelPortfolioFormPageData(web.PageData{
 			Title: "Edit Model Portfolio",
 			Error: modelPortfolioUserFriendlyError(err),
-		}, symbols, formEntries, editAction, "Save Changes", cancelHref)
+		}, symbols, formEntries, editAction, "Save Changes")
 		data.Name = name
 
 		if renderErr := h.renderer.Render(w, "model_portfolio/form", data); renderErr != nil {

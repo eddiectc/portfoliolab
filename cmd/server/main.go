@@ -60,7 +60,11 @@ func main() {
 	// Run migrations (embedded in the binary)
 	if err := data.MigrateUp(db, assets.Migrations, logger); err != nil {
 		logger.Error("failed to run migrations", "error", err)
-		os.Exit(1)
+		// Close explicitly — os.Exit skips the deferred close.
+		if cerr := data.Close(db); cerr != nil {
+			logger.Error("failed to close database", "error", cerr)
+		}
+		os.Exit(1) //nolint:gocritic // DB explicitly closed above; os.Exit skips the deferred close
 	}
 
 	// Build router and market cache
@@ -133,7 +137,7 @@ func setupLogger(level string) *slog.Logger {
 
 func init() {
 	// Ensure the data directory exists for the default database path
-	if err := os.MkdirAll("data", 0o755); err != nil {
+	if err := os.MkdirAll("data", 0o700); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "failed to create data directory: %v\n", err)
 		os.Exit(1)
 	}

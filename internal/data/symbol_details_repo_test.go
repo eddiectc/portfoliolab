@@ -438,9 +438,7 @@ func TestSymbolDetailsRepository_ListStale_IncludesMissing(t *testing.T) {
 	msft, ok := found["MSFT"]
 	if !ok {
 		t.Error("expected MSFT in stale list (missing details)")
-	} else if msft.FetchedAt.IsZero() {
-		// FetchedAt should be zero for missing details
-	} else {
+	} else if !msft.FetchedAt.IsZero() {
 		t.Errorf("expected zero FetchedAt for missing MSFT, got %v", msft.FetchedAt)
 	}
 

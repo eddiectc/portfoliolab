@@ -150,7 +150,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		sortino := ComputePortfolioSortino(ret, alignedReturns, w, request.RiskFreeRate)
 		evaluated = append(evaluated, portfolioEval{
 			weights:    w,
-			return_:    ret,
+			ret:        ret,
 			volatility: vol,
 			sharpe:     sharpe,
 			sortino:    sortino,
@@ -166,7 +166,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 		sharpe := stats.SharpeRatio(minVarReturn, minVarVol, request.RiskFreeRate)
 		sortino := ComputePortfolioSortino(minVarReturn, alignedReturns, minVarWeights, request.RiskFreeRate)
 		evaluated = append(evaluated, portfolioEval{
-			weights: minVarWeights, return_: minVarReturn, volatility: minVarVol, sharpe: sharpe, sortino: sortino,
+			weights: minVarWeights, ret: minVarReturn, volatility: minVarVol, sharpe: sharpe, sortino: sortino,
 		})
 	}
 
@@ -249,7 +249,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	for i, p := range frontierPoints {
 		result.FrontierPoints[i] = FrontierPoint{
-			ReturnPct:      stats.RoundTo2(p.return_ * retScale * 100),
+			ReturnPct:      stats.RoundTo2(p.ret * retScale * 100),
 			VolatilityPct:  stats.RoundTo2(p.volatility * volScale * 100),
 			SharpeRatio:    stats.RoundTo4(p.sharpe),
 			SortinoRatio:   stats.RoundTo4(p.sortino),
@@ -281,7 +281,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	result.MaxSharpe = &OptimizedPortfolio{
 		Name:           "Max Sharpe",
-		ReturnPct:      stats.RoundTo2(best.return_ * retScale * 100),
+		ReturnPct:      stats.RoundTo2(best.ret * retScale * 100),
 		VolatilityPct:  stats.RoundTo2(best.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(best.sharpe),
 		SortinoRatio:   stats.RoundTo4(best.sortino),
@@ -291,7 +291,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 
 	result.HighestReturn = &OptimizedPortfolio{
 		Name:           "Highest Return",
-		ReturnPct:      stats.RoundTo2(highest.return_ * retScale * 100),
+		ReturnPct:      stats.RoundTo2(highest.ret * retScale * 100),
 		VolatilityPct:  stats.RoundTo2(highest.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(highest.sharpe),
 		SortinoRatio:   stats.RoundTo4(highest.sortino),
@@ -302,7 +302,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	// Max Sortino portfolio.
 	result.MaxSortino = &OptimizedPortfolio{
 		Name:           "Max Sortino",
-		ReturnPct:      stats.RoundTo2(bestSortino.return_ * retScale * 100),
+		ReturnPct:      stats.RoundTo2(bestSortino.ret * retScale * 100),
 		VolatilityPct:  stats.RoundTo2(bestSortino.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(bestSortino.sharpe),
 		SortinoRatio:   stats.RoundTo4(bestSortino.sortino),
@@ -321,7 +321,7 @@ func ComputeFrontier(request FrontierRequest) (*FrontierResult, error) {
 	minDD := frontierPoints[minDDIdx]
 	result.MinDrawdown = &OptimizedPortfolio{
 		Name:           "Min Drawdown",
-		ReturnPct:      stats.RoundTo2(minDD.return_ * retScale * 100),
+		ReturnPct:      stats.RoundTo2(minDD.ret * retScale * 100),
 		VolatilityPct:  stats.RoundTo2(minDD.volatility * volScale * 100),
 		SharpeRatio:    stats.RoundTo4(minDD.sharpe),
 		SortinoRatio:   stats.RoundTo4(minDD.sortino),
@@ -365,7 +365,7 @@ func filterParetoFrontier(evaluated []portfolioEval) []portfolioEval {
 	sorted := make([]portfolioEval, len(evaluated))
 	copy(sorted, evaluated)
 	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].return_ < sorted[j].return_
+		return sorted[i].ret < sorted[j].ret
 	})
 
 	var efficient []portfolioEval

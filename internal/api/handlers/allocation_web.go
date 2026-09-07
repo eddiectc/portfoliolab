@@ -188,6 +188,7 @@ func (h *AllocationWebHandler) HandleSaveTarget(w http.ResponseWriter, r *http.R
 		pct, err := decimal.Parse(pctStr)
 		if err != nil {
 			setFlash(w, "invalid percentage for "+symbol+": "+err.Error())
+			//nolint:gosec // fixed internal path, numeric id in query
 			http.Redirect(w, r, "/allocation?portfolio_ids="+portfolioIDStr, http.StatusSeeOther)
 			return
 		}
@@ -200,11 +201,13 @@ func (h *AllocationWebHandler) HandleSaveTarget(w http.ResponseWriter, r *http.R
 
 	if err := h.allocSvc.SaveTargetAllocation(r.Context(), portfolioID, entries); err != nil {
 		setFlash(w, "Failed to save targets: "+err.Error())
+		//nolint:gosec // fixed internal path, numeric id in query
 		http.Redirect(w, r, "/allocation?portfolio_ids="+portfolioIDStr, http.StatusSeeOther)
 		return
 	}
 
 	setFlash(w, "Target allocations saved")
+	//nolint:gosec // fixed internal path, numeric id in query
 	http.Redirect(w, r, "/allocation?portfolio_ids="+portfolioIDStr, http.StatusSeeOther)
 }
 
@@ -225,11 +228,13 @@ func (h *AllocationWebHandler) HandleDeleteTarget(w http.ResponseWriter, r *http
 
 	if err := h.allocSvc.DeleteAllTargetAllocations(r.Context(), portfolioID); err != nil {
 		setFlash(w, "Failed to delete targets: "+err.Error())
+		//nolint:gosec // fixed internal path, numeric id in query
 		http.Redirect(w, r, "/allocation?portfolio_ids="+portfolioIDStr, http.StatusSeeOther)
 		return
 	}
 
 	setFlash(w, "Target allocations deleted")
+	//nolint:gosec // fixed internal path, numeric id in query
 	http.Redirect(w, r, "/allocation?portfolio_ids="+portfolioIDStr, http.StatusSeeOther)
 }
 

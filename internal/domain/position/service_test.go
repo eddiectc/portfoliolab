@@ -227,12 +227,15 @@ func (m *mockTransactionRepository) ListAllTransactionsByAccount(_ context.Conte
 func (m *mockTransactionRepository) GetSymbolsWithEarliestDate(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTransactionRepository) GetSymbolsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTransactionRepository) GetFxPairsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTransactionRepository) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
 	return nil, nil
 }
@@ -1129,8 +1132,10 @@ func TestEnrichWithMarketData_GbpConversion(t *testing.T) {
 
 	// Quantity 100, CostBasis -350.00 GBP (bought at 3.50 GBP/share).
 	positions := []Position{
-		{ID: 1, AccountID: 1, Symbol: "ARCI.L", Currency: "GBP",
-			Quantity: decimal.MustNew(10000, 2), CostBasis: decimal.MustNew(-35000, 2)},
+		{
+			ID: 1, AccountID: 1, Symbol: "ARCI.L", Currency: "GBP",
+			Quantity: decimal.MustNew(10000, 2), CostBasis: decimal.MustNew(-35000, 2),
+		},
 	}
 
 	result := svc.EnrichWithMarketData(ctx, positions, "")

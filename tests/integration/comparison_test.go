@@ -346,11 +346,9 @@ func TestComparison_ModelVsModel(t *testing.T) {
 	// Verify intra-portfolio correlation.
 	if result.PortfolioA.IntraCorrelation == nil {
 		t.Error("portfolio_a.intra_correlation is nil")
-	} else {
-		if len(result.PortfolioA.IntraCorrelation.Symbols) < 2 {
-			t.Errorf("intra_correlation symbols = %d, want >= 2",
-				len(result.PortfolioA.IntraCorrelation.Symbols))
-		}
+	} else if len(result.PortfolioA.IntraCorrelation.Symbols) < 2 {
+		t.Errorf("intra_correlation symbols = %d, want >= 2",
+			len(result.PortfolioA.IntraCorrelation.Symbols))
 	}
 
 	// Verify overlap.

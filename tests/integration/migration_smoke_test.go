@@ -557,6 +557,9 @@ func TestMigration_NavHistoryQuery(t *testing.T) {
 		}
 		count++
 	}
+	if err := rows.Err(); err != nil {
+		t.Errorf("rows err: %v", err)
+	}
 	if count != 3 {
 		t.Errorf("expected 3 nav rows, got %d", count)
 	}
@@ -612,6 +615,9 @@ func TestMigration_NavDataIsolation(t *testing.T) {
 		}
 		count++
 	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows error: %v", err)
+	}
 	if count != 1 {
 		t.Errorf("expected 1 stock row, got %d", count)
 	}
@@ -664,6 +670,9 @@ func TestMigration_StaleSymbolDetailsIncludesDataSourceURL(t *testing.T) {
 				t.Errorf("expected data_source_url to be set, got valid=%v, value=%q", dataSourceURL.Valid, dataSourceURL.String)
 			}
 		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows error: %v", err)
 	}
 	if !found {
 		t.Error("WMGT not found in stale symbol details results")

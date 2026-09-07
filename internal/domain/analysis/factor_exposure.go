@@ -8,7 +8,6 @@ import (
 
 	"github.com/eddiectc/portfoliolab/internal/domain/stats"
 	"github.com/eddiectc/portfoliolab/internal/market"
-	"github.com/eddiectc/portfoliolab/internal/types/symbol"
 )
 
 const (
@@ -127,11 +126,12 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 			fund := p.SymbolDetails.FundProfile
 			netAssets := fund.TotalNetAssets
 			if netAssets > 0 {
-				if netAssets >= largeCapThreshold {
+				switch {
+				case netAssets >= largeCapThreshold:
 					largeCapWeight += p.PortfolioWeight
-				} else if netAssets >= midCapThreshold {
+				case netAssets >= midCapThreshold:
 					midCapWeight += p.PortfolioWeight
-				} else {
+				default:
 					smallCapWeight += p.PortfolioWeight
 				}
 				sizeTrackedWeight += p.PortfolioWeight
@@ -147,7 +147,8 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 		}
 
 		// Concentration: decompose into underlying holdings.
-		if p.SymbolDetails.QuoteType == "ETF" && len(p.SymbolDetails.TopHoldings) > 0 {
+		switch {
+		case p.SymbolDetails.QuoteType == "ETF" && len(p.SymbolDetails.TopHoldings) > 0:
 			for _, h := range p.SymbolDetails.TopHoldings {
 				holdingWeight := (p.PortfolioWeight / 100.0) * (h.Percent / 100.0)
 				hhiSum += holdingWeight * holdingWeight
@@ -155,14 +156,14 @@ func ComputeFactorExposure(positions []PositionWithDetails, pricesBySymbol map[s
 					topWeight = holdingWeight
 				}
 			}
-		} else if p.SymbolDetails.QuoteType != "ETF" {
+		case p.SymbolDetails.QuoteType != "ETF":
 			// Individual stock: position weight as fraction.
 			holdingWeight := p.PortfolioWeight / 100.0
 			hhiSum += holdingWeight * holdingWeight
 			if holdingWeight > topWeight {
 				topWeight = holdingWeight
 			}
-		} else {
+		default:
 			// ETF with no holdings data — use position weight directly.
 			holdingWeight := p.PortfolioWeight / 100.0
 			hhiSum += holdingWeight * holdingWeight
@@ -618,64 +619,4 @@ func classifyHHI(hhi float64) string {
 		return "moderately-concentrated"
 	}
 	return "highly-concentrated"
-}
-
-// --- Test helpers ---
-
-// getETFWithValuation returns a PositionWithDetails configured as an ETF
-// with the given valuation data, net assets, and top holdings, for testing.
-func getETFWithValuation(sym string, portfolioWeight float64, pe, pb float64, netAssets float64, holdings []symbol.TopHolding) PositionWithDetails {
-	return PositionWithDetails{
-		Symbol:          sym,
-		PortfolioWeight: portfolioWeight,
-		SymbolDetails: &symbol.SymbolDetails{
-			QuoteType: "ETF",
-			EquityValuation: &symbol.EquityValuation{
-				PriceToEarnings: pe,
-				PriceToBook:     pb,
-			},
-			FundProfile: &symbol.FundProfile{
-				TotalNetAssets: netAssets,
-			},
-			TopHoldings: holdings,
-		},
-	}
-}
-
-// getETFWithFullData returns a PositionWithDetails configured as an ETF
-// with valuation, quality (P/CF, P/Sales), cost (expense ratio, turnover),
-// size, and holdings data, for testing.
-func getETFWithFullData(sym string, portfolioWeight float64, pe, pb, pcf, ps float64, netAssets float64, expenseRatio, turnover float64, holdings []symbol.TopHolding) PositionWithDetails {
-	return PositionWithDetails{
-		Symbol:          sym,
-		PortfolioWeight: portfolioWeight,
-		SymbolDetails: &symbol.SymbolDetails{
-			QuoteType: "ETF",
-			EquityValuation: &symbol.EquityValuation{
-				PriceToEarnings: pe,
-				PriceToBook:     pb,
-				PriceToCashflow: pcf,
-				PriceToSales:    ps,
-			},
-			FundProfile: &symbol.FundProfile{
-				TotalNetAssets:         netAssets,
-				AnnualExpenseRatio:     expenseRatio,
-				AnnualHoldingsTurnover: turnover,
-			},
-			TopHoldings: holdings,
-		},
-	}
-}
-
-// getStockWithNoValuation returns a PositionWithDetails configured as an
-// individual stock without valuation data (stocks don't have EquityValuation
-// in the cached symbol details), for testing.
-func getStockWithNoValuation(sym string, portfolioWeight float64) PositionWithDetails {
-	return PositionWithDetails{
-		Symbol:          sym,
-		PortfolioWeight: portfolioWeight,
-		SymbolDetails: &symbol.SymbolDetails{
-			QuoteType: "EQUITY",
-		},
-	}
 }

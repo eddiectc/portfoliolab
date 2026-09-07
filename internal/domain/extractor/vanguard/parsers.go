@@ -18,7 +18,7 @@ type restFundResponse struct {
 	Name                     string        `json:"name"`
 	Ticker                   string        `json:"ticker"`
 	Sedol                    string        `json:"sedol"`
-	PortId                   string        `json:"portId"`
+	PortID                   string        `json:"portId"`
 	InceptionDate            string        `json:"inceptionDate"`
 	ISIN                     string        `json:"isin"`
 	CurrencyCode             string        `json:"currencyCode"`
@@ -39,7 +39,7 @@ type restFundData struct {
 }
 
 type restSibling struct {
-	PortId string `json:"portId"`
+	PortID string `json:"portId"`
 	Ticker string `json:"ticker"`
 }
 
@@ -296,14 +296,14 @@ func ParseFundIdentity(data []byte) (*extractor.FundInfo, string, error) {
 	if resp.Name == "" {
 		return nil, "", fmt.Errorf("fund identity missing name")
 	}
-	if resp.PortId == "" {
+	if resp.PortID == "" {
 		return nil, "", fmt.Errorf("fund identity missing portId")
 	}
 
 	return &extractor.FundInfo{
 		Symbol: resp.Ticker,
 		Name:   resp.Name,
-	}, resp.PortId, nil
+	}, resp.PortID, nil
 }
 
 // ParseFundProfile extracts fund profile from the REST API response.

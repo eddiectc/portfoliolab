@@ -166,12 +166,15 @@ func (m *mockTxnRepo) ListAllTransactionsByAccount(_ context.Context, accountID 
 func (m *mockTxnRepo) GetSymbolsWithEarliestDate(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTxnRepo) GetSymbolsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTxnRepo) GetFxPairsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTxnRepo) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
 	return nil, nil
 }

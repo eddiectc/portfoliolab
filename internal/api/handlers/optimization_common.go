@@ -238,7 +238,7 @@ func serializeSliceForJS(data interface{}) string {
 }
 
 // fetchCandidateSymbolsFromService returns all known internal symbols for autocomplete.
-func fetchCandidateSymbolsFromService(svc optimizationCommonService, ctx context.Context, label string) []string {
+func fetchCandidateSymbolsFromService(ctx context.Context, svc optimizationCommonService, label string) []string {
 	if svc == nil {
 		return []string{}
 	}

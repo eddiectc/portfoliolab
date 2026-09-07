@@ -200,7 +200,11 @@ func TestPositionR1_TwoPartialSells(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query closed rows: %v", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			t.Fatalf("close closed rows: %v", err)
+		}
+	}()
 
 	type closedRow struct {
 		qty, pnl string
@@ -213,6 +217,9 @@ func TestPositionR1_TwoPartialSells(t *testing.T) {
 			t.Fatalf("scan closed row: %v", err)
 		}
 		got = append(got, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows err: %v", err)
 	}
 	if len(got) != 2 {
 		t.Fatalf("expected 2 closed rows, got %d", len(got))

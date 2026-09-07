@@ -144,12 +144,15 @@ type noopTargetRepo struct{}
 func (m *noopTargetRepo) GetByPortfolio(_ context.Context, _ int64) ([]TargetAllocation, error) {
 	return []TargetAllocation{}, nil
 }
+
 func (m *noopTargetRepo) Upsert(_ context.Context, _ TargetAllocation) error {
 	return nil
 }
+
 func (m *noopTargetRepo) DeleteBySymbol(_ context.Context, _ int64, _ string) error {
 	return nil
 }
+
 func (m *noopTargetRepo) DeleteByPortfolio(_ context.Context, _ int64) error {
 	return nil
 }

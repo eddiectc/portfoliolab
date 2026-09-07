@@ -839,7 +839,7 @@ func TestBuildComparisonPeriodURLs(t *testing.T) {
 		PortfolioBType: "real",
 		BaseCurrency:   "EUR",
 	}
-	urls := buildComparisonPeriodURLs(filter, "1Y", "0")
+	urls := buildComparisonPeriodURLs(filter, "1Y")
 	if len(urls) != 8 {
 		t.Errorf("expected 8 period URLs, got %d", len(urls))
 	}
@@ -867,6 +867,8 @@ func checkComparisonContains(t *testing.T, body, substr string) {
 }
 
 // Ensure types compile.
-var _ portfolio.Portfolio
-var _ modelportfolio.ModelPortfolioSummary
-var _ web.Renderer
+var (
+	_ portfolio.Portfolio
+	_ modelportfolio.ModelPortfolioSummary
+	_ web.Renderer
+)

@@ -63,7 +63,6 @@ func (c *Client) Fetch(url string) (string, error) {
 		UserAgent: userAgentChrome129,
 		Timeout:   c.timeout,
 	}, "GET")
-
 	if err != nil {
 		return "", fmt.Errorf("fetch %s: %w", url, err)
 	}

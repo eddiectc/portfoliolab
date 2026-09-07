@@ -43,7 +43,7 @@ func (h *MarketDataHandler) HandleRefresh(w http.ResponseWriter, r *http.Request
 
 // HandleStatus handles GET /api/market-data/status.
 // Returns the current cache status as JSON.
-func (h *MarketDataHandler) HandleStatus(w http.ResponseWriter, r *http.Request) {
+func (h *MarketDataHandler) HandleStatus(w http.ResponseWriter, _ *http.Request) {
 	status := h.cache.GetStatus()
 	writeJSON(w, http.StatusOK, status)
 }

@@ -157,10 +157,8 @@ func TestAllocation_Basic(t *testing.T) {
 	// Cash row should be present
 	if result.CashRow == nil {
 		t.Error("expected cash row in allocation")
-	} else {
-		if result.CashRow.Symbol != "$CASH" {
-			t.Errorf("expected cash symbol '$CASH', got %q", result.CashRow.Symbol)
-		}
+	} else if result.CashRow.Symbol != "$CASH" {
+		t.Errorf("expected cash symbol '$CASH', got %q", result.CashRow.Symbol)
 	}
 
 	// Base currency should be USD

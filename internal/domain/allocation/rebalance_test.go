@@ -672,7 +672,6 @@ func TestComputeRebalancingSuggestions_ShareRounding(t *testing.T) {
 	if !msft.Shares.Equal(decimal.MustParse("6.25")) {
 		t.Errorf("MSFT shares = %v, want 6.25", msft.Shares)
 	}
-
 }
 
 func TestComputeRebalancingSuggestions_MarketPriceLookup(t *testing.T) {

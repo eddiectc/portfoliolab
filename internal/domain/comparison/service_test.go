@@ -1969,10 +1969,8 @@ func TestComputeComparison_EnhancedOverlap_FullPipeline(t *testing.T) {
 
 	if overlap.SectorAllocationB == nil {
 		t.Error("SectorAllocationB is nil — should be populated from VOO + VXUS sector weightings")
-	} else {
-		if len(overlap.SectorAllocationB.Breakdown) == 0 {
-			t.Error("SectorAllocationB.Breakdown is empty")
-		}
+	} else if len(overlap.SectorAllocationB.Breakdown) == 0 {
+		t.Error("SectorAllocationB.Breakdown is empty")
 	}
 
 	// --- Country allocations ---

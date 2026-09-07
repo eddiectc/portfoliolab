@@ -491,8 +491,8 @@ func ComputeDrawdownSeries(points []EquityCurvePoint) []DrawdownSeriesPoint {
 // equityCurveDailyReturn pairs a date with a daily return derived from
 // consecutive equity curve points.
 type equityCurveDailyReturn struct {
-	date    time.Time
-	return_ float64
+	date time.Time
+	ret  float64
 }
 
 // equityCurveToDailyReturns converts an equity curve to daily returns.
@@ -517,8 +517,8 @@ func equityCurveToDailyReturns(points []EquityCurvePoint) []equityCurveDailyRetu
 			continue
 		}
 		rets = append(rets, equityCurveDailyReturn{
-			date:    sorted[i].Date,
-			return_: currF/prevF - 1.0,
+			date: sorted[i].Date,
+			ret:  currF/prevF - 1.0,
 		})
 	}
 	return rets
@@ -539,7 +539,7 @@ func alignDailyReturns(a, b []equityCurveDailyReturn) ([]float64, []float64, int
 func equityCurveReturnsToMap(rets []equityCurveDailyReturn) map[string]float64 {
 	m := make(map[string]float64, len(rets))
 	for _, r := range rets {
-		m[r.date.Format("2006-01-02")] = r.return_
+		m[r.date.Format("2006-01-02")] = r.ret
 	}
 	return m
 }

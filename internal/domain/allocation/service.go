@@ -143,7 +143,7 @@ func (s *Service) ComputeAllocation(ctx context.Context, filter AllocationFilter
 	// Build single aggregated cash row from all cash entries.
 	var cashRow *AllocationRow
 	if len(allCashEntries) > 0 {
-		cashRow = buildCashRow(allCashEntries, totalValueBase, baseCurrency, accounts)
+		cashRow = buildCashRow(allCashEntries, totalValueBase, baseCurrency)
 	}
 
 	// Collect warnings for positions without market data.
@@ -276,7 +276,7 @@ func buildAllocationRow(symbol string, entries []position.PositionWithMarket, to
 }
 
 // buildCashRow aggregates all cash positions into a single "$CASH" row.
-func buildCashRow(entries []position.PositionWithMarket, totalValueBase decimal.Decimal, baseCurrency string, accounts []AccountRef) *AllocationRow {
+func buildCashRow(entries []position.PositionWithMarket, totalValueBase decimal.Decimal, baseCurrency string) *AllocationRow {
 	var mvBase decimal.Decimal
 	var hasMarketData bool
 	breakdownMap := make(map[int64]position.PositionWithMarket)
@@ -519,7 +519,7 @@ var driftTolerance = decimal.MustParse("5.0")
 //
 // If no target is saved, returns actual percentages only with has_target=false.
 // Rows are sorted by |drift| descending.
-func (s *Service) ComputeDrift(ctx context.Context, filter AllocationFilter, portfolioID int64) (*DriftResult, error) {
+func (s *Service) ComputeDrift(ctx context.Context, _ AllocationFilter, portfolioID int64) (*DriftResult, error) {
 	// 1. Compute actual allocation for the portfolio.
 	allocFilter := AllocationFilter{PortfolioIDs: []int64{portfolioID}}
 	actual, err := s.ComputeAllocation(ctx, allocFilter)

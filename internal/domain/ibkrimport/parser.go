@@ -341,7 +341,7 @@ type tradeXML struct {
 	BrokerageOrderID      string   `xml:"brokerageOrderID,attr"`
 	OrderReference        string   `xml:"orderReference,attr"`
 	VolatilityOrderLink   string   `xml:"volatilityOrderLink,attr"`
-	ExchOrderId           string   `xml:"exchOrderId,attr"`
+	ExchOrderID           string   `xml:"exchOrderId,attr"`
 	ExtExecID             string   `xml:"extExecID,attr"`
 	OrderTime             string   `xml:"orderTime,attr"`
 	OpenDateTime          string   `xml:"openDateTime,attr"`

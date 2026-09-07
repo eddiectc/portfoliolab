@@ -129,7 +129,8 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*SymbolMapping
 	// Non-blocking symbol details fetch (if configured).
 	if s.detailsFetcher != nil {
 		go func() {
-			if err := s.detailsFetcher.FetchAndStore(context.Background(), sm.InternalSymbol, sm.MarketDataSymbol); err != nil {
+			// Detach from request lifetime, keep context values (logging).
+			if err := s.detailsFetcher.FetchAndStore(context.WithoutCancel(ctx), sm.InternalSymbol, sm.MarketDataSymbol); err != nil {
 				if s.logger != nil {
 					s.logger.Warn("symbol details fetch failed after creation", "symbol", sm.InternalSymbol, "error", err)
 				}
@@ -144,7 +145,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*SymbolMapping
 		if brokerName == "" || brokerSymbol == "" {
 			continue // skip empty broker symbol entries
 		}
-		if err := s.addBrokerSymbol(ctx, sm.ID, brokerName, brokerSymbol, internalSymbol); err != nil {
+		if err := s.addBrokerSymbol(ctx, sm.ID, brokerName, brokerSymbol); err != nil {
 			return nil, err
 		}
 	}
@@ -264,8 +265,7 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 // AddBrokerSymbol adds a broker symbol to an existing symbol mapping.
 func (s *Service) AddBrokerSymbol(ctx context.Context, id int64, req BrokerSymbolRequest) error {
 	// Verify the mapping exists
-	sm, err := s.repo.GetByID(ctx, id)
-	if err != nil {
+	if _, err := s.repo.GetByID(ctx, id); err != nil {
 		return fmt.Errorf("get symbol mapping: %w", err)
 	}
 
@@ -279,11 +279,11 @@ func (s *Service) AddBrokerSymbol(ctx context.Context, id int64, req BrokerSymbo
 		return ErrInvalidSymbol
 	}
 
-	return s.addBrokerSymbol(ctx, id, brokerName, brokerSymbol, sm.InternalSymbol)
+	return s.addBrokerSymbol(ctx, id, brokerName, brokerSymbol)
 }
 
 // addBrokerSymbol adds a broker symbol after validating uniqueness.
-func (s *Service) addBrokerSymbol(ctx context.Context, symbolMappingID int64, brokerName, brokerSymbol, currentInternalSymbol string) error {
+func (s *Service) addBrokerSymbol(ctx context.Context, symbolMappingID int64, brokerName, brokerSymbol string) error {
 	// Check if broker symbol is already mapped to a different internal symbol
 	existing, err := s.repo.GetBrokerSymbolByBroker(ctx, brokerName, brokerSymbol)
 	if err == nil {

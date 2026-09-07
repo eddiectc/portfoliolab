@@ -102,7 +102,7 @@ func ComputeNavHistory(equityCurve []EquityCurvePoint, breakpoints []NavBreakpoi
 				// Pre-cash-flow NAV: value before the cash flow / current units.
 				preValue := bp.Value
 				if !preValue.IsPos() {
-					preValue = equityCurve[i-1].PortfolioValue
+					preValue = equityCurve[i-1].PortfolioValue //nolint:gosec // i > 0 checked above
 				}
 				preCashFlowNAV, _ := preValue.Quo(units)
 

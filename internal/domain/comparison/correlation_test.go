@@ -163,7 +163,7 @@ func TestComputeIntraPortfolioCorrelation_MissingData(t *testing.T) {
 	input := IntraPortfolioCorrelationInput{
 		Prices: map[string][]market.HistoricalPrice{
 			"AAPL": makePriceSeries(makeLongSeries([]float64{100, 102, 101, 103})),
-			"MSFT": []market.HistoricalPrice{},
+			"MSFT": {},
 		},
 		Period: "1Y",
 	}

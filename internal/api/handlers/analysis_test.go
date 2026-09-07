@@ -412,7 +412,7 @@ func TestAnalysisHandleAnalysis_ValidPeriods(t *testing.T) {
 // --- parseAnalysisFilters Tests ---
 
 func TestParseAnalysisFilters_PortfolioID(t *testing.T) {
-	query := map[string][]string{"portfolio_id": []string{"7"}}
+	query := map[string][]string{"portfolio_id": {"7"}}
 	filters := parseAnalysisFilters(url.Values(query))
 	if filters.PortfolioID == nil || *filters.PortfolioID != 7 {
 		t.Errorf("expected portfolio_id 7, got %v", filters.PortfolioID)
@@ -420,7 +420,7 @@ func TestParseAnalysisFilters_PortfolioID(t *testing.T) {
 }
 
 func TestParseAnalysisFilters_InvalidPortfolioID(t *testing.T) {
-	query := map[string][]string{"portfolio_id": []string{"not_a_number"}}
+	query := map[string][]string{"portfolio_id": {"not_a_number"}}
 	filters := parseAnalysisFilters(url.Values(query))
 	if filters.PortfolioID != nil {
 		t.Errorf("expected nil portfolio_id for invalid input, got %v", filters.PortfolioID)
@@ -430,7 +430,7 @@ func TestParseAnalysisFilters_InvalidPortfolioID(t *testing.T) {
 func TestParseAnalysisFilters_Section(t *testing.T) {
 	sections := []string{"overlap", "correlation", "sector_allocation", "geographic_allocation", "stress_test", "factor_exposure"}
 	for _, section := range sections {
-		query := map[string][]string{"section": []string{section}}
+		query := map[string][]string{"section": {section}}
 		filters := parseAnalysisFilters(url.Values(query))
 		if filters.Section != section {
 			t.Errorf("expected section %q, got %q", section, filters.Section)
@@ -441,7 +441,7 @@ func TestParseAnalysisFilters_Section(t *testing.T) {
 func TestParseAnalysisFilters_Period(t *testing.T) {
 	periods := []string{"1Y", "3Y", "5Y", "10Y"}
 	for _, period := range periods {
-		query := map[string][]string{"period": []string{period}}
+		query := map[string][]string{"period": {period}}
 		filters := parseAnalysisFilters(url.Values(query))
 		if filters.Period != period {
 			t.Errorf("expected period %q, got %q", period, filters.Period)
@@ -451,9 +451,9 @@ func TestParseAnalysisFilters_Period(t *testing.T) {
 
 func TestParseAnalysisFilters_AllParams(t *testing.T) {
 	query := map[string][]string{
-		"portfolio_id": []string{"99"},
-		"section":      []string{"stress_test"},
-		"period":       []string{"10Y"},
+		"portfolio_id": {"99"},
+		"section":      {"stress_test"},
+		"period":       {"10Y"},
 	}
 	filters := parseAnalysisFilters(url.Values(query))
 	if filters.PortfolioID == nil || *filters.PortfolioID != 99 {

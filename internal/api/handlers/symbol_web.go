@@ -30,13 +30,13 @@ type symbolMappingFormPageData struct {
 }
 
 // newSymbolMappingFormPageData creates a symbolMappingFormPageData with common defaults.
-func newSymbolMappingFormPageData(pd web.PageData, action, submitText, cancelHref string) *symbolMappingFormPageData {
+func newSymbolMappingFormPageData(pd web.PageData, action, submitText string) *symbolMappingFormPageData {
 	return &symbolMappingFormPageData{
 		PageData:      pd,
 		BrokerSymbols: []symbolmapping.BrokerSymbolRequest{},
 		Action:        action,
 		SubmitText:    submitText,
-		CancelHref:    cancelHref,
+		CancelHref:    "/symbols",
 	}
 }
 
@@ -100,7 +100,7 @@ func (h *SymbolWebHandler) HandleListPage(w http.ResponseWriter, r *http.Request
 func (h *SymbolWebHandler) HandleNewPage(w http.ResponseWriter, r *http.Request) {
 	data := newSymbolMappingFormPageData(web.PageData{
 		Title: "New Symbol Mapping",
-	}, "/symbols", "Create Mapping", "/symbols")
+	}, "/symbols", "Create Mapping")
 
 	if err := h.renderer.Render(w, "symbol/form", data); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -154,7 +154,7 @@ func (h *SymbolWebHandler) HandleCreatePage(w http.ResponseWriter, r *http.Reque
 		data := newSymbolMappingFormPageData(web.PageData{
 			Title: "New Symbol Mapping",
 			Error: symbolMappingUserFriendlyError(err),
-		}, "/symbols", "Create Mapping", "/symbols")
+		}, "/symbols", "Create Mapping")
 		data.InternalSymbol = internalSymbol
 		data.MarketDataSymbol = marketDataSymbol
 		data.IsBenchmark = isBenchmark
@@ -187,7 +187,6 @@ func (h *SymbolWebHandler) HandleEditPage(w http.ResponseWriter, r *http.Request
 	}
 
 	editAction := "/symbols/" + strconv.FormatInt(id, 10) + "/edit"
-	cancelHref := "/symbols"
 
 	// Convert existing broker symbols to form requests
 	var brokerReqs []symbolmapping.BrokerSymbolRequest
@@ -200,7 +199,7 @@ func (h *SymbolWebHandler) HandleEditPage(w http.ResponseWriter, r *http.Request
 
 	data := newSymbolMappingFormPageData(web.PageData{
 		Title: "Edit Symbol Mapping",
-	}, editAction, "Save Changes", cancelHref)
+	}, editAction, "Save Changes")
 	data.InternalSymbol = sm.InternalSymbol
 	data.MarketDataSymbol = sm.MarketDataSymbol
 	data.IsBenchmark = sm.IsBenchmark
@@ -251,7 +250,6 @@ func (h *SymbolWebHandler) HandleUpdatePage(w http.ResponseWriter, r *http.Reque
 	_, err = h.service.Update(r.Context(), id, req)
 	if err != nil {
 		editAction := "/symbols/" + strconv.FormatInt(id, 10) + "/edit"
-		cancelHref := "/symbols"
 
 		// Re-parse broker symbols for form re-render
 		brokerSymbols := parseBrokerSymbols(r)
@@ -259,7 +257,7 @@ func (h *SymbolWebHandler) HandleUpdatePage(w http.ResponseWriter, r *http.Reque
 		data := newSymbolMappingFormPageData(web.PageData{
 			Title: "Edit Symbol Mapping",
 			Error: symbolMappingUserFriendlyError(err),
-		}, editAction, "Save Changes", cancelHref)
+		}, editAction, "Save Changes")
 		data.InternalSymbol = internalSymbol
 		data.MarketDataSymbol = marketDataSymbol
 		data.IsBenchmark = isBenchmark

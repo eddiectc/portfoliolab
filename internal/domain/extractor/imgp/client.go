@@ -63,7 +63,6 @@ func (c *Client) FetchPage(url string) (string, error) {
 		UserAgent: userAgentChrome129,
 		Timeout:   c.timeout,
 	}, "GET")
-
 	if err != nil {
 		return "", fmt.Errorf("fetch page %s: %w", url, err)
 	}
@@ -90,7 +89,6 @@ func (c *Client) FetchPDF(url string) ([]byte, error) {
 		UserAgent: userAgentChrome129,
 		Timeout:   c.timeout,
 	}, "GET")
-
 	if err != nil {
 		return nil, fmt.Errorf("fetch pdf %s: %w", url, err)
 	}
