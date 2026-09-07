@@ -115,15 +115,15 @@ func TestAlignReturns(t *testing.T) {
 	now := time.Now()
 
 	a := []datedReturn{
-		{date: now.AddDate(0, 0, -3).Unix(), return_: 0.01},
-		{date: now.AddDate(0, 0, -2).Unix(), return_: -0.02},
-		{date: now.AddDate(0, 0, -1).Unix(), return_: 0.03},
+		{date: now.AddDate(0, 0, -3).Unix(), ret: 0.01},
+		{date: now.AddDate(0, 0, -2).Unix(), ret: -0.02},
+		{date: now.AddDate(0, 0, -1).Unix(), ret: 0.03},
 	}
 
 	b := []datedReturn{
-		{date: now.AddDate(0, 0, -3).Unix(), return_: 0.02},
-		{date: now.AddDate(0, 0, -1).Unix(), return_: -0.01},
-		{date: now.Unix(), return_: 0.05},
+		{date: now.AddDate(0, 0, -3).Unix(), ret: 0.02},
+		{date: now.AddDate(0, 0, -1).Unix(), ret: -0.01},
+		{date: now.Unix(), ret: 0.05},
 	}
 
 	x, y, overlap := alignReturns(a, b)

@@ -182,12 +182,12 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 	// cross-metric computation below requires both sides.
 
 	// Compute per-portfolio metrics.
-	result.PortfolioA = s.computePortfolioMetrics(aCurve, aData, baseCurrency, req.RiskFreeRatePct)
-	result.PortfolioB = s.computePortfolioMetrics(bCurve, bData, baseCurrency, req.RiskFreeRatePct)
+	result.PortfolioA = s.computePortfolioMetrics(aCurve, aData, req.RiskFreeRatePct)
+	result.PortfolioB = s.computePortfolioMetrics(bCurve, bData, req.RiskFreeRatePct)
 
 	// Compute cross-portfolio metrics (only if both have sufficient data).
 	if len(aCurve) >= 2 && len(bCurve) >= 2 {
-		result.CrossMetrics = s.computeCrossMetrics(ctx, aCurve, bCurve, aData, bData, req, dateFrom, dateTo, baseCurrency)
+		result.CrossMetrics = s.computeCrossMetrics(ctx, aCurve, bCurve, aData, bData)
 	}
 
 	return result, nil
@@ -271,7 +271,7 @@ func (s *Service) resolveEquityCurve(
 	case PortTypeModel:
 		return s.resolveModelPortfolio(ctx, portfolioID, startingValue, baseCurrency, dateFrom, dateTo)
 	case PortTypeReal:
-		return s.resolveRealPortfolio(ctx, portfolioID, baseCurrency, dateFrom, dateTo)
+		return s.resolveRealPortfolio(ctx, portfolioID, dateFrom, dateTo)
 	default:
 		return nil, nil, nil, fmt.Errorf("unknown portfolio type: %s", portType)
 	}
@@ -299,7 +299,8 @@ func (s *Service) resolveModelPortfolio(
 	// Fetch FX rates if needed.
 	fxRates, fxWarnings := s.fetchFxRates(ctx, weights, baseCurrency, dateFrom, dateTo)
 
-	warnings := append(symbolWarnings, pricesWarnings...)
+	warnings := symbolWarnings
+	warnings = append(warnings, pricesWarnings...)
 	warnings = append(warnings, fxWarnings...)
 
 	// Simulate equity curve.
@@ -333,7 +334,6 @@ func (s *Service) resolveModelPortfolio(
 func (s *Service) resolveRealPortfolio(
 	ctx context.Context,
 	portfolioID int64,
-	baseCurrency string,
 	dateFrom, dateTo time.Time,
 ) ([]EquityCurvePoint, portfolioMeta, []string, error) {
 	filters := performance.PerformanceFilters{
@@ -586,7 +586,7 @@ func (s *Service) emptyPortfolioComparison(meta portfolioMeta, message string) *
 }
 
 // computePortfolioMetrics computes all per-portfolio metrics from an equity curve.
-func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfolioMeta, baseCurrency string, riskFreeRatePct *decimal.Decimal) *PortfolioComparison {
+func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfolioMeta, riskFreeRatePct *decimal.Decimal) *PortfolioComparison {
 	pc := &PortfolioComparison{
 		ID:   meta.getID(),
 		Name: meta.getName(),
@@ -805,9 +805,6 @@ func (s *Service) computeCrossMetrics(
 	ctx context.Context,
 	aCurve, bCurve []EquityCurvePoint,
 	aData, bData portfolioMeta,
-	req ComparisonRequest,
-	dateFrom, dateTo time.Time,
-	baseCurrency string,
 ) *CrossPortfolioMetrics {
 	cross := &CrossPortfolioMetrics{}
 

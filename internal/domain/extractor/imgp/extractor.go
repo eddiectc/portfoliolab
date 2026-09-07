@@ -207,7 +207,7 @@ func isISINLike(s string) bool {
 		}
 	}
 	for i := 2; i < 12; i++ {
-		if !((s[i] >= '0' && s[i] <= '9') || (s[i] >= 'A' && s[i] <= 'Z')) {
+		if (s[i] < '0' || s[i] > '9') && (s[i] < 'A' || s[i] > 'Z') {
 			return false
 		}
 	}

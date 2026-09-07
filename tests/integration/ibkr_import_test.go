@@ -357,6 +357,9 @@ func TestIBKRImport_CashTransactionClassification(t *testing.T) {
 		}
 		expectedTypes[typ] = true
 	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows err: %v", err)
+	}
 
 	for typ, found := range expectedTypes {
 		if !found {

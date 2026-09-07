@@ -21,12 +21,12 @@ type twrBreakpoint struct {
 // cash flow (deposit/withdrawal), using the same price/FX logic as the
 // equity curve. Returns a sorted slice of TWR breakpoints.
 func computePreCashFlowValues(
+	ctx context.Context,
 	snapshots []dateSnapshot,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
 	marketProvider MarketDataProvider,
 	logger *slog.Logger,
-	ctx context.Context,
 ) []twrBreakpoint {
 	if len(snapshots) == 0 {
 		return nil
@@ -39,7 +39,7 @@ func computePreCashFlowValues(
 	// Collect FX pairs from all pre-cash-flow snapshots.
 	allPreSnaps := collectAllPreCashFlowSnaps(snapshots)
 	fxPairs := collectFxPairsFromPreSnaps(allPreSnaps, baseCurrency)
-	fxLookup := buildFxLookupFromPreSnaps(ctx, marketProvider, fxPairs, allPreSnaps, logger)
+	fxLookup := buildFxLookupFromPreSnaps(ctx, marketProvider, fxPairs, allPreSnaps)
 
 	var values []twrBreakpoint
 	for _, snap := range snapshots {
@@ -102,7 +102,6 @@ func buildFxLookupFromPreSnaps(
 	marketProvider MarketDataProvider,
 	fxPairs []string,
 	snaps []preCashFlowSnapWithDate,
-	logger *slog.Logger,
 ) map[string]*fxLookupFF {
 	lookup := make(map[string]*fxLookupFF)
 	if marketProvider == nil || len(fxPairs) == 0 || len(snaps) == 0 {

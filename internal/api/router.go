@@ -124,7 +124,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	r.Use(chimiddleware.Recoverer)
 
 	// Health check
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		// The status code is already sent; nothing more to do on failure.
@@ -171,7 +171,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 
 	// Symbol CRUD (API)
 	symbolMappingRepo := data.NewSymbolMappingRepository(db)
-	var marketFetcher MarketDataFetcher = cfg.marketFetcher
+	marketFetcher := cfg.marketFetcher
 	if marketFetcher == nil {
 		marketFetcher = market.NewYahooFinanceFetcher(logger)
 	}
@@ -394,7 +394,7 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 		})
 
 		// Help pages
-		r.Get("/help/fx", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/help/fx", func(w http.ResponseWriter, _ *http.Request) {
 			if err := renderer.Render(w, "help/fx_conventions", web.PageData{Title: "FX Conventions"}); err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return

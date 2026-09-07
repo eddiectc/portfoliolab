@@ -295,7 +295,7 @@ func (r *SymbolMappingRepository) IsBenchmark(ctx context.Context, marketDataSym
 // HasReferencingTransactions checks if any transactions reference this symbol mapping.
 // Stub: returns false until the transaction feature (f004) is implemented.
 // TODO(f004): Replace with actual check against transactions table.
-func (r *SymbolMappingRepository) HasReferencingTransactions(ctx context.Context, id int64) (bool, error) {
+func (r *SymbolMappingRepository) HasReferencingTransactions(_ context.Context, id int64) (bool, error) {
 	return false, nil
 }
 

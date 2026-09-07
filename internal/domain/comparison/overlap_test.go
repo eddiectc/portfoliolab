@@ -452,7 +452,7 @@ func TestComputeWeightedOverlap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _ := computeWeightedOverlap(tt.setA, tt.setB)
+			got := computeWeightedOverlap(tt.setA, tt.setB)
 			gotF, _ := got.Float64()
 			if !floatEq(gotF, tt.wantPct, 0.1) {
 				t.Errorf("OverlapPct = %.2f, want %.2f", gotF, tt.wantPct)

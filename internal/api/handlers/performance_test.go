@@ -34,7 +34,9 @@ func newMockPosRepoForPerf() *mockPosRepoForPerf {
 }
 
 func (m *mockPosRepoForPerf) CreatePosition(context.Context, *position.Position) error { return nil }
-func (m *mockPosRepoForPerf) CreateLot(context.Context, *position.Lot) error           { return nil }
+
+func (m *mockPosRepoForPerf) CreateLot(context.Context, *position.Lot) error { return nil }
+
 func (m *mockPosRepoForPerf) CreateConsumption(context.Context, *position.LotConsumption) error {
 	return nil
 }
@@ -64,9 +66,11 @@ func (m *mockPosRepoForPerf) GetOpenPositions(_ context.Context, accountID int64
 func (m *mockPosRepoForPerf) GetClosedPositions(context.Context, int64, int, int) ([]position.Position, error) {
 	return []position.Position{}, nil
 }
+
 func (m *mockPosRepoForPerf) GetLotByLotID(context.Context, string) (*position.Lot, error) {
 	return nil, position.ErrLotNotFound
 }
+
 func (m *mockPosRepoForPerf) GetConsumptionsBySellLot(context.Context, string) ([]position.LotConsumption, error) {
 	return []position.LotConsumption{}, nil
 }
@@ -96,12 +100,15 @@ func (m *mockTxnRepoForPerf) ListAllTransactionsByAccount(_ context.Context, acc
 func (m *mockTxnRepoForPerf) GetSymbolsWithEarliestDate(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTxnRepoForPerf) GetSymbolsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTxnRepoForPerf) GetFxPairsByOpenPositions(_ context.Context) (map[string]time.Time, error) {
 	return nil, nil
 }
+
 func (m *mockTxnRepoForPerf) GetEarliestDateBySymbol(_ context.Context, _ string) (*time.Time, error) {
 	return nil, nil
 }
@@ -222,6 +229,7 @@ func newMockMarketDataRepoForPerf() *mockMarketDataRepoForPerf {
 func (m *mockMarketDataRepoForPerf) GetLatest(context.Context, string) (*market.MarketData, error) {
 	return nil, nil
 }
+
 func (m *mockMarketDataRepoForPerf) GetBySourceAndDate(context.Context, string, string, string) (*market.MarketData, error) {
 	return nil, nil
 }
@@ -229,6 +237,7 @@ func (m *mockMarketDataRepoForPerf) Upsert(context.Context, *market.MarketData) 
 func (m *mockMarketDataRepoForPerf) GetCurrentFxRate(context.Context, string, string) (*market.MarketData, error) {
 	return nil, nil
 }
+
 func (m *mockMarketDataRepoForPerf) UpsertHistoricalPrices(_ context.Context, symbol string, prices []market.HistoricalPrice, _dataType string) error {
 	m.upserted[symbol] = prices
 	return nil

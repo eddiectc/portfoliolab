@@ -72,7 +72,8 @@ func WithLogger(logger *slog.Logger) ServiceOption {
 
 // NewService creates a new import service.
 func NewService(resolver SymbolResolver, dupCheck DuplicateChecker, creator TransactionCreator,
-	accounts AccountChecker, symCreate SymbolCreator, brokerAdd BrokerSymbolAdder, opts ...ServiceOption) *Service {
+	accounts AccountChecker, symCreate SymbolCreator, brokerAdd BrokerSymbolAdder, opts ...ServiceOption,
+) *Service {
 	s := &Service{
 		resolver:  resolver,
 		dupCheck:  dupCheck,
@@ -105,14 +106,7 @@ func (s *Service) Preview(ctx context.Context, csvData []byte, accountID int64) 
 	var errored []ErroredTransaction
 
 	for _, row := range report.Rows {
-		entry, skip, parseErr := s.processRow(ctx, row)
-		if parseErr != nil {
-			errored = append(errored, ErroredTransaction{
-				ExternalReference: row.ID,
-				ErrorMessage:      parseErr.Error(),
-			})
-			continue
-		}
+		entry, skip := s.processRow(ctx, row)
 		if skip != nil {
 			skipped = append(skipped, *skip)
 			continue
@@ -177,11 +171,7 @@ func (s *Service) ConfirmImport(ctx context.Context, csvData []byte, accountID i
 	now := time.Now()
 
 	for _, row := range report.Rows {
-		txn, skip, parseErr := s.buildTxn(ctx, row, accountID, now)
-		if parseErr != nil {
-			skippedCount++
-			continue
-		}
+		txn, skip := s.buildTxn(ctx, row, accountID, now)
 		if skip {
 			skippedCount++
 			continue
@@ -229,7 +219,7 @@ func (s *Service) AddBrokerSymbolMapping(ctx context.Context, brokerNameArg, bro
 
 // processRow classifies a parsed CSV row and returns a preview entry,
 // a skip reason, or an error.
-func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransaction, *SkippedTransaction, error) {
+func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransaction, *SkippedTransaction) {
 	// Unknown actions are skipped.
 	if row.Action == ActionUnknown {
 		return nil, &SkippedTransaction{
@@ -238,7 +228,7 @@ func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransa
 			Date:              row.Date,
 			Type:              "unknown",
 			Description:       row.Name,
-		}, nil
+		}
 	}
 
 	// Trades: resolve symbol
@@ -258,7 +248,7 @@ func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransa
 				Currency:          row.Currency,
 				NetCash:           computeNetCashDisplay(row),
 				Description:       row.Name,
-			}, nil
+			}
 		}
 
 		return &PreviewTransaction{
@@ -271,7 +261,7 @@ func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransa
 			NetCash:           computeNetCashDisplay(row),
 			ExternalReference: row.ID,
 			Description:       row.Name,
-		}, nil, nil
+		}, nil
 	}
 
 	// Cash transactions: deposit, withdrawal, interest
@@ -298,15 +288,15 @@ func (s *Service) processRow(ctx context.Context, row ParsedRow) (*PreviewTransa
 		NetCash:           netCash,
 		ExternalReference: row.ID,
 		Description:       row.Name,
-	}, nil, nil
+	}, nil
 }
 
 // buildTxn builds a transaction for a parsed CSV row, checking symbol
-// resolution and duplicates. Returns (transaction, skip, error).
-func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, now time.Time) (*transaction.Transaction, bool, error) {
+// resolution and duplicates. Returns (transaction, skip).
+func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, now time.Time) (*transaction.Transaction, bool) {
 	// Unknown actions are skipped.
 	if row.Action == ActionUnknown {
-		return nil, true, nil
+		return nil, true
 	}
 
 	txnType := actionToTxnType(row.Action)
@@ -315,7 +305,7 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 	if isTradeAction(row.Action) {
 		symbol = s.resolveSymbol(ctx, row.Ticker)
 		if symbol == "" {
-			return nil, true, nil
+			return nil, true
 		}
 	} else {
 		currency := row.TotalCurrency
@@ -327,7 +317,7 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 
 	// Check duplicate
 	if s.dupCheck.ExternalReferenceExists(ctx, externalSystem, row.ID) {
-		return nil, true, nil
+		return nil, true
 	}
 
 	// Parse date
@@ -368,7 +358,7 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 			ExternalReference: &ref,
 			CreatedAt:         now,
 			UpdatedAt:         now,
-		}, false, nil
+		}, false
 	}
 
 	// Cash transactions: quantity = total amount, price = 1
@@ -391,7 +381,7 @@ func (s *Service) buildTxn(ctx context.Context, row ParsedRow, accountID int64, 
 		ExternalReference: &ref,
 		CreatedAt:         now,
 		UpdatedAt:         now,
-	}, false, nil
+	}, false
 }
 
 // ---- Helpers ----

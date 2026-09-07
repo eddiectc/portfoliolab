@@ -271,10 +271,8 @@ func TestExtractor_Extract_OptionalSectionPartial(t *testing.T) {
 	// RiskMeasures should be present but partial
 	if result.RiskMeasures == nil {
 		t.Error("RiskMeasures should be present (partial data is acceptable)")
-	} else {
-		if !result.RiskMeasures.HasField(extractor.RiskFieldVolatility) {
-			t.Error("Volatility should be present")
-		}
+	} else if !result.RiskMeasures.HasField(extractor.RiskFieldVolatility) {
+		t.Error("Volatility should be present")
 	}
 
 	if len(result.AssetClassAllocation) == 0 {

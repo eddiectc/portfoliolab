@@ -236,11 +236,12 @@ func TestExtractor_Extract(t *testing.T) {
 				if result.AsOfDate.IsZero() {
 					t.Error("AsOfDate is zero")
 				}
-				if result.FundInfo == nil {
+				switch {
+				case result.FundInfo == nil:
 					t.Error("FundInfo is nil")
-				} else if result.FundInfo.Symbol != isin {
+				case result.FundInfo.Symbol != isin:
 					t.Errorf("FundInfo.Symbol = %q, want %q", result.FundInfo.Symbol, isin)
-				} else if result.FundInfo.Name != "Global Core Equity UCITS ETF (Acc.)" {
+				case result.FundInfo.Name != "Global Core Equity UCITS ETF (Acc.)":
 					t.Errorf("FundInfo.Name = %q", result.FundInfo.Name)
 				}
 				if len(result.NavHistory) != 2 {

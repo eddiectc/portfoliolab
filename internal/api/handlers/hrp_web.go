@@ -49,7 +49,7 @@ func NewHrpWebHandler(
 		portfolioSvc:      portfolioSvc,
 		modelPortfolioSvc: modelPortfolioSvc,
 		renderer:          renderer,
-		saveModelPortfolio: func(ctx context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
+		saveModelPortfolio: func(_ context.Context, _ modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
 			return modelportfolio.ModelPortfolio{}, nil
 		},
 	}
@@ -69,7 +69,7 @@ type hrpPageData struct {
 	FormAction     string // "/hrp"
 	FormButtonText string // "Compute HRP"
 	SymbolHint     string // "Comma-separated symbols. Min 2, max 20."
-	ApiBase        string // "/api/hrp"
+	APIBase        string // "/api/hrp"
 	RiskFreeRate   bool   // false for HRP
 	// Pre-serialized JSON for ECharts dendrograms.
 	HrpChartData string
@@ -119,9 +119,9 @@ func (h *HrpWebHandler) HandleHrp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch selectors.
-	portfolios := fetchOptimizationPortfolios(h.portfolioSvc, r.Context(), "hrp")
-	modelPortfolios := fetchOptimizationModelPortfolios(h.modelPortfolioSvc, r.Context(), "hrp")
-	candidateSymbols := fetchCandidateSymbolsFromService(h.apiHandler.svc, r.Context(), "hrp")
+	portfolios := fetchOptimizationPortfolios(r.Context(), h.portfolioSvc, "hrp")
+	modelPortfolios := fetchOptimizationModelPortfolios(r.Context(), h.modelPortfolioSvc, "hrp")
+	candidateSymbols := fetchCandidateSymbolsFromService(r.Context(), h.apiHandler.svc, "hrp")
 
 	// Compute HRP.
 	var result *hierarchicalriskparity.HrpResult
@@ -179,7 +179,7 @@ func (h *HrpWebHandler) buildPageData(
 		FormAction:           "/hrp",
 		FormButtonText:       "Compute HRP",
 		SymbolHint:           "Comma-separated symbols. Min 2, max 20.",
-		ApiBase:              "/api/hrp",
+		APIBase:              "/api/hrp",
 		RiskFreeRate:         false,
 		HrpChartData:         serializeHrpChartData(result),
 		Result:               result,
@@ -317,7 +317,7 @@ func (h *HrpWebHandler) WithModelPortfolioCreator(creator modelPortfolioCreator)
 // --- Shared fetch helpers (used by both EF and HRP web handlers) ---
 
 // fetchOptimizationPortfolios returns all portfolios for the selector dropdown.
-func fetchOptimizationPortfolios(portfolioSvc *portfolio.Service, ctx context.Context, label string) []portfolio.Portfolio {
+func fetchOptimizationPortfolios(ctx context.Context, portfolioSvc *portfolio.Service, label string) []portfolio.Portfolio {
 	if portfolioSvc == nil {
 		return []portfolio.Portfolio{}
 	}
@@ -339,7 +339,7 @@ type optimizationModelPortfolioSelector interface {
 }
 
 // fetchOptimizationModelPortfolios returns model portfolio summaries for the dropdown.
-func fetchOptimizationModelPortfolios(svc optimizationModelPortfolioSelector, ctx context.Context, label string) []modelportfolio.ModelPortfolioSummary {
+func fetchOptimizationModelPortfolios(ctx context.Context, svc optimizationModelPortfolioSelector, label string) []modelportfolio.ModelPortfolioSummary {
 	if svc == nil {
 		return []modelportfolio.ModelPortfolioSummary{}
 	}

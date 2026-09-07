@@ -51,7 +51,7 @@ func NewEfficientFrontierWebHandler(
 		portfolioSvc:      portfolioSvc,
 		modelPortfolioSvc: modelPortfolioSvc,
 		renderer:          renderer,
-		saveModelPortfolio: func(ctx context.Context, req modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
+		saveModelPortfolio: func(_ context.Context, _ modelportfolio.CreateRequest) (modelportfolio.ModelPortfolio, error) {
 			return modelportfolio.ModelPortfolio{}, nil
 		},
 	}
@@ -71,7 +71,7 @@ type frontierPageData struct {
 	FormAction     string // "/efficient-frontier"
 	FormButtonText string // "Compute Frontier"
 	SymbolHint     string // "Comma-separated symbols. Min 2, max 10."
-	ApiBase        string // "/api/efficient-frontier"
+	APIBase        string // "/api/efficient-frontier"
 	RiskFreeRate   bool   // true for frontier (shows risk-free rate field)
 	// Pre-serialized JSON for ECharts.
 	FrontierChartData string
@@ -145,9 +145,9 @@ func (h *EfficientFrontierWebHandler) HandleEfficientFrontier(w http.ResponseWri
 	}
 
 	// Fetch selectors.
-	portfolios := fetchOptimizationPortfolios(h.portfolioSvc, r.Context(), "efficient frontier")
-	modelPortfolios := fetchOptimizationModelPortfolios(h.modelPortfolioSvc, r.Context(), "efficient frontier")
-	candidateSymbols := fetchCandidateSymbolsFromService(h.apiHandler.svc, r.Context(), "efficient frontier")
+	portfolios := fetchOptimizationPortfolios(r.Context(), h.portfolioSvc, "efficient frontier")
+	modelPortfolios := fetchOptimizationModelPortfolios(r.Context(), h.modelPortfolioSvc, "efficient frontier")
+	candidateSymbols := fetchCandidateSymbolsFromService(r.Context(), h.apiHandler.svc, "efficient frontier")
 
 	// Compute frontier.
 	var result *efficientfrontier.FrontierResult
@@ -234,7 +234,7 @@ func (h *EfficientFrontierWebHandler) buildPageData(
 		FormAction:           "/efficient-frontier",
 		FormButtonText:       "Compute Frontier",
 		SymbolHint:           "Comma-separated symbols. Min 2, max 10.",
-		ApiBase:              "/api/efficient-frontier",
+		APIBase:              "/api/efficient-frontier",
 		RiskFreeRate:         true,
 		FrontierChartData:    frontierChart,
 		Result:               result,

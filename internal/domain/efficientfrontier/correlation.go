@@ -24,11 +24,12 @@ func ComputeCorrelationMatrix(covMatrix [][]float64, n int) [][]float64 {
 
 	for i := 0; i < n; i++ {
 		for j := i; j < n; j++ {
-			if i == j {
+			switch {
+			case i == j:
 				corr[i][j] = 1.0
-			} else if stdDev[i] == 0 || stdDev[j] == 0 {
+			case stdDev[i] == 0 || stdDev[j] == 0:
 				corr[i][j] = 0
-			} else {
+			default:
 				corr[i][j] = covMatrix[i][j] / (stdDev[i] * stdDev[j])
 			}
 			corr[j][i] = corr[i][j] // symmetric

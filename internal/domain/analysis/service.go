@@ -460,7 +460,8 @@ func (s *Service) refreshStaleSymbols(ctx context.Context, enriched []position.P
 			}
 			// Non-blocking: fire and forget in background.
 			go func(internal, market string) {
-				_ = s.symbolRefresher.RefreshSymbol(context.Background(), internal, market)
+				// Detach from request lifetime, keep context values (logging).
+				_ = s.symbolRefresher.RefreshSymbol(context.WithoutCancel(ctx), internal, market)
 			}(p.Symbol, marketSymbol)
 		}
 	}

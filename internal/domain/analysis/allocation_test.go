@@ -129,7 +129,7 @@ func TestComputeSectorAllocation_StockOnly(t *testing.T) {
 func TestComputeSectorAllocation_PartialData(t *testing.T) {
 	positions := []PositionWithDetails{
 		// ETF with no sector data
-		PositionWithDetails{
+		{
 			Symbol:          "OBSCURE",
 			PortfolioWeight: 30,
 			SymbolDetails: &symbol.SymbolDetails{
@@ -137,7 +137,7 @@ func TestComputeSectorAllocation_PartialData(t *testing.T) {
 			},
 		},
 		// Stock with no sector
-		PositionWithDetails{
+		{
 			Symbol:          "UNKNOWN",
 			PortfolioWeight: 20,
 			SymbolDetails: &symbol.SymbolDetails{
@@ -145,7 +145,7 @@ func TestComputeSectorAllocation_PartialData(t *testing.T) {
 			},
 		},
 		// Stock with no details at all
-		PositionWithDetails{
+		{
 			Symbol:          "NODETAILS",
 			PortfolioWeight: 10,
 		},
@@ -168,14 +168,14 @@ func TestComputeSectorAllocation_PartialData(t *testing.T) {
 
 func TestComputeSectorAllocation_AllMissingData(t *testing.T) {
 	positions := []PositionWithDetails{
-		PositionWithDetails{
+		{
 			Symbol:          "X",
 			PortfolioWeight: 50,
 			SymbolDetails: &symbol.SymbolDetails{
 				QuoteType: "ETF",
 			},
 		},
-		PositionWithDetails{
+		{
 			Symbol:          "Y",
 			PortfolioWeight: 50,
 		},
@@ -346,7 +346,7 @@ func TestComputeGeographicAllocation_StockOnly(t *testing.T) {
 func TestComputeGeographicAllocation_PartialData(t *testing.T) {
 	positions := []PositionWithDetails{
 		// ETF with no geographic data
-		PositionWithDetails{
+		{
 			Symbol:          "NOGEO",
 			PortfolioWeight: 40,
 			SymbolDetails: &symbol.SymbolDetails{
@@ -372,14 +372,14 @@ func TestComputeGeographicAllocation_PartialData(t *testing.T) {
 
 func TestComputeGeographicAllocation_AllMissingData(t *testing.T) {
 	positions := []PositionWithDetails{
-		PositionWithDetails{
+		{
 			Symbol:          "X",
 			PortfolioWeight: 50,
 			SymbolDetails: &symbol.SymbolDetails{
 				QuoteType: "ETF",
 			},
 		},
-		PositionWithDetails{
+		{
 			Symbol:          "Y",
 			PortfolioWeight: 50,
 		},

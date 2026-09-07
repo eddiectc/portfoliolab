@@ -188,8 +188,8 @@ func Compute(input Input) *Result {
 
 // datedReturn pairs a trading date with its computed daily return.
 type datedReturn struct {
-	date    int64   // Unix timestamp of the trading day
-	return_ float64 // (close[t]/close[t-1]) - 1
+	date int64   // Unix timestamp of the trading day
+	ret  float64 // (close[t]/close[t-1]) - 1
 }
 
 func cutoffDays(period string) int {
@@ -237,8 +237,8 @@ func computeDailyReturnsWithDates(series []market.HistoricalPrice) []datedReturn
 			continue
 		}
 		rets = append(rets, datedReturn{
-			date:    series[i].Date.Unix(),
-			return_: (curr / prev) - 1.0,
+			date: series[i].Date.Unix(),
+			ret:  (curr / prev) - 1.0,
 		})
 	}
 	return rets
@@ -254,7 +254,7 @@ func returnsToMap(rets []datedReturn) map[string]float64 {
 	m := make(map[string]float64, len(rets))
 	for _, r := range rets {
 		key := strconv.FormatInt(r.date, 10)
-		m[key] = r.return_
+		m[key] = r.ret
 	}
 	return m
 }

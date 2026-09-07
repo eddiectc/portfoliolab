@@ -56,7 +56,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	isin = strings.ToUpper(isin)
 
 	// 2. Map ISIN to portfolioNumber and fetch NAV history using the Fund Center Registry API
-	portfolioNumber, navHistory, entries, err := e.getPortfolioNumberAndNavHistory(ctx, isin)
+	portfolioNumber, navHistory, entries, err := e.getPortfolioNumberAndNavHistory(isin)
 	if err != nil {
 		return nil, fmt.Errorf("map ISIN to portfolio number: %w", err)
 	}
@@ -138,7 +138,7 @@ type fundCenterEntry struct {
 	} `json:"prices"`
 }
 
-func (e *Extractor) getPortfolioNumberAndNavHistory(ctx context.Context, isin string) (int, []extractor.NavPoint, []fundCenterEntry, error) {
+func (e *Extractor) getPortfolioNumberAndNavHistory(isin string) (int, []extractor.NavPoint, []fundCenterEntry, error) {
 	url := "https://etf.dimensional.com/public/v2/fundcenter?allowMorningstarFixedIncome=true"
 	headers := map[string]string{"x-selected-country": "GB"}
 

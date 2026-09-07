@@ -109,11 +109,7 @@ func ParseCSV(data []byte) (*ParsedReport, error) {
 			return nil, fmt.Errorf("read CSV row: %w", err)
 		}
 
-		row, err := parseRow(record, headerMap)
-		if err != nil {
-			return nil, fmt.Errorf("parse row: %w", err)
-		}
-		rows = append(rows, row)
+		rows = append(rows, parseRow(record, headerMap))
 	}
 
 	if len(rows) == 0 {
@@ -148,7 +144,7 @@ func validateHeader(header []string) (map[string]int, error) {
 }
 
 // parseRow extracts fields from a CSV record using the header index map.
-func parseRow(record []string, headerMap map[string]int) (ParsedRow, error) {
+func parseRow(record []string, headerMap map[string]int) ParsedRow {
 	get := func(col string) string {
 		if idx, ok := headerMap[col]; ok && idx < len(record) {
 			return strings.TrimSpace(record[idx])
@@ -184,7 +180,7 @@ func parseRow(record []string, headerMap map[string]int) (ParsedRow, error) {
 		Currency:      currency,
 		Total:         get("Total"),
 		TotalCurrency: get("Currency (Total)"),
-	}, nil
+	}
 }
 
 // convertPrice converts GBX prices to GBP by dividing by 100.

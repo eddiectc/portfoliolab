@@ -365,7 +365,7 @@ func TestWMGT_Sections(t *testing.T) {
 		t.Fatalf("unexpected fetch %q", url)
 		return "", nil
 	})
-	records, err := c.FundHoldings(context.Background(), 46987205)
+	records, err := c.fundHoldings(46987205)
 	if err != nil {
 		t.Fatalf("FundHoldings: %v", err)
 	}
@@ -374,7 +374,7 @@ func TestWMGT_Sections(t *testing.T) {
 		t.Errorf("WMGT holdings len = %d, want 893 (920 rows minus 27 no-ticker rows)", len(holdings))
 	}
 
-	points, err := c.FundHistory(context.Background(), 46987205)
+	points, err := c.fundHistory(46987205)
 	if err != nil {
 		t.Fatalf("FundHistory: %v", err)
 	}

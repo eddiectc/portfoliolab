@@ -825,6 +825,9 @@ func TestVanguard_BackgroundRefresh_DualPath(t *testing.T) {
 			DataSourceURL  string `db:"data_source_url"`
 		}{sym.InternalSymbol, sym.DataSourceURL})
 	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows err: %v", err)
+	}
 
 	if len(staleSymbols) != 1 {
 		t.Fatalf("expected 1 stale symbol, got %d", len(staleSymbols))

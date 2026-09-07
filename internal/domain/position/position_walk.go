@@ -120,8 +120,9 @@ func WalkPositionQuantities(txns []transaction.Transaction) []PositionSnapshot {
 }
 
 // PositionSnapshot is the quantity of each symbol at a point in time.
-// Deprecated: use PortfolioSnapshot instead.
-// Kept for backward compatibility with existing tests.
+//
+// Deprecated: use PortfolioSnapshot instead. Kept for backward compatibility
+// with existing tests.
 type PositionSnapshot struct {
 	Date       time.Time
 	Quantities map[string]decimal.Decimal

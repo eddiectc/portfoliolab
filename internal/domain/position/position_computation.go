@@ -163,7 +163,7 @@ func buildOpenPosition(lots []LotGroup, remaining map[string]decimal.Decimal) (P
 	// quantity was zero (for the short open-date rule). Deltas are normalized
 	// by lot type (buy +, sell −) so the walk is correct regardless of the
 	// sign convention used upstream when storing sell quantities.
-	var running = decimal.Zero
+	running := decimal.Zero
 	lastZeroIdx := -1
 	for i, lot := range sorted {
 		delta := absDecimal(lot.Quantity)

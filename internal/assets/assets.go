@@ -18,13 +18,13 @@ var templatesFS embed.FS
 var staticFS embed.FS
 
 // Migrations is the embedded migrations/ directory.
-var Migrations fs.FS = mustSub(migrationsFS, "migrations")
+var Migrations = mustSub(migrationsFS, "migrations")
 
 // Templates is the embedded templates/ directory.
-var Templates fs.FS = mustSub(templatesFS, "templates")
+var Templates = mustSub(templatesFS, "templates")
 
 // Static is the embedded static/ directory (css, js).
-var Static fs.FS = mustSub(staticFS, "static")
+var Static = mustSub(staticFS, "static")
 
 func mustSub(fsys embed.FS, dir string) fs.FS {
 	sub, err := fs.Sub(fsys, dir)

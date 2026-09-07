@@ -93,9 +93,10 @@ func (s *SeedStore) Seed(ctx context.Context, d *seed.Dataset) (*seed.Result, er
 	err = tx.QueryRowContext(ctx,
 		"SELECT id FROM model_portfolios WHERE name = ?", d.Model.Name,
 	).Scan(&sql.NullInt64{})
-	if err == nil {
+	switch {
+	case err == nil:
 		modelReused = true
-	} else if errors.Is(err, sql.ErrNoRows) {
+	case errors.Is(err, sql.ErrNoRows):
 		entriesJSON, err := json.Marshal(d.Model.Entries)
 		if err != nil {
 			return nil, fmt.Errorf("marshal model entries: %w", err)
@@ -106,7 +107,7 @@ func (s *SeedStore) Seed(ctx context.Context, d *seed.Dataset) (*seed.Result, er
 		); err != nil {
 			return nil, fmt.Errorf("insert model portfolio %q: %w", d.Model.Name, err)
 		}
-	} else {
+	default:
 		return nil, fmt.Errorf("check model portfolio %q: %w", d.Model.Name, err)
 	}
 

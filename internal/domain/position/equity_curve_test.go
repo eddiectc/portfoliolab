@@ -2,7 +2,6 @@ package position
 
 import (
 	"context"
-
 	"strings"
 	"testing"
 	"time"
@@ -312,6 +311,7 @@ func newTestServiceForEquity() (*Service, *mockTransactionRepository, *mockAccou
 		nil, // no portfolio currency checker
 	), txnRepo, accountLister
 }
+
 func TestComputeEquityCurve_EmptyState(t *testing.T) {
 	svc, _, accountLister := newTestServiceForEquity()
 	accountLister.SetAccountsByPortfolio(1, []AccountRef{

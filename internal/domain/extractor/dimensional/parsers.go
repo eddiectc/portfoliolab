@@ -71,7 +71,7 @@ type FundDetailResponse struct {
 										} `json:"weight"`
 									} `json:"subCategories"`
 								} `json:"allocations"`
-								FullHoldingsCsvUrl string `json:"fullHoldingsCsvUrl"`
+								FullHoldingsCsvURL string `json:"fullHoldingsCsvUrl"`
 							} `json:"data"`
 						} `json:"blends"`
 					} `json:"data"`
@@ -150,7 +150,7 @@ func ParseFundDetail(jsonContent string) (*extractor.FundInfo, *extractor.FundPr
 					}
 				}
 			case "charsEtfTopHoldingsDaily":
-				csvURL = blendData.FullHoldingsCsvUrl
+				csvURL = blendData.FullHoldingsCsvURL
 			}
 		}
 	}

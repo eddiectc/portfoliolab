@@ -73,11 +73,11 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 
 	// 3. JSON API (sequential; client rate-limits).
-	holdingRecords, err := e.client.FundHoldings(ctx, wtClassID)
+	holdingRecords, err := e.client.fundHoldings(wtClassID)
 	if err != nil {
 		return nil, fmt.Errorf("fund-holdings API: %w", err)
 	}
-	history, err := e.client.FundHistory(ctx, wtClassID)
+	history, err := e.client.fundHistory(wtClassID)
 	if err != nil {
 		return nil, fmt.Errorf("fund-history API: %w", err)
 	}

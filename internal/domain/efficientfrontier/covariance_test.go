@@ -105,7 +105,7 @@ func TestComputeCovarianceMatrix(t *testing.T) {
 			name: "insufficient data for one symbol",
 			pricesBySym: map[string][]market.HistoricalPrice{
 				"A": makeLongPriceSeries(100, []float64{0.01}, 260),
-				"B": []market.HistoricalPrice{
+				"B": {
 					{Date: time.Now(), Close: dec(100)},
 				},
 			},

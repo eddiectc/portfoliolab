@@ -330,7 +330,7 @@ func TestComputeFrontier_PartialData(t *testing.T) {
 	prices := map[string][]market.HistoricalPrice{
 		"VOO":  makeSimplePriceSeries(100, 260, "USD"),
 		"VEA":  makeSimplePriceSeries(25, 260, "USD"),
-		"AAPL": []market.HistoricalPrice{}, // no data
+		"AAPL": {}, // no data
 	}
 
 	historySource := &mockMarketDataHistorySource{prices: prices}

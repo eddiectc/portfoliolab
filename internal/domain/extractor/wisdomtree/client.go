@@ -1,7 +1,6 @@
 package wisdomtree
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -97,7 +96,6 @@ func (c *Client) fetchURL(url string) (string, error) {
 			"Upgrade-Insecure-Requests": "1",
 		},
 	}, "GET")
-
 	if err != nil {
 		return "", fmt.Errorf("fetch %s: %w", url, err)
 	}
@@ -150,9 +148,9 @@ type historyPoint struct {
 	Ticker            string   `json:"ticker"`
 }
 
-// FundHoldings fetches the fund's current holdings from the JSON API.
+// fundHoldings fetches the fund's current holdings from the JSON API.
 // Returns the full holdings list as of the latest reporting date.
-func (c *Client) FundHoldings(ctx context.Context, wtClassID int) ([]holdingRecord, error) {
+func (c *Client) fundHoldings(wtClassID int) ([]holdingRecord, error) {
 	url := fmt.Sprintf("%s/fund-holdings/%d", c.baseURL, wtClassID)
 	body, err := c.fetchURL(url)
 	if err != nil {
@@ -165,9 +163,9 @@ func (c *Client) FundHoldings(ctx context.Context, wtClassID int) ([]holdingReco
 	return records, nil
 }
 
-// FundHistory fetches the fund's NAV + AUM + shares-outstanding history from
+// fundHistory fetches the fund's NAV + AUM + shares-outstanding history from
 // the JSON API (default view — full history since inception, ascending by date).
-func (c *Client) FundHistory(ctx context.Context, wtClassID int) ([]historyPoint, error) {
+func (c *Client) fundHistory(wtClassID int) ([]historyPoint, error) {
 	url := fmt.Sprintf("%s/fund-history/%d", c.baseURL, wtClassID)
 	body, err := c.fetchURL(url)
 	if err != nil {

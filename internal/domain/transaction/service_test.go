@@ -1268,11 +1268,12 @@ func Test_mapValidationError(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := mapValidationError(tc.in)
-			if tc.in == nil && got != nil {
+			switch {
+			case tc.in == nil && got != nil:
 				t.Errorf("expected nil, got %v", got)
-			} else if tc.in != nil && got == nil {
+			case tc.in != nil && got == nil:
 				t.Errorf("expected non-nil, got nil")
-			} else if tc.in != nil && got != nil && got.Error() != tc.want.Error() {
+			case tc.in != nil && got != nil && got.Error() != tc.want.Error():
 				t.Errorf("expected %v, got %v", tc.want, got)
 			}
 		})

@@ -1,0 +1,64 @@
+version: "2"
+
+# Linting for a self-hosted, single-user financial application.
+# Default set (errcheck, govet, ineffassign, staticcheck, unused) is kept.
+
+linters:
+  enable:
+    - gocritic # bugs, performance, style
+    - gosec # security issues
+    - revive # style and lint rules
+    - rowserrcheck # *sql.Rows: rows.Err() after iteration, unchecked Close()
+    - unparam # unused function parameters and results
+
+  exclusions:
+    rules:
+      # Test helpers: unused params/returns and fixed-value params are idiomatic
+      - path: _test\.go
+        linters:
+          - unparam
+          - gosec
+      - path: _test\.go
+        linters:
+          - revive
+        text: "unused-parameter|redefines-builtin-id|var-naming"
+      # Parser-style functions intentionally return always-nil errors for
+      # signature consistency across the import services
+      - linters:
+          - unparam
+        text: "error\\) is always nil"
+      # Type-name stuttering (e.g. symbol.SymbolDetails) — renaming is a
+      # cross-package refactor, tracked separately
+      - linters:
+          - revive
+        text: "will be used as .* by other packages"
+
+  settings:
+    gosec:
+      excludes:
+        # math/rand used for portfolio simulation (efficient frontier), not security
+        - G404
+        # TODO: add body size limit middleware for file-import endpoints
+        - G120
+        # Self-hosted over http on LAN; Secure cookie flag not applicable
+        - G124
+    revive:
+      rules:
+        # Package comment per file is opinionated churn, low value here
+        - name: package-comments
+          disabled: true
+        # Blank imports are standard for the modernc sqlite driver registration
+        - name: blank-imports
+          disabled: true
+
+formatters:
+  enable:
+    - gofumpt # stricter than gofmt
+    - goimports
+
+run:
+  timeout: 5m
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

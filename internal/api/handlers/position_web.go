@@ -314,7 +314,7 @@ func (h *PositionWebHandler) HandleLotDetail(w http.ResponseWriter, r *http.Requ
 // HandleRecalculate handles POST /positions/recalculate (manual recalc trigger with flash message).
 // Delegates to the API handler for the actual recalculation logic.
 func (h *PositionWebHandler) HandleRecalculate(w http.ResponseWriter, r *http.Request) {
-	_, scope, err := h.apiHandler.doRecalculate(r)
+	scope, err := h.apiHandler.doRecalculate(r)
 	if err != nil {
 		setFlash(w, "Recalculation failed: "+err.Error())
 		http.Redirect(w, r, "/positions", http.StatusSeeOther)

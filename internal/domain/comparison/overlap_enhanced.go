@@ -252,11 +252,12 @@ func ComputeWeightDifferences(holdingsA, holdingsB []PortfolioHolding, limit int
 			Difference: diffPct,
 		}
 
-		if diffPct > 0 {
+		switch {
+		case diffPct > 0:
 			overweight = append(overweight, holding)
-		} else if diffPct < 0 {
+		case diffPct < 0:
 			underweight = append(underweight, holding)
-		} else {
+		default:
 			neutral = append(neutral, holding)
 		}
 	}

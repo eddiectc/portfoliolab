@@ -78,20 +78,21 @@ func TestComputePeriodReturn_NoCashFlows(t *testing.T) {
 				t.Errorf("HasInsufficientData: got %v, want %v", result.HasInsufficientData, tt.wantInsuffData)
 			}
 
-			if tt.wantTWR == nil {
+			switch {
+			case tt.wantTWR == nil:
 				if result.TWRPct != nil {
 					t.Errorf("TWRPct: got %s, want nil", result.TWRPct.String())
 				}
-			} else if result.TWRPct == nil {
+			case result.TWRPct == nil:
 				t.Errorf("TWRPct: got nil, want %s", tt.wantTWR.String())
-			} else if tt.wantTWRApprox {
+			case tt.wantTWRApprox:
 				diff, _ := result.TWRPct.Sub(*tt.wantTWR)
 				diff = diff.Abs()
 				threshold := decimal.MustParse("0.50")
 				if diff.Cmp(threshold) > 0 {
 					t.Errorf("TWRPct: got %s, want approx %s (diff %s)", result.TWRPct.String(), tt.wantTWR.String(), diff.String())
 				}
-			} else if !result.TWRPct.Equal(*tt.wantTWR) {
+			case !result.TWRPct.Equal(*tt.wantTWR):
 				t.Errorf("TWRPct: got %s, want %s", result.TWRPct.String(), tt.wantTWR.String())
 			}
 		})

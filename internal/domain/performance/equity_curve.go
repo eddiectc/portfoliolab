@@ -76,7 +76,7 @@ func ComputeEquityCurve(
 	}
 
 	// Walk transactions chronologically, capturing state at each date.
-	snapshots, _ := WalkTxns(txns)
+	snapshots, _ := walkTxns(txns)
 
 	if logger != nil {
 		logger.Debug("performance: walk complete", "snapshots", len(snapshots))
@@ -113,15 +113,15 @@ func ComputeEquityCurve(
 	}
 
 	// Build equity curve points from snapshots.
-	points := buildCurvePoints(snapshots, pricesBySymbol, baseCurrency, marketProvider, logger, ctx)
+	points := buildCurvePoints(ctx, snapshots, pricesBySymbol, baseCurrency, marketProvider, logger)
 
 	// Compute pre-cash-flow breakpoints (needed for both NAV and TWR).
 	preCashFlowValues := computePreCashFlowValues(
-		snapshots, pricesBySymbol, baseCurrency, marketProvider, logger, ctx,
+		ctx, snapshots, pricesBySymbol, baseCurrency, marketProvider, logger,
 	)
 
 	// Interpolate for non-transaction days, extending through dateTo.
-	points = InterpolateDaily(points, snapshots, dateTo, pricesBySymbol, baseCurrency, marketProvider, ctx)
+	points = InterpolateDaily(ctx, points, snapshots, dateTo, pricesBySymbol, baseCurrency, marketProvider)
 
 	if logger != nil {
 		logger.Debug("performance: interpolation complete", "points", len(points))
@@ -195,7 +195,7 @@ func ComputeEquityCurve(
 // walkTxns walks transactions chronologically and captures portfolio state
 // at each unique date. Also captures pre-cash-flow snapshots for TWR.
 // Returns (snapshots, finalState).
-func WalkTxns(txns []transaction.Transaction) ([]dateSnapshot, dateSnapshot) {
+func walkTxns(txns []transaction.Transaction) ([]dateSnapshot, dateSnapshot) {
 	var snapshots []dateSnapshot
 	positionCurrency := make(map[string]string)
 	quantities := make(map[string]decimal.Decimal)
@@ -266,12 +266,12 @@ func CollectSymbols(txns []transaction.Transaction) []string {
 }
 
 func buildCurvePoints(
+	ctx context.Context,
 	snapshots []dateSnapshot,
 	pricesBySymbol map[string][]market.HistoricalPrice,
 	baseCurrency string,
 	marketProvider MarketDataProvider,
 	logger *slog.Logger,
-	ctx context.Context,
 ) []EquityCurvePoint {
 	priceLookup := buildPriceLookupFF(buildPriceLookup(pricesBySymbol))
 	fxPairs := collectFxPairs(snapshots, baseCurrency)

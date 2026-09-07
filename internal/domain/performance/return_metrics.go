@@ -37,7 +37,7 @@ import (
 func ComputePeriodReturn(
 	equityCurve []EquityCurvePoint,
 	preCashFlowValues []twrBreakpoint,
-	baseCurrency string,
+	baseCurrency string, //nolint:revive // reserved for future multi-currency MWR
 ) ReturnMetrics {
 	if len(equityCurve) < 2 {
 		return ReturnMetrics{

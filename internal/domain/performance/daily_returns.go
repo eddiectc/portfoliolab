@@ -58,8 +58,9 @@ func ComputeDailyReturns(points []EquityCurvePoint) []DailyReturn {
 		returnPct, _ = returnPct.Mul(decimal.MustNew(100, 0))
 		returnPct = returnPct.Round(4)
 
+		pt := points[i] //nolint:gosec // i < len(points) per loop condition
 		returns = append(returns, DailyReturn{
-			Date:      points[i].Date,
+			Date:      pt.Date,
 			ReturnPct: returnPct,
 		})
 	}

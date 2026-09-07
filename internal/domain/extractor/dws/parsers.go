@@ -15,7 +15,7 @@ import (
 
 type pdpSettingsResp struct {
 	ProductType  string `json:"productType"`
-	InternalId   string `json:"internalId"`
+	InternalID   string `json:"internalId"`
 	FundFamily   string `json:"fundFamily"`
 	LegalType    string `json:"legalType"`
 	CostsAndFees struct {
@@ -102,7 +102,7 @@ func ParseFundInfo(settingsData, metaData string, slug string) (*extractor.FundI
 
 	name := mResp.PdpResult.PageFrame.ProductHeader.Texts.Title
 	if name == "" {
-		name = sResp.InternalId
+		name = sResp.InternalID
 	}
 
 	return &extractor.FundInfo{
@@ -307,11 +307,12 @@ func parseAUMValue(s string) float64 {
 	var multiplier float64 = 1
 
 	// Simple parser for B (Billion), M (Million), K (Thousand)
-	if strings.Contains(s, " B") {
+	switch {
+	case strings.Contains(s, " B"):
 		multiplier = 1_000_000_000
-	} else if strings.Contains(s, " M") {
+	case strings.Contains(s, " M"):
 		multiplier = 1_000_000
-	} else if strings.Contains(s, " K") {
+	case strings.Contains(s, " K"):
 		multiplier = 1_000
 	}
 

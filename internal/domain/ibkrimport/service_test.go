@@ -228,9 +228,11 @@ func TestService_Preview_SampleXML(t *testing.T) {
 
 func TestService_Preview_AllDuplicates(t *testing.T) {
 	svc, resolver, _, _, _, _, _, _ := setupService(t, []int64{1}, []string{"AAPL", "STHY", "$CASH-USD", "$CASH-GBP", "$CASH-XYZ"},
-		[]string{"30000000001", "30000000002", "30000000003", "30000000004", "30000000005",
+		[]string{
+			"30000000001", "30000000002", "30000000003", "30000000004", "30000000005",
 			"30000000006_fx_withdrawal", "30000000006_fx_deposit", "30000000010", "30000000011", "30000000012", "30000000013",
-			"30000000014", "30000000015", "30000000016", "30000000020", "30000000021"})
+			"30000000014", "30000000015", "30000000016", "30000000020", "30000000021",
+		})
 	resolver.addBrokerSymbol("IBKR", "AAPL", "AAPL")
 	resolver.addBrokerSymbol("IBKR", "STHY", "STHY")
 
@@ -1346,8 +1348,8 @@ func TestParseDate(t *testing.T) {
 		{"20250415", 2025, 4, 15},
 		{"2025-04-15", 2025, 4, 15},
 		{"2024-01-01", 2024, 1, 1},
-		{"", 0001, 1, 1},
-		{"invalid", 0001, 1, 1},
+		{"", 0o001, 1, 1},
+		{"invalid", 0o001, 1, 1},
 	}
 
 	for _, tt := range tests {

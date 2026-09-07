@@ -26,7 +26,8 @@ func QuasiDiagonalize(merges []MergeRecord, nSymbols int) []int {
 	for i, merge := range merges {
 		newIdx := nSymbols + i
 		// Concatenate left cluster's order then right cluster's order.
-		orders[newIdx] = append(orders[merge.Cluster1], orders[merge.Cluster2]...)
+		orders[newIdx] = append(orders[newIdx], orders[merge.Cluster1]...)
+		orders[newIdx] = append(orders[newIdx], orders[merge.Cluster2]...)
 	}
 
 	// The root cluster is the last merge.

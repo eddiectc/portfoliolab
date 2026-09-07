@@ -232,7 +232,7 @@ func (h *ComparisonWebHandler) buildPageData(
 		SelectedBaseCurrency:    filter.BaseCurrency,
 		SelectedStartingValue:   startingValue,
 		SelectedRiskFreeRate:    riskFreeRate,
-		PeriodURLs:              buildComparisonPeriodURLs(filter, period, riskFreeRate),
+		PeriodURLs:              buildComparisonPeriodURLs(filter, riskFreeRate),
 	}
 	// Compute effective period as intersection of both portfolios' data ranges.
 	if result != nil {
@@ -422,7 +422,7 @@ func (h *ComparisonWebHandler) fetchModelPortfolios(ctx context.Context) []model
 }
 
 // buildComparisonPeriodURLs pre-builds the URL for each period button.
-func buildComparisonPeriodURLs(filter comparisonFilter, selectedPeriod string, riskFreeRate string) map[string]string {
+func buildComparisonPeriodURLs(filter comparisonFilter, riskFreeRate string) map[string]string {
 	urls := make(map[string]string)
 	periods := []string{"1W", "1M", "3M", "1Y", "3Y", "5Y", "YTD", "All"}
 	// Combined portfolio selector format: m123 = model, r456 = real.

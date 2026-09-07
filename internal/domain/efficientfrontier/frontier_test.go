@@ -276,13 +276,13 @@ func TestFilterParetoFrontier(t *testing.T) {
 	// Efficient frontier: higher return requires higher volatility.
 	// A point is dominated if another has both higher return AND lower volatility.
 	evaluated := []portfolioEval{
-		{weights: nil, return_: 8, volatility: 10, sharpe: 0.3},  // efficient (lowest vol)
-		{weights: nil, return_: 12, volatility: 15, sharpe: 0.5}, // efficient
-		{weights: nil, return_: 18, volatility: 22, sharpe: 0.4}, // efficient
-		{weights: nil, return_: 25, volatility: 30, sharpe: 0.6}, // efficient (highest return)
-		{weights: nil, return_: 10, volatility: 20, sharpe: 0.2}, // dominated by (12, 15)
-		{weights: nil, return_: 5, volatility: 12, sharpe: 0.1},  // dominated by (8, 10)
-		{weights: nil, return_: 15, volatility: 25, sharpe: 0.3}, // dominated by (18, 22)
+		{weights: nil, ret: 8, volatility: 10, sharpe: 0.3},  // efficient (lowest vol)
+		{weights: nil, ret: 12, volatility: 15, sharpe: 0.5}, // efficient
+		{weights: nil, ret: 18, volatility: 22, sharpe: 0.4}, // efficient
+		{weights: nil, ret: 25, volatility: 30, sharpe: 0.6}, // efficient (highest return)
+		{weights: nil, ret: 10, volatility: 20, sharpe: 0.2}, // dominated by (12, 15)
+		{weights: nil, ret: 5, volatility: 12, sharpe: 0.1},  // dominated by (8, 10)
+		{weights: nil, ret: 15, volatility: 25, sharpe: 0.3}, // dominated by (18, 22)
 	}
 
 	efficient := filterParetoFrontier(evaluated)
@@ -309,7 +309,7 @@ func TestSampleFrontierPoints(t *testing.T) {
 	for i := range efficient {
 		efficient[i] = portfolioEval{
 			weights:    nil,
-			return_:    float64(i) + 5,
+			ret:        float64(i) + 5,
 			volatility: float64(i) + 10,
 			sharpe:     0.5,
 		}

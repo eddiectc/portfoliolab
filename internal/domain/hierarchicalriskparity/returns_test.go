@@ -162,7 +162,7 @@ func TestAlignReturns(t *testing.T) {
 			name: "symbol with no data is excluded",
 			pricesBySymbol: map[string][]market.HistoricalPrice{
 				"A": pricesA,
-				"B": []market.HistoricalPrice{}, // no data
+				"B": {}, // no data
 			},
 			symbols:  []string{"A", "B"},
 			wantRows: 0,

@@ -486,10 +486,8 @@ func (m *MarketCache) doRefresh(ctx context.Context) {
 
 	if !refreshAllInProgress {
 		m.gapFillHistorical(ctx, symbols)
-	} else {
-		if m.logger != nil {
-			m.logger.Debug("skipping historical gap-fill (manual refresh in progress)")
-		}
+	} else if m.logger != nil {
+		m.logger.Debug("skipping historical gap-fill (manual refresh in progress)")
 	}
 
 	// Refresh stale symbol details.
@@ -543,11 +541,12 @@ func (m *MarketCache) gapFillHistorical(ctx context.Context, symbols []string) {
 		latestDate, hasCache := latestDates[sym]
 
 		var fetchStart time.Time
-		if !hasCache {
+		switch {
+		case !hasCache:
 			fetchStart = m.historicalFrom
-		} else if latestDate.Before(tradingDayBeforeOrOn(nowDate)) {
+		case latestDate.Before(tradingDayBeforeOrOn(nowDate)):
 			fetchStart = nextTradingDay(*latestDate)
-		} else {
+		default:
 			skipped++
 			continue
 		}

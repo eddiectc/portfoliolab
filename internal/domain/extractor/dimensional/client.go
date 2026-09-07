@@ -72,7 +72,6 @@ func (c *Client) Fetch(url string, headers map[string]string) (string, error) {
 	}
 
 	resp, err := c.cycleTLS.Do(url, opts, "GET")
-
 	if err != nil {
 		return "", fmt.Errorf("fetch %s: %w", url, err)
 	}
@@ -113,7 +112,6 @@ func (c *Client) Post(url string, body interface{}, headers map[string]string) (
 	}
 
 	resp, err := c.cycleTLS.Do(url, opts, "POST")
-
 	if err != nil {
 		return "", fmt.Errorf("post %s: %w", url, err)
 	}

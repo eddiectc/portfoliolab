@@ -131,6 +131,7 @@ func (m *mockPortfolioRepoForAccount) Create(_ context.Context, p *portfolio.Por
 	m.portfolios[p.ID] = p
 	return nil
 }
+
 func (m *mockPortfolioRepoForAccount) GetByID(_ context.Context, id int64) (*portfolio.Portfolio, error) {
 	p, ok := m.portfolios[id]
 	if !ok {
@@ -139,6 +140,7 @@ func (m *mockPortfolioRepoForAccount) GetByID(_ context.Context, id int64) (*por
 	cp := *p
 	return &cp, nil
 }
+
 func (m *mockPortfolioRepoForAccount) GetAll(_ context.Context, _, _ int) ([]portfolio.Portfolio, error) {
 	result := make([]portfolio.Portfolio, 0, len(m.portfolios))
 	for _, p := range m.portfolios {
@@ -161,6 +163,7 @@ func (m *mockPortfolioRepoForAccount) Update(_ context.Context, p *portfolio.Por
 	m.portfolios[p.ID] = p
 	return nil
 }
+
 func (m *mockPortfolioRepoForAccount) Delete(_ context.Context, id int64) error {
 	if _, ok := m.portfolios[id]; !ok {
 		return portfolio.ErrNotFound
@@ -168,6 +171,7 @@ func (m *mockPortfolioRepoForAccount) Delete(_ context.Context, id int64) error 
 	delete(m.portfolios, id)
 	return nil
 }
+
 func (m *mockPortfolioRepoForAccount) GetByName(_ context.Context, name string) (*portfolio.Portfolio, error) {
 	for _, p := range m.portfolios {
 		if p.Name == name {

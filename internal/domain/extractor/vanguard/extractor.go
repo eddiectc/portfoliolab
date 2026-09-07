@@ -53,7 +53,7 @@ func (e *Extractor) Match(rawURL string) bool {
 
 // Extract fetches and parses data from a Vanguard fund page.
 // Uses a two-phase approach:
-//   - Phase 1: REST API for fund identity + portId resolution
+//   - Phase 1: REST API for fund identity + portID resolution
 //   - Phase 2: GraphQL API for deep data (holdings, sectors, countries, characteristics, NAV)
 //
 // All sections are parsed atomically — if any phase fails, the entire extraction is rejected.
@@ -76,7 +76,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 		return nil, fmt.Errorf("phase 1 (REST): %w", err)
 	}
 
-	fundInfo, portId, err := ParseFundIdentity(restData)
+	fundInfo, portID, err := ParseFundIdentity(restData)
 	if err != nil {
 		return nil, fmt.Errorf("phase 1 (fund identity): %w", err)
 	}
@@ -87,17 +87,17 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	}
 
 	// --- Phase 2: GraphQL — deep data ---
-	portIds := []string{portId}
+	portIDs := []string{portID}
 
 	// Holdings (with pagination)
-	holdings, effectiveDate, err := e.fetchAllHoldings(ctx, portIds)
+	holdings, effectiveDate, err := e.fetchAllHoldings(ctx, portIDs)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 (holdings): %w", err)
 	}
 
 	// Sector allocation
 	sectorData, err := e.client.FetchGraphQL("getSectorDiversification", map[string]interface{}{
-		"portIds": portIds,
+		"portIDs": portIDs,
 	}, sectorQuery)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 (sectors): %w", err)
@@ -109,7 +109,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 
 	// Country allocation
 	countryData, err := e.client.FetchGraphQL("MarketAllocationGqlQuery", map[string]interface{}{
-		"portIds": portIds,
+		"portIDs": portIDs,
 	}, countryQuery)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 (countries): %w", err)
@@ -121,7 +121,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 
 	// Fund characteristics
 	charData, err := e.client.FetchGraphQL("FundCharacteristicsQuery", map[string]interface{}{
-		"portIds": portIds,
+		"portIDs": portIDs,
 	}, characteristicsQuery)
 	if err != nil {
 		return nil, fmt.Errorf("phase 2 (characteristics): %w", err)
@@ -135,7 +135,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 	startDate := time.Now().AddDate(0, 0, -e.navHistoryDays).Format("2006-01-02")
 	endDate := time.Now().Format("2006-01-02")
 	navData, err := e.client.FetchGraphQL("PriceDetailsQuery", map[string]interface{}{
-		"portIds":   portIds,
+		"portIDs":   portIDs,
 		"startDate": startDate,
 		"endDate":   endDate,
 		"limit":     float64(0),
@@ -161,7 +161,7 @@ func (e *Extractor) Extract(ctx context.Context, sourceURL string) (*extractor.E
 }
 
 // fetchAllHoldings fetches all holdings pages with pagination.
-func (e *Extractor) fetchAllHoldings(ctx context.Context, portIds []string) ([]extractor.Holding, string, error) {
+func (e *Extractor) fetchAllHoldings(ctx context.Context, portIDs []string) ([]extractor.Holding, string, error) {
 	var allHoldings []extractor.Holding
 	effectiveDate := ""
 	lastItemKey := interface{}(nil)
@@ -174,7 +174,7 @@ func (e *Extractor) fetchAllHoldings(ctx context.Context, portIds []string) ([]e
 		}
 
 		variables := map[string]interface{}{
-			"portIds":       portIds,
+			"portIDs":       portIDs,
 			"securityTypes": allSecurityTypes,
 			"lastItemKey":   lastItemKey,
 		}

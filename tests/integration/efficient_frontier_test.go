@@ -587,7 +587,7 @@ func TestEfficientFrontier_SaveAsModelPortfolio(t *testing.T) {
 	}
 	if totalWeight > 0 {
 		for i := range entries {
-			entries[i].Weight = entries[i].Weight / totalWeight
+			entries[i].Weight /= totalWeight
 		}
 	}
 

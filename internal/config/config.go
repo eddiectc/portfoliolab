@@ -87,7 +87,7 @@ const (
 func Load(path string) (Config, error) {
 	cfg := Defaults()
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path comes from the --config flag
 	if err != nil {
 		if envErr := applyEnvOverrides(&cfg); envErr != nil {
 			return cfg, envErr
@@ -150,7 +150,7 @@ func (c Config) Validate() error {
 	if dir == "" {
 		dir = "."
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create database directory %s: %w", dir, err)
 	}
 

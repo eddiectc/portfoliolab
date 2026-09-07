@@ -330,7 +330,7 @@ func extractSection(text, header string) string {
 	remaining := text[start:]
 
 	// Find the next section header
-	end := findNextSectionEnd(remaining, header)
+	end := findNextSectionEnd(remaining)
 
 	return strings.TrimSpace(remaining[:end])
 }
@@ -369,7 +369,7 @@ func findSectionStart(text, header string) int {
 
 // findNextSectionEnd finds the end of the current section by looking for the next
 // standalone section header.
-func findNextSectionEnd(remaining, currentHeader string) int {
+func findNextSectionEnd(remaining string) int {
 	knownHeaders := []string{
 		"Portfolio Breakdown", "Performance as of", "Important information",
 		"Glossary", "Measure of Risk", "Performance by Month",
