@@ -410,6 +410,11 @@ func TestParseAsOfDate(t *testing.T) {
 			want: time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
 		},
 		{
+			name: "div as-of-date, 4-letter month (2026-09 page format)",
+			html: `<div class="as-of-date">as of 11/Sept/2026</div>`,
+			want: time.Date(2026, 9, 11, 0, 0, 0, 0, time.UTC),
+		},
+		{
 			name: "product-data-item as-of-date",
 			html: `<div class="product-data-item col-totalNetAssets "><div class="caption"><div class="as-of-date">as of 29/May/2026</div></div><div class="data">USD 5,181,115,355</div></div>`,
 			want: time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
@@ -688,8 +693,28 @@ func TestParseIShareDate(t *testing.T) {
 			want:  time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
 		},
 		{
+			name:  "4-letter month (2026-09 page format)",
+			input: "11/Sept/2026",
+			want:  time.Date(2026, 9, 11, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "4-letter month, single-digit day",
+			input: "1/Sept/2026",
+			want:  time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
 			name:    "invalid",
 			input:   "not a date",
+			wantErr: true,
+		},
+		{
+			name:    "full month name is rejected (fail fast, no silent fallback)",
+			input:   "05/September/2016",
+			wantErr: true,
+		},
+		{
+			name:    "out-of-range day is rejected",
+			input:   "31/Feb/2026",
 			wantErr: true,
 		},
 	}

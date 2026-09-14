@@ -653,9 +653,18 @@ func cleanNumber(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// parseIShareDate parses dates in iShares format: "29/May/2026" or "30/Apr/2026".
+// parseIShareDate parses dates in iShares format: "29/May/2026",
+// "11/Sept/2026" (4-letter month, current page format), "20260529"
+// (JSON API format), "2026-05-29".
 func parseIShareDate(dateStr string) (time.Time, error) {
 	dateStr = strings.TrimSpace(dateStr)
+
+	// The page switched to the 4-letter British month abbreviation in 2026-09
+	// ("11/Sept/2026"), which time.Parse does not accept — its "Jan" layout
+	// token is fixed to the 3-letter form. Normalise the known alias
+	// explicitly; in the captured DD/Mon/YYYY shape, "Sept" can only be the
+	// month.
+	dateStr = strings.Replace(dateStr, "Sept", "Sep", 1)
 
 	formats := []string{
 		"02/Jan/2006", // "29/May/2026"
@@ -663,13 +672,15 @@ func parseIShareDate(dateStr string) (time.Time, error) {
 		"20060102",    // "20260529" (JSON API format)
 		"2006-01-02",  // "2026-05-29"
 	}
-
 	for _, format := range formats {
 		if t, err := time.Parse(format, dateStr); err == nil {
 			return t, nil
 		}
 	}
 
+	// No fallback on purpose: an unrecognised spelling is an error. If the
+	// site changes the date format again, the refresh fails loudly and is
+	// fixed here, instead of silently guessing a wrong date.
 	return time.Time{}, fmt.Errorf("unrecognized iShares date format: %q", dateStr)
 }
 
