@@ -31,6 +31,7 @@ import (
 	"github.com/eddiectc/portfoliolab/internal/domain/hierarchicalriskparity"
 	"github.com/eddiectc/portfoliolab/internal/domain/ibkrimport"
 	"github.com/eddiectc/portfoliolab/internal/domain/marketcache"
+	"github.com/eddiectc/portfoliolab/internal/domain/marketdata"
 	"github.com/eddiectc/portfoliolab/internal/domain/marketservice"
 	"github.com/eddiectc/portfoliolab/internal/domain/modelportfolio"
 	"github.com/eddiectc/portfoliolab/internal/domain/portfolio"
@@ -237,6 +238,11 @@ func Router(db *sql.DB, logger *slog.Logger, opts ...RouterOption) (http.Handler
 	// Market data API
 	marketDataHandler := handlers.NewMarketDataHandler(marketCache)
 	marketDataHandler.RegisterRoutes(r)
+
+	// Market data overrides API
+	overridesSvc := marketdata.NewService(data.NewMarketDataOverrideRepository(db))
+	marketDataOverrideHandler := handlers.NewMarketDataOverrideHandler(overridesSvc)
+	marketDataOverrideHandler.RegisterRoutes(r)
 
 	// IBKR Flex XML Import (API)
 	symbolResolver := data.NewSymbolResolver(symbolMappingRepo)

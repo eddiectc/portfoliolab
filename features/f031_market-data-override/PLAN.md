@@ -168,10 +168,10 @@ Tasks are strictly sequential (each builds on the previous).
 **Description:** `internal/api/router.go`, after the `marketDataHandler`
 block (~:239).
 
-- [ ] `overrideSvc := marketdata.NewService(data.NewMarketDataOverrideRepository(db))`;
+- [x] `overrideSvc := marketdata.NewService(data.NewMarketDataOverrideRepository(db))`;
       `marketDataOverrideHandler := handlers.NewMarketDataOverrideHandler(overrideSvc)`;
       `marketDataOverrideHandler.RegisterRoutes(r)`.
-- [ ] No other wiring is needed — consumers already read through
+- [x] No other wiring is needed — consumers already read through
       `MarketDataRepository`, which merges in Task 3:
       `symbolDetailsSvc.WithMarketDataRepo(marketDataRepo)` (:187),
       `NewSymbolDetailsWebHandler(..., marketDataRepo, ...)` (:278 — its
