@@ -419,6 +419,46 @@ GET /api/market-data/status
 
 **Response:** `200 OK` — `CacheStatus`
 
+### Set or Replace Price Override
+
+```
+PUT /api/market-data/overrides
+```
+
+Corrects (or creates) one historical price override. Because FX pair symbols contain `/` (e.g. `GBP/USD`), the override is addressed in the request body, not in the URL path.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `symbol` | string | yes | Symbol as stored in market data (e.g. `XNAQ.L`, `GBP/USD`) |
+| `date` | string | yes | Calendar date `YYYY-MM-DD` (past or present) |
+| `price` | number | yes | Price or FX rate; must be positive |
+| `currency` | string | yes | Currency; stored as given |
+| `data_type` | string | yes | `stock`, `fx`, or `nav` |
+
+**Response:** `200 OK` — the stored override (market data field set, `source` marked as override) | `400` — validation error (non-positive price, invalid or future date, unknown data type)
+
+### List Price Overrides
+
+```
+GET /api/market-data/overrides?symbol=
+```
+
+`symbol` is optional — omit to list all. Returned in stable order: symbol, then date, then data type.
+
+**Response:** `200 OK` — list of overrides (empty list if none)
+
+### Remove Price Override
+
+```
+DELETE /api/market-data/overrides?symbol=&date=&data_type=
+```
+
+`symbol`, `date`, and `data_type` are all required.
+
+**Response:** `204 No Content` | `400` — missing parameter | `404` — no matching override
+
 ---
 
 ## Symbol Mappings
