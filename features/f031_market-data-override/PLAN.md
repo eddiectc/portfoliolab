@@ -69,14 +69,14 @@ Tasks are strictly sequential (each builds on the previous).
 **Corresponds to:** Behavior → Setting an override; Scenarios "Validation rejects a non-positive price", "Validation rejects an invalid date", "Validation rejects an unknown data type"
 **Description:** Types, validation, and the thin orchestration service (D4).
 
-- [ ] `override.go`: `DataType` string type + constants `stock`/`fx`/`nav` +
+- [x] `override.go`: `DataType` string type + constants `stock`/`fx`/`nav` +
       `Valid()`; `Override` struct (Symbol, Date string, DataType, Price
       `decimal.Decimal`, Currency string, Source — constant `"override"`,
       CreatedAt/UpdatedAt); `SetRequest` struct with JSON tags `symbol`,
       `date`, `price`, `currency`, `data_type` (direct `decimal.Decimal` JSON
       field — same pattern as `transaction.CreateRequest`); sentinel
       `ErrNotFound`.
-- [ ] `service.go`: `Store` interface (narrow, DI pattern): `Upsert(ctx,
+- [x] `service.go`: `Store` interface (narrow, DI pattern): `Upsert(ctx,
       *Override) error`; `Delete(ctx, symbol, date string, dt DataType)
       (bool, error)`; `List(ctx, symbol *string) ([]Override, error)`.
       `Service` (`NewService(store Store)`):
@@ -88,7 +88,7 @@ Tasks are strictly sequential (each builds on the previous).
         data_type; `store.Delete`; `deleted == false` → `ErrNotFound`.
       - `List(ctx, symbol *string) ([]Override, error)` — pass-through (nil
         symbol = list all).
-- [ ] `service_test.go`: table-driven, hand-written mock Store (co-located,
+- [x] `service_test.go`: table-driven, hand-written mock Store (co-located,
       internal state, asserts which method/args were called): valid Set
       (exact field mapping, Source `"override"`); each validation failure
       (empty symbol; price 0 / negative; malformed dates `2025-13-40`,
