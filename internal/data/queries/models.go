@@ -50,6 +50,17 @@ type LotConsumption struct {
 	CreatedAt         string `db:"created_at"`
 }
 
+type MarketDataOverride struct {
+	ID        int64  `db:"id"`
+	Symbol    string `db:"symbol"`
+	Date      string `db:"date"`
+	DataType  string `db:"data_type"`
+	Price     string `db:"price"`
+	Currency  string `db:"currency"`
+	CreatedAt string `db:"created_at"`
+	UpdatedAt string `db:"updated_at"`
+}
+
 type MarketDatum struct {
 	ID        int64  `db:"id"`
 	Symbol    string `db:"symbol"`

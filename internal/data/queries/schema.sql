@@ -171,3 +171,15 @@ CREATE TABLE market_data (
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE market_data_overrides (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol      TEXT    NOT NULL,
+    date        TEXT    NOT NULL,
+    data_type   TEXT    NOT NULL,
+    price       TEXT    NOT NULL,
+    currency    TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(symbol, date, data_type)
+);

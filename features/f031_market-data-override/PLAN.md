@@ -44,7 +44,7 @@ Tasks are strictly sequential (each builds on the previous).
 **Corresponds to:** Constraints (single key lookup per symbol/date/data type); storage substrate for all scenarios
 **Description:** New table + generated queries.
 
-- [ ] `internal/assets/migrations/025_create_market_data_overrides.sql`
+- [x] `internal/assets/migrations/025_create_market_data_overrides.sql`
       (goose Up/Down with `StatementBegin/End`), table:
       `id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT NOT NULL,
       date TEXT NOT NULL, data_type TEXT NOT NULL, price TEXT NOT NULL,
@@ -53,7 +53,7 @@ Tasks are strictly sequential (each builds on the previous).
       (datetime('now')), UNIQUE(symbol, date, data_type)` + index
       `idx_market_data_overrides_symbol`. Price stored as a decimal string —
       same convention as `market_data.price` (TEXT).
-- [ ] `internal/data/queries/market_data_overrides.sql` (new sqlc file, same
+- [x] `internal/data/queries/market_data_overrides.sql` (new sqlc file, same
       `-- name: X :one/:many/:execrows` style as `market_data.sql`):
       `UpsertMarketDataOverride :one` (INSERT … `ON CONFLICT(symbol, date,
       data_type) DO UPDATE SET price = excluded.price, currency =
@@ -61,7 +61,7 @@ Tasks are strictly sequential (each builds on the previous).
       `GetMarketDataOverride :one`, `ListMarketDataOverrides :many` (ORDER BY
       symbol, date, data_type), `ListMarketDataOverridesBySymbol :many` (same
       order), `DeleteMarketDataOverride :execrows`.
-- [ ] Run `sqlc generate`; generated code compiles.
+- [x] Run `sqlc generate`; generated code compiles.
 
 **Verification:** `GOCACHE=/tmp/go-cache GOPATH=/tmp/go-path go build ./...` + `go vet ./internal/data/...`.
 
