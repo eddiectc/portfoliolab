@@ -69,6 +69,33 @@ compile time) is composed into `MarketDataRepository` at construction; the
    (`json:"-"`) — they carry no user-facing meaning and would force timestamp
    churn on every update.
 
+## Spec edge-case deviations (accepted)
+
+Two SPEC edge cases (lines 165–166) are implemented differently from the spec
+wording. The behavior is accepted as-is (Phase 4b review decision) and
+documented here rather than fixed:
+
+1. **Override for a symbol with no fetched market data** (spec: "stored but
+   inert — reads resolve only from provider rows"). Implemented behavior: the
+   override IS surfaced — `GetHistoricalPricesBySymbol` and
+   `GetHistoricalFxRateOnOrBefore` merge any stored override for the symbol
+   into the result even when the provider has zero rows (`internal/data/market_data_repo.go:274`,
+   `:92`). Rationale: an override on an otherwise-empty symbol is the user's
+   explicit correction; hiding it would make a stored, listed value invisible
+   to every consumer. The spec's "inert" wording assumed provider-only
+   resolution; surfacing is the useful behavior.
+2. **Data type mismatched with the symbol's kind** (spec: "no read matches it,
+   so it has no effect"; e.g. an `fx` override for a stock symbol). Implemented
+   behavior: `GetHistoricalPricesBySymbol` matches overrides of either `stock`
+   or `fx` (`internal/data/market_data_repo.go:270`), so an `fx` override on a
+   stock symbol replaces the stock price on its date. The NAV path (`:384`)
+   and the FX forward-fill path (`:121`) filter their own data type and are
+   unaffected. Rationale: the stock/fx price path is shared by both asset
+   classes (one table, one read method); distinguishing the symbol's kind
+   would require pulling the symbol catalog into the repository for a case
+   that is user error. A visible, correctable effect is preferable to a
+   silently inert row.
+
 ## Test coverage map (spec scenario → test)
 
 | Spec scenario / edge case | Test |
@@ -83,6 +110,12 @@ compile time) is composed into `MarketDataRepository` at construction; the
 | Remove: 204 → reads revert; 404 on repeat; scoped to data type | `TestMarketDataOverride_Remove` |
 | Validation over HTTP: non-positive price, bad/future date, unknown type, empty symbol → 400 with code | `TestMarketDataOverride_ValidationOverHTTP` |
 | List: stable order symbol/date/data_type; `?symbol=` filter | `TestMarketDataOverride_ListOrderAndFilter` |
+| Edge: currency that does not match the symbol's currency → stored as given; reads see the override's currency | `TestMarketDataOverrideRepository_UpsertAndGet` (stored as given); `TestMarketDataRepository_GetHistoricalPricesBySymbol_AppliesOverrides` (asserts override currency on read) |
+| Edge: provider rows from multiple sources on the override's date → override wins | `TestMarketDataRepository_GetHistoricalPricesBySymbol_AppliesOverrides` (override replaces the resolved provider value on its date) |
+| Edge: override with date = today → allowed, never the live current quote | `TestSet/valid_fx_override_on_today`; live-quote isolation: `TestMarketDataOverride_LiveQuoteUnaffected` |
+| Edge: removal with mismatched data type → 404 (all three keys must match) | `TestMarketDataOverride_Remove` ("scoped to data type" row above); `TestMarketDataOverrideRepository_Delete` |
+| Edge: override for a symbol with no fetched data → surfaced, not inert — accepted deviation, see above | none — accepted as-is |
+| Edge: data type mismatched with the symbol's kind → cross-type match on the stock/fx path — accepted deviation, see above | none — accepted as-is |
 
 Repository-level merge semantics (coexistence, replacement, append, sort) are
 covered in `internal/data/market_data_repo_test.go`; service validation in

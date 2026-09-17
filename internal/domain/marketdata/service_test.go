@@ -71,10 +71,10 @@ func TestSet(t *testing.T) {
 	price := mustDec(t, "44.02")
 
 	tests := []struct {
-		name      string
-		req       SetRequest
-		wantErr   error
-		wantCall  bool
+		name     string
+		req      SetRequest
+		wantErr  error
+		wantCall bool
 	}{
 		{
 			name: "valid stock override",
