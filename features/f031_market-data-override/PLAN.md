@@ -102,12 +102,12 @@ Tasks are strictly sequential (each builds on the previous).
 **Corresponds to:** Behavior → Precedence / Where overrides take effect / Surviving refreshes; Edge Cases (all read-side)
 **Description:** D6 (separate repository) + D2/D3 (merge inside the three read methods).
 
-- [ ] `internal/data/market_data_override.go`: `MarketDataOverrideRepository`
+- [x] `internal/data/market_data_override.go`: `MarketDataOverrideRepository`
       (`NewMarketDataOverrideRepository(db *sql.DB)`) implementing
       `marketdata.Store` (compile-time assertion); decimal ↔ string
       conversion per repo convention; `Delete` maps `:execrows`
       RowsAffected → bool.
-- [ ] `internal/data/market_data_repo.go` — `MarketDataRepository` composes a
+- [x] `internal/data/market_data_repo.go` — `MarketDataRepository` composes a
       `*MarketDataOverrideRepository` (constructor signature unchanged):
       - `GetHistoricalPricesBySymbol` (:145): after the provider rows, load
         overrides for the symbol with `data_type IN ('stock','fx')` in the
@@ -124,7 +124,7 @@ Tasks are strictly sequential (each builds on the previous).
         `GetBySourceAndDate` (raw — "Provider row and override coexist"),
         `GetLatestPriceDatePerSymbol` (staleness stays provider-only),
         `Upsert`, `DeleteStaleMarketData`.
-- [ ] `internal/data/market_data_override_test.go` (in-memory SQLite,
+- [x] `internal/data/market_data_override_test.go` (in-memory SQLite,
       `file::memory:?cache=shared`, raw DDL for `market_data` +
       `market_data_overrides` — pattern from market_data_repo_test.go:15-45):
       - CRUD: upsert insert; upsert replace (price/currency change, still one

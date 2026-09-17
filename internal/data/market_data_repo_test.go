@@ -36,6 +36,20 @@ func setupMarketDataDB(t *testing.T) *sql.DB {
 
 		CREATE INDEX idx_market_data_symbol ON market_data(symbol);
 		CREATE INDEX idx_market_data_symbol_date ON market_data(symbol, date);
+
+		CREATE TABLE market_data_overrides (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			symbol      TEXT    NOT NULL,
+			date        TEXT    NOT NULL,
+			data_type   TEXT    NOT NULL,
+			price       TEXT    NOT NULL,
+			currency    TEXT    NOT NULL,
+			created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+			UNIQUE(symbol, date, data_type)
+		);
+
+		CREATE INDEX idx_market_data_overrides_symbol ON market_data_overrides(symbol);
 	`)
 	if err != nil {
 		t.Fatalf("create tables: %v", err)

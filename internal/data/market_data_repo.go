@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/eddiectc/portfoliolab/internal/data/queries"
+	"github.com/eddiectc/portfoliolab/internal/domain/marketdata"
 	"github.com/eddiectc/portfoliolab/internal/market"
 	"github.com/govalues/decimal"
 )
@@ -15,15 +17,17 @@ import (
 // MarketDataRepository provides data access for market data (stock quotes and
 // FX rates), delegating to sqlc-generated queries.
 type MarketDataRepository struct {
-	q  *queries.Queries
-	db queries.DBTX
+	q         *queries.Queries
+	db        queries.DBTX
+	overrides *MarketDataOverrideRepository
 }
 
 // NewMarketDataRepository creates a new market data repository.
 func NewMarketDataRepository(db *sql.DB) *MarketDataRepository {
 	return &MarketDataRepository{
-		q:  queries.New(),
-		db: db,
+		q:         queries.New(),
+		db:        db,
+		overrides: NewMarketDataOverrideRepository(db),
 	}
 }
 
@@ -83,6 +87,14 @@ func (r *MarketDataRepository) GetBySourceAndDate(ctx context.Context, symbol, s
 // GetHistoricalFxRateOnOrBefore retrieves the latest FX rate on or before the
 // given date (forward-fill). Returns nil if no rate found.
 func (r *MarketDataRepository) GetHistoricalFxRateOnOrBefore(ctx context.Context, symbol, source, date string) (*market.MarketData, error) {
+	// User overrides win over provider rates: latest override with date <=
+	// the requested date, provider row as fallback.
+	if o, err := r.latestFxOverride(ctx, symbol, date); err != nil {
+		return nil, fmt.Errorf("list FX overrides for %s: %w", symbol, err)
+	} else if o != nil {
+		return overrideToMarketData(o), nil
+	}
+
 	m, err := r.q.GetHistoricalFxRateOnOrBefore(ctx, r.db, queries.GetHistoricalFxRateOnOrBeforeParams{
 		Symbol: symbol,
 		Date:   date,
@@ -95,6 +107,89 @@ func (r *MarketDataRepository) GetHistoricalFxRateOnOrBefore(ctx context.Context
 		return nil, fmt.Errorf("get historical FX rate on or before %s/%s/%s: %w", symbol, source, date, err)
 	}
 	return toMarketDatum(m)
+}
+
+// latestFxOverride returns the user FX override for symbol with the largest
+// date on or before d, or nil when no such override exists.
+func (r *MarketDataRepository) latestFxOverride(ctx context.Context, symbol, d string) (*marketdata.Override, error) {
+	overrides, err := r.overrides.List(ctx, &symbol)
+	if err != nil {
+		return nil, err
+	}
+	var latest *marketdata.Override
+	for i := range overrides {
+		if overrides[i].DataType != marketdata.DataTypeFx || overrides[i].Date > d {
+			continue
+		}
+		if latest == nil || overrides[i].Date > latest.Date {
+			latest = &overrides[i]
+		}
+	}
+	return latest, nil
+}
+
+// overrideToMarketData converts an override into the shape the FX reader
+// returns so callers treat it like a provider row.
+func overrideToMarketData(o *marketdata.Override) *market.MarketData {
+	return &market.MarketData{
+		Symbol:   o.Symbol,
+		Price:    o.Price,
+		Currency: o.Currency,
+		DataType: string(o.DataType),
+		Source:   o.Source,
+		Date:     o.Date,
+	}
+}
+
+// rangeOverrides loads the overrides for symbol whose data type is in types
+// and whose date falls within [from, to]; an empty bound is unbounded.
+func (r *MarketDataRepository) rangeOverrides(ctx context.Context, symbol, from, to string, types ...marketdata.DataType) ([]marketdata.Override, error) {
+	all, err := r.overrides.List(ctx, &symbol)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[marketdata.DataType]bool, len(types))
+	for _, t := range types {
+		set[t] = true
+	}
+	var out []marketdata.Override
+	for _, o := range all {
+		if !set[o.DataType] || (from != "" && o.Date < from) || (to != "" && o.Date > to) {
+			continue
+		}
+		out = append(out, o)
+	}
+	return out, nil
+}
+
+// mergePriceOverrides applies overrides onto provider prices: an override for
+// a date replaces that date's close and currency, overrides without a provider
+// row on that date are appended, and the result is sorted by date ASC.
+func mergePriceOverrides(prices []market.HistoricalPrice, overrides []marketdata.Override) ([]market.HistoricalPrice, error) {
+	byDate := make(map[string]marketdata.Override, len(overrides))
+	for _, o := range overrides {
+		byDate[o.Date] = o
+	}
+	for i := range prices {
+		if o, ok := byDate[prices[i].Date.Format("2006-01-02")]; ok {
+			prices[i].Close = o.Price
+			prices[i].Currency = o.Currency
+			delete(byDate, o.Date)
+		}
+	}
+	for dateStr, o := range byDate {
+		date, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse override date %q: %w", dateStr, err)
+		}
+		prices = append(prices, market.HistoricalPrice{
+			Date:     date,
+			Close:    o.Price,
+			Currency: o.Currency,
+		})
+	}
+	sort.Slice(prices, func(i, j int) bool { return prices[i].Date.Before(prices[j].Date) })
+	return prices, nil
 }
 
 // Upsert inserts or updates a market data entry. Uses ON CONFLICT(symbol,
@@ -170,6 +265,13 @@ func (r *MarketDataRepository) GetHistoricalPricesBySymbol(ctx context.Context, 
 		})
 	}
 
+	from := start.Format("2006-01-02")
+	to := end.Format("2006-01-02")
+	overrides, err := r.rangeOverrides(ctx, symbol, from, to, marketdata.DataTypeStock, marketdata.DataTypeFx)
+	if err != nil {
+		return nil, fmt.Errorf("list overrides for %s: %w", symbol, err)
+	}
+	prices, err = mergePriceOverrides(prices, overrides)
 	return prices, nil
 }
 
@@ -279,5 +381,10 @@ func (r *MarketDataRepository) GetNavHistoryBySymbol(ctx context.Context, symbol
 		})
 	}
 
+	overrides, err := r.rangeOverrides(ctx, symbol, "", "", marketdata.DataTypeNav)
+	if err != nil {
+		return nil, fmt.Errorf("list overrides for %s: %w", symbol, err)
+	}
+	prices, err = mergePriceOverrides(prices, overrides)
 	return prices, nil
 }
