@@ -54,4 +54,4 @@ Example: `f021_wisdomtree-scraper` (WisdomTree site relaunch 2026-08-30, v1 impl
 | f028 | Efficient Frontier | done | f003, f011, f019, f001 |
 | f029 | Hierarchical Risk Parity | done | f003, f011, f019, f001 |
 | f030 | Seed Data for New Deployment | done | f001, f002, f003, f004, f011, f014, f015, f018, f019, f025 |
-| f031 | Market Data Override | draft | f011, f003, f010 |
+| f031 | Market Data Override | in-progress | f011, f003, f010 |

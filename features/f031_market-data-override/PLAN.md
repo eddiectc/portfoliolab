@@ -187,33 +187,33 @@ block (~:239).
 hand-written schema helper), real repository + real service, full stack via
 `newTestRouter` (DB → service → handler → response).
 
-- [ ] **Correcting a corrupted bar:** provider row XNAQ.L 2025-10-24 (wrong)
+- [x] **Correcting a corrupted bar:** provider row XNAQ.L 2025-10-24 (wrong)
       → PUT override 44.02 → `GetHistoricalPricesBySymbol` returns 44.02; the
       provider row still exists and `GetBySourceAndDate` returns the raw
       value (coexist scenario).
-- [ ] **Override on a date the provider has no row for:** override-only date
+- [x] **Override on a date the provider has no row for:** override-only date
       appears in the price history (union of dates).
-- [ ] **Survives a refresh:** `repo.Upsert` of a provider row for the same
+- [x] **Survives a refresh:** `repo.Upsert` of a provider row for the same
       date (manual full-refresh semantics) → reads still resolve to the
       override; the override row is unmodified.
-- [ ] **FX override:** provider GBP/USD rate + a later-dated override →
+- [x] **FX override:** provider GBP/USD rate + a later-dated override →
       `GetHistoricalFxRateOnOrBefore` returns the override for D ≥ override
       date, the provider rate before it.
-- [ ] **NAV override:** nav provider row + nav override →
+- [x] **NAV override:** nav provider row + nav override →
       `GetNavHistoryBySymbol` reflects the override (symbol detail page read
       path).
-- [ ] **Live quote unaffected:** a `date=''` row exists → `GetLatestQuote`
+- [x] **Live quote unaffected:** a `date=''` row exists → `GetLatestQuote`
       returns the provider value regardless of overrides.
-- [ ] **Update:** PUT the same key with a new price → list shows the
+- [x] **Update:** PUT the same key with a new price → list shows the
       replacement (last write wins).
-- [ ] **Remove:** DELETE → `204` → reads revert to the provider price;
+- [x] **Remove:** DELETE → `204` → reads revert to the provider price;
       DELETE again → `404`; DELETE with a non-matching data type → `404` even
       when an override exists under another data type.
-- [ ] **Validation over HTTP:** price ≤ 0, invalid date, future date,
+- [x] **Validation over HTTP:** price ≤ 0, invalid date, future date,
       unknown data type → `400` each.
-- [ ] **List:** several overrides (different symbols/dates/types) → stable
+- [x] **List:** several overrides (different symbols/dates/types) → stable
       order symbol, date, data_type; `?symbol=` filter.
-- [ ] **Bookkeeping:** `NOTES.md` (D1–D6 rationale — incl. the
+- [x] **Bookkeeping:** `NOTES.md` (D1–D6 rationale — incl. the
       `UNIQUE(symbol, source, date)` collision argument and the verified
       merge chokepoints); `features/README.md` f031 status `draft` →
       `in-progress` (→ `done` after review); confirm API.md needs no change
