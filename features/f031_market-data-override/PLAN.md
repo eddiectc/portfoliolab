@@ -142,7 +142,7 @@ Tasks are strictly sequential (each builds on the previous).
 **Corresponds to:** API (API.md → Market Data → Price Overrides); Scenarios "Listing overrides", "Removing an override…", "Removing a non-existent override…", Validation *
 **Description:** D5 — new file; `NewMarketDataHandler` stays as-is.
 
-- [ ] `internal/api/handlers/market_data_override.go`:
+- [x] `internal/api/handlers/market_data_override.go`:
       `MarketDataOverrideHandler` (`NewMarketDataOverrideHandler(svc
       *marketdata.Service)`); `RegisterRoutes(r *chi.Mux)`: `PUT/GET/DELETE
       /api/market-data/overrides`. Pattern from transaction.go (decode body
@@ -156,7 +156,7 @@ Tasks are strictly sequential (each builds on the previous).
       - DELETE: `symbol`/`date`/`data_type` query params all required →
         `204` | `400` missing parameter | `404` `OVERRIDE_NOT_FOUND` (from
         `ErrNotFound`).
-- [ ] `market_data_override_test.go`: httptest + chi router + hand-written
+- [x] `market_data_override_test.go`: httptest + chi router + hand-written
       mock service: PUT happy path (decimal parses exactly, e.g. 44.02); PUT
       400 for each validation error; GET all / GET by symbol / GET empty;
       DELETE 204 / 400 (each missing parameter) / 404.

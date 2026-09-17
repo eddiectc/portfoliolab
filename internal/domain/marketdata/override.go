@@ -36,14 +36,14 @@ const Source = "override"
 // keyed by (Symbol, Date, DataType). It takes precedence over provider rows
 // inside historical reads; provider rows are never deleted or modified.
 type Override struct {
-	Symbol   string
-	Date     string // YYYY-MM-DD
-	DataType DataType
-	Price    decimal.Decimal
-	Currency string
-	Source   string // always "override"
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Symbol    string          `json:"symbol"`
+	Date      string          `json:"date"` // YYYY-MM-DD
+	DataType  DataType        `json:"data_type"`
+	Price     decimal.Decimal `json:"price"`
+	Currency  string          `json:"currency"`
+	Source    string          `json:"source"` // always "override"
+	CreatedAt time.Time       `json:"-"`
+	UpdatedAt time.Time       `json:"-"`
 }
 
 // SetRequest is the DTO for setting (creating or replacing) an override.
