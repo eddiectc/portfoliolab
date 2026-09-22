@@ -131,6 +131,25 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 ---
 
+### Task 8: Rebalancing Strategy (feature revision, 2026-09-22) [PRIORITY: HIGH]
+**Corresponds to:** US-4, scenarios "Compare model portfolios with rebalancing strategy", "Rebalancing with drift threshold", "Strategy applies to model portfolios only"
+
+**Description:** Extend the model portfolio simulation with an optional rebalancing strategy: a configurable interval (monthly/quarterly/annual, default quarterly) and an optional drift threshold in percentage points. Buy-and-hold remains the default and must keep its exact existing behavior. Rebalancing applies to model portfolios only.
+
+- [x] Extend `SimulateEquityCurveInput` (`simulation.go`) with `Strategy` (`buy_and_hold` | `rebalanced`), `RebalanceInterval` (`monthly` | `quarterly` | `annual`), and `RebalanceThresholdPct` (`*decimal.Decimal`)
+- [x] Implement the rebalance path in `SimulateEquityCurve`: track per-symbol share counts (initial shares from day-0 allocation); at each boundary (first trading day on/after interval start), compute actual weights; if no threshold set, or any |actual − target| ≥ threshold, reset all components to target weights (shares = totalValue × target / price, FX-converted at that day's rate); otherwise skip
+- [x] Extend `ComparisonRequest`/result types (`types.go`) with the strategy fields; expose the effective strategy in the comparison result; wire through `resolveModelPortfolio` (`service.go`)
+- [x] Add table-driven unit tests in `simulation_test.go`: rebalanced ≠ buy-and-hold with diverging prices, threshold suppresses a boundary rebalance, threshold triggers a full reset, monthly/quarterly/annual boundaries, boundary on a non-trading day rolls forward, period with no boundary day → identical to buy-and-hold
+- [x] API handler (`comparison.go`): parse and validate `strategy`, `rebalance_interval`, `rebalance_threshold_pct` query params (`INVALID_STRATEGY`, `INVALID_REBALANCE_INTERVAL`, `INVALID_REBALANCE_THRESHOLD`); handler tests
+- [x] Web handler (`comparison_web.go`): new `comparisonFilter` fields, `buildComparisonRequest`, and URL serialization in `buildComparisonPeriodURLs`; web handler tests
+- [x] Template (`comparison/index.html`): strategy selector + interval selector + threshold input (interval/threshold visible only when "rebalanced" is selected; default quarterly)
+- [x] Integration test: `GET /api/comparison` with `strategy=rebalanced` returns a different equity curve than `buy_and_hold` for seeded diverging prices
+- [x] Update `API.md` — `GET /api/comparison` query params + error codes
+
+**Verification:** `go test ./internal/domain/comparison/ ./internal/api/handlers/ ./tests/integration/` passes; buy-and-hold results are byte-identical to pre-revision behavior.
+
+---
+
 ## Technical Decisions
 
 | Decision | Options | Recommendation | Reason |

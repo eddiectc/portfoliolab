@@ -128,6 +128,73 @@ func TestComparisonWebHandler_RenderPageWithResult(t *testing.T) {
 	checkComparisonContains(t, body, "Holdings Overlap")
 }
 
+func TestComparisonWebHandler_RenderPageRebalancedStrategy(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{ID: 1, Name: "Model A", Type: comparison.PortTypeModel},
+		PortfolioB: &comparison.PortfolioComparison{ID: 2, Name: "Model B", Type: comparison.PortTypeModel},
+	}
+	mockSvc := &mockComparisonService{result: result}
+	apiHandler := NewComparisonHandler(mockSvc)
+	renderer := newTestRenderer(t)
+	webHandler := NewComparisonWebHandler(apiHandler, nil, nil, renderer)
+
+	router := chi.NewRouter()
+	webHandler.RegisterRoutes(router)
+
+	req := httptest.NewRequest("GET", "/comparison?portfolio_a_id=m1&portfolio_b_id=m2&period=1Y&strategy=rebalanced&rebalance_interval=monthly&rebalance_threshold_pct=5", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	// Strategy select shows rebalanced as selected.
+	checkComparisonContains(t, body, `<option value="rebalanced" selected`)
+	// Interval select is visible with monthly selected; drift input carries the value.
+	checkComparisonContains(t, body, `<option value="monthly" selected`)
+	checkComparisonContains(t, body, `value="5"`)
+	// Period button URLs carry the strategy params.
+	checkComparisonContains(t, body, "strategy=rebalanced")
+	checkComparisonContains(t, body, "rebalance_interval=monthly")
+	checkComparisonContains(t, body, "rebalance_threshold_pct=5")
+	// Service received the strategy params.
+	if mockSvc.req.Strategy != "rebalanced" || mockSvc.req.RebalanceInterval != "monthly" {
+		t.Errorf("service request strategy params: got %+v", mockSvc.req)
+	}
+	if mockSvc.req.RebalanceThresholdPct == nil || !mockSvc.req.RebalanceThresholdPct.Equal(decimal.MustParse("5")) {
+		t.Errorf("service request threshold: got %v", mockSvc.req.RebalanceThresholdPct)
+	}
+}
+
+func TestComparisonWebHandler_RenderPageStrategyControlsHiddenByDefault(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{ID: 1, Name: "Model A", Type: comparison.PortTypeModel},
+		PortfolioB: &comparison.PortfolioComparison{ID: 2, Name: "Model B", Type: comparison.PortTypeModel},
+	}
+	mockSvc := &mockComparisonService{result: result}
+	apiHandler := NewComparisonHandler(mockSvc)
+	renderer := newTestRenderer(t)
+	webHandler := NewComparisonWebHandler(apiHandler, nil, nil, renderer)
+
+	router := chi.NewRouter()
+	webHandler.RegisterRoutes(router)
+
+	req := httptest.NewRequest("GET", "/comparison?portfolio_a_id=m1&portfolio_b_id=m2&period=1Y", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	// Buy-and-hold is selected by default.
+	checkComparisonContains(t, body, `<option value="buy_and_hold" selected`)
+	// Interval and drift controls are hidden when strategy is buy-and-hold.
+	checkComparisonContains(t, body, `<label class="rebalance-opt" style="display:none;">Interval`)
+	checkComparisonContains(t, body, `<label class="rebalance-opt" style="display:none;">Drift%`)
+}
+
 func TestComparisonWebHandler_RenderPageWithError(t *testing.T) {
 	mockSvc := &mockComparisonService{err: errors.New("service error")}
 	apiHandler := NewComparisonHandler(mockSvc)
@@ -246,6 +313,72 @@ func TestParseComparisonFilter(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseComparisonFilter_StrategyParams(t *testing.T) {
+	tests := []struct {
+		name   string
+		query  map[string][]string
+		expect comparisonFilter
+	}{
+		{
+			name:   "rebalanced with interval and threshold",
+			query:  map[string][]string{"portfolio_a_id": {"m1"}, "portfolio_b_id": {"m2"}, "strategy": {"rebalanced"}, "rebalance_interval": {"monthly"}, "rebalance_threshold_pct": {"2.5"}},
+			expect: comparisonFilter{PortfolioAID: 1, PortfolioAType: "model", PortfolioBID: 2, PortfolioBType: "model", Strategy: "rebalanced", RebalanceInterval: "monthly", RebalanceThresholdPct: "2.5"},
+		},
+		{
+			name:   "defaults when absent",
+			query:  map[string][]string{"portfolio_a_id": {"m1"}, "portfolio_b_id": {"m2"}},
+			expect: comparisonFilter{PortfolioAID: 1, PortfolioAType: "model", PortfolioBID: 2, PortfolioBType: "model"},
+		},
+		{
+			name:   "buy_and_hold",
+			query:  map[string][]string{"portfolio_a_id": {"m1"}, "portfolio_b_id": {"m2"}, "strategy": {"buy_and_hold"}},
+			expect: comparisonFilter{PortfolioAID: 1, PortfolioAType: "model", PortfolioBID: 2, PortfolioBType: "model", Strategy: "buy_and_hold"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseComparisonFilter(tc.query)
+			if got.Strategy != tc.expect.Strategy {
+				t.Errorf("Strategy: got %q, want %q", got.Strategy, tc.expect.Strategy)
+			}
+			if got.RebalanceInterval != tc.expect.RebalanceInterval {
+				t.Errorf("RebalanceInterval: got %q, want %q", got.RebalanceInterval, tc.expect.RebalanceInterval)
+			}
+			if got.RebalanceThresholdPct != tc.expect.RebalanceThresholdPct {
+				t.Errorf("RebalanceThresholdPct: got %q, want %q", got.RebalanceThresholdPct, tc.expect.RebalanceThresholdPct)
+			}
+		})
+	}
+}
+
+func TestBuildComparisonRequest_StrategyParams(t *testing.T) {
+	t.Run("maps strategy, interval and threshold", func(t *testing.T) {
+		req := buildComparisonRequest(comparisonFilter{Strategy: "rebalanced", RebalanceInterval: "annual", RebalanceThresholdPct: "3.5"})
+		if req.Strategy != "rebalanced" {
+			t.Errorf("Strategy: got %q", req.Strategy)
+		}
+		if req.RebalanceInterval != "annual" {
+			t.Errorf("RebalanceInterval: got %q", req.RebalanceInterval)
+		}
+		if req.RebalanceThresholdPct == nil || !req.RebalanceThresholdPct.Equal(decimal.MustParse("3.5")) {
+			t.Errorf("RebalanceThresholdPct: got %v", req.RebalanceThresholdPct)
+		}
+	})
+	t.Run("invalid threshold silently ignored", func(t *testing.T) {
+		req := buildComparisonRequest(comparisonFilter{Strategy: "rebalanced", RebalanceThresholdPct: "abc"})
+		if req.RebalanceThresholdPct != nil {
+			t.Errorf("expected nil threshold, got %v", req.RebalanceThresholdPct)
+		}
+	})
+	t.Run("empty filter omits strategy params", func(t *testing.T) {
+		req := buildComparisonRequest(comparisonFilter{})
+		if req.Strategy != "" || req.RebalanceInterval != "" || req.RebalanceThresholdPct != nil {
+			t.Errorf("expected empty strategy params, got %+v", req)
+		}
+	})
 }
 
 func TestSerializeAnnualReturnsChartData(t *testing.T) {
@@ -855,6 +988,36 @@ func TestBuildComparisonPeriodURLs(t *testing.T) {
 	if !strings.Contains(urls["1Y"], "period=1Y") {
 		t.Error("expected period=1Y in 1Y URL (all period URLs include the param)")
 	}
+}
+
+func TestBuildComparisonPeriodURLs_Strategy(t *testing.T) {
+	t.Run("rebalanced adds strategy params to every period URL", func(t *testing.T) {
+		filter := comparisonFilter{
+			PortfolioAID: 1, PortfolioAType: "model", PortfolioBID: 2, PortfolioBType: "model",
+			Strategy: "rebalanced", RebalanceInterval: "annual", RebalanceThresholdPct: "5",
+		}
+		urls := buildComparisonPeriodURLs(filter, "0")
+		for p, u := range urls {
+			if !strings.Contains(u, "strategy=rebalanced") {
+				t.Errorf("period %s: missing strategy=rebalanced in %s", p, u)
+			}
+			if !strings.Contains(u, "rebalance_interval=annual") {
+				t.Errorf("period %s: missing rebalance_interval=annual in %s", p, u)
+			}
+			if !strings.Contains(u, "rebalance_threshold_pct=5") {
+				t.Errorf("period %s: missing rebalance_threshold_pct=5 in %s", p, u)
+			}
+		}
+	})
+	t.Run("buy_and_hold omits strategy params", func(t *testing.T) {
+		filter := comparisonFilter{PortfolioAID: 1, PortfolioAType: "model", PortfolioBID: 2, PortfolioBType: "model", Strategy: "buy_and_hold"}
+		urls := buildComparisonPeriodURLs(filter, "0")
+		for p, u := range urls {
+			if strings.Contains(u, "strategy=") || strings.Contains(u, "rebalance_interval=") || strings.Contains(u, "rebalance_threshold_pct=") {
+				t.Errorf("period %s: unexpected strategy params in %s", p, u)
+			}
+		}
+	})
 }
 
 // --- Helpers ---

@@ -66,6 +66,16 @@
             </select></label>
             <label>Start <input type="number" id="starting_value" name="starting_value" value="{{.SelectedStartingValue}}" min="1" class="compact-input" /></label>
             <label>Rf% <input type="number" id="risk_free_rate" name="risk_free_rate" value="{{.SelectedRiskFreeRate}}" step="0.1" min="0" max="50" class="compact-input" title="Risk-free rate (%)" /></label>
+            <label>Strategy <select id="strategy" name="strategy" onchange="toggleRebalanceOptions()">
+                <option value="buy_and_hold" {{if eq .SelectedStrategy "buy_and_hold"}}selected{{end}}>Buy &amp; Hold</option>
+                <option value="rebalanced" {{if eq .SelectedStrategy "rebalanced"}}selected{{end}}>Rebalanced</option>
+            </select></label>
+            <label class="rebalance-opt" {{if ne .SelectedStrategy "rebalanced"}}style="display:none;"{{end}}>Interval <select id="rebalance_interval" name="rebalance_interval">
+                <option value="monthly" {{if eq .SelectedRebalanceInterval "monthly"}}selected{{end}}>Monthly</option>
+                <option value="quarterly" {{if eq .SelectedRebalanceInterval "quarterly"}}selected{{end}}>Quarterly</option>
+                <option value="annual" {{if eq .SelectedRebalanceInterval "annual"}}selected{{end}}>Annual</option>
+            </select></label>
+            <label class="rebalance-opt" {{if ne .SelectedStrategy "rebalanced"}}style="display:none;"{{end}}>Drift% <input type="number" id="rebalance_threshold_pct" name="rebalance_threshold_pct" value="{{.SelectedRebalanceThreshold}}" step="0.1" min="0" max="100" class="compact-input" title="Rebalance only if drift exceeds this (percentage points); blank = rebalance every interval" /></label>
         </div>
 
         <div class="filter-group filter-actions">
@@ -80,6 +90,13 @@ function toggleCustomDates(e) {
     var group = document.getElementById('date-range-group');
     group.style.display = group.style.display === 'none' ? 'flex' : 'none';
 }
+function toggleRebalanceOptions() {
+    var show = document.getElementById('strategy').value === 'rebalanced';
+    document.querySelectorAll('.rebalance-opt').forEach(function (el) {
+        el.style.display = show ? '' : 'none';
+    });
+}
+toggleRebalanceOptions();
 </script>
 
 {{/* Error state */}}

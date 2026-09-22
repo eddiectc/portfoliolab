@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,6 +33,8 @@ type portfolioComparison struct {
 	ReturnMetrics      *returnMetrics      `json:"return_metrics,omitempty"`
 	RiskMetrics        *riskMetrics        `json:"risk_metrics,omitempty"`
 	Drawdown           *drawdownResult     `json:"drawdown,omitempty"`
+	Strategy           string              `json:"strategy,omitempty"`
+	ValueGrowthSeries  []equityCurvePoint  `json:"value_growth_series,omitempty"`
 	DrawdownSeries     []json.RawMessage   `json:"drawdown_series,omitempty"`
 	YearlyReturns      []yearlyReturn      `json:"yearly_returns,omitempty"`
 	PeriodExtremes     *periodExtremes     `json:"period_extremes,omitempty"`
@@ -55,6 +58,11 @@ type riskMetrics struct {
 	AnnualizedVolatilityPct *decimal.Decimal `json:"annualized_volatility_pct,omitempty"`
 	SharpeRatio             *decimal.Decimal `json:"sharpe_ratio,omitempty"`
 	SortinoRatio            *decimal.Decimal `json:"sortino_ratio,omitempty"`
+}
+
+type equityCurvePoint struct {
+	Date           string          `json:"date"`
+	PortfolioValue decimal.Decimal `json:"portfolio_value"`
 }
 
 type drawdownResult struct {
@@ -719,6 +727,93 @@ func TestComparison_SamePortfolioVsItself(t *testing.T) {
 		if overlap < 99.0 {
 			t.Errorf("overlap of same portfolio = %.2f%%, want ~100%%", overlap)
 		}
+	}
+}
+
+func TestComparison_RebalancedStrategy(t *testing.T) {
+	db, router := setupComparison(t)
+
+	// 50/50 two-asset model portfolio.
+	mp := createModelPortfolio(t, router, "Balanced", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: mustDecimal("50.0")},
+		{Symbol: "MSFT", WeightPct: mustDecimal("50.0")},
+	})
+
+	// Seed diverging prices: AAPL compounds +1%/day while MSFT stays flat,
+	// so buy-and-hold weights drift and the rebalanced curve diverges.
+	days := 120
+	now := time.Now().UTC()
+	baseDate := now.AddDate(0, 0, -(days + days/5))
+	for i := 0; i <= days; i++ {
+		date := baseDate.AddDate(0, 0, i)
+		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
+			continue
+		}
+		dateStr := date.Format("2006-01-02")
+		for sym, price := range map[string]string{
+			"AAPL": fmt.Sprintf("%.2f", 100*math.Pow(1.01, float64(i))),
+			"MSFT": "100.00",
+		} {
+			if _, err := db.Exec(
+				`INSERT OR REPLACE INTO market_data (symbol, price, currency, data_type, source, date)
+				 VALUES (?, ?, 'USD', 'stock', 'yahoo', ?)`,
+				sym, price, dateStr,
+			); err != nil {
+				t.Fatalf("insert %s %s: %v", sym, dateStr, err)
+			}
+		}
+	}
+	for sym, price := range map[string]string{
+		"AAPL": fmt.Sprintf("%.2f", 100*math.Pow(1.01, float64(days+1))),
+		"MSFT": "100.00",
+	} {
+		if _, err := db.Exec(
+			`INSERT OR REPLACE INTO market_data (symbol, price, currency, data_type, source, date)
+			 VALUES (?, ?, 'USD', 'stock', 'yahoo', '')`, sym, price,
+		); err != nil {
+			t.Fatalf("insert current %s: %v", sym, err)
+		}
+	}
+
+	base := fmt.Sprintf("/api/comparison?portfolio_a_id=%d&portfolio_a_type=model&portfolio_b_id=%d&portfolio_b_type=model&period=All&starting_value=10000", mp, mp)
+
+	bh := callComparison(t, router, base)
+	if bh.PortfolioA.Strategy != "buy_and_hold" {
+		t.Errorf("default strategy = %q, want buy_and_hold", bh.PortfolioA.Strategy)
+	}
+	if len(bh.PortfolioA.ValueGrowthSeries) == 0 {
+		t.Fatal("buy_and_hold value_growth_series is empty")
+	}
+
+	reb := callComparison(t, router, base+"&strategy=rebalanced&rebalance_interval=monthly")
+	if reb.PortfolioA.Strategy != "rebalanced" {
+		t.Errorf("rebalanced strategy = %q, want rebalanced", reb.PortfolioA.Strategy)
+	}
+	if len(reb.PortfolioA.ValueGrowthSeries) == 0 {
+		t.Fatal("rebalanced value_growth_series is empty")
+	}
+	if len(reb.PortfolioA.ValueGrowthSeries) != len(bh.PortfolioA.ValueGrowthSeries) {
+		t.Fatalf("series length mismatch: rebalanced=%d buy_and_hold=%d",
+			len(reb.PortfolioA.ValueGrowthSeries), len(bh.PortfolioA.ValueGrowthSeries))
+	}
+
+	bhFinal := bh.PortfolioA.ValueGrowthSeries[len(bh.PortfolioA.ValueGrowthSeries)-1].PortfolioValue
+	rebFinal := reb.PortfolioA.ValueGrowthSeries[len(reb.PortfolioA.ValueGrowthSeries)-1].PortfolioValue
+	if bhFinal.Equal(rebFinal) {
+		t.Errorf("expected diverging final values with drifting weights, both = %v", bhFinal)
+	}
+	// With a steady outperformer, buy-and-hold outperforms periodic
+	// rebalancing, which keeps selling the winner.
+	if rebFinal.Cmp(bhFinal) >= 0 {
+		t.Errorf("expected rebalanced %v < buy_and_hold %v", rebFinal, bhFinal)
+	}
+
+	// Invalid strategy and interval are rejected.
+	if _, code := callComparisonRaw(t, router, base+"&strategy=compounding"); code != http.StatusBadRequest {
+		t.Errorf("invalid strategy: expected 400, got %d", code)
+	}
+	if _, code := callComparisonRaw(t, router, base+"&strategy=rebalanced&rebalance_interval=weekly"); code != http.StatusBadRequest {
+		t.Errorf("invalid interval: expected 400, got %d", code)
 	}
 }
 

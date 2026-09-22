@@ -35,6 +35,18 @@ type ComparisonRequest struct {
 	// RiskFreeRatePct is the annual risk-free rate as a percentage (e.g. 4.5 = 4.5%).
 	// Used for Sharpe and Sortino ratios. Zero means no risk-free rate.
 	RiskFreeRatePct *decimal.Decimal
+	// Strategy selects the allocation strategy for model portfolios:
+	// "buy_and_hold" (default) or "rebalanced". Ignored for real portfolios,
+	// which are compared using actual transaction history.
+	Strategy string
+	// RebalanceInterval selects the rebalance cadence: "monthly", "quarterly",
+	// or "annual". Only used when Strategy is "rebalanced"; defaults to "quarterly".
+	RebalanceInterval string
+	// RebalanceThresholdPct is an optional drift threshold in percentage points
+	// (e.g. 5 = 5pp). When set, a boundary rebalance only fires if any
+	// |actual − target| weight drift is at least this large; nil rebalances
+	// unconditionally at boundaries.
+	RebalanceThresholdPct *decimal.Decimal
 }
 
 // ComparisonResult is the top-level envelope returned by ComputeComparison.
@@ -52,6 +64,9 @@ type PortfolioComparison struct {
 	ID   int64         `json:"id"`
 	Name string        `json:"name"`
 	Type PortfolioType `json:"type"`
+	// Strategy is the effective allocation strategy used for this portfolio
+	// ("buy_and_hold" or "rebalanced"). Set for model portfolios only.
+	Strategy string `json:"strategy,omitempty"`
 	// EffectiveDateFrom and EffectiveDateTo are the actual date range used for
 	// computation, which may be narrower than the requested period due to data
 	// availability (e.g. a symbol with shorter history clips the period).

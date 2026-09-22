@@ -17,8 +17,21 @@ type ModelPortfolioWeight struct {
 	MarketSym string          // market data provider symbol (e.g. Yahoo ticker)
 }
 
-// SimulateEquityCurveInput holds the parameters for a buy-and-hold equity
-// curve simulation.
+// Allocation strategies for SimulateEquityCurve.
+const (
+	StrategyBuyAndHold = "buy_and_hold" // each position is held from the start (default)
+	StrategyRebalanced = "rebalanced"   // positions are re-anchored to target weights at interval boundaries
+)
+
+// Rebalance intervals for the rebalanced strategy.
+const (
+	IntervalMonthly   = "monthly"   // 1st of each month
+	IntervalQuarterly = "quarterly" // Jan/Apr/Jul/Oct 1
+	IntervalAnnual    = "annual"    // Jan 1 of each year
+)
+
+// SimulateEquityCurveInput holds the parameters for an equity curve
+// simulation.
 type SimulateEquityCurveInput struct {
 	StartingValue decimal.Decimal                     // initial investment amount
 	Weights       []ModelPortfolioWeight              // symbol weights (must sum to ~1.0)
@@ -27,6 +40,20 @@ type SimulateEquityCurveInput struct {
 	DateFrom      time.Time                           // output start (clipped to data availability)
 	DateTo        time.Time                           // output end
 	FxRates       map[string][]market.HistoricalPrice // FX pair (e.g. "GBP/USD") -> price series
+	// Strategy selects the allocation strategy: StrategyBuyAndHold (default)
+	// or StrategyRebalanced. Empty is treated as buy-and-hold.
+	Strategy string
+	// RebalanceInterval selects the rebalance cadence: IntervalMonthly,
+	// IntervalQuarterly, or IntervalAnnual. Only used when Strategy is
+	// StrategyRebalanced; an unknown value falls back to buy-and-hold
+	// behavior.
+	RebalanceInterval string
+	// RebalanceThresholdPct is an optional drift threshold in percentage
+	// points (e.g. 5 = 5pp). When set, a boundary only triggers a rebalance
+	// if some component's actual weight deviates from its target weight by
+	// at least this amount. Nil means rebalance unconditionally at every
+	// boundary.
+	RebalanceThresholdPct *decimal.Decimal
 }
 
 // SimulateEquityCurveOutput holds the results of the simulation.
@@ -56,10 +83,16 @@ type EquityCurvePoint struct {
 	NavPerUnit     *decimal.Decimal `json:"nav_per_unit"`
 }
 
-// SimulateEquityCurve computes a buy-and-hold equity curve for a model
-// portfolio. It allocates the starting value across symbols according to
-// the given weights, then for each trading day in the period computes the
-// total portfolio value from the daily close prices.
+// SimulateEquityCurve computes an equity curve for a model portfolio. It
+// allocates the starting value across symbols according to the given
+// weights, then for each trading day in the period computes the total
+// portfolio value from the daily close prices.
+//
+// The default buy-and-hold strategy holds every position from the start.
+// The rebalanced strategy re-anchors positions to their target weights on
+// the first trading day on or after each interval boundary (strictly after
+// the first trading day of the period), subject to an optional drift
+// threshold.
 //
 // The period is clipped to the intersection of available data across all
 // symbols. Symbols with no price data are listed in warnings.
@@ -137,7 +170,8 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 	}
 
 	// Compute daily portfolio values.
-	curve := computeDailyValues(input.StartingValue, input.Weights, input.BaseCurrency, dates, priceLookup, fxLookup)
+	curve := computeDailyValues(input.StartingValue, input.Weights, input.BaseCurrency, dates, priceLookup, fxLookup,
+		input.Strategy, input.RebalanceInterval, input.RebalanceThresholdPct)
 
 	return &SimulateEquityCurveOutput{
 		EquityCurve:           curve,
@@ -358,7 +392,7 @@ func collectDatesInRange(weights []ModelPortfolioWeight, priceLookup map[string]
 
 // computeDailyValues computes the portfolio value for each date.
 //
-// For each symbol the buy-and-hold logic is:
+// Buy-and-hold (default): for each symbol
 //
 //	shares = (startingValue * weight) / basePrice
 //	value[date] = shares * price[date]
@@ -366,10 +400,18 @@ func collectDatesInRange(weights []ModelPortfolioWeight, priceLookup map[string]
 // where basePrice is the first available close price for that symbol.
 // This gives value[date] = allocated * (price[date] / basePrice).
 //
+// Rebalanced: positions evolve buy-and-hold between rebalance days. On each
+// rebalance day (first trading day on or after an interval boundary, strictly
+// after the first trading day of the period) they are re-anchored so that
+// each position's base-currency value equals totalValue * target weight
+// (FX-converted at that day's rate). An optional drift threshold suppresses
+// a boundary rebalance when no position has drifted from its target by at
+// least the threshold.
+//
 // Missing prices are forward-filled from the last known close, so gaps
 // in market data (weekends, holidays, sparse sources) do not cause
 // artificial portfolio value drops.
-func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, priceLookup map[string]map[string]market.HistoricalPrice, fxLookup map[string]*ffLookup[decimal.Decimal]) []EquityCurvePoint {
+func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, priceLookup map[string]map[string]market.HistoricalPrice, fxLookup map[string]*ffLookup[decimal.Decimal], strategy string, rebalanceInterval string, thresholdPct *decimal.Decimal) []EquityCurvePoint {
 	curve := make([]EquityCurvePoint, 0, len(dates))
 
 	// Build forward-fill price lookup for gap handling.
@@ -394,6 +436,10 @@ func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioW
 		if found {
 			basePrices[w.MarketSym] = earliest
 		}
+	}
+
+	if strategy == StrategyRebalanced {
+		return computeRebalancedValues(startingValue, weights, baseCurrency, dates, ff, basePrices, fxLookup, rebalanceInterval, thresholdPct)
 	}
 
 	for _, date := range dates {
@@ -445,6 +491,227 @@ func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioW
 	}
 
 	return curve
+}
+
+// positionState tracks a rebalanced position between anchor dates.
+type positionState struct {
+	allocated decimal.Decimal        // base-currency amount anchored at `anchor` (pre-FX)
+	anchor    market.HistoricalPrice // anchor close (period start or last rebalance)
+}
+
+// computeRebalancedValues computes the equity curve for a rebalanced model
+// portfolio. Positions are allocated to their target weights at the start of
+// the period and re-anchored to target weights on each rebalance day.
+//
+// Between rebalances each position evolves exactly like buy-and-hold:
+//
+//	value[date] = allocated * (price[date] / anchorPrice)
+//
+// where anchorPrice is the close at the period start or the most recent
+// rebalance. On a rebalance day, each position's allocated amount is reset
+// so its base-currency value equals totalValue * target weight that day
+// (FX-converted at that day's rate). When a drift threshold is set, a
+// rebalance only occurs if at least one position's actual weight deviates
+// from its target by at least the threshold; otherwise the boundary is
+// skipped.
+func computeRebalancedValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, ff map[string]*ffLookup[market.HistoricalPrice], basePrices map[string]market.HistoricalPrice, fxLookup map[string]*ffLookup[decimal.Decimal], rebalanceInterval string, thresholdPct *decimal.Decimal) []EquityCurvePoint {
+	curve := make([]EquityCurvePoint, 0, len(dates))
+
+	rebalanceDays := rebalanceDays(rebalanceInterval, dates)
+	thresholdFrac, hasThreshold := thresholdAsFraction(thresholdPct)
+
+	states := make(map[string]*positionState, len(weights))
+	for _, w := range weights {
+		bp, ok := basePrices[w.MarketSym]
+		if !ok || !bp.Close.IsPos() {
+			continue
+		}
+		allocated, _ := startingValue.Mul(w.Weight)
+		states[w.MarketSym] = &positionState{allocated: allocated, anchor: bp}
+	}
+
+	for _, date := range dates {
+		dateKey := date.Format("2006-01-02")
+		var totalValue decimal.Decimal
+		dayValues := make(map[string]decimal.Decimal, len(states))
+
+		for _, w := range weights {
+			st, ok := states[w.MarketSym]
+			if !ok {
+				continue
+			}
+			price, ok := ff[w.MarketSym].lookup(dateKey)
+			if !ok || !st.anchor.Close.IsPos() {
+				continue
+			}
+			// Position value: allocated * (price[date] / anchorPrice).
+			priceF, _ := price.Close.Float64()
+			baseF, _ := st.anchor.Close.Float64()
+			ratio, _ := decimal.NewFromFloat64(priceF / baseF)
+			value, _ := st.allocated.Mul(ratio)
+
+			// Convert to base currency if needed.
+			if price.Currency != "" && price.Currency != baseCurrency {
+				pair := market.FormatFxPair(price.Currency, baseCurrency)
+				converted, ok := convertWithFxLookup(fxLookup, pair, value, date)
+				if !ok {
+					// No FX data — skip this symbol's value.
+					continue
+				}
+				value = converted
+			}
+
+			dayValues[w.MarketSym] = value
+			totalValue, _ = totalValue.Add(value)
+		}
+
+		curve = append(curve, EquityCurvePoint{
+			Date:           date,
+			PortfolioValue: totalValue,
+			NavPerUnit:     &totalValue, // model portfolio: single deposit, NAV == value
+		})
+
+		// Re-anchor to target weights on rebalance days when drift warrants it.
+		if rebalanceDays[dateKey] && totalValue.IsPos() && driftExceeds(weights, dayValues, totalValue, thresholdFrac, hasThreshold) {
+			reanchorToTargets(states, weights, dayValues, totalValue, ff, fxLookup, baseCurrency, dateKey)
+		}
+	}
+
+	return curve
+}
+
+// rebalanceDays returns the set of trading-day keys on which a rebalance
+// occurs: the first trading day on or after each calendar interval boundary
+// that falls strictly after the first trading day of the period. An unknown
+// interval yields no rebalance days (buy-and-hold behavior).
+func rebalanceDays(interval string, dates []time.Time) map[string]bool {
+	days := make(map[string]bool)
+	if len(dates) < 2 {
+		return days
+	}
+	first := dates[0]
+	for _, boundary := range intervalBoundaries(interval, first, dates[len(dates)-1]) {
+		if !boundary.After(first) {
+			continue
+		}
+		idx := sort.Search(len(dates), func(i int) bool { return !dates[i].Before(boundary) })
+		if idx < len(dates) && dates[idx].After(first) {
+			days[dates[idx].Format("2006-01-02")] = true
+		}
+	}
+	return days
+}
+
+// intervalBoundaries lists the calendar dates on which the given interval
+// begins, for every year spanning [from, to] (one year padded on each side).
+// An unknown interval yields nil.
+func intervalBoundaries(interval string, from, to time.Time) []time.Time {
+	var months []time.Month
+	switch interval {
+	case IntervalAnnual:
+		months = []time.Month{time.January}
+	case IntervalQuarterly:
+		months = []time.Month{time.January, time.April, time.July, time.October}
+	case IntervalMonthly:
+		months = []time.Month{time.January, time.February, time.March, time.April, time.May, time.June,
+			time.July, time.August, time.September, time.October, time.November, time.December}
+	default:
+		return nil
+	}
+	boundaries := make([]time.Time, 0, len(months)*(to.Year()-from.Year()+3))
+	for y := from.Year() - 1; y <= to.Year()+1; y++ {
+		for _, m := range months {
+			boundaries = append(boundaries, time.Date(y, m, 1, 0, 0, 0, 0, time.UTC))
+		}
+	}
+	return boundaries
+}
+
+// thresholdAsFraction converts an optional drift threshold given in
+// percentage points (e.g. 5 = 5pp) to a fraction (0.05). A nil threshold
+// means "rebalance unconditionally at every boundary".
+func thresholdAsFraction(pct *decimal.Decimal) (decimal.Decimal, bool) {
+	if pct == nil {
+		return decimal.Zero, false
+	}
+	hundred, _ := decimal.New(100, 0)
+	frac, err := pct.Quo(hundred)
+	if err != nil {
+		return decimal.Zero, false
+	}
+	return frac, true
+}
+
+// driftExceeds reports whether at least one position's actual weight deviates
+// from its target weight by at least the threshold (a fraction). Without a
+// threshold, every boundary triggers a rebalance.
+func driftExceeds(weights []ModelPortfolioWeight, dayValues map[string]decimal.Decimal, totalValue decimal.Decimal, thresholdFrac decimal.Decimal, hasThreshold bool) bool {
+	if !hasThreshold {
+		return true
+	}
+	for _, w := range weights {
+		value, ok := dayValues[w.MarketSym]
+		if !ok {
+			continue
+		}
+		actual, err := value.Quo(totalValue)
+		if err != nil {
+			continue
+		}
+		diff, err := actual.Sub(w.Weight)
+		if err != nil {
+			continue
+		}
+		if diff.Abs().Cmp(thresholdFrac) >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// reanchorToTargets re-anchors every position to its target weight as of the
+// given date: allocated is set so the position's base-currency value equals
+// totalValue * target weight on that date, and the anchor price becomes the
+// day's close. FX-converted positions are back-converted with the day's FX
+// rate. Positions with no value that day (e.g. missing FX data) are left
+// unchanged.
+func reanchorToTargets(states map[string]*positionState, weights []ModelPortfolioWeight, dayValues map[string]decimal.Decimal, totalValue decimal.Decimal, ff map[string]*ffLookup[market.HistoricalPrice], fxLookup map[string]*ffLookup[decimal.Decimal], baseCurrency string, dateKey string) {
+	for _, w := range weights {
+		if _, ok := dayValues[w.MarketSym]; !ok {
+			continue
+		}
+		price, ok := ff[w.MarketSym].lookup(dateKey)
+		if !ok {
+			continue
+		}
+		target, _ := totalValue.Mul(w.Weight)
+		allocated := target
+		if w.Currency != "" && w.Currency != baseCurrency {
+			rate, ok := fxRateOn(fxLookup, market.FormatFxPair(w.Currency, baseCurrency), dateKey)
+			if !ok || !rate.IsPos() {
+				// Cannot anchor reliably; keep the previous state.
+				continue
+			}
+			back, err := target.Quo(rate)
+			if err != nil {
+				continue
+			}
+			allocated = back
+		}
+		st := states[w.MarketSym]
+		st.allocated = allocated
+		st.anchor = price
+	}
+}
+
+// fxRateOn returns the forward-filled FX rate for the pair on or before the
+// given date.
+func fxRateOn(lookup map[string]*ffLookup[decimal.Decimal], pair, dateKey string) (decimal.Decimal, bool) {
+	ffx, ok := lookup[pair]
+	if !ok {
+		return decimal.Zero, false
+	}
+	return ffx.lookup(dateKey)
 }
 
 // convertWithFxLookup converts a value using the FX rate lookup with forward-fill.

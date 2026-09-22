@@ -134,15 +134,23 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 		}
 	}
 
+	// Normalize the allocation strategy for model portfolios.
+	strategy := effectiveStrategy(req.Strategy)
+	// Default the rebalance interval to quarterly when not specified.
+	rebalanceInterval := req.RebalanceInterval
+	if rebalanceInterval == "" {
+		rebalanceInterval = IntervalQuarterly
+	}
+
 	// Resolve Portfolio A equity curve.
-	aCurve, aData, aWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioAID, req.PortfolioAType, req.StartingValue, baseCurrency, dateFrom, dateTo)
+	aCurve, aData, aWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioAID, req.PortfolioAType, req.StartingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, req.RebalanceThresholdPct)
 	if err != nil {
 		return nil, fmt.Errorf("resolve portfolio A: %w", err)
 	}
 	result.Warnings = append(result.Warnings, aWarnings...)
 
 	// Resolve Portfolio B equity curve.
-	bCurve, bData, bWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioBID, req.PortfolioBType, req.StartingValue, baseCurrency, dateFrom, dateTo)
+	bCurve, bData, bWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioBID, req.PortfolioBType, req.StartingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, req.RebalanceThresholdPct)
 	if err != nil {
 		return nil, fmt.Errorf("resolve portfolio B: %w", err)
 	}
@@ -191,6 +199,16 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 	}
 
 	return result, nil
+}
+
+// effectiveStrategy normalizes the requested allocation strategy. Only
+// StrategyRebalanced opts into rebalancing; anything else (including empty or
+// unrecognized values) runs as buy-and-hold.
+func effectiveStrategy(strategy string) string {
+	if strategy == StrategyRebalanced {
+		return StrategyRebalanced
+	}
+	return StrategyBuyAndHold
 }
 
 // resolveDateRange parses the period string into a date range.
@@ -256,8 +274,9 @@ func (s *Service) resolveBaseCurrency(ctx context.Context, portfolioID int64, po
 }
 
 // resolveEquityCurve resolves a portfolio to its equity curve points.
-// For model portfolios, it simulates a buy-and-hold equity curve.
-// For real portfolios, it fetches the existing equity curve.
+// For model portfolios, it simulates the equity curve using the requested
+// allocation strategy (buy-and-hold or rebalanced). For real portfolios, it
+// fetches the existing equity curve (strategy is ignored).
 // Returns (curve as comparison.EquityCurvePoint, metadata, warnings, error).
 func (s *Service) resolveEquityCurve(
 	ctx context.Context,
@@ -266,10 +285,13 @@ func (s *Service) resolveEquityCurve(
 	startingValue decimal.Decimal,
 	baseCurrency string,
 	dateFrom, dateTo time.Time,
+	strategy string,
+	rebalanceInterval string,
+	rebalanceThresholdPct *decimal.Decimal,
 ) ([]EquityCurvePoint, portfolioMeta, []string, error) {
 	switch portType {
 	case PortTypeModel:
-		return s.resolveModelPortfolio(ctx, portfolioID, startingValue, baseCurrency, dateFrom, dateTo)
+		return s.resolveModelPortfolio(ctx, portfolioID, startingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, rebalanceThresholdPct)
 	case PortTypeReal:
 		return s.resolveRealPortfolio(ctx, portfolioID, dateFrom, dateTo)
 	default:
@@ -277,13 +299,17 @@ func (s *Service) resolveEquityCurve(
 	}
 }
 
-// resolveModelPortfolio fetches the model portfolio and simulates its equity curve.
+// resolveModelPortfolio fetches the model portfolio and simulates its equity
+// curve using the requested allocation strategy.
 func (s *Service) resolveModelPortfolio(
 	ctx context.Context,
 	portfolioID int64,
 	startingValue decimal.Decimal,
 	baseCurrency string,
 	dateFrom, dateTo time.Time,
+	strategy string,
+	rebalanceInterval string,
+	rebalanceThresholdPct *decimal.Decimal,
 ) ([]EquityCurvePoint, portfolioMeta, []string, error) {
 	mp, err := s.modelPortfolios.Get(ctx, portfolioID)
 	if err != nil {
@@ -305,13 +331,16 @@ func (s *Service) resolveModelPortfolio(
 
 	// Simulate equity curve.
 	simInput := SimulateEquityCurveInput{
-		StartingValue: startingValue,
-		Weights:       weights,
-		PricesBySym:   pricesBySym,
-		BaseCurrency:  baseCurrency,
-		DateFrom:      dateFrom,
-		DateTo:        dateTo,
-		FxRates:       fxRates,
+		StartingValue:         startingValue,
+		Weights:               weights,
+		PricesBySym:           pricesBySym,
+		BaseCurrency:          baseCurrency,
+		DateFrom:              dateFrom,
+		DateTo:                dateTo,
+		FxRates:               fxRates,
+		Strategy:              strategy,
+		RebalanceInterval:     rebalanceInterval,
+		RebalanceThresholdPct: rebalanceThresholdPct,
 	}
 
 	simOutput := SimulateEquityCurve(simInput)
@@ -325,6 +354,7 @@ func (s *Service) resolveModelPortfolio(
 		Weights:     weights,
 		Currency:    baseCurrency,
 		PricesBySym: pricesBySym,
+		Strategy:    strategy,
 	}
 
 	return curve, meta, warnings, nil
@@ -544,6 +574,7 @@ type portfolioMeta interface {
 	getID() int64
 	getName() string
 	getType() PortfolioType
+	getStrategy() string
 }
 
 // modelPortfolioMeta implements portfolioMeta for model portfolios.
@@ -553,11 +584,13 @@ type modelPortfolioMeta struct {
 	Weights     []ModelPortfolioWeight
 	Currency    string
 	PricesBySym map[string][]market.HistoricalPrice // marketSym -> price series
+	Strategy    string                              // effective allocation strategy
 }
 
 func (m *modelPortfolioMeta) getID() int64           { return m.ID }
 func (m *modelPortfolioMeta) getName() string        { return m.Name }
 func (m *modelPortfolioMeta) getType() PortfolioType { return PortTypeModel }
+func (m *modelPortfolioMeta) getStrategy() string    { return m.Strategy }
 
 // realPortfolioMeta implements portfolioMeta for real portfolios.
 type realPortfolioMeta struct {
@@ -571,13 +604,15 @@ type realPortfolioMeta struct {
 func (r *realPortfolioMeta) getID() int64           { return r.ID }
 func (r *realPortfolioMeta) getName() string        { return r.Name }
 func (r *realPortfolioMeta) getType() PortfolioType { return PortTypeReal }
+func (r *realPortfolioMeta) getStrategy() string    { return "" } // real portfolios are never simulated
 
 // emptyPortfolioComparison returns a PortfolioComparison with an empty-state message.
 func (s *Service) emptyPortfolioComparison(meta portfolioMeta, message string) *PortfolioComparison {
 	return &PortfolioComparison{
-		ID:   meta.getID(),
-		Name: meta.getName(),
-		Type: meta.getType(),
+		ID:       meta.getID(),
+		Name:     meta.getName(),
+		Type:     meta.getType(),
+		Strategy: meta.getStrategy(),
 		ReturnMetrics: &ReturnMetrics{
 			HasInsufficientData: true,
 		},
@@ -588,9 +623,10 @@ func (s *Service) emptyPortfolioComparison(meta portfolioMeta, message string) *
 // computePortfolioMetrics computes all per-portfolio metrics from an equity curve.
 func (s *Service) computePortfolioMetrics(curve []EquityCurvePoint, meta portfolioMeta, riskFreeRatePct *decimal.Decimal) *PortfolioComparison {
 	pc := &PortfolioComparison{
-		ID:   meta.getID(),
-		Name: meta.getName(),
-		Type: meta.getType(),
+		ID:       meta.getID(),
+		Name:     meta.getName(),
+		Type:     meta.getType(),
+		Strategy: meta.getStrategy(),
 	}
 
 	if len(curve) < 2 {

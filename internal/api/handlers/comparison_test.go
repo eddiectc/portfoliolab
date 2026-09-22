@@ -810,6 +810,128 @@ func TestParseComparisonRequest_MissingRequiredFields(t *testing.T) {
 	}
 }
 
+// --- Strategy / Rebalance Params Tests ---
+
+func TestParseComparisonRequest_StrategyParams(t *testing.T) {
+	base := func() url.Values {
+		return url.Values{
+			"portfolio_a_id":   {"1"},
+			"portfolio_a_type": {"model"},
+			"portfolio_b_id":   {"2"},
+			"portfolio_b_type": {"model"},
+		}
+	}
+
+	t.Run("rebalanced with interval and threshold", func(t *testing.T) {
+		q := base()
+		q.Set("strategy", "rebalanced")
+		q.Set("rebalance_interval", "monthly")
+		q.Set("rebalance_threshold_pct", "5")
+		req, err := parseComparisonRequest(q)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if req.Strategy != comparison.StrategyRebalanced {
+			t.Errorf("expected strategy rebalanced, got %q", req.Strategy)
+		}
+		if req.RebalanceInterval != comparison.IntervalMonthly {
+			t.Errorf("expected interval monthly, got %q", req.RebalanceInterval)
+		}
+		if req.RebalanceThresholdPct == nil || !req.RebalanceThresholdPct.Equal(decimal.MustParse("5")) {
+			t.Errorf("unexpected threshold: %v", req.RebalanceThresholdPct)
+		}
+	})
+
+	t.Run("all valid strategy and interval combinations", func(t *testing.T) {
+		for _, s := range []string{"buy_and_hold", "rebalanced"} {
+			for _, iv := range []string{"monthly", "quarterly", "annual"} {
+				q := base()
+				q.Set("strategy", s)
+				q.Set("rebalance_interval", iv)
+				if _, err := parseComparisonRequest(q); err != nil {
+					t.Errorf("strategy=%s interval=%s: unexpected error: %v", s, iv, err)
+				}
+			}
+		}
+	})
+
+	t.Run("invalid strategy", func(t *testing.T) {
+		q := base()
+		q.Set("strategy", "turbo")
+		_, err := parseComparisonRequest(q)
+		if err == nil || err.Code != "INVALID_STRATEGY" {
+			t.Errorf("expected INVALID_STRATEGY, got %v", err)
+		}
+	})
+
+	t.Run("invalid rebalance interval", func(t *testing.T) {
+		q := base()
+		q.Set("strategy", "rebalanced")
+		q.Set("rebalance_interval", "weekly")
+		_, err := parseComparisonRequest(q)
+		if err == nil || err.Code != "INVALID_REBALANCE_INTERVAL" {
+			t.Errorf("expected INVALID_REBALANCE_INTERVAL, got %v", err)
+		}
+	})
+
+	t.Run("invalid rebalance threshold", func(t *testing.T) {
+		for _, v := range []string{"abc", "-1", "101"} {
+			q := base()
+			q.Set("rebalance_threshold_pct", v)
+			_, err := parseComparisonRequest(q)
+			if err == nil || err.Code != "INVALID_REBALANCE_THRESHOLD" {
+				t.Errorf("threshold=%s: expected INVALID_REBALANCE_THRESHOLD, got %v", v, err)
+			}
+		}
+	})
+
+	t.Run("boundary threshold values accepted", func(t *testing.T) {
+		for _, v := range []string{"0", "100"} {
+			q := base()
+			q.Set("rebalance_threshold_pct", v)
+			if _, err := parseComparisonRequest(q); err != nil {
+				t.Errorf("threshold=%s: unexpected error: %v", v, err)
+			}
+		}
+	})
+}
+
+func TestComparisonHandleComparison_StrategyPassedToService(t *testing.T) {
+	mockSvc := &mockComparisonService{result: makeTestComparisonResult()}
+	r := chi.NewRouter()
+	handler := NewComparisonHandler(mockSvc)
+	handler.RegisterRoutes(r)
+
+	q := url.Values{
+		"portfolio_a_id":          {"1"},
+		"portfolio_a_type":        {"model"},
+		"portfolio_b_id":          {"2"},
+		"portfolio_b_type":        {"model"},
+		"strategy":                {"rebalanced"},
+		"rebalance_interval":      {"annual"},
+		"rebalance_threshold_pct": {"2.5"},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/comparison?"+q.Encode(), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if !mockSvc.called {
+		t.Fatal("expected service to be called")
+	}
+	if mockSvc.req.Strategy != comparison.StrategyRebalanced {
+		t.Errorf("expected service strategy rebalanced, got %q", mockSvc.req.Strategy)
+	}
+	if mockSvc.req.RebalanceInterval != comparison.IntervalAnnual {
+		t.Errorf("expected service interval annual, got %q", mockSvc.req.RebalanceInterval)
+	}
+	if mockSvc.req.RebalanceThresholdPct == nil || !mockSvc.req.RebalanceThresholdPct.Equal(decimal.MustParse("2.5")) {
+		t.Errorf("unexpected service threshold: %v", mockSvc.req.RebalanceThresholdPct)
+	}
+}
+
 // --- Route Registration Tests ---
 
 func TestComparisonRoutesRegistered(t *testing.T) {

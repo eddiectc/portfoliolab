@@ -35,6 +35,32 @@ var validPortfolioTypeNames = []string{
 	string(comparison.PortTypeReal),
 }
 
+// validStrategies is the set of accepted allocation strategy values.
+var validStrategies = map[string]bool{
+	comparison.StrategyBuyAndHold: true,
+	comparison.StrategyRebalanced: true,
+}
+
+// validStrategyNames lists the accepted allocation strategy values for error messages.
+var validStrategyNames = []string{
+	comparison.StrategyBuyAndHold,
+	comparison.StrategyRebalanced,
+}
+
+// validRebalanceIntervals is the set of accepted rebalance interval values.
+var validRebalanceIntervals = map[string]bool{
+	comparison.IntervalMonthly:   true,
+	comparison.IntervalQuarterly: true,
+	comparison.IntervalAnnual:    true,
+}
+
+// validRebalanceIntervalNames lists the accepted rebalance interval values for error messages.
+var validRebalanceIntervalNames = []string{
+	comparison.IntervalMonthly,
+	comparison.IntervalQuarterly,
+	comparison.IntervalAnnual,
+}
+
 // comparisonService is the interface the handler depends on.
 type comparisonService interface {
 	ComputeComparison(ctx context.Context, req comparison.ComparisonRequest) (*comparison.ComparisonResult, error)
@@ -57,7 +83,8 @@ func (h *ComparisonHandler) RegisterRoutes(r *chi.Mux) {
 
 // HandleComparison handles GET /api/comparison.
 // Query params: portfolio_a_id, portfolio_a_type, portfolio_b_id, portfolio_b_type,
-// period, date_from, date_to, base_currency, starting_value, risk_free_rate.
+// period, date_from, date_to, base_currency, starting_value, risk_free_rate,
+// strategy, rebalance_interval, rebalance_threshold_pct.
 func (h *ComparisonHandler) HandleComparison(w http.ResponseWriter, r *http.Request) {
 	req, parseErr := parseComparisonRequest(r.URL.Query())
 	if parseErr != nil {
@@ -188,6 +215,37 @@ func parseComparisonRequest(query url.Values) (comparison.ComparisonRequest, *AP
 		} else {
 			return req, &APIError{Code: "INVALID_RISK_FREE_RATE", Error: "invalid risk_free_rate: " + v + ", must be a number"}
 		}
+	}
+
+	// --- Allocation strategy (model portfolios only) ---
+	if v := query.Get("strategy"); v != "" {
+		if !validStrategies[v] {
+			return req, &APIError{
+				Code:  "INVALID_STRATEGY",
+				Error: "invalid strategy: " + v + ", must be one of: " + strings.Join(validStrategyNames, ", "),
+			}
+		}
+		req.Strategy = v
+	}
+
+	// --- Rebalance interval ---
+	if v := query.Get("rebalance_interval"); v != "" {
+		if !validRebalanceIntervals[v] {
+			return req, &APIError{
+				Code:  "INVALID_REBALANCE_INTERVAL",
+				Error: "invalid rebalance_interval: " + v + ", must be one of: " + strings.Join(validRebalanceIntervalNames, ", "),
+			}
+		}
+		req.RebalanceInterval = v
+	}
+
+	// --- Rebalance drift threshold (percentage points) ---
+	if v := query.Get("rebalance_threshold_pct"); v != "" {
+		d, err := decimal.Parse(v)
+		if err != nil || d.IsNeg() || d.Cmp(decimal.MustParse("100")) > 0 {
+			return req, &APIError{Code: "INVALID_REBALANCE_THRESHOLD", Error: "invalid rebalance_threshold_pct: " + v + ", must be a number between 0 and 100"}
+		}
+		req.RebalanceThresholdPct = &d
 	}
 
 	return req, nil

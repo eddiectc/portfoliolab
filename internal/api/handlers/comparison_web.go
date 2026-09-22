@@ -50,6 +50,10 @@ type comparisonFilter struct {
 	BaseCurrency   string
 	StartingValue  string
 	RiskFreeRate   string
+	// Strategy and rebalance parameters (model portfolios only).
+	Strategy              string
+	RebalanceInterval     string
+	RebalanceThresholdPct string
 }
 
 // yearlyReturnRow holds a merged yearly return for template display.
@@ -81,16 +85,19 @@ type comparisonPageData struct {
 	Portfolios      []portfolio.Portfolio
 	ModelPortfolios []modelportfolio.ModelPortfolioSummary
 	// UI state.
-	SelectedPortfolioA     string // combined: m123 or r456
-	SelectedPortfolioAType string
-	SelectedPortfolioB     string // combined: m123 or r456
-	SelectedPortfolioBType string
-	SelectedPeriod         string
-	SelectedDateFrom       string
-	SelectedDateTo         string
-	SelectedBaseCurrency   string
-	SelectedStartingValue  string
-	SelectedRiskFreeRate   string
+	SelectedPortfolioA         string // combined: m123 or r456
+	SelectedPortfolioAType     string
+	SelectedPortfolioB         string // combined: m123 or r456
+	SelectedPortfolioBType     string
+	SelectedPeriod             string
+	SelectedDateFrom           string
+	SelectedDateTo             string
+	SelectedBaseCurrency       string
+	SelectedStartingValue      string
+	SelectedRiskFreeRate       string
+	SelectedStrategy           string
+	SelectedRebalanceInterval  string
+	SelectedRebalanceThreshold string
 	// Effective period (intersection of both portfolios' data ranges).
 	EffectiveDateFrom *time.Time
 	EffectiveDateTo   *time.Time
@@ -205,34 +212,47 @@ func (h *ComparisonWebHandler) buildPageData(
 		riskFreeRate = "0"
 	}
 
+	// Display defaults for strategy and rebalance interval.
+	strategy := filter.Strategy
+	if strategy == "" {
+		strategy = comparison.StrategyBuyAndHold
+	}
+	rebalanceInterval := filter.RebalanceInterval
+	if rebalanceInterval == "" {
+		rebalanceInterval = comparison.IntervalQuarterly
+	}
+
 	pd := comparisonPageData{
-		PageData:                web.PageData{Title: "Portfolio Comparison", Flash: getFlash(w, r)},
-		Result:                  result,
-		ValueGrowthChartData:    valueGrowthChart,
-		DrawdownChartData:       drawdownChart,
-		AnnualReturnsChartData:  annualReturnsChart,
-		AnnualHistogramChart:    annualHist,
-		MonthlyHistogramChart:   monthlyHist,
-		OverlapChartData:        overlapChart,
-		SectorDriftChart:        sectorDriftChart,
-		CountryDriftChart:       countryDriftChart,
-		MergedHoldingsData:      mergedHoldings,
-		CorrelationMatrixAChart: corrMatrixA,
-		CorrelationMatrixBChart: corrMatrixB,
-		YearlyReturnsMerged:     mergedYearly,
-		Portfolios:              portfolios,
-		ModelPortfolios:         modelPortfolios,
-		SelectedPortfolioA:      portfolioPrefix(filter.PortfolioAType) + strconv.FormatInt(filter.PortfolioAID, 10),
-		SelectedPortfolioAType:  string(filter.PortfolioAType),
-		SelectedPortfolioB:      portfolioPrefix(filter.PortfolioBType) + strconv.FormatInt(filter.PortfolioBID, 10),
-		SelectedPortfolioBType:  string(filter.PortfolioBType),
-		SelectedPeriod:          period,
-		SelectedDateFrom:        filter.DateFrom,
-		SelectedDateTo:          filter.DateTo,
-		SelectedBaseCurrency:    filter.BaseCurrency,
-		SelectedStartingValue:   startingValue,
-		SelectedRiskFreeRate:    riskFreeRate,
-		PeriodURLs:              buildComparisonPeriodURLs(filter, riskFreeRate),
+		PageData:                   web.PageData{Title: "Portfolio Comparison", Flash: getFlash(w, r)},
+		Result:                     result,
+		ValueGrowthChartData:       valueGrowthChart,
+		DrawdownChartData:          drawdownChart,
+		AnnualReturnsChartData:     annualReturnsChart,
+		AnnualHistogramChart:       annualHist,
+		MonthlyHistogramChart:      monthlyHist,
+		OverlapChartData:           overlapChart,
+		SectorDriftChart:           sectorDriftChart,
+		CountryDriftChart:          countryDriftChart,
+		MergedHoldingsData:         mergedHoldings,
+		CorrelationMatrixAChart:    corrMatrixA,
+		CorrelationMatrixBChart:    corrMatrixB,
+		YearlyReturnsMerged:        mergedYearly,
+		Portfolios:                 portfolios,
+		ModelPortfolios:            modelPortfolios,
+		SelectedPortfolioA:         portfolioPrefix(filter.PortfolioAType) + strconv.FormatInt(filter.PortfolioAID, 10),
+		SelectedPortfolioAType:     string(filter.PortfolioAType),
+		SelectedPortfolioB:         portfolioPrefix(filter.PortfolioBType) + strconv.FormatInt(filter.PortfolioBID, 10),
+		SelectedPortfolioBType:     string(filter.PortfolioBType),
+		SelectedPeriod:             period,
+		SelectedDateFrom:           filter.DateFrom,
+		SelectedDateTo:             filter.DateTo,
+		SelectedBaseCurrency:       filter.BaseCurrency,
+		SelectedStartingValue:      startingValue,
+		SelectedRiskFreeRate:       riskFreeRate,
+		SelectedStrategy:           strategy,
+		SelectedRebalanceInterval:  rebalanceInterval,
+		SelectedRebalanceThreshold: filter.RebalanceThresholdPct,
+		PeriodURLs:                 buildComparisonPeriodURLs(filter, riskFreeRate),
 	}
 	// Compute effective period as intersection of both portfolios' data ranges.
 	if result != nil {
@@ -355,6 +375,15 @@ func parseComparisonFilter(query map[string][]string) comparisonFilter {
 	if vals, ok := query["risk_free_rate"]; ok && len(vals) > 0 && vals[0] != "" {
 		filter.RiskFreeRate = vals[0]
 	}
+	if vals, ok := query["strategy"]; ok && len(vals) > 0 && vals[0] != "" {
+		filter.Strategy = vals[0]
+	}
+	if vals, ok := query["rebalance_interval"]; ok && len(vals) > 0 && vals[0] != "" {
+		filter.RebalanceInterval = vals[0]
+	}
+	if vals, ok := query["rebalance_threshold_pct"]; ok && len(vals) > 0 && vals[0] != "" {
+		filter.RebalanceThresholdPct = vals[0]
+	}
 
 	return filter
 }
@@ -362,17 +391,24 @@ func parseComparisonFilter(query map[string][]string) comparisonFilter {
 // buildComparisonRequest converts a web filter to a domain ComparisonRequest.
 func buildComparisonRequest(f comparisonFilter) comparison.ComparisonRequest {
 	req := comparison.ComparisonRequest{
-		PortfolioAID:   f.PortfolioAID,
-		PortfolioAType: f.PortfolioAType,
-		PortfolioBID:   f.PortfolioBID,
-		PortfolioBType: f.PortfolioBType,
-		Period:         f.Period,
-		BaseCurrency:   f.BaseCurrency,
-		StartingValue:  parseStartingValue(f.StartingValue),
+		PortfolioAID:      f.PortfolioAID,
+		PortfolioAType:    f.PortfolioAType,
+		PortfolioBID:      f.PortfolioBID,
+		PortfolioBType:    f.PortfolioBType,
+		Period:            f.Period,
+		BaseCurrency:      f.BaseCurrency,
+		StartingValue:     parseStartingValue(f.StartingValue),
+		Strategy:          f.Strategy,
+		RebalanceInterval: f.RebalanceInterval,
 	}
 	if f.RiskFreeRate != "" {
 		if d, err := decimal.Parse(f.RiskFreeRate); err == nil {
 			req.RiskFreeRatePct = &d
+		}
+	}
+	if f.RebalanceThresholdPct != "" {
+		if d, err := decimal.Parse(f.RebalanceThresholdPct); err == nil {
+			req.RebalanceThresholdPct = &d
 		}
 	}
 	return req
@@ -453,6 +489,15 @@ func buildComparisonPeriodURLs(filter comparisonFilter, riskFreeRate string) map
 		}
 		if riskFreeRate != "0" {
 			url += "&risk_free_rate=" + riskFreeRate
+		}
+		if filter.Strategy == comparison.StrategyRebalanced {
+			url += "&strategy=" + comparison.StrategyRebalanced
+			if filter.RebalanceInterval != "" {
+				url += "&rebalance_interval=" + filter.RebalanceInterval
+			}
+			if filter.RebalanceThresholdPct != "" {
+				url += "&rebalance_threshold_pct=" + filter.RebalanceThresholdPct
+			}
 		}
 		urls[p] = url
 	}

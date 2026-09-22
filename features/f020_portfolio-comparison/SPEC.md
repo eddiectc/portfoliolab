@@ -4,7 +4,9 @@
 
 The **Portfolio Comparison Engine** enables side-by-side comparison of any two portfolios — model vs model, model vs real, or real vs real — across a comprehensive set of performance, risk, and distribution metrics.
 
-The comparison engine simulates a buy-and-hold strategy for model portfolios: starting with a configurable base amount (default 10,000 in a selectable base currency), it allocates capital according to the portfolio weights, tracks the value over the selected historical period using available market data, and computes metrics from the resulting value series. Real portfolios use their actual transaction history and positions.
+The comparison engine simulates a buy-and-hold strategy for model portfolios by default: starting with a configurable base amount (default 10,000 in a selectable base currency), it allocates capital according to the portfolio weights, tracks the value over the selected historical period using available market data, and computes metrics from the resulting value series. Real portfolios use their actual transaction history and positions.
+
+Users can optionally select a **rebalancing** strategy for model portfolios: the simulated portfolio is periodically rebalanced back to the target weights on a configurable interval (monthly, quarterly, or annual — default quarterly), with an optional drift threshold that suppresses a rebalance unless a component's weight has drifted beyond it.
 
 ## User Stories
 
@@ -16,6 +18,9 @@ As an investor, I want to select the time period for the comparison using either
 
 ### US-3: Configure Comparison Simulation Parameters
 As an investor, I want to select the base currency and starting value for the comparison simulation, so that I can analyze results in my preferred currency context.
+
+### US-4: Choose Comparison Strategy
+As an investor, I want to choose between buy-and-hold and periodic rebalancing as the simulation strategy for model portfolios, so that I can evaluate whether periodic rebalancing improves performance or risk characteristics relative to simply holding the initial allocation.
 
 ## Scenarios
 
@@ -123,6 +128,25 @@ As an investor, I want to select the base currency and starting value for the co
 **And** all symbols' returns are computed in that currency (using FX rates where needed)
 **And** the ending value and all metrics are expressed in that currency
 
+### Scenario: Compare model portfolios with rebalancing strategy
+**Given** a model portfolio with multiple symbols and target weights
+**When** I select the rebalancing strategy for the comparison
+**Then** the simulated portfolio is rebalanced back to the target weights on the first trading day on or after each interval boundary (quarter start by default)
+**And** between rebalances the portfolio value tracks the price movements of the current holdings without correction
+**And** all metrics (returns, risk, drawdown, correlation, overlap) are computed from the rebalanced equity curve
+
+### Scenario: Rebalancing with drift threshold
+**Given** the rebalancing strategy is selected with an interval and a drift threshold (e.g., 5%)
+**When** the simulation reaches a rebalance boundary
+**Then** if no component's actual weight has deviated from its target weight by at least the threshold (in percentage points), the portfolio is not rebalanced on that date
+**And** if any component's deviation is at least the threshold, all components are rebalanced back to their target weights on that date
+
+### Scenario: Strategy applies to model portfolios only
+**Given** the comparison includes a real portfolio
+**When** the rebalancing strategy is selected
+**Then** the model portfolio is simulated with the rebalancing strategy
+**And** the real portfolio is computed from its actual transaction history and is unaffected by the strategy selection
+
 ### Scenario: Handle symbols with shorter history
 **Given** a model portfolio contains symbols with different data availability windows
 **When** I view the comparison
@@ -157,10 +181,17 @@ As an investor, I want to select the base currency and starting value for the co
 - **Risk-free rate for Sharpe ratio** — The risk-free rate is derived from a short-term government bond proxy (e.g., 3-month Treasury) or defaults to 0% if unavailable; the rate used is displayed to the user
 - **Model portfolio deleted during active comparison** — If a model portfolio used in a comparison is deleted, the comparison shows an error and prompts the user to select a replacement
 - **Starting value configurable** — The default starting value is 10,000 but the user can configure a different amount
+- **Drift threshold suppresses all rebalances** — If no component's weight ever deviates from target by the threshold, the rebalanced equity curve is identical to the buy-and-hold curve
+- **Rebalance boundary falls on a non-trading day** — The rebalance is executed on the first trading day on or after the boundary; if the period ends before any trading day on/after a boundary, no rebalance occurs
 
 ## Constraints
 
-- The comparison simulation uses a buy-and-hold strategy — no rebalancing during the period
+- The default simulation strategy is buy-and-hold; the rebalancing strategy is optional
+- Rebalancing simulation applies to model portfolios only; real portfolios always use their actual transaction history
+- Rebalance intervals: monthly, quarterly, or annual; the default interval is quarterly
+- Rebalancing occurs on the first trading day on or after the interval boundary (quarter starts: Jan 1, Apr 1, Jul 1, Oct 1; month starts: 1st of each month; year start: Jan 1)
+- The optional drift threshold is expressed in percentage points of weight; when set, a rebalance at a boundary happens only if at least one component's actual weight deviates from target by at least the threshold, and when it fires all components are reset to target weights
+- Rebalancing is modeled without transaction costs (no fees, spreads, or slippage), consistent with the transaction-cost non-goal
 - Starting value defaults to 10,000 in the selected base currency; user can configure a different amount
 - The Sharpe ratio uses daily returns annualized (multiplied by √252)
 - The risk-free rate for Sharpe ratio defaults to 0% if no proxy is available; the actual rate used is displayed
@@ -177,8 +208,8 @@ As an investor, I want to select the base currency and starting value for the co
 ## Non-Goals
 
 - **Real-time paper trading** — Comparison is historical analysis only, not live tracking
-- **Rebalancing simulation** — The comparison assumes buy-and-hold; no periodic rebalancing of weights
-- **Transaction cost modeling** — No fees, spreads, or slippage are simulated
+- **Rebalancing of real portfolios** — The rebalancing strategy affects model portfolio simulation only; real portfolios always use their actual transaction history
+- **Transaction cost modeling** — No fees, spreads, or slippage are simulated (including in rebalancing)
 - **Tax lot simulation** — No tax implications are considered
 - **Margin or leverage** — The simulation assumes full cash purchase
 - **More than 2 portfolios** — Comparisons are limited to 2 portfolios at a time

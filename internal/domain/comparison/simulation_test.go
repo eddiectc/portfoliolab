@@ -66,6 +66,24 @@ func assertCurveValueApprox(t *testing.T, name string, curve []EquityCurvePoint,
 	}
 }
 
+// pricesAt builds a price series for explicit dates (used when the trading
+// days are not consecutive calendar days, e.g. a gap across a month boundary).
+func pricesAt(t *testing.T, dates []time.Time, values []float64, currency string) []market.HistoricalPrice {
+	t.Helper()
+	if len(dates) != len(values) {
+		t.Fatalf("pricesAt: dates(%d) and values(%d) length mismatch", len(dates), len(values))
+	}
+	out := make([]market.HistoricalPrice, len(values))
+	for i, v := range values {
+		c, _ := decimal.NewFromFloat64(v)
+		out[i] = market.HistoricalPrice{Date: dates[i], Close: c, Currency: currency}
+	}
+	return out
+}
+
+// fp returns a pointer to a float64 (for optional threshold test fields).
+func fp(v float64) *float64 { return &v }
+
 // --- SimulateEquityCurve ---
 
 func TestSimulateEquityCurve(t *testing.T) {
@@ -309,6 +327,161 @@ func TestSimulateEquityCurve(t *testing.T) {
 			if output.PeriodClipped != tt.wantPeriodClipped {
 				t.Errorf("%s: PeriodClipped = %v, want %v", tt.name, output.PeriodClipped, tt.wantPeriodClipped)
 			}
+		})
+	}
+}
+
+// --- SimulateEquityCurve (rebalanced) ---
+
+func TestSimulateEquityCurveRebalanced(t *testing.T) {
+	weights := []ModelPortfolioWeight{
+		weight(t, "AAPL", "AAPL", "USD", 0.5),
+		weight(t, "GOOG", "GOOG", "USD", 0.5),
+	}
+	startingValue, _ := decimal.NewFromFloat64(10000)
+
+	// janDiverge: prices cross the Feb 1, 2024 monthly boundary (Jan 29 - Feb 3).
+	// At the boundary AAPL has risen to 110 and GOOG fallen to 90 (5pp drift
+	// each from the 50/50 target), then both keep moving so the strategies
+	// diverge after the re-anchor.
+	janDiverge := map[string][]market.HistoricalPrice{
+		"AAPL": prices(t, day(t, 2024, 1, 29), []float64{100, 100, 100, 110, 121, 133.1}, "USD"),
+		"GOOG": prices(t, day(t, 2024, 1, 29), []float64{100, 100, 100, 90, 81, 72.9}, "USD"),
+	}
+
+	tests := []struct {
+		name              string
+		pricesBySym       map[string][]market.HistoricalPrice
+		interval          string
+		thresholdPct      *float64 // drift threshold in percentage points; nil = unconditional
+		wantCurveLen      int
+		wantRebalancedEnd float64
+		wantBuyAndHoldEnd float64
+	}{
+		{
+			name:              "rebalanced diverges from buy-and-hold (monthly, no threshold)",
+			pricesBySym:       janDiverge,
+			interval:          IntervalMonthly,
+			thresholdPct:      nil,
+			wantCurveLen:      6,
+			wantRebalancedEnd: 10100, // re-anchored to 50/50 at the Feb 1 boundary
+			wantBuyAndHoldEnd: 10300, // held from the period start
+		},
+		{
+			name:              "threshold suppresses rebalance when drift is below it",
+			pricesBySym:       janDiverge,
+			interval:          IntervalMonthly,
+			thresholdPct:      fp(6), // 5pp drift < 6pp threshold -> boundary skipped
+			wantCurveLen:      6,
+			wantRebalancedEnd: 10300, // matches buy-and-hold
+			wantBuyAndHoldEnd: 10300,
+		},
+		{
+			name:              "threshold triggers rebalance when drift meets it",
+			pricesBySym:       janDiverge,
+			interval:          IntervalMonthly,
+			thresholdPct:      fp(5), // 5pp drift >= 5pp threshold -> boundary fires
+			wantCurveLen:      6,
+			wantRebalancedEnd: 10100,
+			wantBuyAndHoldEnd: 10300,
+		},
+		{
+			name: "boundary on a non-trading day rolls forward to the next trading day",
+			pricesBySym: map[string][]market.HistoricalPrice{
+				"AAPL": pricesAt(t, []time.Time{
+					day(t, 2024, 1, 30), day(t, 2024, 1, 31), day(t, 2024, 2, 2), day(t, 2024, 2, 3),
+				}, []float64{100, 100, 120, 144}, "USD"),
+				"GOOG": pricesAt(t, []time.Time{
+					day(t, 2024, 1, 30), day(t, 2024, 1, 31), day(t, 2024, 2, 2), day(t, 2024, 2, 3),
+				}, []float64{100, 100, 80, 64}, "USD"),
+			},
+			interval:          IntervalMonthly,
+			thresholdPct:      nil,
+			wantCurveLen:      4,
+			wantRebalancedEnd: 10000, // rebalanced on Feb 2 (Feb 1 has no data)
+			wantBuyAndHoldEnd: 10400,
+		},
+		{
+			name: "no interval boundary in period matches buy-and-hold",
+			pricesBySym: map[string][]market.HistoricalPrice{
+				"AAPL": prices(t, day(t, 2024, 1, 2), []float64{100, 101, 102, 103, 104, 105, 106}, "USD"),
+				"GOOG": prices(t, day(t, 2024, 1, 2), []float64{100, 99, 98, 97, 96, 95, 94}, "USD"),
+			},
+			interval:          IntervalMonthly,
+			thresholdPct:      nil,
+			wantCurveLen:      7,
+			wantRebalancedEnd: 10000, // no boundary before Feb 1
+			wantBuyAndHoldEnd: 10000,
+		},
+		{
+			name: "quarterly boundary re-anchors",
+			pricesBySym: map[string][]market.HistoricalPrice{
+				"AAPL": prices(t, day(t, 2024, 3, 30), []float64{100, 100, 110, 121}, "USD"),
+				"GOOG": prices(t, day(t, 2024, 3, 30), []float64{100, 100, 90, 81}, "USD"),
+			},
+			interval:          IntervalQuarterly,
+			thresholdPct:      nil,
+			wantCurveLen:      4,
+			wantRebalancedEnd: 10000, // rebalanced on Apr 1
+			wantBuyAndHoldEnd: 10100,
+		},
+		{
+			name: "annual boundary re-anchors",
+			pricesBySym: map[string][]market.HistoricalPrice{
+				"AAPL": prices(t, day(t, 2023, 12, 30), []float64{100, 100, 110, 121}, "USD"),
+				"GOOG": prices(t, day(t, 2023, 12, 30), []float64{100, 100, 90, 81}, "USD"),
+			},
+			interval:          IntervalAnnual,
+			thresholdPct:      nil,
+			wantCurveLen:      4,
+			wantRebalancedEnd: 10000, // rebalanced on Jan 1
+			wantBuyAndHoldEnd: 10100,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var thresholdPtr *decimal.Decimal
+			if tt.thresholdPct != nil {
+				d, _ := decimal.NewFromFloat64(*tt.thresholdPct)
+				thresholdPtr = &d
+			}
+
+			run := func(strategy string) []EquityCurvePoint {
+				out := SimulateEquityCurve(SimulateEquityCurveInput{
+					StartingValue:         startingValue,
+					Weights:               weights,
+					PricesBySym:           tt.pricesBySym,
+					BaseCurrency:          "USD",
+					Strategy:              strategy,
+					RebalanceInterval:     tt.interval,
+					RebalanceThresholdPct: thresholdPtr,
+				})
+				return out.EquityCurve
+			}
+
+			rebalanced := run(StrategyRebalanced)
+			assertCurveLen(t, tt.name+" (rebalanced)", rebalanced, tt.wantCurveLen)
+			if len(rebalanced) == 0 {
+				t.Fatalf("%s: rebalanced curve is empty", tt.name)
+			}
+			assertCurveValueApprox(t, tt.name+" (rebalanced)", rebalanced, len(rebalanced)-1, tt.wantRebalancedEnd)
+
+			// NavPerUnit must equal PortfolioValue for every point.
+			for i, p := range rebalanced {
+				if p.NavPerUnit == nil {
+					t.Errorf("%s: rebalanced point %d NavPerUnit is nil, want non-nil", tt.name, i)
+				} else if !p.NavPerUnit.Equal(p.PortfolioValue) {
+					t.Errorf("%s: rebalanced point %d NavPerUnit = %v, want == PortfolioValue %v", tt.name, i, p.NavPerUnit, p.PortfolioValue)
+				}
+			}
+
+			buyAndHold := run(StrategyBuyAndHold)
+			assertCurveLen(t, tt.name+" (buy-and-hold)", buyAndHold, tt.wantCurveLen)
+			if len(buyAndHold) == 0 {
+				t.Fatalf("%s: buy-and-hold curve is empty", tt.name)
+			}
+			assertCurveValueApprox(t, tt.name+" (buy-and-hold)", buyAndHold, len(buyAndHold)-1, tt.wantBuyAndHoldEnd)
 		})
 	}
 }
