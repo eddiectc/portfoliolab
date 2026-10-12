@@ -141,16 +141,21 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 	if rebalanceInterval == "" {
 		rebalanceInterval = IntervalQuarterly
 	}
+	// Default the drawdown trigger for the asymmetric strategy when unset.
+	drawdownTriggerPct := req.DrawdownTriggerPct
+	if drawdownTriggerPct == nil {
+		drawdownTriggerPct = &DefaultDrawdownTriggerPct
+	}
 
 	// Resolve Portfolio A equity curve.
-	aCurve, aData, aWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioAID, req.PortfolioAType, req.StartingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, req.RebalanceThresholdPct)
+	aCurve, aData, aWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioAID, req.PortfolioAType, req.StartingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, req.RebalanceThresholdPct, req.StressedAID, drawdownTriggerPct)
 	if err != nil {
 		return nil, fmt.Errorf("resolve portfolio A: %w", err)
 	}
 	result.Warnings = append(result.Warnings, aWarnings...)
 
 	// Resolve Portfolio B equity curve.
-	bCurve, bData, bWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioBID, req.PortfolioBType, req.StartingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, req.RebalanceThresholdPct)
+	bCurve, bData, bWarnings, err := s.resolveEquityCurve(ctx, req.PortfolioBID, req.PortfolioBType, req.StartingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, req.RebalanceThresholdPct, req.StressedBID, drawdownTriggerPct)
 	if err != nil {
 		return nil, fmt.Errorf("resolve portfolio B: %w", err)
 	}
@@ -201,14 +206,18 @@ func (s *Service) ComputeComparison(ctx context.Context, req ComparisonRequest) 
 	return result, nil
 }
 
-// effectiveStrategy normalizes the requested allocation strategy. Only
-// StrategyRebalanced opts into rebalancing; anything else (including empty or
-// unrecognized values) runs as buy-and-hold.
+// effectiveStrategy normalizes the requested allocation strategy.
+// StrategyRebalanced and StrategyRebalancedAsymmetric opt into rebalancing;
+// anything else (including empty or unrecognized values) runs as buy-and-hold.
 func effectiveStrategy(strategy string) string {
-	if strategy == StrategyRebalanced {
+	switch strategy {
+	case StrategyRebalanced:
 		return StrategyRebalanced
+	case StrategyRebalancedAsymmetric:
+		return StrategyRebalancedAsymmetric
+	default:
+		return StrategyBuyAndHold
 	}
-	return StrategyBuyAndHold
 }
 
 // resolveDateRange parses the period string into a date range.
@@ -288,10 +297,12 @@ func (s *Service) resolveEquityCurve(
 	strategy string,
 	rebalanceInterval string,
 	rebalanceThresholdPct *decimal.Decimal,
+	stressedID *int64,
+	drawdownTriggerPct *decimal.Decimal,
 ) ([]EquityCurvePoint, portfolioMeta, []string, error) {
 	switch portType {
 	case PortTypeModel:
-		return s.resolveModelPortfolio(ctx, portfolioID, startingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, rebalanceThresholdPct)
+		return s.resolveModelPortfolio(ctx, portfolioID, startingValue, baseCurrency, dateFrom, dateTo, strategy, rebalanceInterval, rebalanceThresholdPct, stressedID, drawdownTriggerPct)
 	case PortTypeReal:
 		return s.resolveRealPortfolio(ctx, portfolioID, dateFrom, dateTo)
 	default:
@@ -310,6 +321,8 @@ func (s *Service) resolveModelPortfolio(
 	strategy string,
 	rebalanceInterval string,
 	rebalanceThresholdPct *decimal.Decimal,
+	stressedID *int64,
+	drawdownTriggerPct *decimal.Decimal,
 ) ([]EquityCurvePoint, portfolioMeta, []string, error) {
 	mp, err := s.modelPortfolios.Get(ctx, portfolioID)
 	if err != nil {
@@ -318,6 +331,16 @@ func (s *Service) resolveModelPortfolio(
 
 	// Resolve market data symbols for entries.
 	weights, symbolWarnings := s.resolveModelWeights(ctx, mp, baseCurrency)
+
+	// For the asymmetric strategy, resolve the stressed target portfolio and
+	// validate that it holds exactly the same components as the normal one.
+	var stressedWeights map[string]decimal.Decimal
+	if strategy == StrategyRebalancedAsymmetric {
+		stressedWeights, err = s.resolveStressedWeights(ctx, weights, stressedID, baseCurrency)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
 
 	// Fetch historical prices for all symbols.
 	pricesBySym, pricesWarnings := s.fetchHistoricalPricesForWeights(ctx, weights, dateFrom, dateTo)
@@ -341,6 +364,8 @@ func (s *Service) resolveModelPortfolio(
 		Strategy:              strategy,
 		RebalanceInterval:     rebalanceInterval,
 		RebalanceThresholdPct: rebalanceThresholdPct,
+		StressedWeights:       stressedWeights,
+		DrawdownTriggerPct:    drawdownTriggerPct,
 	}
 
 	simOutput := SimulateEquityCurve(simInput)
@@ -358,6 +383,45 @@ func (s *Service) resolveModelPortfolio(
 	}
 
 	return curve, meta, warnings, nil
+}
+
+// resolveStressedWeights resolves the stressed model portfolio used by the
+// asymmetric strategy and validates that it holds exactly the same component
+// set (internal symbols) as the normal portfolio. Returns a map of internal
+// symbol to stressed target weight (fraction).
+func (s *Service) resolveStressedWeights(ctx context.Context, normalWeights []ModelPortfolioWeight, stressedID *int64, baseCurrency string) (map[string]decimal.Decimal, error) {
+	if stressedID == nil {
+		return nil, fmt.Errorf("stressed portfolio ID is required for the asymmetric strategy: %w", ErrInvalidStressedPortfolio)
+	}
+	if s.modelPortfolios == nil {
+		return nil, fmt.Errorf("model portfolio source is not available")
+	}
+	stressedMP, err := s.modelPortfolios.Get(ctx, *stressedID)
+	if err != nil {
+		return nil, fmt.Errorf("get stressed portfolio %d: %w", *stressedID, err)
+	}
+
+	stressedResolved, _ := s.resolveModelWeights(ctx, stressedMP, baseCurrency)
+
+	// Validate that the component sets match exactly.
+	normalSet := make(map[string]bool, len(normalWeights))
+	for _, w := range normalWeights {
+		normalSet[w.Symbol] = true
+	}
+	result := make(map[string]decimal.Decimal, len(stressedResolved))
+	for _, w := range stressedResolved {
+		if !normalSet[w.Symbol] {
+			return nil, fmt.Errorf("stressed portfolio %d contains component %s that is not in the portfolio: %w", *stressedID, w.Symbol, ErrInvalidStressedPortfolio)
+		}
+		result[w.Symbol] = w.Weight
+	}
+	for _, w := range normalWeights {
+		if _, ok := result[w.Symbol]; !ok {
+			return nil, fmt.Errorf("stressed portfolio %d is missing component %s: %w", *stressedID, w.Symbol, ErrInvalidStressedPortfolio)
+		}
+	}
+
+	return result, nil
 }
 
 // resolveRealPortfolio fetches the existing equity curve for a real portfolio.

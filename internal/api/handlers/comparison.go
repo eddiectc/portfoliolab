@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -37,14 +38,16 @@ var validPortfolioTypeNames = []string{
 
 // validStrategies is the set of accepted allocation strategy values.
 var validStrategies = map[string]bool{
-	comparison.StrategyBuyAndHold: true,
-	comparison.StrategyRebalanced: true,
+	comparison.StrategyBuyAndHold:           true,
+	comparison.StrategyRebalanced:           true,
+	comparison.StrategyRebalancedAsymmetric: true,
 }
 
 // validStrategyNames lists the accepted allocation strategy values for error messages.
 var validStrategyNames = []string{
 	comparison.StrategyBuyAndHold,
 	comparison.StrategyRebalanced,
+	comparison.StrategyRebalancedAsymmetric,
 }
 
 // validRebalanceIntervals is the set of accepted rebalance interval values.
@@ -84,7 +87,8 @@ func (h *ComparisonHandler) RegisterRoutes(r *chi.Mux) {
 // HandleComparison handles GET /api/comparison.
 // Query params: portfolio_a_id, portfolio_a_type, portfolio_b_id, portfolio_b_type,
 // period, date_from, date_to, base_currency, starting_value, risk_free_rate,
-// strategy, rebalance_interval, rebalance_threshold_pct.
+// strategy, rebalance_interval, rebalance_threshold_pct,
+// stressed_a_id, stressed_b_id, drawdown_trigger_pct.
 func (h *ComparisonHandler) HandleComparison(w http.ResponseWriter, r *http.Request) {
 	req, parseErr := parseComparisonRequest(r.URL.Query())
 	if parseErr != nil {
@@ -94,6 +98,10 @@ func (h *ComparisonHandler) HandleComparison(w http.ResponseWriter, r *http.Requ
 
 	result, err := h.computeResult(r.Context(), req)
 	if err != nil {
+		if errors.Is(err, comparison.ErrInvalidStressedPortfolio) {
+			writeJSONError(w, http.StatusBadRequest, "INVALID_STRESSED_PORTFOLIO", err.Error())
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute comparison")
 		return
 	}
@@ -246,6 +254,45 @@ func parseComparisonRequest(query url.Values) (comparison.ComparisonRequest, *AP
 			return req, &APIError{Code: "INVALID_REBALANCE_THRESHOLD", Error: "invalid rebalance_threshold_pct: " + v + ", must be a number between 0 and 100"}
 		}
 		req.RebalanceThresholdPct = &d
+	}
+
+	// --- Stressed model portfolio A (asymmetric strategy only) ---
+	if v := query.Get("stressed_a_id"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			id := n
+			req.StressedAID = &id
+		} else {
+			return req, &APIError{Code: "INVALID_STRESSED_PORTFOLIO", Error: "invalid stressed_a_id: " + v}
+		}
+	}
+
+	// --- Stressed model portfolio B (asymmetric strategy only) ---
+	if v := query.Get("stressed_b_id"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			id := n
+			req.StressedBID = &id
+		} else {
+			return req, &APIError{Code: "INVALID_STRESSED_PORTFOLIO", Error: "invalid stressed_b_id: " + v}
+		}
+	}
+
+	// --- Drawdown trigger (asymmetric strategy only, percentage points) ---
+	if v := query.Get("drawdown_trigger_pct"); v != "" {
+		d, err := decimal.Parse(v)
+		if err != nil || d.IsNeg() || d.Cmp(decimal.MustParse("100")) > 0 {
+			return req, &APIError{Code: "INVALID_DRAWDOWN_TRIGGER", Error: "invalid drawdown_trigger_pct: " + v + ", must be a number between 0 and 100"}
+		}
+		req.DrawdownTriggerPct = &d
+	}
+
+	// --- Asymmetric strategy requires a stressed portfolio per model side ---
+	if req.Strategy == comparison.StrategyRebalancedAsymmetric {
+		if req.PortfolioAType == comparison.PortTypeModel && req.StressedAID == nil {
+			return req, &APIError{Code: "INVALID_STRESSED_PORTFOLIO", Error: "stressed_a_id is required when strategy is rebalanced_asymmetric and portfolio_a_type is model"}
+		}
+		if req.PortfolioBType == comparison.PortTypeModel && req.StressedBID == nil {
+			return req, &APIError{Code: "INVALID_STRESSED_PORTFOLIO", Error: "stressed_b_id is required when strategy is rebalanced_asymmetric and portfolio_b_type is model"}
+		}
 	}
 
 	return req, nil

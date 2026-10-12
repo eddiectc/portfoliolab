@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -814,6 +815,124 @@ func TestComparison_RebalancedStrategy(t *testing.T) {
 	}
 	if _, code := callComparisonRaw(t, router, base+"&strategy=rebalanced&rebalance_interval=weekly"); code != http.StatusBadRequest {
 		t.Errorf("invalid interval: expected 400, got %d", code)
+	}
+}
+
+// seriesEqual reports whether two equity curves are identical point-for-point.
+func seriesEqual(a, b []equityCurvePoint) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Date != b[i].Date || !a[i].PortfolioValue.Equal(b[i].PortfolioValue) {
+			return false
+		}
+	}
+	return true
+}
+
+func TestComparison_AsymmetricStrategy(t *testing.T) {
+	db, router := setupComparison(t)
+
+	// Normal 50/50 portfolio and a stressed (defensive) portfolio holding the
+	// same component set with reduced AAPL exposure.
+	mp := createModelPortfolio(t, router, "Balanced", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: mustDecimal("50.0")},
+		{Symbol: "MSFT", WeightPct: mustDecimal("50.0")},
+	})
+	sp := createModelPortfolio(t, router, "Defensive", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: mustDecimal("20.0")},
+		{Symbol: "MSFT", WeightPct: mustDecimal("80.0")},
+	})
+
+	// Seed a crash-and-recover price path: AAPL climbs to a high-water mark,
+	// crashes hard enough to breach the 10% trigger, then recovers to a new
+	// high. MSFT is flat.
+	days := 120
+	now := time.Now().UTC()
+	baseDate := now.AddDate(0, 0, -(days + days/5))
+	for i := 0; i <= days; i++ {
+		date := baseDate.AddDate(0, 0, i)
+		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
+			continue
+		}
+		dateStr := date.Format("2006-01-02")
+		var aapl float64
+		switch {
+		case i <= 40:
+			aapl = 100 + 50.0*float64(i)/40.0 // 100 -> 150, build the HWM
+		case i <= 70:
+			aapl = 150 - 40.0*float64(i-40)/30.0 // 150 -> 110, breach the trigger
+		default:
+			aapl = 110 + 50.0*float64(i-70)/50.0 // 110 -> 160, new high
+		}
+		for sym, price := range map[string]string{
+			"AAPL": fmt.Sprintf("%.2f", aapl),
+			"MSFT": "100.00",
+		} {
+			if _, err := db.Exec(
+				`INSERT OR REPLACE INTO market_data (symbol, price, currency, data_type, source, date)
+				 VALUES (?, ?, 'USD', 'stock', 'yahoo', ?)`,
+				sym, price, dateStr,
+			); err != nil {
+				t.Fatalf("insert %s %s: %v", sym, dateStr, err)
+			}
+		}
+	}
+	for sym, price := range map[string]string{
+		"AAPL": "160.00",
+		"MSFT": "100.00",
+	} {
+		if _, err := db.Exec(
+			`INSERT OR REPLACE INTO market_data (symbol, price, currency, data_type, source, date)
+			 VALUES (?, ?, 'USD', 'stock', 'yahoo', '')`, sym, price,
+		); err != nil {
+			t.Fatalf("insert current %s: %v", sym, err)
+		}
+	}
+
+	base := fmt.Sprintf("/api/comparison?portfolio_a_id=%d&portfolio_a_type=model&portfolio_b_id=%d&portfolio_b_type=model&period=All&starting_value=10000", mp, mp)
+	spID := fmt.Sprintf("%d", sp)
+
+	bh := callComparison(t, router, base)
+	if len(bh.PortfolioA.ValueGrowthSeries) == 0 {
+		t.Fatal("buy_and_hold value_growth_series is empty")
+	}
+	reb := callComparison(t, router, base+"&strategy=rebalanced&rebalance_interval=monthly")
+	asym := callComparison(t, router, base+"&strategy=rebalanced_asymmetric&rebalance_interval=monthly&stressed_a_id="+spID+"&stressed_b_id="+spID+"&drawdown_trigger_pct=10")
+
+	if asym.PortfolioA.Strategy != "rebalanced_asymmetric" {
+		t.Errorf("asymmetric strategy = %q, want rebalanced_asymmetric", asym.PortfolioA.Strategy)
+	}
+	if len(asym.PortfolioA.ValueGrowthSeries) == 0 {
+		t.Fatal("asymmetric value_growth_series is empty")
+	}
+	if len(asym.PortfolioA.ValueGrowthSeries) != len(bh.PortfolioA.ValueGrowthSeries) {
+		t.Fatalf("series length mismatch: asymmetric=%d buy_and_hold=%d",
+			len(asym.PortfolioA.ValueGrowthSeries), len(bh.PortfolioA.ValueGrowthSeries))
+	}
+
+	// The crash-and-recover path must make the asymmetric curve diverge from
+	// both buy-and-hold and plain rebalancing.
+	if seriesEqual(bh.PortfolioA.ValueGrowthSeries, asym.PortfolioA.ValueGrowthSeries) {
+		t.Error("expected asymmetric curve to differ from buy_and_hold")
+	}
+	if seriesEqual(reb.PortfolioA.ValueGrowthSeries, asym.PortfolioA.ValueGrowthSeries) {
+		t.Error("expected asymmetric curve to differ from rebalanced")
+	}
+
+	// A stressed portfolio with a different component set is rejected.
+	other := createModelPortfolio(t, router, "Different", []modelportfolio.ModelPortfolioEntry{
+		{Symbol: "AAPL", WeightPct: mustDecimal("50.0")},
+		{Symbol: "GOOGL", WeightPct: mustDecimal("50.0")},
+	})
+	otherID := fmt.Sprintf("%d", other)
+	resp, code := callComparisonRaw(t, router, base+"&strategy=rebalanced_asymmetric&rebalance_interval=monthly&stressed_a_id="+otherID+"&stressed_b_id="+otherID)
+	if code != http.StatusBadRequest {
+		t.Errorf("different component set: expected 400, got %d: %s", code, resp.Body.String())
+	}
+	if !strings.Contains(resp.Body.String(), "INVALID_STRESSED_PORTFOLIO") {
+		t.Errorf("different component set: expected INVALID_STRESSED_PORTFOLIO, got %s", resp.Body.String())
 	}
 }
 

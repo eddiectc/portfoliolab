@@ -69,13 +69,31 @@
             <label>Strategy <select id="strategy" name="strategy" onchange="toggleRebalanceOptions()">
                 <option value="buy_and_hold" {{if eq .SelectedStrategy "buy_and_hold"}}selected{{end}}>Buy &amp; Hold</option>
                 <option value="rebalanced" {{if eq .SelectedStrategy "rebalanced"}}selected{{end}}>Rebalanced</option>
+                <option value="rebalanced_asymmetric" {{if eq .SelectedStrategy "rebalanced_asymmetric"}}selected{{end}}>Rebalanced (asymmetric)</option>
             </select></label>
-            <label class="rebalance-opt" {{if ne .SelectedStrategy "rebalanced"}}style="display:none;"{{end}}>Interval <select id="rebalance_interval" name="rebalance_interval">
+            <label class="rebalance-opt" {{if and (ne .SelectedStrategy "rebalanced") (ne .SelectedStrategy "rebalanced_asymmetric")}}style="display:none;"{{end}}>Interval <select id="rebalance_interval" name="rebalance_interval">
                 <option value="monthly" {{if eq .SelectedRebalanceInterval "monthly"}}selected{{end}}>Monthly</option>
                 <option value="quarterly" {{if eq .SelectedRebalanceInterval "quarterly"}}selected{{end}}>Quarterly</option>
                 <option value="annual" {{if eq .SelectedRebalanceInterval "annual"}}selected{{end}}>Annual</option>
             </select></label>
-            <label class="rebalance-opt" {{if ne .SelectedStrategy "rebalanced"}}style="display:none;"{{end}}>Drift% <input type="number" id="rebalance_threshold_pct" name="rebalance_threshold_pct" value="{{.SelectedRebalanceThreshold}}" step="0.1" min="0" max="100" class="compact-input" title="Rebalance only if drift exceeds this (percentage points); blank = rebalance every interval" /></label>
+            <label class="rebalance-opt" {{if and (ne .SelectedStrategy "rebalanced") (ne .SelectedStrategy "rebalanced_asymmetric")}}style="display:none;"{{end}}>Drift% <input type="number" id="rebalance_threshold_pct" name="rebalance_threshold_pct" value="{{.SelectedRebalanceThreshold}}" step="0.1" min="0" max="100" class="compact-input" title="Rebalance only if drift exceeds this (percentage points); blank = rebalance every interval" /></label>
+        </div>
+
+        {{/* Asymmetric strategy controls — hidden unless asymmetric is selected */}}
+        <div class="filter-group asymmetric-opt" {{if ne .SelectedStrategy "rebalanced_asymmetric"}}style="display:none;"{{end}}>
+            <label>Stressed A <select id="stressed_a_id" name="stressed_a_id">
+                <option value="">— none —</option>
+                {{range .ModelPortfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedStressedAID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select></label>
+            <label>Stressed B <select id="stressed_b_id" name="stressed_b_id">
+                <option value="">— none —</option>
+                {{range .ModelPortfolios}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedStressedBID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select></label>
+            <label>Trigger% <input type="number" id="drawdown_trigger_pct" name="drawdown_trigger_pct" value="{{.SelectedDrawdownTrigger}}" step="1" min="0" max="100" class="compact-input" title="Switch to the stressed target when drawdown from the high-water mark reaches this percentage; back to normal on a new high" /></label>
         </div>
 
         <div class="filter-group filter-actions">
@@ -91,9 +109,13 @@ function toggleCustomDates(e) {
     group.style.display = group.style.display === 'none' ? 'flex' : 'none';
 }
 function toggleRebalanceOptions() {
-    var show = document.getElementById('strategy').value === 'rebalanced';
+    var strategy = document.getElementById('strategy').value;
+    var showRebal = strategy === 'rebalanced' || strategy === 'rebalanced_asymmetric';
     document.querySelectorAll('.rebalance-opt').forEach(function (el) {
-        el.style.display = show ? '' : 'none';
+        el.style.display = showRebal ? '' : 'none';
+    });
+    document.querySelectorAll('.asymmetric-opt').forEach(function (el) {
+        el.style.display = strategy === 'rebalanced_asymmetric' ? '' : 'none';
     });
 }
 toggleRebalanceOptions();
@@ -127,6 +149,40 @@ toggleRebalanceOptions();
     {{.EffectiveDateFrom.Format "2006-01-02"}} → {{.EffectiveDateTo.Format "2006-01-02"}}
     {{if or .Result.PortfolioA.Warnings .Result.PortfolioB.Warnings}}
     <br><span style="color:#856404;">⚠ {{range .Result.PortfolioA.Warnings}}{{.}}{{end}}{{range .Result.PortfolioB.Warnings}}{{.}}{{end}}</span>
+    {{end}}
+</div>
+{{end}}
+
+{{/* Stressed portfolio weight tables — asymmetric strategy only */}}
+{{if or .StressedWeightsA .StressedWeightsB}}
+<div class="analysis-section asymmetric-opt" {{if ne .SelectedStrategy "rebalanced_asymmetric"}}style="display:none;"{{end}}}>
+    <h2>Stressed Target Weights</h2>
+    <p class="section-note">Applied as the rebalance target while the simulated value is below the high-water mark by at least the trigger; the same component set must match the side's normal portfolio.</p>
+    {{if .StressedWeightsA}}
+    <h3>Side A — {{.StressedPortfolioAName}}</h3>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr><th>Symbol</th><th>Weight %</th></tr>
+        </thead>
+        <tbody>
+            {{range .StressedWeightsA}}
+            <tr><td>{{.Symbol}}</td><td>{{printf "%.2f" .WeightPct}}</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+    {{if .StressedWeightsB}}
+    <h3>Side B — {{.StressedPortfolioBName}}</h3>
+    <table class="data-table comparison-table">
+        <thead>
+            <tr><th>Symbol</th><th>Weight %</th></tr>
+        </thead>
+        <tbody>
+            {{range .StressedWeightsB}}
+            <tr><td>{{.Symbol}}</td><td>{{printf "%.2f" .WeightPct}}</td></tr>
+            {{end}}
+        </tbody>
+    </table>
     {{end}}
 </div>
 {{end}}

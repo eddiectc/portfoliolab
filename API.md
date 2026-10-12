@@ -1462,7 +1462,7 @@ Embedded in `SymbolGetResponse.symbol_details`. Includes standard Yahoo fields (
 GET /api/comparison
 ```
 
-Compare any two portfolios (model vs model, model vs real, or real vs real) on performance, risk, drawdown, distribution, overlap, and correlation metrics. Model portfolios use a simulation starting from `starting_value` with the allocation strategy set by `strategy` (buy-and-hold by default, or optionally rebalanced). Real portfolios use actual transaction history and are never simulated or rebalanced.
+Compare any two portfolios (model vs model, model vs real, or real vs real) on performance, risk, drawdown, distribution, overlap, and correlation metrics. Model portfolios use a simulation starting from `starting_value` with the allocation strategy set by `strategy` (buy-and-hold by default, or optionally rebalanced or rebalanced asymmetrically). Real portfolios use actual transaction history and are never simulated or rebalanced.
 
 **Query params:**
 
@@ -1477,9 +1477,12 @@ Compare any two portfolios (model vs model, model vs real, or real vs real) on p
 | `date_to` | string | no | Custom end date (YYYY-MM-DD). Overrides `period`. |
 | `base_currency` | string | no | Base currency for all values (e.g. `USD`, `EUR`). |
 | `starting_value` | string | no | Initial investment for model portfolio simulation. Default: `10000`. |
-| `strategy` | string | no | Allocation strategy for model portfolios: `buy_and_hold` or `rebalanced`. Default: `buy_and_hold`. Ignored for real portfolios. |
-| `rebalance_interval` | string | no | Rebalance frequency when `strategy=rebalanced`: `monthly`, `quarterly`, or `annual`. Default: `quarterly`. |
+| `strategy` | string | no | Allocation strategy for model portfolios: `buy_and_hold`, `rebalanced`, or `rebalanced_asymmetric`. Default: `buy_and_hold`. Ignored for real portfolios. |
+| `rebalance_interval` | string | no | Rebalance frequency when `strategy` is `rebalanced` or `rebalanced_asymmetric`: `monthly`, `quarterly`, or `annual`. Default: `quarterly`. |
 | `rebalance_threshold_pct` | string | no | Drift threshold in percentage points (0–100). When set, rebalance only if a component drifts at least this far from its target weight; otherwise rebalance unconditionally at each interval boundary. No transaction costs are modeled. |
+| `stressed_a_id` | int64 | no | Stressed model portfolio ID for portfolio A. Required when `strategy=rebalanced_asymmetric` and `portfolio_a_type=model`. The stressed portfolio must hold exactly the same component set as portfolio A. |
+| `stressed_b_id` | int64 | no | Stressed model portfolio ID for portfolio B. Required when `strategy=rebalanced_asymmetric` and `portfolio_b_type=model`. The stressed portfolio must hold exactly the same component set as portfolio B. |
+| `drawdown_trigger_pct` | string | no | Drawdown trigger in percentage points (0–100) for `strategy=rebalanced_asymmetric`: the simulation switches to the stressed target when value falls this far below its high-water mark, and back to the normal target only on a new high. Default: `10`. |
 
 **Response:** `200 OK` — `ComparisonResult`
 
@@ -1499,9 +1502,11 @@ Compare any two portfolios (model vs model, model vs real, or real vs real) on p
 | `INVALID_DATE_FROM` | 400 | `date_from` is not a valid date (YYYY-MM-DD) |
 | `INVALID_DATE_TO` | 400 | `date_to` is not a valid date (YYYY-MM-DD) |
 | `INVALID_STARTING_VALUE` | 400 | `starting_value` is not a valid number or is ≤ 0 |
-| `INVALID_STRATEGY` | 400 | `strategy` must be `buy_and_hold` or `rebalanced` |
+| `INVALID_STRATEGY` | 400 | `strategy` must be `buy_and_hold`, `rebalanced`, or `rebalanced_asymmetric` |
 | `INVALID_REBALANCE_INTERVAL` | 400 | `rebalance_interval` must be `monthly`, `quarterly`, or `annual` |
 | `INVALID_REBALANCE_THRESHOLD` | 400 | `rebalance_threshold_pct` must be a number between 0 and 100 |
+| `INVALID_STRESSED_PORTFOLIO` | 400 | `stressed_a_id` / `stressed_b_id` is missing for a model side, not a valid integer, or the stressed portfolio does not hold exactly the same component set as the side's normal portfolio |
+| `INVALID_DRAWDOWN_TRIGGER` | 400 | `drawdown_trigger_pct` must be a number between 0 and 100 |
 | `INTERNAL_ERROR` | 500 | Comparison computation failed |
 
 ### ComparisonResult

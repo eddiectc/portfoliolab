@@ -486,6 +486,174 @@ func TestSimulateEquityCurveRebalanced(t *testing.T) {
 	}
 }
 
+func TestSimulateEquityCurveRebalancedAsymmetric(t *testing.T) {
+	weights := []ModelPortfolioWeight{
+		weight(t, "AAPL", "AAPL", "USD", 0.5),
+		weight(t, "GOOG", "GOOG", "USD", 0.5),
+	}
+	startingValue, _ := decimal.NewFromFloat64(10000)
+
+	d := func(v float64) decimal.Decimal {
+		t.Helper()
+		x, _ := decimal.NewFromFloat64(v)
+		return x
+	}
+	stressedAggressive := map[string]decimal.Decimal{"AAPL": d(0.8), "GOOG": d(0.2)}
+	stressedSame := map[string]decimal.Decimal{"AAPL": d(0.5), "GOOG": d(0.5)}
+
+	// calmPrices: no interval boundary in the period and a mild drawdown
+	// (max 2.5%) that never reaches the 10% trigger.
+	calmPrices := map[string][]market.HistoricalPrice{
+		"AAPL": prices(t, day(t, 2024, 1, 2), []float64{100, 101, 102, 103, 104, 105}, "USD"),
+		"GOOG": prices(t, day(t, 2024, 1, 2), []float64{100, 98, 96, 94, 92, 90}, "USD"),
+	}
+
+	// crashAtBoundary crosses the Feb 1, 2024 monthly boundary with a GOOG
+	// crash: the drawdown hits exactly the 10% trigger on Jan 31, so the
+	// stressed state is already active when the boundary check runs.
+	crashAtBoundary := map[string][]market.HistoricalPrice{
+		"AAPL": prices(t, day(t, 2024, 1, 29), []float64{100, 100, 100, 100, 100, 100}, "USD"),
+		"GOOG": prices(t, day(t, 2024, 1, 29), []float64{100, 100, 80, 70, 65, 60}, "USD"),
+	}
+
+	// recoverBelowTrigger: the drawdown reaches the trigger on Jan 31, then
+	// recovers below the trigger (5% at the Feb 1 boundary) without making a
+	// new high — hysteresis keeps the portfolio in the stressed state.
+	recoverBelowTrigger := map[string][]market.HistoricalPrice{
+		"AAPL": prices(t, day(t, 2024, 1, 29), []float64{100, 100, 100, 100, 100, 100, 100}, "USD"),
+		"GOOG": prices(t, day(t, 2024, 1, 29), []float64{100, 100, 80, 90, 95, 97, 98}, "USD"),
+	}
+
+	// recoveryNewHigh: crash on Jan 31 (10% trigger), re-anchor to the
+	// stressed target at the Feb 1 boundary, then GOOG rallies past the
+	// starting value on Feb 6 (a new high) so the stressed state clears
+	// before the Mar 1 boundary, which re-anchors back to the normal target.
+	googNewHigh := []float64{100, 100, 80, 80, 90, 100, 110, 120, 125}
+	for i := 0; i < 24; i++ {
+		googNewHigh = append(googNewHigh, 125)
+	}
+	googNewHigh = append(googNewHigh, 110) // Mar 2: drop so re-anchoring matters
+	appleFlat := make([]float64, len(googNewHigh))
+	for i := range appleFlat {
+		appleFlat[i] = 100
+	}
+	recoveryNewHigh := map[string][]market.HistoricalPrice{
+		"AAPL": prices(t, day(t, 2024, 1, 29), appleFlat, "USD"),
+		"GOOG": prices(t, day(t, 2024, 1, 29), googNewHigh, "USD"),
+	}
+
+	tests := []struct {
+		name                string
+		pricesBySym         map[string][]market.HistoricalPrice
+		triggerPct          *float64 // drawdown trigger in percentage points; nil = simulation default (10)
+		stressed            map[string]decimal.Decimal
+		wantCurveLen        int
+		wantAsymmetricEnd   float64
+		wantRebalancedEnd   float64
+		wantBuyAndHoldEnd   float64
+		wantEqualRebalanced bool // asymmetric curve must equal plain rebalanced point-for-point
+	}{
+		{
+			name:              "never stressed matches plain strategies",
+			pricesBySym:       calmPrices,
+			triggerPct:        fp(10),
+			stressed:          stressedAggressive,
+			wantCurveLen:      6,
+			wantAsymmetricEnd: 9750,
+			wantRebalancedEnd: 9750,
+			wantBuyAndHoldEnd: 9750,
+		},
+		{
+			name:              "crash reaches trigger (default) and re-anchors to stressed target",
+			pricesBySym:       crashAtBoundary,
+			triggerPct:        nil,
+			stressed:          stressedAggressive,
+			wantCurveLen:      6,
+			wantAsymmetricEnd: 8257.14,
+			wantRebalancedEnd: 7892.86,
+			wantBuyAndHoldEnd: 8000,
+		},
+		{
+			name:              "hysteresis keeps stressed after drawdown recovers below trigger",
+			pricesBySym:       recoverBelowTrigger,
+			triggerPct:        fp(10),
+			stressed:          stressedAggressive,
+			wantCurveLen:      7,
+			wantAsymmetricEnd: 9668.89,
+			wantRebalancedEnd: 9922.22,
+			wantBuyAndHoldEnd: 9900,
+		},
+		{
+			name:              "new high clears stressed state before the next boundary",
+			pricesBySym:       recoveryNewHigh,
+			triggerPct:        fp(10),
+			stressed:          stressedAggressive,
+			wantCurveLen:      34,
+			wantAsymmetricEnd: 9411.75,
+			wantRebalancedEnd: 10839.38,
+			wantBuyAndHoldEnd: 10500,
+		},
+		{
+			name:                "stressed weights equal to normal weights match plain rebalanced",
+			pricesBySym:         crashAtBoundary,
+			triggerPct:          fp(10),
+			stressed:            stressedSame,
+			wantCurveLen:        6,
+			wantAsymmetricEnd:   7892.86,
+			wantRebalancedEnd:   7892.86,
+			wantBuyAndHoldEnd:   8000,
+			wantEqualRebalanced: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var triggerPtr *decimal.Decimal
+			if tt.triggerPct != nil {
+				trig, _ := decimal.NewFromFloat64(*tt.triggerPct)
+				triggerPtr = &trig
+			}
+
+			run := func(strategy string, stressed map[string]decimal.Decimal) []EquityCurvePoint {
+				out := SimulateEquityCurve(SimulateEquityCurveInput{
+					StartingValue:      startingValue,
+					Weights:            weights,
+					PricesBySym:        tt.pricesBySym,
+					BaseCurrency:       "USD",
+					Strategy:           strategy,
+					RebalanceInterval:  IntervalMonthly,
+					StressedWeights:    stressed,
+					DrawdownTriggerPct: triggerPtr,
+				})
+				return out.EquityCurve
+			}
+
+			asymmetric := run(StrategyRebalancedAsymmetric, tt.stressed)
+			assertCurveLen(t, tt.name+" (asymmetric)", asymmetric, tt.wantCurveLen)
+			if len(asymmetric) == 0 {
+				t.Fatalf("%s: asymmetric curve is empty", tt.name)
+			}
+			assertCurveValueApprox(t, tt.name+" (asymmetric)", asymmetric, len(asymmetric)-1, tt.wantAsymmetricEnd)
+
+			rebalanced := run(StrategyRebalanced, tt.stressed)
+			assertCurveLen(t, tt.name+" (rebalanced)", rebalanced, tt.wantCurveLen)
+			assertCurveValueApprox(t, tt.name+" (rebalanced)", rebalanced, len(rebalanced)-1, tt.wantRebalancedEnd)
+
+			if tt.wantEqualRebalanced {
+				for i := range asymmetric {
+					if !asymmetric[i].PortfolioValue.Equal(rebalanced[i].PortfolioValue) {
+						t.Errorf("%s: asymmetric[%d] = %v, want == rebalanced %v", tt.name, i, asymmetric[i].PortfolioValue, rebalanced[i].PortfolioValue)
+					}
+				}
+			}
+
+			buyAndHold := run(StrategyBuyAndHold, tt.stressed)
+			assertCurveLen(t, tt.name+" (buy-and-hold)", buyAndHold, tt.wantCurveLen)
+			assertCurveValueApprox(t, tt.name+" (buy-and-hold)", buyAndHold, len(buyAndHold)-1, tt.wantBuyAndHoldEnd)
+		})
+	}
+}
+
 // --- clipPeriod ---
 
 func TestClipPeriod(t *testing.T) {

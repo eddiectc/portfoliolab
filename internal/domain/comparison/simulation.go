@@ -19,9 +19,15 @@ type ModelPortfolioWeight struct {
 
 // Allocation strategies for SimulateEquityCurve.
 const (
-	StrategyBuyAndHold = "buy_and_hold" // each position is held from the start (default)
-	StrategyRebalanced = "rebalanced"   // positions are re-anchored to target weights at interval boundaries
+	StrategyBuyAndHold           = "buy_and_hold"          // each position is held from the start (default)
+	StrategyRebalanced           = "rebalanced"            // positions are re-anchored to target weights at interval boundaries
+	StrategyRebalancedAsymmetric = "rebalanced_asymmetric" // target weights depend on the drawdown from the high-water mark
 )
+
+// DefaultDrawdownTriggerPct is the default drawdown trigger for the
+// StrategyRebalancedAsymmetric strategy, in percentage points from the
+// high-water mark.
+var DefaultDrawdownTriggerPct = decimal.MustParse("10")
 
 // Rebalance intervals for the rebalanced strategy.
 const (
@@ -54,6 +60,15 @@ type SimulateEquityCurveInput struct {
 	// at least this amount. Nil means rebalance unconditionally at every
 	// boundary.
 	RebalanceThresholdPct *decimal.Decimal
+	// StressedWeights is the target weight of the stressed model portfolio,
+	// keyed by symbol. Only used when Strategy is
+	// StrategyRebalancedAsymmetric; the keys must match the symbols in
+	// Weights exactly (validated by the caller).
+	StressedWeights map[string]decimal.Decimal
+	// DrawdownTriggerPct is the drawdown trigger, in percentage points from
+	// the high-water mark (e.g. 10 = 10%). Only used when Strategy is
+	// StrategyRebalancedAsymmetric; nil means DefaultDrawdownTriggerPct.
+	DrawdownTriggerPct *decimal.Decimal
 }
 
 // SimulateEquityCurveOutput holds the results of the simulation.
@@ -93,6 +108,14 @@ type EquityCurvePoint struct {
 // the first trading day on or after each interval boundary (strictly after
 // the first trading day of the period), subject to an optional drift
 // threshold.
+//
+// The asymmetric strategy (StrategyRebalancedAsymmetric) uses the same
+// interval and drift-threshold mechanics, but the target weights depend on
+// the drawdown from the high-water mark: the normal weights are the target
+// while the drawdown is below DrawdownTriggerPct, and the stressed weights
+// (StressedWeights) are the target once the drawdown reaches the trigger.
+// The stressed state persists until the simulated value returns to its
+// high-water mark (a new high).
 //
 // The period is clipped to the intersection of available data across all
 // symbols. Symbols with no price data are listed in warnings.
@@ -171,7 +194,7 @@ func SimulateEquityCurve(input SimulateEquityCurveInput) *SimulateEquityCurveOut
 
 	// Compute daily portfolio values.
 	curve := computeDailyValues(input.StartingValue, input.Weights, input.BaseCurrency, dates, priceLookup, fxLookup,
-		input.Strategy, input.RebalanceInterval, input.RebalanceThresholdPct)
+		input.Strategy, input.RebalanceInterval, input.RebalanceThresholdPct, input.StressedWeights, input.DrawdownTriggerPct)
 
 	return &SimulateEquityCurveOutput{
 		EquityCurve:           curve,
@@ -408,10 +431,16 @@ func collectDatesInRange(weights []ModelPortfolioWeight, priceLookup map[string]
 // a boundary rebalance when no position has drifted from its target by at
 // least the threshold.
 //
+// Asymmetric: same mechanics, but the target weights on a rebalance day are
+// the stressed weights while the portfolio is in the stressed state (drawdown
+// from the high-water mark reached the trigger) and the normal weights
+// otherwise. The stressed state persists until the value returns to its
+// high-water mark (hysteresis).
+//
 // Missing prices are forward-filled from the last known close, so gaps
 // in market data (weekends, holidays, sparse sources) do not cause
 // artificial portfolio value drops.
-func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, priceLookup map[string]map[string]market.HistoricalPrice, fxLookup map[string]*ffLookup[decimal.Decimal], strategy string, rebalanceInterval string, thresholdPct *decimal.Decimal) []EquityCurvePoint {
+func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, priceLookup map[string]map[string]market.HistoricalPrice, fxLookup map[string]*ffLookup[decimal.Decimal], strategy string, rebalanceInterval string, thresholdPct *decimal.Decimal, stressedWeights map[string]decimal.Decimal, drawdownTriggerPct *decimal.Decimal) []EquityCurvePoint {
 	curve := make([]EquityCurvePoint, 0, len(dates))
 
 	// Build forward-fill price lookup for gap handling.
@@ -440,6 +469,9 @@ func computeDailyValues(startingValue decimal.Decimal, weights []ModelPortfolioW
 
 	if strategy == StrategyRebalanced {
 		return computeRebalancedValues(startingValue, weights, baseCurrency, dates, ff, basePrices, fxLookup, rebalanceInterval, thresholdPct)
+	}
+	if strategy == StrategyRebalancedAsymmetric {
+		return computeAsymmetricValues(startingValue, weights, baseCurrency, dates, ff, basePrices, fxLookup, rebalanceInterval, thresholdPct, stressedWeights, drawdownTriggerPct)
 	}
 
 	for _, date := range dates {
@@ -532,38 +564,7 @@ func computeRebalancedValues(startingValue decimal.Decimal, weights []ModelPortf
 
 	for _, date := range dates {
 		dateKey := date.Format("2006-01-02")
-		var totalValue decimal.Decimal
-		dayValues := make(map[string]decimal.Decimal, len(states))
-
-		for _, w := range weights {
-			st, ok := states[w.MarketSym]
-			if !ok {
-				continue
-			}
-			price, ok := ff[w.MarketSym].lookup(dateKey)
-			if !ok || !st.anchor.Close.IsPos() {
-				continue
-			}
-			// Position value: allocated * (price[date] / anchorPrice).
-			priceF, _ := price.Close.Float64()
-			baseF, _ := st.anchor.Close.Float64()
-			ratio, _ := decimal.NewFromFloat64(priceF / baseF)
-			value, _ := st.allocated.Mul(ratio)
-
-			// Convert to base currency if needed.
-			if price.Currency != "" && price.Currency != baseCurrency {
-				pair := market.FormatFxPair(price.Currency, baseCurrency)
-				converted, ok := convertWithFxLookup(fxLookup, pair, value, date)
-				if !ok {
-					// No FX data — skip this symbol's value.
-					continue
-				}
-				value = converted
-			}
-
-			dayValues[w.MarketSym] = value
-			totalValue, _ = totalValue.Add(value)
-		}
+		totalValue, dayValues := dayPortfolioValues(weights, states, date, dateKey, ff, fxLookup, baseCurrency)
 
 		curve = append(curve, EquityCurvePoint{
 			Date:           date,
@@ -578,6 +579,139 @@ func computeRebalancedValues(startingValue decimal.Decimal, weights []ModelPortf
 	}
 
 	return curve
+}
+
+// dayPortfolioValues computes the base-currency value of every position on the
+// given date from the current position states, returning the total portfolio
+// value and the per-symbol values.
+func dayPortfolioValues(weights []ModelPortfolioWeight, states map[string]*positionState, date time.Time, dateKey string, ff map[string]*ffLookup[market.HistoricalPrice], fxLookup map[string]*ffLookup[decimal.Decimal], baseCurrency string) (decimal.Decimal, map[string]decimal.Decimal) {
+	var totalValue decimal.Decimal
+	dayValues := make(map[string]decimal.Decimal, len(states))
+
+	for _, w := range weights {
+		st, ok := states[w.MarketSym]
+		if !ok {
+			continue
+		}
+		price, ok := ff[w.MarketSym].lookup(dateKey)
+		if !ok || !st.anchor.Close.IsPos() {
+			continue
+		}
+		// Position value: allocated * (price[date] / anchorPrice).
+		priceF, _ := price.Close.Float64()
+		baseF, _ := st.anchor.Close.Float64()
+		ratio, _ := decimal.NewFromFloat64(priceF / baseF)
+		value, _ := st.allocated.Mul(ratio)
+
+		// Convert to base currency if needed.
+		if price.Currency != "" && price.Currency != baseCurrency {
+			pair := market.FormatFxPair(price.Currency, baseCurrency)
+			converted, ok := convertWithFxLookup(fxLookup, pair, value, date)
+			if !ok {
+				// No FX data — skip this symbol's value.
+				continue
+			}
+			value = converted
+		}
+
+		dayValues[w.MarketSym] = value
+		totalValue, _ = totalValue.Add(value)
+	}
+
+	return totalValue, dayValues
+}
+
+// computeAsymmetricValues computes the equity curve for a model portfolio
+// using the asymmetric rebalancing strategy. Positions start anchored to the
+// normal target weights and are re-anchored on rebalance days to the target
+// in effect that day: the normal weights while the drawdown from the
+// high-water mark is below the trigger, and the stressed weights once the
+// drawdown reaches the trigger.
+//
+// Hysteresis: the stressed state persists even if the drawdown temporarily
+// falls back below the trigger; it ends only when the simulated value returns
+// to its high-water mark (a new high). The high-water mark is the maximum of
+// the starting value and the simulated total value on each day. State is
+// evaluated every day; the target switch affects only the rebalance-day
+// re-anchoring (drift is measured against the target in effect on the check
+// date).
+func computeAsymmetricValues(startingValue decimal.Decimal, weights []ModelPortfolioWeight, baseCurrency string, dates []time.Time, ff map[string]*ffLookup[market.HistoricalPrice], basePrices map[string]market.HistoricalPrice, fxLookup map[string]*ffLookup[decimal.Decimal], rebalanceInterval string, thresholdPct *decimal.Decimal, stressedWeights map[string]decimal.Decimal, drawdownTriggerPct *decimal.Decimal) []EquityCurvePoint {
+	curve := make([]EquityCurvePoint, 0, len(dates))
+
+	rebalanceDays := rebalanceDays(rebalanceInterval, dates)
+	thresholdFrac, hasThreshold := thresholdAsFraction(thresholdPct)
+
+	trigger := drawdownTriggerPct
+	if trigger == nil {
+		trigger = &DefaultDrawdownTriggerPct
+	}
+	triggerFrac, _ := thresholdAsFraction(trigger)
+
+	states := make(map[string]*positionState, len(weights))
+	for _, w := range weights {
+		bp, ok := basePrices[w.MarketSym]
+		if !ok || !bp.Close.IsPos() {
+			continue
+		}
+		allocated, _ := startingValue.Mul(w.Weight)
+		states[w.MarketSym] = &positionState{allocated: allocated, anchor: bp}
+	}
+
+	hwm := startingValue
+	stressed := false
+
+	for _, date := range dates {
+		dateKey := date.Format("2006-01-02")
+		totalValue, dayValues := dayPortfolioValues(weights, states, date, dateKey, ff, fxLookup, baseCurrency)
+
+		curve = append(curve, EquityCurvePoint{
+			Date:           date,
+			PortfolioValue: totalValue,
+			NavPerUnit:     &totalValue, // model portfolio: single deposit, NAV == value
+		})
+
+		// Update the high-water mark (the day-0 starting value counts).
+		if totalValue.Cmp(hwm) > 0 {
+			hwm = totalValue
+		}
+
+		// Hysteresis: enter the stressed state when the drawdown from the
+		// high-water mark reaches the trigger; leave it only on a new high.
+		if !stressed && hwm.IsPos() {
+			if diff, err := hwm.Sub(totalValue); err == nil {
+				if drawdown, err := diff.Quo(hwm); err == nil && drawdown.Cmp(triggerFrac) >= 0 {
+					stressed = true
+				}
+			}
+		}
+		if stressed && totalValue.Cmp(hwm) >= 0 {
+			stressed = false
+		}
+
+		targets := weights
+		if stressed {
+			targets = stressedWeightsList(weights, stressedWeights)
+		}
+
+		// Re-anchor on rebalance days using the target in effect today.
+		if rebalanceDays[dateKey] && totalValue.IsPos() && driftExceeds(targets, dayValues, totalValue, thresholdFrac, hasThreshold) {
+			reanchorToTargets(states, targets, dayValues, totalValue, ff, fxLookup, baseCurrency, dateKey)
+		}
+	}
+
+	return curve
+}
+
+// stressedWeightsList derives the effective target weight list from the
+// normal weights with each weight replaced by its stressed counterpart. The
+// component sets are validated to match by the caller.
+func stressedWeightsList(weights []ModelPortfolioWeight, stressed map[string]decimal.Decimal) []ModelPortfolioWeight {
+	list := make([]ModelPortfolioWeight, len(weights))
+	for i, w := range weights {
+		w.Weight = stressed[w.Symbol]
+		list[i] = w
+	}
+	return list
 }
 
 // rebalanceDays returns the set of trading-day keys on which a rebalance

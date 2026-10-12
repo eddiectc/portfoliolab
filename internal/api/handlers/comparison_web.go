@@ -54,6 +54,10 @@ type comparisonFilter struct {
 	Strategy              string
 	RebalanceInterval     string
 	RebalanceThresholdPct string
+	// Asymmetric strategy parameters (model portfolios only).
+	StressedAID        int64
+	StressedBID        int64
+	DrawdownTriggerPct string
 }
 
 // yearlyReturnRow holds a merged yearly return for template display.
@@ -61,6 +65,13 @@ type yearlyReturnRow struct {
 	Year    int
 	ReturnA *float64
 	ReturnB *float64
+}
+
+// stressedWeightRow holds a component weight for the read-only stressed
+// portfolio weight tables on the comparison page.
+type stressedWeightRow struct {
+	Symbol    string
+	WeightPct float64
 }
 
 // comparisonPageData is the data struct for the comparison page template.
@@ -98,6 +109,14 @@ type comparisonPageData struct {
 	SelectedStrategy           string
 	SelectedRebalanceInterval  string
 	SelectedRebalanceThreshold string
+	SelectedStressedAID        string
+	SelectedStressedBID        string
+	SelectedDrawdownTrigger    string
+	// Stressed portfolio selections (asymmetric strategy only).
+	StressedPortfolioAName string
+	StressedPortfolioBName string
+	StressedWeightsA       []stressedWeightRow
+	StressedWeightsB       []stressedWeightRow
 	// Effective period (intersection of both portfolios' data ranges).
 	EffectiveDateFrom *time.Time
 	EffectiveDateTo   *time.Time
@@ -106,9 +125,10 @@ type comparisonPageData struct {
 }
 
 // comparisonModelPortfolioSelector defines the methods needed to fetch model
-// portfolios for the dropdown selector.
+// portfolios for the dropdown selector and the stressed portfolio weight tables.
 type comparisonModelPortfolioSelector interface {
 	GetAllForSelector(ctx context.Context) ([]modelportfolio.ModelPortfolioSummary, error)
+	Get(ctx context.Context, id int64) (modelportfolio.ModelPortfolio, error)
 }
 
 // ComparisonWebHandler handles server-rendered comparison pages.
@@ -221,6 +241,19 @@ func (h *ComparisonWebHandler) buildPageData(
 	if rebalanceInterval == "" {
 		rebalanceInterval = comparison.IntervalQuarterly
 	}
+	// Display default for the drawdown trigger (service default is 10).
+	drawdownTrigger := filter.DrawdownTriggerPct
+	if drawdownTrigger == "" {
+		drawdownTrigger = "10"
+	}
+
+	// Stressed portfolio weight tables (asymmetric strategy only).
+	var stressedWeightsA, stressedWeightsB []stressedWeightRow
+	var stressedNameA, stressedNameB string
+	if filter.Strategy == comparison.StrategyRebalancedAsymmetric {
+		stressedWeightsA, stressedNameA = h.fetchStressedWeights(r.Context(), filter.StressedAID)
+		stressedWeightsB, stressedNameB = h.fetchStressedWeights(r.Context(), filter.StressedBID)
+	}
 
 	pd := comparisonPageData{
 		PageData:                   web.PageData{Title: "Portfolio Comparison", Flash: getFlash(w, r)},
@@ -252,6 +285,13 @@ func (h *ComparisonWebHandler) buildPageData(
 		SelectedStrategy:           strategy,
 		SelectedRebalanceInterval:  rebalanceInterval,
 		SelectedRebalanceThreshold: filter.RebalanceThresholdPct,
+		SelectedStressedAID:        strconv.FormatInt(filter.StressedAID, 10),
+		SelectedStressedBID:        strconv.FormatInt(filter.StressedBID, 10),
+		SelectedDrawdownTrigger:    drawdownTrigger,
+		StressedPortfolioAName:     stressedNameA,
+		StressedPortfolioBName:     stressedNameB,
+		StressedWeightsA:           stressedWeightsA,
+		StressedWeightsB:           stressedWeightsB,
 		PeriodURLs:                 buildComparisonPeriodURLs(filter, riskFreeRate),
 	}
 	// Compute effective period as intersection of both portfolios' data ranges.
@@ -384,6 +424,19 @@ func parseComparisonFilter(query map[string][]string) comparisonFilter {
 	if vals, ok := query["rebalance_threshold_pct"]; ok && len(vals) > 0 && vals[0] != "" {
 		filter.RebalanceThresholdPct = vals[0]
 	}
+	if vals, ok := query["stressed_a_id"]; ok && len(vals) > 0 && vals[0] != "" {
+		if n, err := strconv.ParseInt(vals[0], 10, 64); err == nil {
+			filter.StressedAID = n
+		}
+	}
+	if vals, ok := query["stressed_b_id"]; ok && len(vals) > 0 && vals[0] != "" {
+		if n, err := strconv.ParseInt(vals[0], 10, 64); err == nil {
+			filter.StressedBID = n
+		}
+	}
+	if vals, ok := query["drawdown_trigger_pct"]; ok && len(vals) > 0 && vals[0] != "" {
+		filter.DrawdownTriggerPct = vals[0]
+	}
 
 	return filter
 }
@@ -409,6 +462,19 @@ func buildComparisonRequest(f comparisonFilter) comparison.ComparisonRequest {
 	if f.RebalanceThresholdPct != "" {
 		if d, err := decimal.Parse(f.RebalanceThresholdPct); err == nil {
 			req.RebalanceThresholdPct = &d
+		}
+	}
+	if f.StressedAID != 0 {
+		id := f.StressedAID
+		req.StressedAID = &id
+	}
+	if f.StressedBID != 0 {
+		id := f.StressedBID
+		req.StressedBID = &id
+	}
+	if f.DrawdownTriggerPct != "" {
+		if d, err := decimal.Parse(f.DrawdownTriggerPct); err == nil {
+			req.DrawdownTriggerPct = &d
 		}
 	}
 	return req
@@ -439,6 +505,27 @@ func (h *ComparisonWebHandler) fetchPortfolios(ctx context.Context) []portfolio.
 		return []portfolio.Portfolio{}
 	}
 	return portfolios
+}
+
+// fetchStressedWeights returns the component weight table and name of the
+// selected stressed model portfolio. Returns nil/"" when the service is nil,
+// the ID is unset, or the fetch fails (the page still renders; a missing or
+// invalid stressed portfolio surfaces as the domain request error).
+func (h *ComparisonWebHandler) fetchStressedWeights(ctx context.Context, id int64) ([]stressedWeightRow, string) {
+	if h.modelPortfolioSvc == nil || id == 0 {
+		return nil, ""
+	}
+	mp, err := h.modelPortfolioSvc.Get(ctx, id)
+	if err != nil {
+		slog.Warn("failed to fetch stressed model portfolio for weight table", "id", id, "error", err)
+		return nil, ""
+	}
+	rows := make([]stressedWeightRow, 0, len(mp.Entries))
+	for _, e := range mp.Entries {
+		w, _ := e.WeightPct.Float64()
+		rows = append(rows, stressedWeightRow{Symbol: e.Symbol, WeightPct: w})
+	}
+	return rows, mp.Name
 }
 
 // fetchModelPortfolios returns model portfolio summaries for the dropdown selector.
@@ -492,6 +579,24 @@ func buildComparisonPeriodURLs(filter comparisonFilter, riskFreeRate string) map
 		}
 		if filter.Strategy == comparison.StrategyRebalanced {
 			url += "&strategy=" + comparison.StrategyRebalanced
+			if filter.RebalanceInterval != "" {
+				url += "&rebalance_interval=" + filter.RebalanceInterval
+			}
+			if filter.RebalanceThresholdPct != "" {
+				url += "&rebalance_threshold_pct=" + filter.RebalanceThresholdPct
+			}
+		}
+		if filter.Strategy == comparison.StrategyRebalancedAsymmetric {
+			url += "&strategy=" + comparison.StrategyRebalancedAsymmetric
+			if filter.StressedAID != 0 {
+				url += "&stressed_a_id=" + strconv.FormatInt(filter.StressedAID, 10)
+			}
+			if filter.StressedBID != 0 {
+				url += "&stressed_b_id=" + strconv.FormatInt(filter.StressedBID, 10)
+			}
+			if filter.DrawdownTriggerPct != "" {
+				url += "&drawdown_trigger_pct=" + filter.DrawdownTriggerPct
+			}
 			if filter.RebalanceInterval != "" {
 				url += "&rebalance_interval=" + filter.RebalanceInterval
 			}

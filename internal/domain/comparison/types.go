@@ -36,17 +36,33 @@ type ComparisonRequest struct {
 	// Used for Sharpe and Sortino ratios. Zero means no risk-free rate.
 	RiskFreeRatePct *decimal.Decimal
 	// Strategy selects the allocation strategy for model portfolios:
-	// "buy_and_hold" (default) or "rebalanced". Ignored for real portfolios,
-	// which are compared using actual transaction history.
+	// "buy_and_hold" (default), "rebalanced", or "rebalanced_asymmetric".
+	// Ignored for real portfolios, which are compared using actual
+	// transaction history.
 	Strategy string
 	// RebalanceInterval selects the rebalance cadence: "monthly", "quarterly",
-	// or "annual". Only used when Strategy is "rebalanced"; defaults to "quarterly".
+	// or "annual". Used when Strategy is "rebalanced" or
+	// "rebalanced_asymmetric"; defaults to "quarterly".
 	RebalanceInterval string
 	// RebalanceThresholdPct is an optional drift threshold in percentage points
 	// (e.g. 5 = 5pp). When set, a boundary rebalance only fires if any
 	// |actual − target| weight drift is at least this large; nil rebalances
-	// unconditionally at boundaries.
+	// unconditionally at boundaries. Used by the "rebalanced" and
+	// "rebalanced_asymmetric" strategies.
 	RebalanceThresholdPct *decimal.Decimal
+	// StressedAID is the ID of the stressed model portfolio (f019) for
+	// portfolio A. Only used when Strategy is "rebalanced_asymmetric" and A
+	// is a model portfolio; the stressed portfolio must contain exactly the
+	// same components as portfolio A.
+	StressedAID *int64
+	// StressedBID is the ID of the stressed model portfolio (f019) for
+	// portfolio B. See StressedAID.
+	StressedBID *int64
+	// DrawdownTriggerPct is the drawdown trigger for the asymmetric strategy,
+	// in percentage points from the high-water mark (e.g. 10 = 10%). Only
+	// used when Strategy is "rebalanced_asymmetric"; nil means the default
+	// (10%).
+	DrawdownTriggerPct *decimal.Decimal
 }
 
 // ComparisonResult is the top-level envelope returned by ComputeComparison.
@@ -65,7 +81,8 @@ type PortfolioComparison struct {
 	Name string        `json:"name"`
 	Type PortfolioType `json:"type"`
 	// Strategy is the effective allocation strategy used for this portfolio
-	// ("buy_and_hold" or "rebalanced"). Set for model portfolios only.
+	// ("buy_and_hold", "rebalanced", or "rebalanced_asymmetric"). Set for
+	// model portfolios only.
 	Strategy string `json:"strategy,omitempty"`
 	// EffectiveDateFrom and EffectiveDateTo are the actual date range used for
 	// computation, which may be narrower than the requested period due to data

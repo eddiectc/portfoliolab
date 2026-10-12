@@ -2,6 +2,7 @@ package comparison
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -2286,4 +2287,101 @@ func TestComputeComparison_EnhancedOverlap_OneSideMissingData(t *testing.T) {
 	if !hasMissingDataWarning {
 		t.Logf("No missing-data warning found (may be expected if empty data is silent). Warnings: %v", overlap.Warnings)
 	}
+}
+
+// --- Stressed Portfolio (Asymmetric Strategy) Tests ---
+
+func TestResolveStressedWeights(t *testing.T) {
+	normalWeights := []ModelPortfolioWeight{
+		{Symbol: "AAPL", Weight: decimal.MustParse("0.6"), Currency: "USD", MarketSym: "AAPL"},
+		{Symbol: "GOOG", Weight: decimal.MustParse("0.4"), Currency: "USD", MarketSym: "GOOG"},
+	}
+	stressedID := int64(3)
+
+	newSvc := func(portfolios map[int64]modelportfolio.ModelPortfolio) *Service {
+		return NewService(
+			&mockModelPortfolioSource{portfolios: portfolios},
+			nil, nil, nil, nil, nil, nil, nil,
+		)
+	}
+
+	t.Run("matching component set resolves stressed weights", func(t *testing.T) {
+		stressed := buildModelPortfolio(3, "Stressed", []modelportfolio.ModelPortfolioEntry{
+			{Symbol: "AAPL", WeightPct: decimal.MustNew(2000, 2)}, // 20.00%
+			{Symbol: "GOOG", WeightPct: decimal.MustNew(8000, 2)}, // 80.00%
+		})
+		got, err := newSvc(map[int64]modelportfolio.ModelPortfolio{3: stressed}).
+			resolveStressedWeights(ctx, normalWeights, &stressedID, "USD")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("expected 2 weights, got %d", len(got))
+		}
+		if !got["AAPL"].Equal(decimal.MustParse("0.2")) {
+			t.Errorf("AAPL stressed weight: got %v, want 0.2", got["AAPL"])
+		}
+		if !got["GOOG"].Equal(decimal.MustParse("0.8")) {
+			t.Errorf("GOOG stressed weight: got %v, want 0.8", got["GOOG"])
+		}
+	})
+
+	t.Run("stressed portfolio with extra component", func(t *testing.T) {
+		stressed := buildModelPortfolio(3, "Stressed", []modelportfolio.ModelPortfolioEntry{
+			{Symbol: "AAPL", WeightPct: decimal.MustNew(2000, 2)},
+			{Symbol: "GOOG", WeightPct: decimal.MustNew(2000, 2)},
+			{Symbol: "MSFT", WeightPct: decimal.MustNew(6000, 2)},
+		})
+		_, err := newSvc(map[int64]modelportfolio.ModelPortfolio{3: stressed}).
+			resolveStressedWeights(ctx, normalWeights, &stressedID, "USD")
+		if !errors.Is(err, ErrInvalidStressedPortfolio) {
+			t.Fatalf("expected ErrInvalidStressedPortfolio, got %v", err)
+		}
+		if !strings.Contains(err.Error(), "MSFT") {
+			t.Errorf("error should name the offending component: %v", err)
+		}
+	})
+
+	t.Run("stressed portfolio missing a component", func(t *testing.T) {
+		stressed := buildModelPortfolio(3, "Stressed", []modelportfolio.ModelPortfolioEntry{
+			{Symbol: "AAPL", WeightPct: decimal.MustNew(10000, 2)},
+		})
+		_, err := newSvc(map[int64]modelportfolio.ModelPortfolio{3: stressed}).
+			resolveStressedWeights(ctx, normalWeights, &stressedID, "USD")
+		if !errors.Is(err, ErrInvalidStressedPortfolio) {
+			t.Fatalf("expected ErrInvalidStressedPortfolio, got %v", err)
+		}
+		if !strings.Contains(err.Error(), "GOOG") {
+			t.Errorf("error should name the missing component: %v", err)
+		}
+	})
+
+	t.Run("nil stressed id", func(t *testing.T) {
+		_, err := newSvc(nil).resolveStressedWeights(ctx, normalWeights, nil, "USD")
+		if !errors.Is(err, ErrInvalidStressedPortfolio) {
+			t.Fatalf("expected ErrInvalidStressedPortfolio, got %v", err)
+		}
+	})
+
+	t.Run("unavailable model portfolio source is not a sentinel error", func(t *testing.T) {
+		svc := NewService(nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.resolveStressedWeights(ctx, normalWeights, &stressedID, "USD")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if errors.Is(err, ErrInvalidStressedPortfolio) {
+			t.Errorf("infra error should not map to INVALID_STRESSED_PORTFOLIO: %v", err)
+		}
+	})
+
+	t.Run("nonexistent stressed portfolio is not a sentinel error", func(t *testing.T) {
+		_, err := newSvc(map[int64]modelportfolio.ModelPortfolio{}).
+			resolveStressedWeights(ctx, normalWeights, &stressedID, "USD")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if errors.Is(err, ErrInvalidStressedPortfolio) {
+			t.Errorf("get error should not map to INVALID_STRESSED_PORTFOLIO: %v", err)
+		}
+	})
 }

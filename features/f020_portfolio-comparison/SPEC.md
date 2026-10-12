@@ -8,6 +8,8 @@ The comparison engine simulates a buy-and-hold strategy for model portfolios by 
 
 Users can optionally select a **rebalancing** strategy for model portfolios: the simulated portfolio is periodically rebalanced back to the target weights on a configurable interval (monthly, quarterly, or annual — default quarterly), with an optional drift threshold that suppresses a rebalance unless a component's weight has drifted beyond it.
 
+Users can also select an **asymmetric rebalancing** strategy for model portfolios: the target weights depend on the portfolio's drawdown from its high-water mark. While the drawdown is below a configurable trigger (default 10%), the portfolio's normal weights are the target. Once the drawdown reaches or exceeds the trigger, the target switches to the weights of a selected **stressed model portfolio** (a separate f019 model portfolio containing exactly the same components); the portfolio stays in the stressed state until its simulated value returns to its high-water mark, at which point the target reverts to the normal weights. The interval and drift-threshold mechanics are the same as the rebalancing strategy.
+
 ## User Stories
 
 ### US-1: Compare Two Portfolios
@@ -21,6 +23,9 @@ As an investor, I want to select the base currency and starting value for the co
 
 ### US-4: Choose Comparison Strategy
 As an investor, I want to choose between buy-and-hold and periodic rebalancing as the simulation strategy for model portfolios, so that I can evaluate whether periodic rebalancing improves performance or risk characteristics relative to simply holding the initial allocation.
+
+### US-5: Use Drawdown-Aware Asymmetric Rebalancing
+As an investor, I want the simulated model portfolio to switch between its normal target weights and the target weights of a selected stressed model portfolio based on its drawdown from its high-water mark, so that I can evaluate whether defensive de-risking during drawdowns improves performance or risk characteristics relative to static periodic rebalancing.
 
 ## Scenarios
 
@@ -141,10 +146,38 @@ As an investor, I want to choose between buy-and-hold and periodic rebalancing a
 **Then** if no component's actual weight has deviated from its target weight by at least the threshold (in percentage points), the portfolio is not rebalanced on that date
 **And** if any component's deviation is at least the threshold, all components are rebalanced back to their target weights on that date
 
+### Scenario: Compare model portfolios with the asymmetric rebalancing strategy
+**Given** a model portfolio with normal weights and a stressed model portfolio (f019) containing exactly the same components
+**When** I select the asymmetric rebalancing strategy for the comparison with the stressed model portfolio assigned
+**Then** the simulation tracks the running maximum (high-water mark) of the simulated total portfolio value since the start of the period
+**And** while the portfolio's drawdown from the high-water mark is below the drawdown trigger (default 10%), the target weights are the normal weights
+**And** once the drawdown reaches or exceeds the trigger, the target weights switch to the stressed model portfolio's weights
+**And** the portfolio stays in the stressed state even if the drawdown temporarily falls back below the trigger; the target reverts to the normal weights only when the simulated value returns to its high-water mark (a new high)
+**And** on each interval check (the first trading day on or after the interval boundary, as with the rebalancing strategy), if any component has drifted by at least the drift threshold from the target weights in effect on that date, all components are rebalanced to those target weights
+**And** all metrics (returns, risk, drawdown, correlation, overlap) are computed from the resulting equity curve
+
+### Scenario: Stressed model portfolio with a different component set
+**Given** a model portfolio is selected for a side of the comparison and the asymmetric rebalancing strategy is selected
+**When** the assigned stressed model portfolio contains different components than the normal portfolio
+**Then** the comparison is rejected with an error stating that the stressed portfolio must contain exactly the same components
+
+### Scenario: Asymmetric rebalancing never entering the stressed state
+**Given** the asymmetric rebalancing strategy is selected
+**When** the simulated portfolio's drawdown from its high-water mark never reaches the drawdown trigger
+**Then** the equity curve is identical to the plain rebalanced strategy with the same interval and drift threshold
+
+### Scenario: Configure asymmetric rebalancing in the comparison UI
+**Given** the asymmetric rebalancing strategy is selected and a model portfolio is chosen for a side of the comparison
+**When** I view the comparison setup
+**Then** for each side I see a selector for choosing the stressed model portfolio from the existing model portfolios
+**And** once a stressed model portfolio is chosen, its components and weights are shown in a read-only table
+**And** the drawdown trigger is shown with its default value (10%)
+**And** changing the stressed portfolio selection, the drawdown trigger, or the interval/threshold and re-running the comparison recomputes both curves with the new values
+
 ### Scenario: Strategy applies to model portfolios only
 **Given** the comparison includes a real portfolio
-**When** the rebalancing strategy is selected
-**Then** the model portfolio is simulated with the rebalancing strategy
+**When** a strategy other than buy-and-hold (rebalanced or rebalanced-asymmetric) is selected
+**Then** the model portfolio is simulated with the selected strategy
 **And** the real portfolio is computed from its actual transaction history and is unaffected by the strategy selection
 
 ### Scenario: Handle symbols with shorter history
@@ -183,6 +216,11 @@ As an investor, I want to choose between buy-and-hold and periodic rebalancing a
 - **Starting value configurable** — The default starting value is 10,000 but the user can configure a different amount
 - **Drift threshold suppresses all rebalances** — If no component's weight ever deviates from target by the threshold, the rebalanced equity curve is identical to the buy-and-hold curve
 - **Rebalance boundary falls on a non-trading day** — The rebalance is executed on the first trading day on or after the boundary; if the period ends before any trading day on/after a boundary, no rebalance occurs
+- **Asymmetric: stressed weights equal to normal weights** — If the stressed model portfolio has identical weights to the normal portfolio, the asymmetric equity curve is identical to the plain rebalanced curve with the same interval and drift threshold
+- **Asymmetric: state change between check dates** — A switch between the normal and stressed target (drawdown reaching the trigger, or the value returning to its high-water mark) takes effect only at the next interval check; the equity curve between checks is unaffected
+- **Asymmetric: recovery after the last check** — If the portfolio recovers toward its high-water mark after the final interval check of the period, no further rebalance occurs; the last rebalance used the target in effect on the last check date
+- **Asymmetric: no new high during the period** — If the portfolio never exceeds its starting value, the high-water mark stays at the starting value and drawdown is measured against it
+- **Asymmetric: stressed portfolio with a different component set** — Assigning a stressed model portfolio whose components do not exactly match the normal portfolio's is rejected with an error (400 via the API)
 
 ## Constraints
 
@@ -191,6 +229,12 @@ As an investor, I want to choose between buy-and-hold and periodic rebalancing a
 - Rebalance intervals: monthly, quarterly, or annual; the default interval is quarterly
 - Rebalancing occurs on the first trading day on or after the interval boundary (quarter starts: Jan 1, Apr 1, Jul 1, Oct 1; month starts: 1st of each month; year start: Jan 1)
 - The optional drift threshold is expressed in percentage points of weight; when set, a rebalance at a boundary happens only if at least one component's actual weight deviates from target by at least the threshold, and when it fires all components are reset to target weights
+- Asymmetric rebalancing applies to model portfolios only, the same as the rebalancing strategy; each model portfolio being simulated requires a stressed model portfolio (f019) containing exactly the same components
+- Stressed weights are the target weights of the selected stressed model portfolio; as with all f019 model portfolios they sum to 100
+- The drawdown trigger is a percentage of the high-water mark, default 10%; the stressed state is entered when the drawdown reaches or exceeds the trigger and is left only when the simulated value returns to its high-water mark (a new high)
+- The high-water mark is the maximum simulated total portfolio value since the start of the comparison period (the starting value on day 0 counts)
+- The interval and drift-threshold parameters behave identically to the rebalancing strategy; the drift on a check date is measured against the target weights in effect on that date
+- The stressed model portfolio selection and the drawdown trigger are comparison request parameters; the association is not persisted on either portfolio (the stressed portfolio itself is created and managed under f019)
 - Rebalancing is modeled without transaction costs (no fees, spreads, or slippage), consistent with the transaction-cost non-goal
 - Starting value defaults to 10,000 in the selected base currency; user can configure a different amount
 - The Sharpe ratio uses daily returns annualized (multiplied by √252)
@@ -209,6 +253,9 @@ As an investor, I want to choose between buy-and-hold and periodic rebalancing a
 
 - **Real-time paper trading** — Comparison is historical analysis only, not live tracking
 - **Rebalancing of real portfolios** — The rebalancing strategy affects model portfolio simulation only; real portfolios always use their actual transaction history
+- **Configurable recovery level** — Leaving the stressed state is fixed to full recovery to the high-water mark (a new high); there is no lower configurable recovery threshold
+- **Ad-hoc stressed weight entry in the comparison UI** — The stressed target must be an existing f019 model portfolio; its weights are managed there, not typed into the comparison setup
+- **Persisting the stressed association** — The stressed portfolio selection and the drawdown trigger are per-comparison parameters, not part of the model portfolio definition (f019)
 - **Transaction cost modeling** — No fees, spreads, or slippage are simulated (including in rebalancing)
 - **Tax lot simulation** — No tax implications are considered
 - **Margin or leverage** — The simulation assumes full cash purchase

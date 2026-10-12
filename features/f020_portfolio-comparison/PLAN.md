@@ -150,6 +150,25 @@ Tasks 1-2 are independent foundations. Task 3 depends on both. Tasks 4-5 can pro
 
 ---
 
+### Task 9: Asymmetric Rebalancing Strategy (feature revision, 2026-09-22) [PRIORITY: HIGH]
+**Corresponds to:** US-5, scenarios "Compare model portfolios with the asymmetric rebalancing strategy", "Stressed model portfolio with a different component set", "Configure asymmetric rebalancing in the comparison UI", and the asymmetric edge cases
+
+**Description:** Add a third strategy `rebalanced_asymmetric` for model portfolio simulation. The target weights depend on the drawdown from the high-water mark (HWM): while the drawdown is below `drawdown_trigger_pct` (default 10), the normal weights are the target. Once the drawdown reaches or exceeds the trigger, the weights of the selected **stressed model portfolio** (f019, same component set) become the target; the stressed state persists until the simulated value returns to the HWM (a new high). The interval and drift threshold behave identically to the `rebalanced` strategy; drift is measured against the target in effect on the check date. Buy-and-hold and plain rebalanced behavior are unchanged.
+
+- [x] Add `StrategyRebalancedAsymmetric = "rebalanced_asymmetric"` in `types.go`; extend `ComparisonRequest` with `StressedAID`/`StressedBID *int64` and `DrawdownTriggerPct *decimal.Decimal`
+- [x] `simulation.go`: extend `SimulateEquityCurveInput` with `StressedWeights map[string]decimal.Decimal` and `DrawdownTriggerPct *decimal.Decimal`; track the HWM (running max including the day-0 starting value) and a hysteresis state (normal → stressed when drawdown ≥ trigger; stressed → normal only on a new high); on check dates re-anchor using the target in effect on that date (same drift-threshold rule as rebalanced)
+- [x] `service.go`: for each model side under the asymmetric strategy, resolve the stressed model portfolio via the existing `ModelPortfolioSource.Get`; validate the stressed portfolio has exactly the same component set as the normal portfolio (error otherwise); default the trigger to 10 when unset; thread through `resolveModelPortfolio` into the simulation input
+- [x] Table-driven unit tests in `simulation_test.go`: HWM tracking, entering stressed at the trigger, staying stressed while drawdown is below the trigger but above zero, exiting on a new high, identical to plain rebalanced when stressed weights equal normal weights, identical to rebalanced when the trigger is never reached
+- [x] API handler (`comparison.go`): parse and validate `stressed_a_id`, `stressed_b_id`, `drawdown_trigger_pct` (`INVALID_STRESSED_PORTFOLIO`, `INVALID_DRAWDOWN_TRIGGER`); require a stressed portfolio for each model side when `strategy=rebalanced_asymmetric`; handler tests (including the same-component-set 400)
+- [x] Web handler (`comparison_web.go`): filter fields, stressed model portfolio selector options, read-only component/weight tables of the selected stressed portfolios in page data, `buildComparisonRequest`, URL serialization in `buildComparisonPeriodURLs`; web handler tests
+- [x] Template (`comparison/index.html`): "Rebalanced (asymmetric)" option in the strategy selector; per-side stressed portfolio dropdown + drawdown trigger input (visible only when asymmetric is selected); read-only weight table for each stressed selection; JS visibility toggling
+- [x] Integration test: `GET /api/comparison` with `strategy=rebalanced_asymmetric` and a seeded price crash ≥ trigger returns an equity curve different from both `buy_and_hold` and `rebalanced`; stressed portfolio with a different component set → 400
+- [x] Update `API.md` — `GET /api/comparison` query params + error codes
+
+**Verification:** `go test ./internal/domain/comparison/ ./internal/api/handlers/ ./tests/integration/` passes; `buy_and_hold` and `rebalanced` results are unchanged (byte-identical equity curves). Full suite green 2026-09-22: `gofmt -l` clean, `go build ./...` clean, `go test ./...` → 3832 passed in 43 packages.
+
+---
+
 ## Technical Decisions
 
 | Decision | Options | Recommendation | Reason |

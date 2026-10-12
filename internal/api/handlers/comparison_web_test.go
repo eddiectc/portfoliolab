@@ -167,6 +167,77 @@ func TestComparisonWebHandler_RenderPageRebalancedStrategy(t *testing.T) {
 	}
 }
 
+func TestComparisonWebHandler_RenderPageAsymmetricStrategy(t *testing.T) {
+	result := &comparison.ComparisonResult{
+		PortfolioA: &comparison.PortfolioComparison{ID: 1, Name: "Model A", Type: comparison.PortTypeModel},
+		PortfolioB: &comparison.PortfolioComparison{ID: 2, Name: "Model B", Type: comparison.PortTypeModel},
+	}
+	mockSvc := &mockComparisonService{result: result}
+	apiHandler := NewComparisonHandler(mockSvc)
+	renderer := newTestRenderer(t)
+	selector := &mockComparisonModelPortfolioSelector{
+		summaries: []modelportfolio.ModelPortfolioSummary{
+			{ID: 5, Name: "Stressed A MP"},
+			{ID: 6, Name: "Stressed B MP"},
+		},
+		portfolio: modelportfolio.ModelPortfolio{
+			ID:   5,
+			Name: "Stressed",
+			Entries: []modelportfolio.ModelPortfolioEntry{
+				{Symbol: "MSFT", WeightPct: decimal.MustParse("30")},
+				{Symbol: "AGG", WeightPct: decimal.MustParse("70")},
+			},
+		},
+	}
+	webHandler := NewComparisonWebHandler(apiHandler, nil, selector, renderer)
+
+	router := chi.NewRouter()
+	webHandler.RegisterRoutes(router)
+
+	req := httptest.NewRequest("GET", "/comparison?portfolio_a_id=m1&portfolio_b_id=m2&period=1Y&strategy=rebalanced_asymmetric&stressed_a_id=5&stressed_b_id=6&drawdown_trigger_pct=15&rebalance_interval=monthly&rebalance_threshold_pct=5", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	// Strategy select shows asymmetric as selected.
+	checkComparisonContains(t, body, `<option value="rebalanced_asymmetric" selected`)
+	// Stressed target selects exist with the selected option.
+	checkComparisonContains(t, body, `Stressed A`)
+	checkComparisonContains(t, body, `Stressed B`)
+	checkComparisonContains(t, body, `<option value="5" selected>Stressed A MP</option>`)
+	checkComparisonContains(t, body, `<option value="6" selected>Stressed B MP</option>`)
+	// Trigger input carries the value.
+	checkComparisonContains(t, body, `value="15"`)
+	// Stressed target weight tables render with the portfolio name and weights.
+	checkComparisonContains(t, body, "Stressed Target Weights")
+	checkComparisonContains(t, body, "Side A — Stressed")
+	checkComparisonContains(t, body, "MSFT")
+	checkComparisonContains(t, body, "30.00")
+	checkComparisonContains(t, body, "AGG")
+	checkComparisonContains(t, body, "70.00")
+	// Period button URLs carry the asymmetric params.
+	checkComparisonContains(t, body, "strategy=rebalanced_asymmetric")
+	checkComparisonContains(t, body, "stressed_a_id=5")
+	checkComparisonContains(t, body, "stressed_b_id=6")
+	checkComparisonContains(t, body, "drawdown_trigger_pct=15")
+	// Service received the asymmetric params.
+	if mockSvc.req.Strategy != comparison.StrategyRebalancedAsymmetric {
+		t.Errorf("service request strategy: got %q", mockSvc.req.Strategy)
+	}
+	if mockSvc.req.StressedAID == nil || *mockSvc.req.StressedAID != 5 {
+		t.Errorf("service request StressedAID: got %v", mockSvc.req.StressedAID)
+	}
+	if mockSvc.req.StressedBID == nil || *mockSvc.req.StressedBID != 6 {
+		t.Errorf("service request StressedBID: got %v", mockSvc.req.StressedBID)
+	}
+	if mockSvc.req.DrawdownTriggerPct == nil || !mockSvc.req.DrawdownTriggerPct.Equal(decimal.MustParse("15")) {
+		t.Errorf("service request trigger: got %v", mockSvc.req.DrawdownTriggerPct)
+	}
+}
+
 func TestComparisonWebHandler_RenderPageStrategyControlsHiddenByDefault(t *testing.T) {
 	result := &comparison.ComparisonResult{
 		PortfolioA: &comparison.PortfolioComparison{ID: 1, Name: "Model A", Type: comparison.PortTypeModel},
@@ -377,6 +448,136 @@ func TestBuildComparisonRequest_StrategyParams(t *testing.T) {
 		req := buildComparisonRequest(comparisonFilter{})
 		if req.Strategy != "" || req.RebalanceInterval != "" || req.RebalanceThresholdPct != nil {
 			t.Errorf("expected empty strategy params, got %+v", req)
+		}
+	})
+}
+
+func TestParseComparisonFilter_AsymmetricParams(t *testing.T) {
+	t.Run("asymmetric with stressed ids and trigger", func(t *testing.T) {
+		query := map[string][]string{
+			"portfolio_a_id":       {"m1"},
+			"portfolio_b_id":       {"m2"},
+			"strategy":             {"rebalanced_asymmetric"},
+			"stressed_a_id":        {"7"},
+			"stressed_b_id":        {"9"},
+			"drawdown_trigger_pct": {"15"},
+		}
+		got := parseComparisonFilter(query)
+		if got.Strategy != "rebalanced_asymmetric" {
+			t.Errorf("Strategy: got %q", got.Strategy)
+		}
+		if got.StressedAID != 7 {
+			t.Errorf("StressedAID: got %d, want 7", got.StressedAID)
+		}
+		if got.StressedBID != 9 {
+			t.Errorf("StressedBID: got %d, want 9", got.StressedBID)
+		}
+		if got.DrawdownTriggerPct != "15" {
+			t.Errorf("DrawdownTriggerPct: got %q", got.DrawdownTriggerPct)
+		}
+	})
+	t.Run("invalid stressed ids silently ignored", func(t *testing.T) {
+		query := map[string][]string{
+			"portfolio_a_id":       {"m1"},
+			"portfolio_b_id":       {"m2"},
+			"strategy":             {"rebalanced_asymmetric"},
+			"stressed_a_id":        {"abc"},
+			"stressed_b_id":        {"12x"},
+			"drawdown_trigger_pct": {"20"},
+		}
+		got := parseComparisonFilter(query)
+		if got.StressedAID != 0 {
+			t.Errorf("StressedAID: got %d, want 0 (ignored)", got.StressedAID)
+		}
+		if got.StressedBID != 0 {
+			t.Errorf("StressedBID: got %d, want 0 (ignored)", got.StressedBID)
+		}
+		if got.DrawdownTriggerPct != "20" {
+			t.Errorf("DrawdownTriggerPct: got %q", got.DrawdownTriggerPct)
+		}
+	})
+	t.Run("absent asymmetric params", func(t *testing.T) {
+		got := parseComparisonFilter(map[string][]string{"strategy": {"rebalanced_asymmetric"}})
+		if got.StressedAID != 0 || got.StressedBID != 0 || got.DrawdownTriggerPct != "" {
+			t.Errorf("expected zero asymmetric params, got %+v", got)
+		}
+	})
+}
+
+func TestBuildComparisonRequest_AsymmetricParams(t *testing.T) {
+	t.Run("maps stressed ids and trigger", func(t *testing.T) {
+		req := buildComparisonRequest(comparisonFilter{
+			Strategy: "rebalanced_asymmetric", StressedAID: 3, StressedBID: 4, DrawdownTriggerPct: "12.5",
+		})
+		if req.StressedAID == nil || *req.StressedAID != 3 {
+			t.Errorf("StressedAID: got %v, want ptr to 3", req.StressedAID)
+		}
+		if req.StressedBID == nil || *req.StressedBID != 4 {
+			t.Errorf("StressedBID: got %v, want ptr to 4", req.StressedBID)
+		}
+		if req.DrawdownTriggerPct == nil || !req.DrawdownTriggerPct.Equal(decimal.MustParse("12.5")) {
+			t.Errorf("DrawdownTriggerPct: got %v", req.DrawdownTriggerPct)
+		}
+	})
+	t.Run("invalid trigger silently ignored", func(t *testing.T) {
+		req := buildComparisonRequest(comparisonFilter{Strategy: "rebalanced_asymmetric", DrawdownTriggerPct: "abc"})
+		if req.DrawdownTriggerPct != nil {
+			t.Errorf("expected nil trigger, got %v", req.DrawdownTriggerPct)
+		}
+	})
+	t.Run("unset ids omitted", func(t *testing.T) {
+		req := buildComparisonRequest(comparisonFilter{Strategy: "rebalanced_asymmetric"})
+		if req.StressedAID != nil || req.StressedBID != nil {
+			t.Errorf("expected nil stressed ids, got %+v", req)
+		}
+	})
+}
+
+func TestComparisonWebHandler_FetchStressedWeights(t *testing.T) {
+	t.Run("nil service returns empty", func(t *testing.T) {
+		h := &ComparisonWebHandler{modelPortfolioSvc: nil}
+		rows, name := h.fetchStressedWeights(context.TODO(), 1)
+		if rows != nil || name != "" {
+			t.Errorf("expected empty, got %v %q", rows, name)
+		}
+	})
+	t.Run("zero id returns empty", func(t *testing.T) {
+		h := &ComparisonWebHandler{modelPortfolioSvc: &mockComparisonModelPortfolioSelector{}}
+		rows, name := h.fetchStressedWeights(context.TODO(), 0)
+		if rows != nil || name != "" {
+			t.Errorf("expected empty, got %v %q", rows, name)
+		}
+	})
+	t.Run("get error returns empty", func(t *testing.T) {
+		h := &ComparisonWebHandler{modelPortfolioSvc: &mockComparisonModelPortfolioSelector{err: errors.New("not found")}}
+		rows, name := h.fetchStressedWeights(context.TODO(), 5)
+		if rows != nil || name != "" {
+			t.Errorf("expected empty, got %v %q", rows, name)
+		}
+	})
+	t.Run("maps entries to rows", func(t *testing.T) {
+		h := &ComparisonWebHandler{modelPortfolioSvc: &mockComparisonModelPortfolioSelector{
+			portfolio: modelportfolio.ModelPortfolio{
+				ID:   5,
+				Name: "Stressed",
+				Entries: []modelportfolio.ModelPortfolioEntry{
+					{Symbol: "MSFT", WeightPct: decimal.MustParse("30")},
+					{Symbol: "AGG", WeightPct: decimal.MustParse("70")},
+				},
+			},
+		}}
+		rows, name := h.fetchStressedWeights(context.TODO(), 5)
+		if name != "Stressed" {
+			t.Errorf("name: got %q, want %q", name, "Stressed")
+		}
+		if len(rows) != 2 {
+			t.Fatalf("rows: got %d, want 2", len(rows))
+		}
+		if rows[0].Symbol != "MSFT" || rows[0].WeightPct != 30 {
+			t.Errorf("row 0: got %+v", rows[0])
+		}
+		if rows[1].Symbol != "AGG" || rows[1].WeightPct != 70 {
+			t.Errorf("row 1: got %+v", rows[1])
 		}
 	})
 }
@@ -1018,9 +1219,58 @@ func TestBuildComparisonPeriodURLs_Strategy(t *testing.T) {
 			}
 		}
 	})
+	t.Run("asymmetric adds stressed params to every period URL", func(t *testing.T) {
+		filter := comparisonFilter{
+			PortfolioAID: 1, PortfolioAType: "model", PortfolioBID: 2, PortfolioBType: "model",
+			Strategy: "rebalanced_asymmetric", StressedAID: 7, StressedBID: 9,
+			DrawdownTriggerPct: "15", RebalanceInterval: "monthly", RebalanceThresholdPct: "2",
+		}
+		urls := buildComparisonPeriodURLs(filter, "0")
+		for p, u := range urls {
+			if !strings.Contains(u, "strategy=rebalanced_asymmetric") {
+				t.Errorf("period %s: missing strategy in %s", p, u)
+			}
+			if !strings.Contains(u, "stressed_a_id=7") {
+				t.Errorf("period %s: missing stressed_a_id=7 in %s", p, u)
+			}
+			if !strings.Contains(u, "stressed_b_id=9") {
+				t.Errorf("period %s: missing stressed_b_id=9 in %s", p, u)
+			}
+			if !strings.Contains(u, "drawdown_trigger_pct=15") {
+				t.Errorf("period %s: missing drawdown_trigger_pct=15 in %s", p, u)
+			}
+			if !strings.Contains(u, "rebalance_interval=monthly") {
+				t.Errorf("period %s: missing rebalance_interval=monthly in %s", p, u)
+			}
+			if !strings.Contains(u, "rebalance_threshold_pct=2") {
+				t.Errorf("period %s: missing rebalance_threshold_pct=2 in %s", p, u)
+			}
+		}
+	})
 }
 
 // --- Helpers ---
+
+// mockComparisonModelPortfolioSelector implements comparisonModelPortfolioSelector.
+type mockComparisonModelPortfolioSelector struct {
+	summaries []modelportfolio.ModelPortfolioSummary
+	portfolio modelportfolio.ModelPortfolio
+	err       error
+}
+
+func (m *mockComparisonModelPortfolioSelector) GetAllForSelector(_ context.Context) ([]modelportfolio.ModelPortfolioSummary, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.summaries, nil
+}
+
+func (m *mockComparisonModelPortfolioSelector) Get(_ context.Context, _ int64) (modelportfolio.ModelPortfolio, error) {
+	if m.err != nil {
+		return modelportfolio.ModelPortfolio{}, m.err
+	}
+	return m.portfolio, nil
+}
 
 func checkComparisonContains(t *testing.T, body, substr string) {
 	t.Helper()

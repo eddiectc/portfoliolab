@@ -896,6 +896,136 @@ func TestParseComparisonRequest_StrategyParams(t *testing.T) {
 	})
 }
 
+// --- Asymmetric strategy param tests ---
+
+func TestParseComparisonRequest_AsymmetricParams(t *testing.T) {
+	base := func() url.Values {
+		return url.Values{
+			"portfolio_a_id":   {"1"},
+			"portfolio_a_type": {"model"},
+			"portfolio_b_id":   {"2"},
+			"portfolio_b_type": {"model"},
+		}
+	}
+
+	t.Run("valid asymmetric request passes all params through", func(t *testing.T) {
+		q := base()
+		q.Set("strategy", comparison.StrategyRebalancedAsymmetric)
+		q.Set("stressed_a_id", "3")
+		q.Set("stressed_b_id", "4")
+		q.Set("drawdown_trigger_pct", "15")
+		req, err := parseComparisonRequest(q)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if req.StressedAID == nil || *req.StressedAID != 3 {
+			t.Errorf("unexpected stressed_a_id: %v", req.StressedAID)
+		}
+		if req.StressedBID == nil || *req.StressedBID != 4 {
+			t.Errorf("unexpected stressed_b_id: %v", req.StressedBID)
+		}
+		if req.DrawdownTriggerPct == nil || !req.DrawdownTriggerPct.Equal(decimal.MustParse("15")) {
+			t.Errorf("unexpected drawdown trigger: %v", req.DrawdownTriggerPct)
+		}
+	})
+
+	t.Run("invalid stressed id", func(t *testing.T) {
+		for _, param := range []string{"stressed_a_id", "stressed_b_id"} {
+			q := base()
+			q.Set(param, "abc")
+			_, err := parseComparisonRequest(q)
+			if err == nil || err.Code != "INVALID_STRESSED_PORTFOLIO" {
+				t.Errorf("%s=abc: expected INVALID_STRESSED_PORTFOLIO, got %v", param, err)
+			}
+		}
+	})
+
+	t.Run("invalid drawdown trigger", func(t *testing.T) {
+		for _, v := range []string{"abc", "-1", "101"} {
+			q := base()
+			q.Set("drawdown_trigger_pct", v)
+			_, err := parseComparisonRequest(q)
+			if err == nil || err.Code != "INVALID_DRAWDOWN_TRIGGER" {
+				t.Errorf("trigger=%s: expected INVALID_DRAWDOWN_TRIGGER, got %v", v, err)
+			}
+		}
+	})
+
+	t.Run("boundary trigger values accepted", func(t *testing.T) {
+		for _, v := range []string{"0", "100"} {
+			q := base()
+			q.Set("strategy", comparison.StrategyRebalancedAsymmetric)
+			q.Set("stressed_a_id", "3")
+			q.Set("stressed_b_id", "4")
+			q.Set("drawdown_trigger_pct", v)
+			if _, err := parseComparisonRequest(q); err != nil {
+				t.Errorf("trigger=%s: unexpected error: %v", v, err)
+			}
+		}
+	})
+
+	t.Run("asymmetric requires a stressed portfolio for each model side", func(t *testing.T) {
+		cases := []struct {
+			name   string
+			mutate func(url.Values)
+		}{
+			{"missing stressed_a_id", func(q url.Values) { q.Set("stressed_b_id", "4") }},
+			{"missing stressed_b_id", func(q url.Values) { q.Set("stressed_a_id", "3") }},
+			{"both missing", func(q url.Values) {}},
+		}
+		for _, tc := range cases {
+			q := base()
+			q.Set("strategy", comparison.StrategyRebalancedAsymmetric)
+			tc.mutate(q)
+			_, err := parseComparisonRequest(q)
+			if err == nil || err.Code != "INVALID_STRESSED_PORTFOLIO" {
+				t.Errorf("%s: expected INVALID_STRESSED_PORTFOLIO, got %v", tc.name, err)
+			}
+		}
+	})
+
+	t.Run("real side does not require a stressed portfolio", func(t *testing.T) {
+		q := base()
+		q.Set("portfolio_b_type", "real")
+		q.Set("strategy", comparison.StrategyRebalancedAsymmetric)
+		q.Set("stressed_a_id", "3")
+		if _, err := parseComparisonRequest(q); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("stressed ids optional when strategy is not asymmetric", func(t *testing.T) {
+		for _, s := range []string{"buy_and_hold", "rebalanced"} {
+			q := base()
+			q.Set("strategy", s)
+			if _, err := parseComparisonRequest(q); err != nil {
+				t.Errorf("strategy=%s: unexpected error: %v", s, err)
+			}
+		}
+	})
+}
+
+func TestComparisonHandleComparison_InvalidStressedPortfolio(t *testing.T) {
+	mockSvc := &mockComparisonService{err: fmt.Errorf("stressed portfolio 3 contains component MSFT that is not in the portfolio: %w", comparison.ErrInvalidStressedPortfolio)}
+	handler := NewComparisonHandler(mockSvc)
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/comparison?portfolio_a_id=1&portfolio_a_type=model&portfolio_b_id=2&portfolio_b_type=model&strategy=rebalanced_asymmetric&stressed_a_id=3&stressed_b_id=4", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleComparison(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+
+	var errResp APIError
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp.Code != "INVALID_STRESSED_PORTFOLIO" {
+		t.Errorf("expected INVALID_STRESSED_PORTFOLIO, got %q", errResp.Code)
+	}
+}
+
 func TestComparisonHandleComparison_StrategyPassedToService(t *testing.T) {
 	mockSvc := &mockComparisonService{result: makeTestComparisonResult()}
 	r := chi.NewRouter()
